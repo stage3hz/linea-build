@@ -86,6 +86,9 @@ final class NotePlayback {
     var onProblem: ((String) -> Void)?
     /// A circle is about to sound: the voice message goes quiet.
     var onWillPlay: (() -> Void)?
+    /// True while a take is recorded or a voice message plays: no silent loop starts then (it would have to
+    /// touch the audio session under them).
+    var holdsSilence: (() -> Bool)?
 
     init(server: Server?, list: MsgListView) {
         self.server = server
@@ -149,8 +152,15 @@ final class NotePlayback {
             }
             made.playImmediately(atRate: VoicePlayer.rate)
         } else {
+            // A silent loop must not stop what other apps play: the session mixes with them meanwhile.
+            try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
             made.play()
         }
+    }
+
+    /// A take is about to be recorded: nothing moves meanwhile.
+    func rest() {
+        drop()
     }
 
     private func reachedEnd() {
@@ -249,6 +259,7 @@ final class NotePlayback {
             drop()
         }
         if fetchForSound && fetch != nil { return }
+        if holdsSilence?() == true || MusicPlayer.shared.current != nil { return }
         for rowKey in list.visibleKeys() {
             guard let attachment = note(rowKey), list.mediaHost(rowKey) != nil else { continue }
             if let file = files[rowKey] {

@@ -51,6 +51,11 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     private static let maxFile = 20 * 1024 * 1024
     /// Called on the main queue when the rows of outgoing attachments changed.
     var onPendingChanged: (() -> Void)?
+    /// Voice/Video (Sources/Voice/ChatMedia.swift): a touched row is offered there first — a voice message, a
+    /// video, a round video, a big (chunked) file of any kind or one of its own unsent rows; true: it took it.
+    var mediaPressed: ((String) -> Bool)?
+    /// Voice/Video: «Видео» of the paperclip's sheet.
+    var onVideo: (() -> Void)?
 
     init(messenger: Messenger?, chatId: String, peerId: String) {
         self.messenger = messenger
@@ -85,6 +90,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         host.view.endEditing(true)
         let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
         sheet.addAction(UIAlertAction(title: "Галерея", style: .default, handler: { [weak self] _ in self?.pickPhotos() }))
+        if onVideo != nil { sheet.addAction(UIAlertAction(title: "Видео", style: .default, handler: { [weak self] _ in self?.onVideo?() })) }
         sheet.addAction(UIAlertAction(title: "Файл", style: .default, handler: { [weak self] _ in self?.pickFiles() }))
         sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
         sheet.popoverPresentationController?.sourceView = button
@@ -311,6 +317,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
 
     /// A row of the chat was touched: an unsent attachment offers to try again, a received one is opened.
     func pressed(_ key: String) {
+        // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
+        if mediaPressed?(key) == true { return }
         if let item = pending.first(where: { $0.key == key }) {
             guard item.failed != nil, let host else { return }
             let sheet = UIAlertController(title: nil, message: item.failed, preferredStyle: .actionSheet)

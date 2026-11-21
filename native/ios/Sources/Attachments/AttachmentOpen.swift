@@ -35,6 +35,8 @@ enum AttachmentRows {
             fields["fmt"] = [Int]()
             fields["urls"] = [String]()
         }
+        // Voice/Video: a voice message, a video and a round video have rows of their own (Sources/Voice/ChatMedia.swift).
+        if let media = MediaRows.fields(attachment) { return fields.merging(media) { _, new in new } }
         let about = FileCore.describe(attachment)
         let name = attachment["name"] as? String ?? "Файл"
         // The small picture was checked by the core when the message was opened (`photo::valid_preview`).

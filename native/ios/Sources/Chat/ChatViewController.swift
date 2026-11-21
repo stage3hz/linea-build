@@ -21,6 +21,8 @@ final class ChatViewController: UIViewController {
     /// ChatActions: the menu of a message with its reactions, answers, edits, forwards, pins, deletions, the
     /// multi-select, the draft, «печатает…», the way down and older pages (Sources/ChatActions/ChatScreenActions.swift).
     private(set) lazy var actions = ChatScreenActions(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
+    /// Voice/Video: the record button, voice messages, videos and round videos (Sources/Voice/ChatMedia.swift).
+    private lazy var media = ChatMedia(messenger: messenger, chatId: chatId, peerId: peerId)
     /// Attachments: the simulator's sample rows (-attachdemo), kept after the chat's own.
     private var sampleRows: [[String: Any]] = []
 
@@ -51,6 +53,8 @@ final class ChatViewController: UIViewController {
         rows = made
         // Attachments: what is still on its way out stands after the chat's own rows.
         rows += attachments.loaded(made)
+        // Voice/Video: voice messages and videos on their way out (and the simulator's sample rows).
+        rows += media.loaded(made)
         rows += sampleRows
         list.setRows(MsgRow.parse(rows))
     }
@@ -115,6 +119,9 @@ final class ChatViewController: UIViewController {
         // status line — and the rows themselves, with or without an account (the simulator's sample chat).
         actions.install(host: self, list: list, header: header, heading: heading, back: back, composer: composer, field: field, send: send, attachments: attachments)
         actions.onRows = { [weak self] (made: [[String: Any]]) -> Void in self?.showRows(made) }
+        // Voice/Video: the microphone in the send button's place, recording, playing in the rows.
+        media.install(host: self, list: list, composer: composer.contentView, field: field, send: send, attachments: attachments, actions: actions)
+        media.onPendingChanged = { [weak self] in self?.showPendingMedia() }
         actions.onLoaded = { [weak self] (newestTheirs: Int) -> Void in self?.loaded(newestTheirs: newestTheirs) }
 
         if messenger != nil {
@@ -166,6 +173,8 @@ final class ChatViewController: UIViewController {
         field.frame = CGRect(x: 18, y: 0, width: composer.bounds.width - 18 - 50, height: composerHeight)
         send.frame = CGRect(x: composer.bounds.width - 46, y: composerHeight - 46, width: 44, height: 44)
         attachments.place(field: field, height: composerHeight)
+        // Voice/Video: the record button and the strip of a take.
+        media.place(composerFrame: composer.frame, in: view)
         list.frame = view.bounds
         // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
         let room = actions.place(in: view, headerBottom: header.frame.maxY, safeTop: top, composerFrame: composer.frame)
@@ -177,6 +186,24 @@ final class ChatViewController: UIViewController {
         rows.removeAll { ($0["key"] as? String ?? "").hasPrefix("attach-") }
         rows += attachments.pendingRows
         list.setRows(MsgRow.parse(rows))
+    }
+
+    /// Voice/Video: shows the rows of voice messages and videos being sent.
+    private func showPendingMedia() {
+        rows.removeAll { ($0["key"] as? String ?? "").hasPrefix("media-") }
+        rows += media.pendingRows
+        list.setRows(MsgRow.parse(rows))
+    }
+
+    /// Voice/Video: round videos move while the chat is on screen; leaving it stops every sound and a take.
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        media.appeared()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        media.left()
     }
 
     @objc private func goBack() { navigationController?.popViewController(animated: true) }

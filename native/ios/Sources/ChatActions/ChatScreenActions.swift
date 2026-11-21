@@ -613,6 +613,10 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         relayout()
     }
 
+    /// Voice/Video: the send button has work even over an empty field (an edit, a forward that waits), so the
+    /// microphone does not take its place (Sources/Voice/ChatMedia.swift).
+    var wantsSendButton: Bool { editing != nil || !forwardItems.isEmpty }
+
     /// The send button: a tick while editing (greyed over an empty field), the arrow otherwise.
     private func showSend() {
         guard let sendButton else { return }

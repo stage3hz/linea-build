@@ -34,6 +34,9 @@ targets:
         UIUserInterfaceStyle: Dark
         # Music keeps playing when the app is not on the screen (Sources/Music/MusicPlayer.swift).
         UIBackgroundModes: [audio]
+        # Voice messages and round videos (Sources/Voice, Sources/Video): asked when the record button is first held.
+        NSMicrophoneUsageDescription: "Микрофон нужен, чтобы записывать голосовые и видеосообщения. Запись идёт только пока вы держите кнопку записи."
+        NSCameraUsageDescription: "Камера нужна, чтобы записывать видеосообщения в кружке. Она включается только пока открыта запись."
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:

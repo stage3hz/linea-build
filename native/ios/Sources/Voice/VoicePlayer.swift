@@ -91,6 +91,7 @@ final class VoicePlayer: NSObject, AVAudioPlayerDelegate {
     /// What the list must show for the active row (nil: nothing is active).
     var onState: ((MsgMediaState?) -> Void)?
     var onProblem: ((String) -> Void)?
+    var isPlaying: Bool { player?.isPlaying ?? false }
     /// A voice message is about to sound: whatever else sounds in the chat goes quiet.
     var onWillPlay: (() -> Void)?
 

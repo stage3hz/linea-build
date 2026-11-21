@@ -42,6 +42,11 @@ shot 06d-waiting --ez auth true --es authmode waiting
 shot 09c-attach-demo --ez demo true --ez chat true --es attachdemo 1
 shot 20-channels-demo --es channelsdemo 1
 shot 20b-channels-demo-chat --es channelsdemo chat
+shot 25-chat-menu --ez demo true --ez chat true --es chatdemo menu
+shot 26-chat-reply --ez demo true --ez chat true --es chatdemo reply
+shot 27-chat-quotes --ez demo true --ez chat true --es chatdemo quotes
+shot 28-chat-select --ez demo true --ez chat true --es chatdemo select
+shot 31-list-archive --ez demo true --es chatlist archive
 shot 21-ai-demo --es aidemo 1
 shot 22-music-demo --es musicdemo 1
 shot 23-music-player --es musicdemo player
