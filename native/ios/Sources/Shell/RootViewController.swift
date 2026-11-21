@@ -15,7 +15,7 @@ final class RootViewController: UIViewController {
     required init?(coder: NSCoder) { return nil }
 
     private lazy var sections: [Section] = [
-        Section(id: "chats", label: "Чаты", symbol: "bubble.left.and.bubble.right") { [messenger] in ChatsViewController(messenger: messenger) },
+        Section(id: "chats", label: "Чаты", symbol: "message") { [messenger] in ChatsViewController(messenger: messenger) },
         Section(id: "ai", label: "AI", symbol: "sparkles") { [messenger] in AIViewController(messenger: messenger) },
         Section(id: "people", label: "Люди", symbol: "person.2") { [messenger] in PeopleViewController(messenger: messenger) },
         Section(id: "channels", label: "Каналы", symbol: "dot.radiowaves.left.and.right") { [messenger] in ChannelsViewController(messenger: messenger) },

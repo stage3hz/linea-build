@@ -24,9 +24,9 @@ object Icons {
     canvas.scale(size / 24f, size / 24f)
     when (name) {
       "chats" -> {
-        // A speech bubble with its tail at the lower left.
-        path.reset(); path.addRoundRect(3f, 4f, 21f, 17f, 5.5f, 5.5f, Path.Direction.CW)
-        more.reset(); more.moveTo(6.2f, 14f); more.lineTo(5.2f, 20.6f); more.lineTo(12f, 16.6f); more.close()
+        // A round speech bubble with a short tail at the lower left (the owner's choice, as on the iPhone).
+        path.reset(); path.addOval(2.6f, 3.6f, 21.4f, 18.4f, Path.Direction.CW)
+        more.reset(); more.moveTo(5.4f, 14.6f); more.lineTo(3.6f, 20.4f); more.lineTo(9.6f, 17.6f); more.close()
         path.op(more, Path.Op.UNION)
         if (filled) canvas.drawPath(path, fill)
         canvas.drawPath(path, stroke)
