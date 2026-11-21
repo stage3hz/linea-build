@@ -10,6 +10,7 @@ import com.linea.messenger.channels.ChannelsSimulator
 import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.chats.ChatRow
 import com.linea.messenger.design.orbPair
+import com.linea.messenger.music.AIMusicSimulator
 import com.linea.messenger.people.PeopleSimulator
 
 /** Made-up chats and messages for looking at the app with no account behind it, and the launch arguments of
@@ -108,6 +109,8 @@ object Demo {
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
     AttachmentsDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
+    // AI and Music: `aidemo`, `musicdemo` (music/MusicDemo.kt).
+    if (AIMusicSimulator.start(intent, launcher)) return true
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
     intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
     if (ChannelsSimulator.demo(intent, launcher)) return true

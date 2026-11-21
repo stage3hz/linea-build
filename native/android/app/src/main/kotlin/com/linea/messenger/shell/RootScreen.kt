@@ -5,6 +5,7 @@ import android.content.Context
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
+import com.linea.messenger.ai.AIScreen
 import com.linea.messenger.app.ChatTarget
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.channels.ChannelsScreen
@@ -13,6 +14,8 @@ import com.linea.messenger.chats.ChatsScreen
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.Theme
+import com.linea.messenger.music.MusicGlow
+import com.linea.messenger.music.MusicScreen
 import com.linea.messenger.people.FriendRequests
 import com.linea.messenger.people.PeopleScreen
 import com.linea.messenger.settings.SettingsScreen
@@ -25,10 +28,10 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
 
   private val sections = listOf(
     Section("chats", "Чаты", "chats") { ChatsScreen(it, messenger, openChat) },
-    Section("ai", "AI", "sparkles") { PlaceholderScreen(it, "AI") },
+    Section("ai", "AI", "sparkles") { AIScreen(it, messenger) },
     Section("people", "Люди", "people") { PeopleScreen(it, messenger) },
     Section("channels", "Каналы", "waves") { ChannelsScreen(it, messenger) },
-    Section("music", "Музыка", "headphones") { PlaceholderScreen(it, "Музыка") },
+    Section("music", "Музыка", "headphones") { MusicScreen(it, messenger) },
     Section("profile", "Настройки", "gear") { SettingsScreen(it, messenger) },
   )
   /** The two sections that have an icon in the bar; the others are in the list under the first one. */
@@ -66,6 +69,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     show("chats")
     // People: the requests to be friends of this account (people/PeopleServer.kt).
     FriendRequests.start(messenger)
+    // Music: the bar is lit by the playing track's cover (music/CoverTint.kt).
+    MusicGlow.attach(this)
     // Channels: what is unread in the communities of this account (channels/ChannelsStore.kt).
     ChannelsStore.start(context, messenger)
   }
@@ -114,6 +119,9 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     next.animate().alpha(1f).setDuration(160).start()
     previous.animate().alpha(0f).setDuration(160).withEndAction { if (pages[open] !== previous) stage.removeView(previous) }.start()
   }
+
+  /** Music: three colours of the playing track's cover for the bar's light; an empty list restores the calm silver. */
+  fun setBarGlow(hexes: List<String>) = bar.setGlow(hexes)
 
   /** The list of the sections without an icon (for a check on the emulator and for accessibility). */
   fun showSections() = bar.openList(sticky = true)

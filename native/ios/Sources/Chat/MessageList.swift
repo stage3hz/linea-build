@@ -30,6 +30,12 @@ struct MsgRow: Equatable {
   let fmt: [Int]
   /// One address per triple with the link flag (64), in order.
   let urls: [String]
+  /// Voice/Video: "voice" (a row with a waveform), "video" or "note" (a round video); empty for any other row.
+  let media: String
+  /// Voice: the letters of the waveform (empty: none came with the message).
+  let wave: String
+  /// Voice/Video: the length («0:23»); empty when the message does not say.
+  let mediaTime: String
 
   static func parse(_ rows: [[String: Any]]) -> [MsgRow] {
     func text(_ value: Any?) -> String { (value as? String) ?? "" }
@@ -45,7 +51,8 @@ struct MsgRow: Equatable {
         ticks: min(4, max(0, int(row["ticks"], 0))), tail: flag(row["tail"]), quoteAuthor: text(row["quoteAuthor"]),
         quoteText: text(row["quoteText"]), forward: text(row["forward"]), label: text(row["label"]), thumb: text(row["thumb"]),
         thumbRound: flag(row["thumbRound"]), thumbWide: CGFloat(min(2.5, max(0.4, wide))), checked: min(1, max(-1, int(row["checked"], -1))), reactions: text(row["reactions"]), chips: (row["chips"] as? [String]) ?? [],
-        fmt: ((row["fmt"] as? [NSNumber]) ?? []).map { $0.intValue }, urls: (row["urls"] as? [String]) ?? []))
+        fmt: ((row["fmt"] as? [NSNumber]) ?? []).map { $0.intValue }, urls: (row["urls"] as? [String]) ?? [],
+        media: text(row["media"]), wave: text(row["wave"]), mediaTime: text(row["mediaTime"])))
     }
     return result
   }
@@ -257,6 +264,8 @@ struct MsgLayout {
   var labelSize = CGSize.zero
   var thumbSize = CGSize.zero
   var reactSize = CGSize.zero
+  /// Voice: the play button with the waveform (Sources/Voice/MediaRowArt.swift).
+  var voiceSize = CGSize.zero
   var height: CGFloat = 0
 
   static func make(_ row: MsgRow, width: CGFloat, fontSize: CGFloat, hasThumb: Bool) -> MsgLayout {
@@ -279,8 +288,19 @@ struct MsgLayout {
       let w = min(inner, 220)
       layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
     }
+    // Voice/Video: a round video is a circle, a video keeps its place even before its picture is known, a voice
+    // message is a block of its own.
+    if row.media == "note" {
+      let side = min(inner, 212)
+      layout.thumbSize = CGSize(width: side, height: side)
+    } else if row.media == "video" && !hasThumb {
+      let w = min(inner, 220)
+      layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
+    } else if row.media == "voice" {
+      layout.voiceSize = CGSize(width: min(inner, 236), height: 50)
+    }
     let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 22 : 0)
-    var w = max(max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width), layout.reactSize.width)
+    var w = max(max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width), max(layout.reactSize.width, layout.voiceSize.width))
     if layout.quoteSize != .zero {
       let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgSmallBold]).size().width)
       w = max(w, min(inner, max(layout.quoteSize.width, author) + 12))
@@ -301,6 +321,7 @@ struct MsgLayout {
     if !row.forward.isEmpty { h += 18 }
     if layout.quoteSize != .zero { h += 17 + layout.quoteSize.height + 8 }
     if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
+    if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
     h += layout.textSize.height
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
@@ -328,6 +349,14 @@ final class MsgRowCanvas: UIView {
   var flash = false
   /// ChatActions: where the quote of an answer was drawn last (a tap on it jumps to the original).
   private var quoteBox = CGRect.zero
+  /// Voice/Video: what is playing in this row right now (nil: nothing), and where its parts were drawn last.
+  var mediaState: MsgMediaState?
+  private(set) var mediaBoxes = MsgMediaBoxes()
+
+  /// Voice/Video: the part of a voice message, a video or a round video under a point of this view.
+  func media(at point: CGPoint) -> (part: String, fraction: CGFloat)? {
+    mediaBoxes.part(at: point)
+  }
 
   /// ChatActions: whether a point of this view is on the quote of an answer.
   func quote(at point: CGPoint) -> Bool {
@@ -458,6 +487,16 @@ final class MsgRowCanvas: UIView {
       draw(item.quoteText, msgSmallFont, metaColor, CGRect(x: x + 9, y: y + 17, width: inner - 12, height: layoutInfo.quoteSize.height), lines: true)
       y += 17 + layoutInfo.quoteSize.height + 8
     }
+    // Voice/Video: where the picture of a video or a round video stands; without a picture, a quiet plate.
+    mediaBoxes = MsgMediaBoxes()
+    let mediaPicture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
+    if layoutInfo.thumbSize != .zero && (item.media == "video" || item.media == "note") {
+      mediaBoxes.thumb = mediaPicture
+      if thumbImage == nil {
+        MediaRowArt.plate(context, round: item.media == "note", palette: palette, box: mediaPicture)
+        y += mediaPicture.height + 6
+      }
+    }
     if let image = thumbImage, layoutInfo.thumbSize != .zero, image.size.width > 0, image.size.height > 0 {
       let picture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
       context.saveGState()
@@ -467,6 +506,12 @@ final class MsgRowCanvas: UIView {
       image.draw(in: CGRect(x: picture.midX - size.width / 2, y: picture.midY - size.height / 2, width: size.width, height: size.height))
       context.restoreGState()
       y += picture.height + 6
+    }
+    // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
+    if mediaBoxes.thumb != .zero { MediaRowArt.marks(context, row: item, state: mediaState, palette: palette, box: mediaBoxes.thumb) }
+    if layoutInfo.voiceSize != .zero {
+      mediaBoxes = MediaRowArt.voice(context, row: item, state: mediaState, palette: palette, box: CGRect(x: x, y: y, width: layoutInfo.voiceSize.width, height: layoutInfo.voiceSize.height))
+      y += layoutInfo.voiceSize.height + 4
     }
     if layoutInfo.labelSize != .zero {
       draw(item.label, msgSmallFont, markColor, CGRect(x: x, y: y, width: inner, height: layoutInfo.labelSize.height), lines: true)
@@ -578,6 +623,8 @@ final class MsgRowCell: UITableViewCell {
   required init?(coder: NSCoder) { return nil }
 
   func show(_ row: MsgRow, _ palette: MsgPalette, _ fontSize: CGFloat, _ layout: MsgLayout, _ revealed: Bool) {
+    // Voice/Video: a round video playing in place belongs to one row; a cell given to another row lets it go.
+    if canvas.row?.key != row.key { canvas.subviews.forEach { $0.removeFromSuperview() } }
     canvas.row = row
     canvas.revealed = revealed
     canvas.palette = palette
@@ -587,7 +634,7 @@ final class MsgRowCell: UITableViewCell {
       thumbOf = row.thumb
       canvas.thumbImage = row.thumb.isEmpty ? nil : Data(base64Encoded: row.thumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
     }
-    accessibilityLabel = [row.label, row.text, row.time].filter { !$0.isEmpty }.joined(separator: ". ")
+    accessibilityLabel = [MediaRowArt.spoken(row), row.label, row.text, row.time].filter { !$0.isEmpty }.joined(separator: ". ")
     canvas.setNeedsDisplay()
   }
 
@@ -615,6 +662,11 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   var onScrolled: ([String: Any]) -> Void = { _ in }
   /// ChatActions: the row lit after a jump to it.
   private var flashKey = ""
+  /// Voice/Video: a tap on a part of a voice message, a video or a round video (`key`, `part`: "play", "wave",
+  /// "rate" or "thumb"; `fraction`: where on the waveform, 0…1).
+  var onMediaPress: ([String: Any]) -> Void = { _ in }
+  /// Voice/Video: what is playing, by the key of its row (one at a time).
+  private var mediaState: MsgMediaState?
 
   private let table = UITableView(frame: .zero, style: .plain)
   /// Newest first (index 0 is at the bottom of the screen).
@@ -674,10 +726,43 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     return rows[path.row].key
   }
 
+  /// Voice/Video: the part of a media row under a point of the table.
+  private func media(atTablePoint point: CGPoint) -> (key: String, part: String, fraction: CGFloat)? {
+    guard let path = table.indexPathForRow(at: point), path.row < rows.count, rows[path.row].checked < 0, let cell = table.cellForRow(at: path) as? MsgRowCell,
+          let hit = cell.canvas.media(at: table.convert(point, to: cell.canvas)) else { return nil }
+    return (rows[path.row].key, hit.part, hit.fraction)
+  }
+
+  /// Voice/Video: shows what is playing in its row (nil: nothing plays). Only that row is drawn again.
+  func setMediaState(_ next: MsgMediaState?) {
+    if next == mediaState { return }
+    let keys = [mediaState?.key, next?.key]
+    mediaState = next
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? MsgRowCell, let key = rowCell.canvas.row?.key, keys.contains(key) else { continue }
+      rowCell.canvas.mediaState = next?.key == key ? next : nil
+      rowCell.canvas.setNeedsDisplay()
+    }
+  }
+
+  /// Voice/Video: the view and the place of a row's picture while the row is on screen (a round video plays there).
+  func mediaHost(_ key: String) -> (view: UIView, frame: CGRect)? {
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? MsgRowCell, rowCell.canvas.row?.key == key, rowCell.canvas.mediaBoxes.thumb != .zero else { continue }
+      return (rowCell.canvas, rowCell.canvas.mediaBoxes.thumb)
+    }
+    return nil
+  }
+
+  /// Voice/Video: the rows on screen, by key.
+  func visibleKeys() -> [String] {
+    table.visibleCells.compactMap { ($0 as? MsgRowCell)?.canvas.row?.key }
+  }
+
   override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
     if gestureRecognizer === linkTap {
       let point = gestureRecognizer.location(in: table)
-      return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil || quote(atTablePoint: point) != nil
+      return chip(atTablePoint: point) != nil || run(atTablePoint: point) != nil || quote(atTablePoint: point) != nil || media(atTablePoint: point) != nil
     }
     return super.gestureRecognizerShouldBegin(gestureRecognizer)
   }
@@ -689,7 +774,9 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       return
     }
     guard let found = run(atTablePoint: recognizer.location(in: table)) else {
-      if let key = quote(atTablePoint: recognizer.location(in: table)) { onQuotePress(["key": key]) }
+      if let key = quote(atTablePoint: recognizer.location(in: table)) { onQuotePress(["key": key]); return }
+      // Voice/Video: the play button, the waveform, the speed, the picture of a video.
+      if let hit = media(atTablePoint: recognizer.location(in: table)) { onMediaPress(["key": hit.key, "part": hit.part, "fraction": Double(hit.fraction)]) }
       return
     }
     if found.hit.url.isEmpty {
@@ -750,6 +837,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       for cell in table.visibleCells {
         guard let rowCell = cell as? MsgRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }
         rowCell.canvas.flash = !flashKey.isEmpty && rows[path.row].key == flashKey
+        rowCell.canvas.mediaState = mediaState?.key == rows[path.row].key ? mediaState : nil
         rowCell.show(rows[path.row], palette, fontSize, layout(rows[path.row]), revealed.contains(rows[path.row].key))
       }
     } else {
@@ -831,6 +919,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     let cell = tableView.dequeueReusableCell(withIdentifier: "msg", for: indexPath)
     if let rowCell = cell as? MsgRowCell, indexPath.row < rows.count {
       rowCell.canvas.flash = !flashKey.isEmpty && rows[indexPath.row].key == flashKey
+      rowCell.canvas.mediaState = mediaState?.key == rows[indexPath.row].key ? mediaState : nil
       rowCell.show(rows[indexPath.row], palette, fontSize, layout(rows[indexPath.row]), revealed.contains(rows[indexPath.row].key))
     }
     return cell

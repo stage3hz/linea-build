@@ -62,7 +62,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
           if (event.userId != userId) for (watcher in watchers.toList()) watcher.peerRead(event.chatId, event.messageId)
           tellChanged(null)
         }
-        is Live.Event.Typing -> {}
+        // ChatActions: «печатает…» of the other side (chatactions/ChatLocal.kt).
+        is Live.Event.Typing -> { if (event.userId != userId) com.linea.messenger.chatactions.ChatTyping.heard(event.chatId, event.on) }
       }
     }
     // Publishes this device's keys (making them on the very first start), then opens the live line.
@@ -92,7 +93,9 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
 
   // The list of chats
 
-  class ChatSummary(val id: String, val peerId: String, val title: String, val peerLastRead: Long, val row: Map<String, Any?>)
+  class ChatSummary(val id: String, val peerId: String, val title: String, val peerLastRead: Long, val row: Map<String, Any?>,
+    /** ChatActions: the chat as the server lists it (its settings, what is unread), and its last message as this device shows it. */
+    val chat: Map<String, Any?> = emptyMap(), val last: Map<String, Any?> = emptyMap())
 
   /** The chats as the server lists them, each with its last message as this device has decrypted it. */
   fun chats(done: (Result<List<ChatSummary>>) -> Unit) {
@@ -164,7 +167,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
    *  - Refused for good (not «try later», not a dead session): the kept copy is forgotten, so it is not sent
    *    again after every start.
    *  - No answer: it stays in the list of unsent messages and goes out later with the very same ciphertext. */
-  private fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true): Result<Unit> {
+  fun deliver(crypto: CryptoService, chatId: String, peerId: String, clientId: String, text: Any?, attachment: Any?, meta: Any?, again: Boolean = true): Result<Unit> {
     val encrypted = crypto.callNow("encrypt", listOf(chatId, peerId, clientId, text, attachment, meta, null))
     if (encrypted.isFailure) return Result.failure(CryptoService.failure(encrypted) ?: CryptoFailure("Error", "Шифрование недоступно."))
     val sent = server.opAndWait("sendEncrypted", listOf(chatId, clientId, encrypted.getOrNull()))
@@ -267,7 +270,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         "muted" to (settings?.get("muted") as? Boolean ?: false), "pinned" to (settings?.get("pinnedAt") is String), "ticks" to ticks,
         "avatarColor" to (0xFF000000.toInt() or color), "initials" to initials(title), "orbA" to orb.first, "orbB" to orb.second,
       )
-      return ChatSummary(id, peerId, title, peerLastRead, row)
+      return ChatSummary(id, peerId, title, peerLastRead, row, chat, last ?: emptyMap())
     }
 
     /** The part of the list a chat belongs to: pinned ones first, then by the day of the last message. */

@@ -356,7 +356,8 @@ mod big {
             assert_eq!((plain, at), (case.size, case.cipher_size), "{}", case.size);
             assert!(files::chunk_range(case.size, count).is_none() && files::chunk_plain_len(case.size, count).is_none());
         }
-        assert_eq!(files::chunk_after(files::chunked_cipher_size(9 * 1024 * 1024)), 3);
+        // As the reference counts it: whole chunks only (a finished upload names its last chunk again).
+        assert_eq!((files::chunk_after(2 * (files::CHUNK_PLAIN + files::TAG) as u64 - 1), files::chunk_after(files::chunked_cipher_size(9 * 1024 * 1024))), (1, 2));
     }
 
     #[test]

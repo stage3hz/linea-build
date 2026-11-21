@@ -28,7 +28,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.VideoView
 import com.linea.messenger.app.Messenger
-import com.linea.messenger.attachments.DecryptedFiles
 import com.linea.messenger.attachments.Picks
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.Theme
@@ -456,23 +455,10 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(address))) } catch (_: Exception) { /* no app shows links */ }
   }
 
-  /** Hands a made file to the app the person chooses. The cache folder itself is closed to other apps: a copy
-   *  goes where the app's own provider (attachments/DecryptedFileProvider.kt) can give this one file to read. */
+  /** Hands a made file to the app the person chooses (`AIShare`). */
   private fun share(file: File) {
-    shared?.let { DecryptedFiles.remove(it) }
-    shared = null
-    val folder = File(context.cacheDir, DecryptedFiles.prefix + UUID.randomUUID().toString().lowercase())
-    val copy = File(folder, file.name)
-    try {
-      if (!folder.mkdirs()) throw IllegalStateException("folder")
-      file.inputStream().use { from -> copy.outputStream().use { to -> from.copyTo(to) } }
-      shared = folder
-      val address = DecryptedFiles.address(context, DecryptedFiles.Written(folder, copy))
-      val send = Intent(Intent.ACTION_SEND).setType(DecryptedFiles.mimeType(copy.name)).putExtra(Intent.EXTRA_STREAM, address).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-      send.clipData = android.content.ClipData.newRawUri("", address)
-      context.startActivity(Intent.createChooser(send, null))
-    } catch (_: Exception) {
-      folder.deleteRecursively()
+    shared = AIShare.send(context, file, shared)
+    if (shared == null) {
       taskError = "Не удалось открыть файл."
       render()
     }

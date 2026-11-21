@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -20,6 +21,7 @@ import android.text.style.AbsoluteSizeSpan
 import android.text.style.BackgroundColorSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.TypefaceSpan
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -32,11 +34,13 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import com.linea.messenger.attachments.DecryptedFiles
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
 import java.io.File
+import java.util.UUID
 
 // The pieces the AI screen is made of: the answer's text, one turn of the conversation, round buttons, and the
 // sheet used for the consent, the history, the menus and the Platina note. Layout after
@@ -67,17 +71,41 @@ object AIText {
     val parts = blocks(text)
     if (parts.size == 1 && !parts[0].code) return text
     val out = SpannableStringBuilder()
-    val scale = context.resources.displayMetrics.scaledDensity
     for (part in parts) {
       val start = out.length
       out.append(part.text)
       if (!part.code || part.text.isEmpty()) continue
       out.setSpan(TypefaceSpan("monospace"), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-      out.setSpan(AbsoluteSizeSpan(Math.round((size - 2f) * scale)), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      out.setSpan(AbsoluteSizeSpan(Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size - 2f, context.resources.displayMetrics))), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       out.setSpan(ForegroundColorSpan(Theme.text), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       out.setSpan(BackgroundColorSpan(0x12FFFFFF), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
     return out
+  }
+}
+
+/** Hands a file of the app's own folders to the app the person chooses. Those folders are closed to other apps:
+ *  a copy goes where the app's own provider (attachments/DecryptedFileProvider.kt) can give this one file, to
+ *  read only, to the one app that was chosen. */
+object AIShare {
+  /** Opens the system's list of apps for `file`. `previous`: the copy made for the share before this one — it is
+   *  removed now. Gives the new copy's folder (to pass as `previous` next time), or null when nothing opened. */
+  fun send(context: Context, file: File, previous: File?, name: String = file.name): File? {
+    previous?.let { DecryptedFiles.remove(it) }
+    val folder = File(context.cacheDir, DecryptedFiles.prefix + UUID.randomUUID().toString().lowercase())
+    val copy = File(folder, name)
+    return try {
+      if (!folder.mkdirs()) throw IllegalStateException("folder")
+      file.inputStream().use { from -> copy.outputStream().use { to -> from.copyTo(to) } }
+      val address = DecryptedFiles.address(context, DecryptedFiles.Written(folder, copy))
+      val send = Intent(Intent.ACTION_SEND).setType(DecryptedFiles.mimeType(copy.name)).putExtra(Intent.EXTRA_STREAM, address).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      send.clipData = ClipData.newRawUri("", address)
+      context.startActivity(Intent.createChooser(send, null))
+      folder
+    } catch (_: Exception) {
+      folder.deleteRecursively()
+      null
+    }
   }
 }
 
