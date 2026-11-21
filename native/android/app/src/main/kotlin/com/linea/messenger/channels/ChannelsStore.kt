@@ -41,6 +41,7 @@ object ChannelsStore {
     this.messenger = WeakReference(messenger)
     ChannelImages.server = messenger?.server
     ChannelImages.forget()
+    ChannelOutboxDisk.attach(context) // Channels: the outbox survives a restart
     ChannelOutbox.start(messenger)
     reset(messenger?.userId ?: "")
     if (!observing) {

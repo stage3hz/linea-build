@@ -64,13 +64,22 @@ object ChannelOutbox {
       if (item.replyTo != 0L) fields["replyTo"] = item.replyTo
       messenger.server.ask("sendChannelMessage", listOf(item.communityId, item.channelId, fields), done)
     }
+    // Channels: what waited when the app was closed (channels/ChannelOutboxDisk.kt).
+    if (messenger != null) {
+      val kept = ChannelOutboxDisk.load(messenger.userId)
+      waiting.addAll(kept.first)
+      refused.addAll(kept.second)
+    }
     if (!observing) {
       observing = true
       Live.communityEvent.watch { data -> if (data["type"] == "ready") flush() }
     }
   }
 
-  private fun post(channelId: String, message: Any? = null) = changed.post(Change(channelId, message))
+  private fun post(channelId: String, message: Any? = null) {
+    messenger.get()?.let { ChannelOutboxDisk.save(it.userId, waiting, refused) } // Channels: kept on disk
+    changed.post(Change(channelId, message))
+  }
 
   /** False when too many are waiting already. */
   fun add(item: Item): Boolean {

@@ -44,7 +44,7 @@ import java.util.UUID
  *  mobile/src/ai/AIScreen.tsx (iOS: AI/AIViewController.swift): the same steps, limits and words.
  *  With a `messenger`: the real section. Without: nothing can be asked (a debug build may show its samples). */
 @SuppressLint("ViewConstructor")
-class AIScreen(context: Context, private val messenger: Messenger?) : Screen(context) {
+class AIScreen(context: Context, private val messenger: Messenger?, private val quick: Boolean = false) : Screen(context) {
   private val history = AIHistory(messenger?.crypto)
   private val conversation: AIConversation
   private var status: AIStatus? = null
@@ -87,6 +87,13 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
   private val modelPill = TextView(context)
   private val sendButton = AIRoundButton(context, "arrow.up", "Отправить вопрос AI", size = 42f)
   private val pendingRow = LinearLayout(context)
+  /** AI: photos (video frames) and documents attached to the next question (ai/attach.ts; ai/AIAttachments.kt). Pictures
+   *  go with one question; documents stay with the whole conversation. `quick`: the quick dialog (`AIQuickDialog`) — over
+   *  another screen, no history, «Закрыть» instead of the history. */
+  private var pictures: List<AIPicture> = emptyList()
+  private var documents: List<AIDocumentText> = emptyList()
+  private var reading = 0
+  private val attachStrip = AIAttachmentStrip(context)
 
   // State
 
@@ -101,9 +108,10 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     AIMediaCache.folder = context.cacheDir
     build()
     val server = messenger?.server
-    conversation = AIConversation({ messages, model, done ->
-      if (server == null) done(Result.failure(AIFailure("Нужно войти в аккаунт."))) else AIClient.chat(server, messages, model, done)
+    conversation = AIConversation({ messages, model, images, documents, done ->
+      if (server == null) done(Result.failure(AIFailure("Нужно войти в аккаунт."))) else AIClient.chat(server, messages, model, images, documents, done)
     })
+    if (quick) conversationId = "quick-$conversationId"
     conversation.discardMedia = { media -> AIMediaCache.delete(listOf(media.uri)) }
     conversation.onChange = { changed() }
     history.onChange = { historyChanged() }
@@ -115,7 +123,8 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     if (!started) {
       started = true
       // A debug build's look without an account: a sample conversation, no server.
-      if (messenger == null && AIDemo.mode != null) demo() else { history.load(); refreshStatus() }
+      // The quick dialog has no history.
+      if (messenger == null && AIDemo.mode != null) demo() else { if (!quick) history.load(); refreshStatus() }
     }
     if (conversation.pending) { main.removeCallbacks(clock); main.post(clock) }
   }
@@ -161,10 +170,10 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
   }
 
   private fun changed() {
-    if (!incognito && !conversation.pending && conversation.turns.isNotEmpty() && messenger != null) {
+    if (!quick && !incognito && !conversation.pending && conversation.turns.isNotEmpty() && messenger != null) {
       history.save(conversationId, conversation.turns, conversation.consent)
     }
-    if (history.loaded && !conversation.pending && messenger != null) {
+    if (!quick && history.loaded && !conversation.pending && messenger != null) {
       val open = AIMediaCache.names(conversation.turns)
       val stored = history.items.flatMap { AIMediaCache.names(it.turns) }
       Thread({ AIMediaCache.prune(stored + open, open) }, "invizent.ai.cache").apply { isDaemon = true }.start()
@@ -192,7 +201,14 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
 
   private fun askModel(): String? = if (full && router && chosenModel != "auto") chosenModel else null
 
-  private fun sent() { if (conversation.pending) input.setText("") }
+  // The photos went with this question (setPhoto(null)).
+  private fun sent() { if (conversation.pending) { input.setText(""); pictures = emptyList(); render() } }
+
+  private val vision: Boolean get() = status?.can("vision") == true
+  private val docs: Boolean get() = status?.can("documents") == true
+  /** What goes with a text question (`askOptions`): pictures and documents when the server takes them, with Platina. */
+  private val askImages: List<String> get() = if (full && vision) pictures.map { it.data } else emptyList()
+  private val askDocuments: List<AIDocumentText> get() = if (full && docs) documents else emptyList()
 
   private fun cached(owner: String, data: ByteArray, mimeType: String, made: (AIMedia) -> AITaskResult): Result<AITaskResult> =
     try { Result.success(made(AIMedia(AIMediaCache.write(owner, data, mimeType), mimeType))) } catch (failure: AIFailure) { Result.failure(failure) }
@@ -201,27 +217,39 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     val server = messenger?.server
     if (!ready || server == null) return
     val question = draft.trim()
-    val intent = AIModel.detectIntent(question)
+    val photo = pictures.firstOrNull()?.data?.takeIf { it.isNotEmpty() }
+    val intent = AIModel.detectIntent(question, hasPhoto = photo != null)
     if (intent == "text") {
       taskError = ""
-      conversation.ask(question, askModel())
+      conversation.ask(question, askModel(), askImages, askDocuments)
       return sent()
     }
     val label = if (intent == "image") "Картинки" else if (intent == "video") "Видео" else "Озвучка"
     if (!full) return showPlatina(label)
     if (!router || status?.can(intent) != true) {
       taskError = "$label пока не подключены на сервере — отвечу текстом."
-      conversation.ask(question, askModel())
+      conversation.ask(question, askModel(), askImages, askDocuments)
       return sent()
     }
     val owner = conversationId
     val work: AIWork = when (intent) {
-      "image" -> { stage, done ->
-        stage("Рисую картинку")
-        AIClient.image(server, question) { result ->
-          val made = result.getOrNull()
-          if (made == null) done(Result.failure(result.exceptionOrNull()!!))
-          else done(cached(owner, made.data, made.mimeType) { AITaskResult("Готово. Нажми на картинку, чтобы сохранить или отправить.", made.routedVia ?: "генерация картинок", made.routedVia, it) })
+      "image" -> image@{ stage, done ->
+        val draw: (String) -> Unit = { prompt ->
+          stage("Рисую картинку")
+          AIClient.image(server, prompt) { result ->
+            val made = result.getOrNull()
+            val words = if (photo != null) "Новая картинка по мотивам твоего фото (провайдер рисует заново по описанию, само фото не меняется). Нажми на картинку, чтобы сохранить или отправить." else "Готово. Нажми на картинку, чтобы сохранить или отправить."
+            if (made == null) done(Result.failure(result.exceptionOrNull()!!))
+            else done(cached(owner, made.data, made.mimeType) { AITaskResult(words, made.routedVia ?: "генерация картинок", made.routedVia, it) })
+          }
+        }
+        if (photo == null) return@image draw(question)
+        // The provider draws from text, so the photo is first described (vision) together with the request.
+        stage("Смотрю на твоё фото")
+        val ask = "Опиши это изображение для генератора картинок: что на нём, цвета, композиция, стиль. Учти просьбу пользователя и выдай один итоговый промпт на английском до 900 символов, без пояснений.\n\nПросьба: $question"
+        AIClient.chat(server, listOf(mapOf("role" to "user", "content" to ask)), null, listOf(photo)) { result ->
+          val reply = result.getOrNull()
+          if (reply == null) done(Result.failure(result.exceptionOrNull()!!)) else draw(reply.text.take(3900))
         }
       }
       "video" -> { _, done ->
@@ -247,7 +275,9 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
   }
 
   private fun newConversation() {
-    AIMediaCache.delete(AIMediaCache.names(conversation.turns.filter { it.isPrivate }))
+    AIMediaCache.delete(AIMediaCache.names(conversation.turns.filter { it.isPrivate || quick }))
+    documents = emptyList()
+    pictures = emptyList()
     stopAudio()
     conversation.clear()
     conversationId = UUID.randomUUID().toString().lowercase()
@@ -441,6 +471,16 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
 
   private fun showTools() {
     val sheet = AISheet(context, "Вложения")
+    sheet.addText("Всё в одном чате: приложи фото, видео или документ и спроси о них. Попроси «нарисуй…» — AI нарисует, «сделай из этого аниме» с фото — перерисует.", 12f)
+    // «Фото и видео» and «Документ» (with Platina; when the server allows them).
+    sheet.addRow("Фото и видео", symbol = if (full) "photo" else "lock", enabled = vision) {
+      sheet.dismiss()
+      if (!full) showPlatina("Фото и видео") else pickPictures()
+    }
+    sheet.addRow("Документ", symbol = if (full) "doc" else "lock", enabled = docs) {
+      sheet.dismiss()
+      if (!full) showPlatina("Документ") else pickDocuments()
+    }
     val canTranscribe = router && status?.can("transcribe") == true
     sheet.addRow("Аудиофайл → текст", symbol = if (full) "mic" else "lock", enabled = canTranscribe) {
       sheet.dismiss()
@@ -537,7 +577,12 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     topBar.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
     topBar.addView(newButton, LinearLayout.LayoutParams(dp(48f), dp(48f)))
     topBar.addView(privateButton, LinearLayout.LayoutParams(dp(48f), dp(48f)).apply { marginStart = dp(10f) })
-    historyButton.setOnClickListener { showHistory() }
+    if (quick) {
+      // `AIQuickDialog`: «Закрыть» in place of the history.
+      historyButton.symbol = "xmark"
+      historyButton.contentDescription = "Закрыть быстрый вопрос AI"
+      historyButton.setOnClickListener { closeQuick() }
+    } else historyButton.setOnClickListener { showHistory() }
     newButton.setOnClickListener { newConversation() }
     privateButton.setOnClickListener { togglePrivate() }
 
@@ -573,6 +618,9 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
       override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
       override fun afterTextChanged(text: Editable?) = paintSend()
     })
+    attachStrip.onRemovePicture = { id -> pictures = pictures.filter { it.id != id }; render() }
+    attachStrip.onRemoveDocument = { name -> documents = documents.filter { it.name != name }; render() }
+    composer.addView(attachStrip, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(62f)))
     composer.addView(input, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, wrap))
 
     toolsRow.orientation = LinearLayout.HORIZONTAL
@@ -691,6 +739,8 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     input.visibility = if (pending) View.GONE else View.VISIBLE
     toolsRow.visibility = if (pending) View.GONE else View.VISIBLE
     pendingRow.visibility = if (pending) View.VISIBLE else View.GONE
+    attachStrip.show(pictures, documents, reading)
+    attachStrip.visibility = if (attachStrip.empty || pending) View.GONE else View.VISIBLE
     modelPill.visibility = if (ready) View.VISIBLE else View.GONE
     val value = if (router && full) chosenModel else "auto"
     modelPill.text = AIModel.modelLabel(value) + " ⌄"
@@ -702,9 +752,106 @@ class AIScreen(context: Context, private val messenger: Messenger?) : Screen(con
     requestLayout()
   }
 
+  // AI: attachments and the quick dialog
+
+  private fun closeQuick() { pages()?.let { if (it.top === this) it.pop() } }
+
+  /** Opens the quick dialog over the screen (`AIQuickDialog`): its own conversation, no history. */
+  fun openQuick() { pages()?.push(AIScreen(context, messenger, quick = true).also { if (messenger == null) it.status = status }) }
+
+  private fun pages(): com.linea.messenger.shell.Navigation? {
+    var above = parent
+    while (above != null && above !is com.linea.messenger.shell.Navigation) above = above.parent
+    return above as? com.linea.messenger.shell.Navigation
+  }
+
+  private fun pickPictures() {
+    val room = AIAttach.MAX_PICTURES - pictures.size
+    if (room <= 0) { taskError = "К вопросу — до ${AIAttach.MAX_PICTURES} фото и кадров."; return render() }
+    val activity = context as? Activity ?: return
+    val pick = Intent(Intent.ACTION_GET_CONTENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+      .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*")).putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+    Picks.ask(activity, pick) { uris -> takePictures(uris.take(room)) }
+  }
+
+  /** Photos and videos made into small clean pictures, off the main thread. */
+  private fun takePictures(uris: List<Uri>) {
+    val app = context.applicationContext
+    Thread({
+      val made = ArrayList<AIPicture>()
+      var problem = ""
+      for ((index, uri) in uris.withIndex()) {
+        val (name, type) = AIAttach.describe(app, uri)
+        val video = type.startsWith("video/")
+        val images = if (video) AIAttach.frames(app, uri) else listOfNotNull(AIAttach.photo(app, uri))
+        if (images.isEmpty()) problem = if (video) AIAttach.MEDIA_AS_DOCUMENT else "Не удалось подготовить фото."
+        for ((frame, image) in images.withIndex()) {
+          try { val (data, preview) = AIAttach.jpeg(image); made.add(AIPicture("$name#$index-$frame", preview, data, video)) }
+          catch (failure: AIFailure) { problem = failure.words }
+        }
+      }
+      main.post {
+        pictures = (pictures + made).take(AIAttach.MAX_PICTURES)
+        taskError = problem
+        render()
+      }
+    }, "invizent.ai.pictures").apply { isDaemon = true }.start()
+  }
+
+  private fun pickDocuments() {
+    val activity = context as? Activity ?: return
+    val pick = Intent(Intent.ACTION_GET_CONTENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+    Picks.ask(activity, pick) { uris -> tookDocuments(uris) }
+  }
+
+  /** Files chosen as «Документ»: a photo or a video in them is prepared like «Фото и видео» does (never sent as it is);
+   *  everything else is read into text by the server. */
+  private fun tookDocuments(uris: List<Uri>) {
+    val server = messenger?.server ?: return
+    val app = context.applicationContext
+    val media = ArrayList<Uri>()
+    for (uri in uris) {
+      val (name, type) = AIAttach.describe(app, uri)
+      if (type.startsWith("image/") || type.startsWith("video/")) {
+        if (pictures.size + media.size >= AIAttach.MAX_PICTURES) taskError = "К вопросу — до ${AIAttach.MAX_PICTURES} фото и кадров." else media.add(uri)
+        continue
+      }
+      reading += 1
+      taskError = ""
+      Thread({
+        val (bytes, tooBig) = AIAttach.bytes(app, uri, AIAttach.MAX_DOCUMENT)
+        main.post {
+          if (bytes == null) {
+            reading -= 1
+            taskError = if (tooBig) "«$name» больше 15 МБ." else "Не удалось открыть документ."
+            return@post render()
+          }
+          AIClient.document(server, name, bytes) { result ->
+            reading -= 1
+            val doc = result.getOrNull()
+            if (doc != null) documents = (documents.filter { it.name != doc.name } + doc).takeLast(5)
+            else taskError = "«$name»: " + ((result.exceptionOrNull() as? AIFailure)?.words?.takeIf { it.isNotEmpty() } ?: "не удалось прочитать.")
+            render()
+          }
+        }
+      }, "invizent.ai.document").apply { isDaemon = true }.start()
+    }
+    if (media.isNotEmpty()) takePictures(media)
+    render()
+  }
+
+  /** The emulator check (`--es aidemo photo`): sample attachments and a question (ai/AIAttachments.kt, AIParity). */
+  fun demoAttachments(shown: List<AIPicture>, read: List<AIDocumentText>, question: String) {
+    pictures = shown
+    documents = read
+    input.setText(question)
+    render()
+  }
+
   /** A debug build's samples (`--es aidemo 1`): a short conversation with a block of code and a sample history, no server. */
   private fun demo() {
     status = AIDemo.status
+    if (quick) return render() // the quick dialog: empty, ready for a question
     models = AIDemo.models
     chosenModel = "auto:smart"
     history.show(AIDemo.history)
