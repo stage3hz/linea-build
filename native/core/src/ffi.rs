@@ -66,7 +66,8 @@ pub struct InvizentHost {
     /// The Signal library. `method`: createState, replenish, trustIdentity, encrypt, decrypt; `args`: a JSON
     /// array in the order of the library's own arguments. Answer: `{"ok":…}` (the method's result object) or
     /// `{"error":{"name":…,"code":…,"message":…}}`.
-    pub bridge: extern "C" fn(context: *mut c_void, method: *const c_char, args: *const c_char) -> *mut c_char,
+    /// Null: the Signal library built into the core is used (the phone apps do this).
+    pub bridge: Option<extern "C" fn(context: *mut c_void, method: *const c_char, args: *const c_char) -> *mut c_char>,
     /// One record of the private storage; null when there is none.
     pub vault_get: extern "C" fn(context: *mut c_void, key: *const c_char) -> *mut c_char,
     /// Writes all of `changes` or none: a JSON array of `[key, value]`, `value` null to remove.
@@ -104,7 +105,7 @@ impl Host {
     }
     fn signal(&self, method: &str, args: Vec<Value>) -> Result<Value, SignalError> {
         let silent = || SignalError { name: "Error".to_string(), code: String::new(), message: "The Signal library gave no answer.".to_string() };
-        let answer = self.asked(self.get().bridge, method, args).ok_or_else(silent)?;
+        let answer = self.asked(self.get().bridge.ok_or_else(silent)?, method, args).ok_or_else(silent)?;
         if let Some(error) = answer.get("error") {
             let part = |key: &str| error.get(key).and_then(Value::as_str).unwrap_or_default();
             return Err(SignalError { name: part("name"), code: part("code"), message: part("message") });
@@ -287,4 +288,22 @@ pub unsafe extern "C" fn invizent_http_read(status: u16, body: *const c_char) ->
         out.push(("updateRequired", Value::Bool(answer.update_required)));
         json::stringify(&json::object(out))
     }).map_or(std::ptr::null_mut(), give)
+}
+
+/// The request of one server operation: `op` is its name (`login`, `chats`, `inboxPage`, … — see `api`), `args`
+/// its arguments as a JSON array, `device` what the app knows about the device (`api::call`).
+/// Out: `{"method","path","body"?}`, or null for an unknown operation or arguments of the wrong kind.
+///
+/// # Safety
+/// The three are NUL-terminated strings that stay valid for the call (or null).
+#[no_mangle]
+pub unsafe extern "C" fn invizent_api_call(op: *const c_char, args: *const c_char, device: *const c_char) -> *mut c_char {
+    let (Some(op), Some(args), Some(device)) = (take(op), take(args), take(device)) else { return std::ptr::null_mut() };
+    catch_unwind(|| {
+        let Ok(Value::Array(args)) = json::parse(&args) else { return None };
+        let call = crate::api::call(&op, &args, &json::parse(&device).ok()?)?;
+        let mut out = vec![("method", Value::str(&call.method)), ("path", Value::str(&call.path))];
+        if let Some(body) = &call.body { out.push(("body", Value::str(body))) }
+        Some(json::stringify(&json::object(out)))
+    }).ok().flatten().map_or(std::ptr::null_mut(), give)
 }

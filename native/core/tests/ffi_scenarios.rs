@@ -82,7 +82,7 @@ fn the_scenarios_hold_through_the_c_functions() {
     let mut steps_run = 0;
     for scenario in &scenarios {
         let world = Box::new(World::default());
-        let host = InvizentHost { context: (&*world as *const World).cast_mut().cast(), bridge, vault_get, vault_commit, transport, now_iso: Some(now_iso), random_uuid: Some(random_uuid) };
+        let host = InvizentHost { context: (&*world as *const World).cast_mut().cast(), bridge: Some(bridge), vault_get, vault_commit, transport, now_iso: Some(now_iso), random_uuid: Some(random_uuid) };
         let user = CString::new(scenario.user_id.as_str()).unwrap();
         let mut crypto: *mut InvizentCrypto = std::ptr::null_mut();
         let mut expected: BTreeMap<String, String> = BTreeMap::new();
@@ -124,7 +124,7 @@ fn bad_calls_get_an_answer_not_a_crash() {
     extern "C" fn nothing(_: *mut c_void, _: *const c_char, _: *const c_char) -> *mut c_char { std::ptr::null_mut() }
     extern "C" fn none(_: *mut c_void, _: *const c_char) -> *mut c_char { std::ptr::null_mut() }
     extern "C" fn drop_changes(_: *mut c_void, _: *const c_char) {}
-    let host = InvizentHost { context: std::ptr::null_mut(), bridge: nothing, vault_get: none, vault_commit: drop_changes, transport: nothing, now_iso: None, random_uuid: None };
+    let host = InvizentHost { context: std::ptr::null_mut(), bridge: None, vault_get: none, vault_commit: drop_changes, transport: nothing, now_iso: None, random_uuid: None };
     let user = CString::new("0f8fad5b-d9cb-469f-a165-70867728950e").unwrap();
     unsafe {
         assert!(invizent_crypto_new(std::ptr::null(), true, &host).is_null());

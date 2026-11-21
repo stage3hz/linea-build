@@ -51,3 +51,15 @@ fn requests_and_answers_cross_the_boundary() {
         assert!(text(invizent_http_read(500, std::ptr::null())).unwrap().contains("\"refused\""));
     }
 }
+
+#[test]
+fn server_operations_cross_the_boundary() {
+    unsafe {
+        let ask = |op: &str, args: &str| { let (op, args, device) = (CString::new(op).unwrap(), CString::new(args).unwrap(), CString::new(r#"{"deviceName":"iPhone","platform":"ios","deviceModel":"iPhone","osVersion":"iOS 26.1","appVersion":"0.17.0"}"#).unwrap()); text(invizent_api_call(op.as_ptr(), args.as_ptr(), device.as_ptr())) };
+        assert_eq!(ask("chats", "[]").as_deref(), Some(r#"{"method":"GET","path":"/chats?lean=1"}"#));
+        assert_eq!(ask("login", r#"["anna","пароль","слово"]"#).as_deref(), Some(r#"{"method":"POST","path":"/auth/login","body":"{\"username\":\"anna\",\"password\":\"пароль\",\"confirmationWord\":\"слово\",\"deviceName\":\"iPhone\",\"platform\":\"ios\",\"deviceModel\":\"iPhone\",\"osVersion\":\"iOS 26.1\",\"appVersion\":\"0.17.0\"}"}"#));
+        assert!(ask("no-such-operation", "[]").is_none());
+        assert!(ask("chats", "{}").is_none());
+        assert!(invizent_api_call(std::ptr::null(), std::ptr::null(), std::ptr::null()).is_null());
+    }
+}

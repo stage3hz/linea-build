@@ -84,4 +84,15 @@ final class Server: NSObject, URLSessionTaskDelegate {
         waiting.wait()
         return result
     }
+
+    /// A server operation by its name (the table is in the core): `op("chats", [])`.
+    func op(_ name: String, _ args: [Any], done: @escaping (Result<Any, ServerError>) -> Void) {
+        guard let call = Core.call(name, args) else { return done(.failure(.network("Не удалось выполнить запрос. Попробуй ещё раз."))) }
+        send(call.method, call.path, body: call.body, done: done)
+    }
+
+    func opAndWait(_ name: String, _ args: [Any]) -> Result<Any, ServerError> {
+        guard let call = Core.call(name, args) else { return .failure(.network("Не удалось выполнить запрос. Попробуй ещё раз.")) }
+        return sendAndWait(call.method, call.path, body: call.body)
+    }
 }

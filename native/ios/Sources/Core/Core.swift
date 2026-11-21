@@ -52,4 +52,12 @@ enum Core {
         let answer = body.withCString { take(invizent_http_read(UInt16(clamping: status), $0)) }
         return value(answer) as? [String: Any] ?? [:]
     }
+
+    /// The request of a server operation by its name: method, path and JSON body.
+    static func call(_ op: String, _ args: [Any]) -> (method: String, path: String, body: String?)? {
+        guard let argsText = text(args), let device = text(Account.deviceFields) else { return nil }
+        let answer = op.withCString { op in argsText.withCString { args in device.withCString { take(invizent_api_call(op, args, $0)) } } }
+        guard let made = value(answer) as? [String: Any], let method = made["method"] as? String, let path = made["path"] as? String else { return nil }
+        return (method, path, made["body"] as? String)
+    }
 }
