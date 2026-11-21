@@ -40,6 +40,8 @@ final class ChatLookScreen: NSObject {
 
     /// «Поиск» in the avatar's menu: set by whoever gives the chat its search (shown only when set).
     var onSearch: (() -> Void)?
+    /// «Отправить подарок» in the avatar's menu (the reference keeps it in the chat's menu): set by the chat.
+    var onGift: (() -> Void)?
 
     init(messenger: Messenger?, chatId: String, peerId: String, name: String) {
         self.messenger = messenger
@@ -349,6 +351,9 @@ final class ChatLookScreen: NSObject {
         ]
         if let onSearch {
             items.append(AvatarPeekController.Item(symbol: "magnifyingglass", label: "Поиск", run: onSearch))
+        }
+        if let onGift {
+            items.append(AvatarPeekController.Item(symbol: "gift", label: "Отправить подарок", run: onGift))
         }
         let peek = AvatarPeekController(picture: large, name: shownName, status: status?.text ?? "", top: host.view.safeAreaInsets.top + 60, items: items)
         host.present(peek, animated: true)

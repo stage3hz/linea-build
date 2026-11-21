@@ -137,6 +137,7 @@ final class ChatViewController: UIViewController {
         // ChatLook: the header's views go into glass pills; the avatar on the right; the swipe to answer.
         look.installHeader(host: self, header: header, heading: heading, back: back, call: callButton, status: actions.statusView, list: list, actions: actions)
         look.onSearch = { [weak self] in self?.actions.openSearch() } // Profile: «Поиск» of the avatar's hold menu
+        look.onGift = { [weak self] in self?.actions.sendGift() } // Composer: «Отправить подарок»
         #if targetEnvironment(simulator)
         if messenger == nil { ChatLookDemo.run(self) } // ChatLook: -chatlook … (Sources/ChatLook/ChatLookDemo.swift)
         #endif
