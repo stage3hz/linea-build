@@ -227,6 +227,11 @@ private struct SdpText {
     }
 }
 
+/// Why a request to the SFU did not work, in the server's words.
+struct SfuFailure: Error {
+    let words: String
+}
+
 /// Screen sharing through the server's SFU (server/src/sfu.js, mediasoup): the reference's `SfuSession`. The person
 /// sharing uploads one copy, every frame sealed before it leaves the phone; viewers open frames only with keys
 /// received over their checked peer-to-peer channels. The server never sees a picture.
@@ -239,7 +244,7 @@ final class SfuSession {
     var onRemote: ((String, LKRTCVideoTrack?) -> Void)?
     private let keys = ScreenFrameKeys()
     private var nextId = 1
-    private var pending: [Int: (done: (Result<[String: Any], String>) -> Void, timer: Timer)] = [:]
+    private var pending: [Int: (done: (Result<[String: Any], SfuFailure>) -> Void, timer: Timer)] = [:]
     private var routerCaps: [String: Any] = [:]
     private var recv: SfuTransport?
     private var sendTransport: SfuTransport?
@@ -257,12 +262,12 @@ final class SfuSession {
 
     // MARK: Requests
 
-    private func request(_ op: String, _ payload: [String: Any] = [:], done: @escaping (Result<[String: Any], String>) -> Void) {
+    private func request(_ op: String, _ payload: [String: Any] = [:], done: @escaping (Result<[String: Any], SfuFailure>) -> Void) {
         let id = nextId
         nextId += 1
         let timer = Timer.scheduledTimer(withTimeInterval: 15, repeats: false) { [weak self] (_: Timer) -> Void in
             guard let self, let waiting = self.pending.removeValue(forKey: id) else { return }
-            waiting.done(.failure("Сервер не ответил."))
+            waiting.done(.failure(SfuFailure(words: "Сервер не ответил.")))
         }
         pending[id] = (done: done, timer: timer)
         var frame = payload
@@ -272,7 +277,7 @@ final class SfuSession {
         if !send(frame) {
             timer.invalidate()
             pending[id] = nil
-            done(.failure("Нет соединения с сервером."))
+            done(.failure(SfuFailure(words: "Нет соединения с сервером.")))
         }
     }
 
@@ -286,7 +291,7 @@ final class SfuSession {
             if data["ok"] as? Bool == true {
                 waiting.done(.success(data["data"] as? [String: Any] ?? [:]))
             } else {
-                waiting.done(.failure(data["error"] as? String ?? "Ошибка сервера демонстрации."))
+                waiting.done(.failure(SfuFailure(words: data["error"] as? String ?? "Ошибка сервера демонстрации.")))
             }
             return true
         }
@@ -305,15 +310,15 @@ final class SfuSession {
 
     /// The server's codecs, the receiving transport, and whatever the others already send. `done`: whether it worked.
     func start(done: @escaping (Bool) -> Void) {
-        request("caps") { [weak self] (result: Result<[String: Any], String>) -> Void in
+        request("caps") { [weak self] (result: Result<[String: Any], SfuFailure>) -> Void in
             guard let self, !self.closed else { return }
             guard case .success(let body) = result, let caps = body["rtpCapabilities"] as? [String: Any] else { return done(false) }
             self.routerCaps = caps
-            self.request("transport", ["direction": "recv"]) { [weak self] (result: Result<[String: Any], String>) -> Void in
+            self.request("transport", ["direction": "recv"]) { [weak self] (result: Result<[String: Any], SfuFailure>) -> Void in
                 guard let self, !self.closed else { return }
                 guard case .success(let params) = result, let transport = SfuTransport(params, sending: false) else { return done(false) }
                 self.recv = transport
-                self.request("producers") { [weak self] (result: Result<[String: Any], String>) -> Void in
+                self.request("producers") { [weak self] (result: Result<[String: Any], SfuFailure>) -> Void in
                     guard let self, !self.closed else { return }
                     if case .success(let body) = result {
                         for item in body["producers"] as? [[String: Any]] ?? [] {
@@ -352,7 +357,7 @@ final class SfuSession {
         if transport.ready { return done(true) }
         guard let print = sdp.fingerprint(mid: mid) else { return done(false) }
         let dtls: [String: Any] = ["role": "client", "fingerprints": [["algorithm": print.algorithm, "value": print.value]]]
-        request("connect", ["transportId": transport.id, "dtlsParameters": dtls]) { (result: Result<[String: Any], String>) -> Void in
+        request("connect", ["transportId": transport.id, "dtlsParameters": dtls]) { (result: Result<[String: Any], SfuFailure>) -> Void in
             if case .success = result {
                 transport.ready = true
                 done(true)
@@ -372,7 +377,7 @@ final class SfuSession {
         if let transport = sendTransport {
             return produce(transport, track: track, keyIndex: keyIndex, maxBitrate: maxBitrate, done: done)
         }
-        request("transport", ["direction": "send"]) { [weak self] (result: Result<[String: Any], String>) -> Void in
+        request("transport", ["direction": "send"]) { [weak self] (result: Result<[String: Any], SfuFailure>) -> Void in
             guard let self, !self.closed else { return done(false) }
             guard case .success(let params) = result, let transport = SfuTransport(params, sending: true) else { return done(false) }
             self.sendTransport = transport
@@ -388,6 +393,8 @@ final class SfuSession {
                 done(false)
                 finish()
             }
+            // A first share that broke half way: the session no longer sends (the viewers get direct copies instead).
+            if self.sendSlot != nil && self.sendParameters == nil { return fail() }
             // The slot made once is used again for every share (the server keeps at most two transports per person).
             if let slot = self.sendSlot, let sealer = self.sealer, var parameters = self.sendParameters {
                 sealer.keyIndex = Int32(keyIndex)
@@ -448,7 +455,7 @@ final class SfuSession {
     }
 
     private func askProduce(_ transport: SfuTransport, _ parameters: [String: Any], done: @escaping (Bool) -> Void, finish: @escaping () -> Void, fail: @escaping () -> Void) {
-        request("produce", ["transportId": transport.id, "kind": "video", "rtpParameters": parameters, "source": "screen"]) { [weak self] (result: Result<[String: Any], String>) -> Void in
+        request("produce", ["transportId": transport.id, "kind": "video", "rtpParameters": parameters, "source": "screen"]) { [weak self] (result: Result<[String: Any], SfuFailure>) -> Void in
             guard let self, !self.closed, case .success(let body) = result, let id = body["producerId"] as? String else { return fail() }
             self.producerId = id
             done(true)
@@ -556,7 +563,7 @@ final class SfuSession {
         sendSlot?.sender.track = nil
         if let id = producerId {
             producerId = nil
-            request("close", ["producerId": id]) { (_: Result<[String: Any], String>) -> Void in }
+            request("close", ["producerId": id]) { (_: Result<[String: Any], SfuFailure>) -> Void in }
         }
     }
 
@@ -567,7 +574,7 @@ final class SfuSession {
 
     private func consume(_ peer: String, _ producer: String) {
         guard !closed, let transport = recv else { return }
-        request("consume", ["transportId": transport.id, "producerId": producer, "rtpCapabilities": receiveCaps]) { [weak self] (result: Result<[String: Any], String>) -> Void in
+        request("consume", ["transportId": transport.id, "producerId": producer, "rtpCapabilities": receiveCaps]) { [weak self] (result: Result<[String: Any], SfuFailure>) -> Void in
             guard let self, !self.closed, case .success(let body) = result, let consumer = body["consumerId"] as? String,
                   let kind = body["kind"] as? String, let parameters = body["rtpParameters"] as? [String: Any] else { return }
             self.receive(transport, peer: peer, consumer: consumer, kind: kind, parameters: parameters)
@@ -610,7 +617,7 @@ final class SfuSession {
                                         guard let opener = self.keys.opener(slot.receiver, peer: peer) else { return fail() }
                                         self.consumers[consumer] = (peer: peer, kind: kind, mid: mid, cryptor: opener, track: slot.receiver.track)
                                         finish()
-                                        self.request("resume", ["consumerId": consumer]) { (_: Result<[String: Any], String>) -> Void in }
+                                        self.request("resume", ["consumerId": consumer]) { (_: Result<[String: Any], SfuFailure>) -> Void in }
                                         if kind == "video", let video = slot.receiver.track as? LKRTCVideoTrack { self.onRemote?(peer, video) }
                                     }
                                 })
@@ -671,20 +678,20 @@ final class SfuSession {
               ((opus["parameters"] as? [String: Any])?["sprop-stereo"] as? NSNumber)?.intValue == 1 else { return sdp }
         let eol = sdp.contains("\r\n") ? "\r\n" : "\n"
         var lines = sdp.components(separatedBy: eol)
-        var inside = false
-        var at: Int?
-        var mapAt: Int?
+        // The section of this consumer: from its «m=» line to the next one.
+        var start = -1, end = lines.count, current = -1
         for (index, line) in lines.enumerated() {
-            if line.hasPrefix("m=") { inside = false }
-            if line == "a=mid:" + mid { inside = true }
-            if line.hasPrefix("a=fmtp:\(pt) ") { at = at ?? index }
-            if line.hasPrefix("a=rtpmap:\(pt) ") { mapAt = mapAt ?? index }
-            _ = inside
+            if line.hasPrefix("m=") {
+                if start >= 0 { end = index; break }
+                current = index
+            }
+            if line == "a=mid:" + mid && current >= 0 { start = current }
         }
-        if let at {
+        guard start >= 0 else { return sdp }
+        if let at = (start..<end).first(where: { (index: Int) -> Bool in lines[index].hasPrefix("a=fmtp:\(pt) ") }) {
             if !lines[at].contains("stereo=1") { lines[at] += ";stereo=1" }
-        } else if let mapAt {
-            lines.insert("a=fmtp:\(pt) stereo=1", at: mapAt + 1)
+        } else if let map = (start..<end).first(where: { (index: Int) -> Bool in lines[index].hasPrefix("a=rtpmap:\(pt) ") }) {
+            lines.insert("a=fmtp:\(pt) stereo=1", at: map + 1)
         }
         return lines.joined(separator: eol)
     }
@@ -729,7 +736,7 @@ final class SfuSession {
         closed = true
         for waiting in pending.values {
             waiting.timer.invalidate()
-            waiting.done(.failure("closed"))
+            waiting.done(.failure(SfuFailure(words: "closed")))
         }
         pending = [:]
         for item in consumers.values { item.cryptor.enabled = false }
