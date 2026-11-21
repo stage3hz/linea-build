@@ -3,7 +3,8 @@
 //! core asks for the same things with the same arguments; then the result and every record in the vault must
 //! be the same.
 use invizent_core::e2ee::bridge::*;
-use invizent_core::e2ee::service::{Crypto, CryptoError, Outgoing};
+use invizent_core::e2ee::dispatch::dispatch;
+use invizent_core::e2ee::service::{Crypto, CryptoError};
 use invizent_core::json::{self, Value};
 use serde::Deserialize;
 use std::cell::RefCell;
@@ -106,29 +107,7 @@ fn the_service_does_exactly_what_the_reference_does() {
             let Value::Array(args) = json::parse(&step.args).expect("arguments") else { panic!("arguments") };
             let outcome: Result<Option<String>, CryptoError> = match step.op.as_str() {
                 "new" => { service = make(matches!(args[0].get("autoTrust"), Some(Value::Bool(true)))); Ok(None) }
-                "initialize" => service.initialize().map(|_| None),
-                "encrypt" => {
-                    let word = |at: usize| args[at].as_str().unwrap_or_default();
-                    let (chat, peer, client, body, deliver) = (word(0), word(1), word(2), word(3), args[6].as_str());
-                    let meta = if matches!(args[5], Value::Null) { None } else { Some(&args[5]) };
-                    service.encrypt(&Outgoing { chat_id: &chat, peer_id: &peer, client_id: &client, text: &body, attachment: &args[4], meta, deliver_at: deliver.as_deref() }).map(|encrypted| Some(json::stringify(&encrypted)))
-                }
-                "snapshot" => service.trust_snapshot(&args[0].as_str().unwrap_or_default()).map(|snapshot| Some(json::stringify(&snapshot))),
-                "approve" => service.approve_devices(&args[0]).map(|_| None),
-                "pendingOutbox" => service.pending_outbox().map(|items| Some(json::stringify(&Value::Array(items)))),
-                "sync" => service.sync_chat(&args[0].as_str().unwrap_or_default(), match args[1] { Value::Number(pages) => pages as usize, _ => 100 }).map(|_| None),
-                "preview" => service.preview(&args[0]).map(|shown| Some(json::stringify(&shown))),
-                "mesh" => service.receive_mesh(&args[0]).map(|plain| plain.map(|plain| json::stringify(&plain))),
-                "delivered" => service.delivered(&args[0].as_str().unwrap_or_default(), &args[1].as_str().unwrap_or_default()).map(|_| None),
-                "forget" => { service.forget(&args[0].as_str().unwrap_or_default(), &args[1].as_str().unwrap_or_default()); Ok(None) }
-                "forgetChat" => service.forget_chat(&args[0].as_str().unwrap_or_default()).map(|_| None),
-                "historyPage" => service.history_page(&args[0].as_str().unwrap_or_default(), match args[1] { Value::Number(page) => Some(page), _ => None }).map(|page| Some(json::stringify(&page))),
-                "history" => service.history(&args[0].as_str().unwrap_or_default(), match args[1] { Value::Number(limit) => Some(limit as usize), _ => None }, match args[2] { Value::Number(page) => Some(page), _ => None }).map(|items| Some(json::stringify(&Value::Array(items)))),
-                "storeCache" => service.store_cache(&args[0].as_str().unwrap_or_default(), args[1].as_str().as_deref()).map(|_| None),
-                "loadCache" => service.load_cache(&args[0].as_str().unwrap_or_default()).map(|held| held.map(|held| json::stringify(&Value::str(&held)))),
-                "sealNote" => service.seal_note(&args[0].as_str().unwrap_or_default(), &args[1].as_str().unwrap_or_default(), &args[2].as_str().unwrap_or_default()).map(|note| Some(json::stringify(&note))),
-                "openNote" => service.open_note(&args[0].as_str().unwrap_or_default(), &args[1]).map(|text| Some(json::stringify(&Value::str(&text)))),
-                other => panic!("unknown step {other}"),
+                op => dispatch(&mut service, op, &args).map(|answer| if matches!(answer, Value::Null) { None } else { Some(json::stringify(&answer)) }),
             };
             match (&outcome, &step.error) {
                 (Ok(result), None) => assert_eq!(result, &step.ok, "{place}: the result"),

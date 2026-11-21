@@ -73,3 +73,30 @@ mod tests {
         for bad in ["", "не дата", "2026-13-01T00:00:00Z", "2025-02-29", "2026-11-21 07:00:00Z", "2026-11-21T07:00:00", "2026-11-21T25:00:00Z", "Nov 21 2026"] { assert_eq!(parse_iso_ms(bad), None, "{bad:?}") }
     }
 }
+
+/// The time as the apps write it: `2026-11-21T07:00:00.000Z`, from milliseconds since 1970.
+pub fn iso_from_ms(ms: i64) -> String {
+    let (days, in_day) = (ms.div_euclid(86_400_000), ms.rem_euclid(86_400_000));
+    // The civil-from-days rule.
+    let z = days + 719_468;
+    let (era, day_of_era) = (z.div_euclid(146_097), z.rem_euclid(146_097));
+    let year_of_era = (day_of_era - day_of_era / 1460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let m = (5 * day_of_year + 2) / 153;
+    let (day, month) = (day_of_year - (153 * m + 2) / 5 + 1, if m < 10 { m + 3 } else { m - 9 });
+    let year = year_of_era + era * 400 + i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{:03}Z", in_day / 3_600_000, in_day / 60_000 % 60, in_day / 1000 % 60, in_day % 1000)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn times_are_written_as_they_are_read() {
+        assert_eq!(iso_from_ms(1_795_244_400_000), "2026-11-21T07:00:00.000Z");
+        assert_eq!(iso_from_ms(0), "1970-01-01T00:00:00.000Z");
+        assert_eq!(iso_from_ms(1_709_164_800_123), "2024-02-29T00:00:00.123Z");
+        let mut ms = 946_684_799_999i64; // across a century's end, leap days, month ends
+        while ms < 4_200_000_000_000 { assert_eq!(parse_iso_ms(&iso_from_ms(ms)), Some(ms as f64), "{ms}"); ms += 86_400_000 * 13 + 3_723_457; }
+    }
+}
