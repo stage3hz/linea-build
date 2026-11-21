@@ -27,6 +27,14 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     /// Called on the main queue.
     var onEvent: ((Event) -> Void)?
 
+    // People (Sources/People): who is in the line now and who was when — the server's `presence` items by the
+    // person's id, as they come (PresenceWords words them). Main queue only.
+    private(set) var presence: [String: [String: Any]] = [:]
+    /// Posted on the main queue when `presence` changed: `object` is the person's id, or nil for everyone.
+    static let presenceChanged = Notification.Name("invizent.presence")
+    /// Posted on the main queue when friends or requests to be friends changed on the server.
+    static let friendsChanged = Notification.Name("invizent.friends")
+
     init(server: Server) {
         self.server = server
         super.init()
@@ -131,6 +139,21 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
             if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String, let id = (data["messageId"] as? NSNumber)?.intValue { onEvent?(.read(chatId: chatId, userId: userId, messageId: id)) }
         case "typing":
             if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String { onEvent?(.typing(chatId: chatId, userId: userId, on: data["isTyping"] as? Bool ?? false)) }
+        // People (Sources/People): presence and friends.
+        case "presence.snapshot":
+            var all: [String: [String: Any]] = [:]
+            for item in data["items"] as? [[String: Any]] ?? [] {
+                if let id = item["userId"] as? String { all[id] = item }
+            }
+            presence = all
+            NotificationCenter.default.post(name: Live.presenceChanged, object: nil)
+        case "presence":
+            if let item = data["presence"] as? [String: Any], let id = item["userId"] as? String {
+                presence[id] = item
+                NotificationCenter.default.post(name: Live.presenceChanged, object: id)
+            }
+        case "friends":
+            NotificationCenter.default.post(name: Live.friendsChanged, object: nil)
         default:
             break
         }

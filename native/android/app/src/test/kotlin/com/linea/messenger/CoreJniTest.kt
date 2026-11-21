@@ -142,7 +142,7 @@ class CoreJniTest {
   @Test fun aChatIsFoldedByTheCore() {
     assumeTrue(Core.loaded)
     fun message(id: Int, sender: String, text: String, at: String, action: Map<String, Any?>? = null) =
-      mapOf<String, Any?>("id" to id, "senderId" to sender, "clientId" to "c$id", "text" to text, "createdAt" to at) + (if (action == null) emptyMap() else mapOf("meta" to mapOf("action" to action)))
+      mapOf<String, Any?>("id" to id, "senderId" to sender, "clientId" to "c$id", "text" to text, "createdAt" to at, "cryptoState" to "decrypted") + (if (action == null) emptyMap() else mapOf("meta" to mapOf("action" to action)))
     val raw = listOf(
       message(1, "peer", "Привет", "2026-11-21T06:00:00.000Z"),
       message(2, "me", "Превет", "2026-11-21T06:01:00.000Z"),
@@ -157,9 +157,9 @@ class CoreJniTest {
     // Through the JNI function itself: the core's own JSON.
     val text = Core.view("foldChat", Core.text(listOf(raw.take(3), "me", emptyList<String>(), now))!!)!!
     assertEquals(
-      """{"messages":[{"id":1,"senderId":"peer","clientId":"c1","text":"Привет","createdAt":"2026-11-21T06:00:00.000Z","edited":false,"reactions":[]},""" +
-        """{"id":2,"senderId":"me","clientId":"c2","text":"Привет!","createdAt":"2026-11-21T06:01:00.000Z","edited":true,"reactions":[]}],""" +
-        """"pinned":null,"rules":{"ttl":null,"noCopy":false},"nextExpiry":null}""", text)
+      """{"messages":[{"id":1,"senderId":"peer","clientId":"c1","text":"Привет","createdAt":"2026-11-21T06:00:00.000Z","cryptoState":"decrypted","edited":false,"reactions":[]},""" +
+        """{"id":2,"senderId":"me","clientId":"c2","text":"Привет!","createdAt":"2026-11-21T06:01:00.000Z","cryptoState":"decrypted","edited":true,"reactions":[]}],""" +
+        """"pinned":null,"rules":{"ttl":0,"noCopy":false},"nextExpiry":null}""", text)
     // As the app asks: the edit shows the new text, the deleted message is gone, reactions are gathered.
     val lines = Messenger.folded(raw, "me", now)
     assertEquals(listOf("c1", "c2"), lines.map { it["clientId"] })
@@ -172,6 +172,9 @@ class CoreJniTest {
     assertEquals(listOf("Сегодня", "Привет", "Привет!"), rows.map { it.text })
     assertEquals(listOf("", "09:00", "изм. 09:01"), rows.map { it.time })
     assertEquals(listOf(emptyList(), listOf("👍", "2", "1"), listOf("❤️", "1", "")), rows.map { it.chips })
+    // A service message this device could not open changes nothing.
+    val unopened = raw.take(2) + (raw[2] + mapOf("cryptoState" to "no-key"))
+    assertEquals(listOf("Превет" to false), Messenger.folded(unopened, "me", now).drop(1).map { it["text"] to it["edited"] })
     // Arguments of the wrong kind have no answer.
     assertNull(Core.view("foldChat", listOf(raw, "me")))
   }
