@@ -103,6 +103,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft    actions on messages in the -demo chat; -chataction menu|delete|reply|edit|pin|select|forward|react with -openchat 1 (ChatActions/ChatScreenActions.swift)
     ///   -chatlist menu|mute|delete|archive|archived|draft|unread / -chatsearch <query>    actions on the chats of the list, with an account or -demo (ChatActions/ChatListActions.swift)
     ///   -calldemo outgoing|incoming|active|video|ended|retry|bar / -call 1    calls: a sample call in each state, no account; with an account, a call to the person of the first chat (Calls/CallOverlay.swift)
+    ///   -storiesdemo strip|viewer|viewers|compose|posts|own / -stories viewer|own|ownstories|compose    stories and posts: samples with drawn pictures, no account; with an account, the strip's first person, the account's own page (Stories/StoriesSimulator.swift)
     ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
@@ -111,6 +112,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if simulatorChannels() { return true }
         if simulatorCalls() { return true }
         if simulatorAIMusic() { return true }
+        if simulatorStories() { return true }
         if let page = args.string(forKey: "settings") { simulatorSettings(page) }
         if args.bool(forKey: "demo") {
             let root = RootViewController()

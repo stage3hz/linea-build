@@ -393,4 +393,11 @@ final class StoriesStore {
         guard post.kind == "post", let seen else { return }
         if seen.add([post.id]) { recompute() }
     }
+
+    #if targetEnvironment(simulator)
+    /// For the simulator's samples: who «Моя история» belongs to.
+    func simulatorSet(me person: Person) { me = person }
+    /// For the simulator check: the account the strip was started with.
+    var simulatorMessenger: Messenger? { return messenger }
+    #endif
 }

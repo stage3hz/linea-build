@@ -36,6 +36,8 @@ final class PersonProfileViewController: UIViewController {
     private let problemLabel = UILabel()
     private let cardBox = UIView()
     private let card = UIStackView()
+    /// Stories: «Публикации» / «Истории» under the card and the ring around the picture (Sources/Stories/ProfilePosts.swift).
+    private let postsBlock = ProfilePostsBlock(frame: .zero)
 
     /// `person`: what is already known about them (a row of a list), shown until the profile is read.
     init(messenger: Messenger?, userId: String, name: String, person: Person? = nil, chatId: String = "") {
@@ -114,6 +116,9 @@ final class PersonProfileViewController: UIViewController {
         card.translatesAutoresizingMaskIntoConstraints = false
         cardBox.addSubview(card)
         content.addArrangedSubview(cardBox)
+        // Stories: the person's posts and stories.
+        content.addArrangedSubview(postsBlock)
+        postsBlock.attach(host: self, messenger: messenger, userId: userId, own: false, avatar: avatar)
 
         topBar.backgroundColor = Theme.bg
         topBar.translatesAutoresizingMaskIntoConstraints = false
@@ -243,6 +248,7 @@ final class PersonProfileViewController: UIViewController {
         guard isViewLoaded else { return }
         let shown = shownPerson
         avatar.show(shown, address: messenger?.personAvatarAddress(shown.avatarId) ?? "")
+        postsBlock.setColor(shown.avatarColor) // Stories: the ring is lit by the person's own colour
         nameLabel.text = shown.displayName
         refreshStatus()
         noticeLabel.text = noticeWords
@@ -484,6 +490,8 @@ final class PersonProfileViewController: UIViewController {
                 apply()
                 self.say(notice: notice)
                 FriendRequests.shared.refresh()
+                // Stories: posts and stories are for friends — what may be seen has changed.
+                self.postsBlock.reload()
             }
         }
         if friendNow {

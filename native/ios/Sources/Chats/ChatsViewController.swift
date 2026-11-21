@@ -14,6 +14,8 @@ final class ChatsViewController: UIViewController {
     /// ChatActions: the buttons behind a row, the long-press choices, «Архив», drafts and the search
     /// (Sources/ChatActions/ChatListActions.swift).
     private lazy var actions = ChatListActions(messenger: messenger)
+    /// Stories: the strip of stories above the chats (Sources/Stories/StoriesStrip.swift).
+    private lazy var stories = StoriesStrip(messenger: messenger)
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -51,8 +53,13 @@ final class ChatsViewController: UIViewController {
             self.empty.text = emptyWords
             self.empty.isHidden = !rows.isEmpty
         }
-        actions.onHeading = { [weak self] (words: String) -> Void in self?.heading.text = words }
+        actions.onHeading = { [weak self] (words: String) -> Void in
+            self?.heading.text = words
+            self?.view.setNeedsLayout() // Stories: the strip is not shown in «Архив»
+        }
         actions.onReload = { [weak self] in self?.reload() }
+        // Stories: the strip is the list's header.
+        stories.install(host: self, list: list)
         list.onRowPress = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
             // ChatActions: «Архив», a found message, and the chats of an account are opened there.
@@ -124,7 +131,10 @@ final class ChatsViewController: UIViewController {
         list.frame = view.bounds
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
         // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
-        list.setPad(top: Double(actions.place(in: view, safeTop: top)), bottom: Double(barRoom))
+        let listTop = actions.place(in: view, safeTop: top)
+        list.setPad(top: Double(listTop), bottom: Double(barRoom))
+        // Stories: not in «Архив» and not while searching (the search field takes room under the heading).
+        stories.place(allowed: heading.text == "Чаты" && listTop <= top + 58, width: view.bounds.width)
         empty.frame = CGRect(x: 20, y: view.bounds.midY - 12, width: view.bounds.width - 40, height: 24)
     }
 }

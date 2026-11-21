@@ -645,6 +645,12 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
     if ChatDecorStore.shared.setPlates(plates) { table.reloadData() }
   }
 
+  /// Stories: a view above the first chat that scrolls away with the list (Sources/Stories/StoriesStrip.swift);
+  /// nil takes it away. The view comes with its size set.
+  func setHeader(_ view: UIView?) {
+    table.tableHeaderView = view
+  }
+
   func setPad(top: Double, bottom: Double) {
     let insets = UIEdgeInsets(top: CGFloat(top), left: 0, bottom: CGFloat(bottom), right: 0)
     if table.contentInset == insets { return }

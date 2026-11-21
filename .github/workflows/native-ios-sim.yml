@@ -169,6 +169,12 @@ jobs:
           shot 48-text-xlarge -demo 1 -chat 1 -setaccent none -settextsize xlarge
           shot 49-night -demo 1 -settings night -settextsize medium -setnight schedule
           shot 49b-reset -demo 1 -setnight off -settheme black
+          shot 50-stories-strip -storiesdemo strip
+          shot 51-story-viewer -storiesdemo viewer
+          shot 52-story-viewers -storiesdemo viewers
+          shot 53-story-compose -storiesdemo compose
+          shot 54-profile-posts -storiesdemo posts
+          shot 55-own-posts -storiesdemo own
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player

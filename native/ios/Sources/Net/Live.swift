@@ -150,6 +150,8 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         if type == "ready" || type.hasPrefix("community") { NotificationCenter.default.post(name: Live.communityEvent, object: nil, userInfo: ["event": data]) }
         // Calls (Sources/Calls): a message may be a call's step; `call.reach` says how far an outgoing call got.
         if type == "ready" || type == "message" || type == "call.reach" { NotificationCenter.default.post(name: Live.callEvent, object: nil, userInfo: ["event": data]) }
+        // Stories (Sources/Stories): somebody's stories or posts changed, or a story of this account was watched.
+        if type == "ready" || type.hasPrefix("story") { NotificationCenter.default.post(name: Live.storyEvent, object: nil, userInfo: ["event": data]) }
         switch type {
         case "ready":
             attempts = 0

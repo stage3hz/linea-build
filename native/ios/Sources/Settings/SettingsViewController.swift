@@ -58,7 +58,13 @@ final class SettingsViewController: SettingsPage {
 
         let profile = SettingsRow(symbol: "person", label: "Мой профиль")
         profile.onPress = { [weak self] in self?.openProfile() }
-        addGroup(rows: [profile])
+        // Stories: the account's own posts and stories (Sources/Stories/ProfilePosts.swift).
+        let posts = SettingsRow(symbol: "square.grid.2x2", label: "Публикации и истории")
+        posts.onPress = { [weak self] in
+            guard let self, let messenger = self.messenger else { return }
+            self.open(OwnPostsViewController(messenger: messenger))
+        }
+        addGroup(rows: [profile, posts])
 
         // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
         // «Язык» here: not built in this app yet.)
