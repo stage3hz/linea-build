@@ -3,6 +3,11 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+// The request-signing key of this build: -PattestKey=… or INVIZENT_ATTEST_KEY, from the release workflow's secret.
+// Without one signing is off. A value that is not a key stops the build (its text is never shown).
+val attestKey = ((findProperty("attestKey") as String?) ?: System.getenv("INVIZENT_ATTEST_KEY") ?: "").trim()
+if (attestKey.isNotEmpty() && !Regex("[A-Za-z0-9+/=_-]{16,200}").matches(attestKey)) throw GradleException("INVIZENT_ATTEST_KEY is not a request-signing key (16–200 characters of base64).")
+
 android {
     namespace = "com.linea.messenger"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -16,7 +21,12 @@ android {
         // The two the core is built for (build-core.sh): phones, and the emulator. A library that comes with
         // more (SQLCipher) is packed for these only, so the app is never installed where its core is missing.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        // The per-build key that signs state-changing requests (net/AttestKey.kt). Empty unless the build is
+        // given one; never committed, never printed.
+        buildConfigField("String", "ATTEST_KEY", "\"$attestKey\"")
     }
+
+    buildFeatures { buildConfig = true }
 
     buildTypes {
         debug {

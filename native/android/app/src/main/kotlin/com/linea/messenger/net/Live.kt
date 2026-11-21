@@ -72,9 +72,12 @@ class Live(private val server: Server) {
     private fun onMain(webSocket: WebSocket, work: () -> Unit) { main.post { if (webSocket === socket) work() } }
 
     override fun onOpen(webSocket: WebSocket, response: Response) = onMain(webSocket) {
-      val token = server.token
-      val frame = if (token != null) Core.text(mapOf("type" to "auth", "token" to token, "lean" to true)) else null
-      if (frame != null) webSocket.send(frame)
+      val token = server.token ?: return@onMain
+      // A session bound to this device sends its proof with the token; without one the server closes the line.
+      val auth = linkedMapOf<String, Any?>("type" to "auth", "token" to token, "lean" to true)
+      server.currentProof?.let { auth["proof"] = it }
+      val frame = Core.text(auth) ?: return@onMain
+      webSocket.send(frame)
     }
 
     override fun onMessage(webSocket: WebSocket, text: String) = onMain(webSocket) {

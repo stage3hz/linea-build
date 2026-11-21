@@ -205,6 +205,7 @@ for (const language of [undefined, null, '', 'rust', 'js', 'x'.repeat(32), 'x'.r
   const lang = language === undefined ? {} : { language };
   for (const text of ['ab\ncd\nef', 'code']) {
     add(text, [E('pre', 0, 2, lang)]); add(text, [E('pre', 0, 0, lang)]); add(text, [E('pre', 99, 1, lang)]); add(text, [E('pre', -3, 1, lang)]); add(text, [E('pre', 'x', 1, lang)]); add(text, [E('quote', 0, 2, lang)]); add(text, [E('bold', 0, 2, lang)]);
+    if (text !== 'code') for (const second of [undefined, 'rust', [], ['rust']]) add(text, [E('pre', 0, 5, lang), E('pre', 3, 5, second === undefined ? {} : { language: second })]);
     if (text !== 'code') for (const second of [undefined, 'rust', 'x'.repeat(35), []]) for (const [a, b] of [[0, 3], [0, 0], [3, 3], [3, 0], [6, 0], [0, 6]]) add(text, [E('pre', a, 2, lang), E('pre', b, 5, second === undefined ? {} : { language: second })]);
   }
 }
@@ -232,8 +233,37 @@ family = 'many entities';
   };
   const ORDERS = ['random', 'few', 'up', 'down', 'saw', 'two', 'runs'];
   for (let i = 0; i < 140; i++) add(long.slice(0, between(40, 200)), list(between(2, 63), pick([0, 0.05, 0.2, 0.5]), pick(ORDERS)));
-  for (let i = 0; i < 35; i++) add(long, list(pick([64, 65, 66, 100, 127, 128, 129, between(64, 160), between(64, 260), between(160, 260)]), pick([0, 0.01, 0.03, 0.1, 0.3]), ORDERS[i % ORDERS.length]));
+  for (let i = 0; i < 21; i++) add(long, list(pick([64, 65, 66, 100, 127, 128, 129, between(64, 160), between(64, 260), between(160, 260)]), pick([0, 0.01, 0.03, 0.1, 0.3]), ORDERS[i % ORDERS.length]));
 }
+
+// ---- the sort itself ----
+family = 'the sort';
+// A list for the sort alone: runs that rise, fall or stand still, of chosen lengths, with a few entities that have no
+// position (NaN) or no length among them — so that the order is inconsistent and every step of V8's merge shows.
+const SORT_TEXT = Array.from({ length: 36 }, (_, i) => `l${i} xxxxxxx`).join('\n');
+function sortCase(number, shape) {
+  let state = (number * 0x9e3779b1) | 0;
+  const next = () => { state = (state + 0x6d2b79f5) | 0; let t = Math.imul(state ^ (state >>> 15), 1 | state); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const upTo = n => Math.floor(next() * n);
+  const total = shape ? shape.reduce((sum, run) => sum + run, 0) : 64 + upTo(number % 3 ? 70 : 170), lost = shape ? 0.012 : [0.01, 0.03, 0.08, 0.2][upTo(4)], kinds = [['bold'], ['bold', 'italic'], ['bold', 'italic', 'spoiler', 'code']][upTo(3)];
+  const list = []; let runs = 0;
+  while (list.length < total) {
+    // With a shape: rising runs of exactly these lengths (each starts below the end of the one before).
+    const run = shape ? shape[runs++] : Math.min(total - list.length, [3, 9, 20, 33, 40, 50, 64, 70, 90][upTo(9)] + upTo(4)), way = shape ? 0 : upTo(4), step = shape ? 2 : 1 + upTo(3);
+    let at = shape ? upTo(8) : way === 1 ? SORT_TEXT.length - upTo(40) : upTo(way === 0 ? 120 : SORT_TEXT.length);
+    for (let i = 0; i < run; i++) {
+      if (way === 0) at += step; else if (way === 1) at -= step; else if (way === 3) at = upTo(SORT_TEXT.length);
+      const type = kinds[upTo(kinds.length)], offset = Math.max(0, at);
+      list.push(next() < lost ? (next() < 0.5 ? { type, length: 1 } : { type, offset }) : { type, offset, length: 1 + upTo(3) });
+    }
+  }
+  return list;
+}
+// The numbered lists were picked by breaking the port's merge in one place at a time (when to gallop, which runs to
+// merge first, the run invariant) and keeping lists whose answer then changes; the first twelve are simply the first.
+for (let number = 1; number <= 12; number++) add(SORT_TEXT, sortCase(number));
+for (const number of [641, 2556, 108, 489, 78, 341]) add(SORT_TEXT, sortCase(number));
+add(SORT_TEXT, sortCase(0, [110, 70, 40, 36])); add(SORT_TEXT, sortCase(5, [96, 64, 32, 64])); add(SORT_TEXT, sortCase(6, [100, 60, 40, 33, 23])); add(SORT_TEXT, sortCase(68, [110, 70, 40, 36]));
 
 // ---- random combinations ----
 family = 'random';

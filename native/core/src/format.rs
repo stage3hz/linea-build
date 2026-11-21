@@ -522,6 +522,7 @@ impl<T: Clone, F: FnMut(&T, &T) -> f64> Sorter<T, F> {
                     length_a -= 1;
                     if length_a == 1 { break 'merge true }
                 }
+                min_gallop += 1;
                 self.min_gallop = min_gallop;
             }
         };

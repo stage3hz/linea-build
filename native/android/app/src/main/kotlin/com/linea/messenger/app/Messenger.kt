@@ -99,7 +99,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       } else {
         val list = (Core.map(result.getOrNull())?.get("chats") as? List<*>).orEmpty().mapNotNull { Core.map(it) }
         // Pictures of people are fetched by the list itself, as this session.
-        Core.prepare("GET", "/files/x", jsonBody = false, token = server.token)?.let { made -> AvatarStore.headers = made.headers.reversed().toMap() }
+        Core.prepare("GET", "/files/x", jsonBody = false, token = server.token, proof = server.currentProof)?.let { made -> AvatarStore.headers = made.headers.reversed().toMap() }
         crypto.run({ crypto ->
           val now = Instant.now(); val zone = ZoneId.systemDefault()
           var part = ""

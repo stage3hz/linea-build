@@ -8,6 +8,7 @@ import com.linea.core.json.JsonObject
 import com.linea.core.json.JsonString
 import com.linea.core.json.JsonValue
 import com.linea.messenger.auth.Account
+import com.linea.messenger.net.attestKey
 
 /** What the encryption service asks of the app in the middle of its work (see `Core.cryptoNew`): the private
  *  storage and the server. The three are called on the thread that called `Core.cryptoCall`, one at a time, and
@@ -43,6 +44,15 @@ object Core {
 
   /** The request of one server operation by its name (`invizent_api_call`); null for an unknown one. */
   @JvmStatic external fun apiCall(op: String, argsJson: String, deviceJson: String): String?
+
+  /** One session's exchange of device proofs (`invizent_proof_new`); given back with `proofFree`. */
+  @JvmStatic external fun proofNew(): Long
+
+  /** One move of the exchange (`invizent_proof_call`); null for a handle of 0 or a move the core cannot read. */
+  @JvmStatic external fun proofCall(handle: Long, inputJson: String): String?
+
+  /** Ends the exchange. No call with the handle may be running, and none may follow. */
+  @JvmStatic external fun proofFree(handle: Long)
 
   /** Makes the encryption service of the signed-in person; 0 if it could not be made. `host` is a `CryptoHost`,
    *  kept by the core until `cryptoFree`. */
@@ -112,6 +122,7 @@ object Core {
     if (!loaded) return null
     val request = linkedMapOf<String, Any?>("method" to method, "path" to path, "jsonBody" to jsonBody, "platform" to "android",
       "version" to Account.appVersion, "nowMs" to System.currentTimeMillis())
+    if (attestKey.isNotEmpty()) request["attestKey"] = attestKey
     if (token != null) request["token"] = token
     if (proof != null) request["proof"] = proof
     val made = map(value(httpPrepare(text(request) ?: return null))) ?: return null

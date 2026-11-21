@@ -9,7 +9,7 @@
 
 use crate::ffi::{
     invizent_api_call, invizent_core_version, invizent_crypto_call, invizent_crypto_free, invizent_crypto_new, invizent_http_prepare, invizent_http_read,
-    invizent_safety_code, invizent_string_free, InvizentCrypto, InvizentHost,
+    invizent_proof_call, invizent_proof_free, invizent_proof_new, invizent_safety_code, invizent_string_free, InvizentCrypto, InvizentHost, InvizentProof,
 };
 use jni_sys::{jboolean, jclass, jint, jlong, jmethodID, jobject, jsize, jstring, jvalue, JNIEnv, JavaVM, JNI_EDETACHED, JNI_OK, JNI_VERSION_1_6};
 use std::ffi::{c_char, c_void, CStr, CString};
@@ -95,6 +95,38 @@ pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_httpRead(env: *
 pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_apiCall(env: *mut JNIEnv, _class: jclass, op: jstring, args_json: jstring, device_json: jstring) -> jstring {
     let (Some(op), Some(args), Some(device)) = (c_text(env, op), c_text(env, args_json), c_text(env, device_json)) else { return std::ptr::null_mut() };
     give(env, invizent_api_call(op.as_ptr(), args.as_ptr(), device.as_ptr()))
+}
+
+// ── The device proof of a session ────────────────────────────────────────────────────────────────────────────
+
+/// `Core.proofNew(): Long` — one session's exchange of device proofs (`invizent_proof_new`); freed by `proofFree`.
+///
+/// # Safety
+/// Called by the JVM.
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_proofNew(_env: *mut JNIEnv, _class: jclass) -> jlong {
+    invizent_proof_new() as jlong
+}
+
+/// `Core.proofCall(handle: Long, inputJson: String): String?` — one move of the exchange, see `invizent_proof_call`.
+/// Null for a handle of 0, a text that is not a text, or a move the core cannot read.
+///
+/// # Safety
+/// `handle` is 0 or came from `proofNew` and was not freed; the rest is the JVM's own.
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_proofCall(env: *mut JNIEnv, _class: jclass, handle: jlong, input_json: jstring) -> jstring {
+    if handle == 0 { return std::ptr::null_mut() }
+    let Some(input) = c_text(env, input_json) else { return std::ptr::null_mut() };
+    give(env, invizent_proof_call(handle as *mut InvizentProof, input.as_ptr()))
+}
+
+/// `Core.proofFree(handle: Long)`
+///
+/// # Safety
+/// `handle` is 0 or came from `proofNew`, no call with it is running, and it is not used afterwards.
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_proofFree(_env: *mut JNIEnv, _class: jclass, handle: jlong) {
+    if handle != 0 { invizent_proof_free(handle as *mut InvizentProof) }
 }
 
 // ── The encryption service ───────────────────────────────────────────────────────────────────────────────────
