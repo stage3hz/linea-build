@@ -11,7 +11,7 @@ object SettingsIcons {
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val path = Path()
   private val box = RectF()
-  private val own = setOf("bell", "drive", "cloud", "moon", "sun", "battery", "video", "photo", "smile", "sparkles", "wand", "passcode") // Effects / Security: the last seven
+  private val own = setOf("bell", "drive", "cloud", "moon", "sun", "battery", "video", "photo", "smile", "sparkles", "wand", "passcode", "plus", "xmark", "magnifyingglass", "minus.circle", "fingerprint", "backspace") // Effects / Security: the last thirteen
 
   fun adds(name: String): Boolean = name in own
 
@@ -89,6 +89,18 @@ object SettingsIcons {
       "passcode" -> {
         canvas.drawRoundRect(3f, 7f, 21f, 17f, 3f, 3f, stroke)
         for (x in floatArrayOf(7.5f, 12f, 16.5f)) canvas.drawCircle(x, 12f, 0.9f, stroke)
+      }
+      "plus" -> { canvas.drawLine(12f, 5f, 12f, 19f, stroke); canvas.drawLine(5f, 12f, 19f, 12f, stroke) }
+      "xmark" -> { canvas.drawLine(6.5f, 6.5f, 17.5f, 17.5f, stroke); canvas.drawLine(17.5f, 6.5f, 6.5f, 17.5f, stroke) }
+      "magnifyingglass" -> { canvas.drawCircle(10.5f, 10.5f, 6f, stroke); canvas.drawLine(15f, 15f, 20f, 20f, stroke) }
+      "minus.circle" -> { canvas.drawCircle(12f, 12f, 8.6f, stroke); canvas.drawLine(8f, 12f, 16f, 12f, stroke) }
+      "fingerprint" -> {
+        for (r in floatArrayOf(2.4f, 5f, 7.6f)) { box.set(12f - r, 12f - r, 12f + r, 12f + r); canvas.drawArc(box, 200f, 230f, false, stroke) }
+        canvas.drawLine(12f, 12f, 12f, 17f, stroke)
+      }
+      "backspace" -> {
+        path.moveTo(8.6f, 5.5f); path.lineTo(20.5f, 5.5f); path.lineTo(20.5f, 18.5f); path.lineTo(8.6f, 18.5f); path.lineTo(2.8f, 12f); path.close(); canvas.drawPath(path, stroke)
+        canvas.drawLine(11.4f, 9.4f, 16.6f, 14.6f, stroke); canvas.drawLine(16.6f, 9.4f, 11.4f, 14.6f, stroke)
       }
     }
     canvas.restore()

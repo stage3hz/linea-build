@@ -11,7 +11,7 @@ import com.linea.messenger.design.words
 
 /** One copy of the server's privacy settings for the pages that show them: a change on one page is seen on the
  *  other. (The previous app: `mobile/src/privacy/privacyStore.ts`.) */
-class SettingsPrivacyModel(private val account: SettingsAccount) {
+class SettingsPrivacyModel(val account: SettingsAccount) { // Security: the lists' pages call with it (settings/PrivacyLists.kt)
   private val watchers = LinkedHashSet<() -> Unit>()
   fun watch(watcher: () -> Unit) { watchers.add(watcher) }
   fun unwatch(watcher: () -> Unit) { watchers.remove(watcher) }
@@ -176,7 +176,10 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
       chosen = callIndex, enabled = !saving, spoken = "Звонки") { index ->
       if (index != callIndex) model.change(mapOf("calls" to callModes[index].value))
     }
-    addGroup("Звонки", listOf(callBox))
+    // Security: the lists «Разрешить» and «Никогда» (settings/PrivacyLists.kt).
+    val callLists = SettingsRow(context, symbol = "person", label = if (model.word("calls", "everyone") == "everyone") "Никогда" else "Разрешить и никогда")
+    callLists.onPress = { open(CallRulesScreen(context, model.account)) }
+    addGroup("Звонки", listOf(callBox, callLists))
 
     // LinkPreview: kept on this phone, not on the server (linkpreview/LinkSettings.kt).
     addGroup("Ссылки", listOf(com.linea.messenger.linkpreview.LinkSettings.row(context)))
@@ -238,6 +241,13 @@ class LastSeenScreen(context: Context, private val model: SettingsPrivacyModel) 
     }
     addGroup("Кто видит, когда я в сети", rows)
     add(SettingsLook.foot(context, "Без подписки Platina вы не будете видеть появление в сети и время последнего захода пользователей, от которых скрыли свои. Вместо точного времени будет видно примерное значение (недавно, на этой неделе, в этом месяце)."), 8f)
+    // Security: «Исключения» — «Всегда показывать» (not with «Все»), «Никогда не показывать» (not with «Никто») (settings/PrivacyLists.kt).
+    val lists = ArrayList<View>()
+    fun count(people: Int): String = if (people < 0) "" else if (people > 0) people.toString() else "Добавить"
+    if (mode != "everyone") lists.add(SettingsRow(context, symbol = "check.circle", label = "Всегда показывать", value = count(model.allowCount)).apply { onPress = { open(LastSeenExceptionsScreen(context, model.account, model, "allow")) } })
+    if (mode != "nobody") lists.add(SettingsRow(context, symbol = "minus.circle", label = "Никогда не показывать", value = count(model.denyCount)).apply { onPress = { open(LastSeenExceptionsScreen(context, model.account, model, "deny")) } })
+    addGroup("Исключения", lists)
+    add(SettingsLook.foot(context, "Вы можете добавить пользователей в список исключений из настроек выше."), 8f)
 
     // The time of reading can be hidden once the time of coming is hidden from anyone.
     if (mode != "everyone" || model.denyCount > 0) {
