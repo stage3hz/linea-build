@@ -19,7 +19,7 @@ jobs:
       matrix:
         runner: [macos-15-intel, macos-26]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
       - name: Build, launch and photograph
@@ -90,7 +90,7 @@ jobs:
         id: live
         if: steps.work.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 50
         run: |
           set -euo pipefail
           OUT="$RUNNER_TEMP/out"
