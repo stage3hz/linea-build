@@ -9,6 +9,8 @@ import { generateKeyPairSync, sign as edSign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { stripTypeScriptTypes } from 'node:module';
 import { classify, addSample, timeoutFor, autoload } from '../../../mobile/src/network/quality.ts';
+import { validMeta, REACTIONS } from '../../../mobile/src/messageMeta.ts';
+import { validEntities, validLinkUrl } from '../../../mobile/src/format/entities.ts';
 import { normalizeServer, verifyServerList, chooseServer, fallbackServer } from '../../../mobile/src/servers/list.ts';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), 'vectors');
@@ -116,3 +118,48 @@ writeFileSync(join(out, 'request-timeout.json'), JSON.stringify(timeoutPaths.fla
   const requestTimeout = new Function('timeoutFor', 'networkTier', 'SIMULATOR_TEST_BUILD', `${timeoutSource}; return requestTimeout;`)(timeoutFor, () => tier, false);
   return { path, method, tier, ms: requestTimeout(path, method) }; })), null, 1) + '\n');
 console.log('network', classifyCases.length, samples.length, 'api-error', errorBodies.length, 'timeouts', timeoutPaths.length * 3);
+
+// The shape rules of what travels inside an encrypted message. Valid samples of every kind, then every sample
+// with each of its fields removed, replaced by values of other types, and with an unknown field added.
+const U = '0f8fad5b-d9cb-469f-a165-70867728950e', V = '7C9E6679-7425-40DE-944B-E07FC1F90AE7';
+const metaSamples = [
+  { reply: { clientId: U, senderId: V, preview: 'привет' } }, { reply: { clientId: U, senderId: V, preview: '' } }, { forward: { from: 'Анна' } }, { silent: true },
+  { story: { id: U, ownerId: V } }, { entities: [{ type: 'bold', offset: 0, length: 4 }, { type: 'text_link', offset: 5, length: 3, url: 'https://example.org/a?b=1' }, { type: 'pre', offset: 9, length: 2, language: 'rust' }] },
+  { album: { id: U, index: 0, count: 2 } }, { album: { id: U, index: 9, count: 10 } }, { poll: { question: 'Когда?', options: ['Сегодня', 'Завтра'], multiple: false } },
+  { reply: { clientId: U, senderId: V, preview: 'x' }, forward: { from: 'A' }, entities: [{ type: 'spoiler', offset: 0, length: 1 }], silent: true, album: { id: U, index: 1, count: 3 } },
+  { action: { type: 'edit', target: U, text: 'новый текст' } }, { action: { type: 'edit', target: U, text: 'bold', entities: [{ type: 'bold', offset: 0, length: 4 }] } },
+  { action: { type: 'delete', target: U } }, { action: { type: 'react', target: U, emoji: '👍' } }, { action: { type: 'react', target: U, emoji: '❤️' } }, { action: { type: 'react', target: U, emoji: null } },
+  { action: { type: 'pin', target: U } }, { action: { type: 'pin', target: null } }, { action: { type: 'vote', target: U, options: [0, 3, 9] } }, { action: { type: 'vote', target: U, options: [] } },
+  { action: { type: 'call', call: U, step: 'offer', video: true, sdp: 'v=0\r\no=- 1 2 IN IP4 127.0.0.1' } }, { action: { type: 'call', call: U, step: 'answer', sdp: 'v=0' } },
+  { action: { type: 'call', call: U, step: 'end', reason: 'hangup', duration: 192, caller: true } }, { action: { type: 'call', call: U, step: 'end' } },
+  { action: { type: 'call', call: U, step: 'restart', gen: 1, sdp: 'v=0' } }, { action: { type: 'call', call: U, step: 'restart-answer', gen: 100000, sdp: 'v=0 x' } },
+  { action: { type: 'settings', ttl: 86400, noCopy: true } }, { action: { type: 'settings', ttl: 0, noCopy: false } }, { action: { type: 'clear' } },
+];
+const odd = [null, true, false, 0, 1, -1, 1.5, 10, 11, 100001, 604801, 1e21, '', ' ', '\u00a0\ufeff', 'x', U, U.toUpperCase(), U.slice(1), U + '0', 'g' + U.slice(1), 'v=1', 'http://a', 'HTTPS://A b', 'ftp://a', '😀', [], [0, 0], [10], [-1], [1.5], ['a', ''], {}, { type: 'clear' }, 'x'.repeat(201), 'x'.repeat(8001)];
+const metaValues = [undefined, null, 5, 'meta', [], {}, { unknown: 1 }];
+const seenMeta = new Set(metaValues.map(v => JSON.stringify(v) ?? 'undefined'));
+const addMeta = v => { const key = JSON.stringify(v); if (!seenMeta.has(key)) { seenMeta.add(key); metaValues.push(v); } };
+const walk = (root, node, path) => {
+  for (const key of Object.keys(node)) {
+    const at = [...path, key];
+    const set = value => { const copy = structuredClone(root); let target = copy; for (const step of at.slice(0, -1)) target = target[step]; if (value === walk) { if (Array.isArray(target)) target.splice(Number(key), 1); else delete target[key]; } else target[key] = value; return copy; };
+    addMeta(set(walk));
+    for (const value of odd) addMeta(set(value));
+    if (node[key] && typeof node[key] === 'object') {
+      if (!Array.isArray(node[key])) { const extra = structuredClone(root); let target = extra; for (const step of at) target = target[step]; target.extra = 1; addMeta(extra); }
+      walk(root, node[key], at);
+    }
+  }
+};
+for (const sample of metaSamples) { addMeta(sample); addMeta({ ...sample, silent: true }); addMeta({ ...sample, reply: { clientId: U, senderId: V, preview: 'q' } }); addMeta({ ...sample, poll: { question: 'Q', options: ['a', 'b'], multiple: true } }); walk(sample, sample, []); }
+for (const emoji of REACTIONS) addMeta({ action: { type: 'react', target: U, emoji } });
+addMeta({ action: { type: 'react', target: U, emoji: '❤' } }); addMeta({ action: { type: 'vote', target: U, options: [1, 1] } }); addMeta({ action: { type: 'vote', target: U, options: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0] } });
+addMeta({ poll: { question: 'q'.repeat(256), options: ['a', 'b'], multiple: false } }); addMeta({ poll: { question: 'q', options: Array(11).fill('a'), multiple: false } }); addMeta({ poll: { question: 'q', options: ['a', 'o'.repeat(101)], multiple: false } });
+addMeta({ entities: Array.from({ length: 101 }, (_, i) => ({ type: 'bold', offset: i, length: 1 })) }); addMeta({ entities: [{ type: 'bold', offset: 7999, length: 1 }] }); addMeta({ entities: [{ type: 'bold', offset: 7999, length: 2 }] });
+addMeta({ action: { type: 'edit', target: U, text: 'ab', entities: [{ type: 'bold', offset: 1, length: 2 }] } }); addMeta({ action: { type: 'edit', target: U, text: '😀', entities: [{ type: 'bold', offset: 0, length: 2 }] } }); addMeta({ action: { type: 'edit', target: U, text: 'ab', entities: [] } });
+addMeta({ action: { type: 'call', call: U, step: 'end', duration: 604800 } }); addMeta({ action: { type: 'call', call: U, step: 'end', duration: 604801 } }); addMeta({ action: { type: 'call', call: U, step: 'offer', sdp: 'v=0' + 'x'.repeat(59997) } }); addMeta({ action: { type: 'call', call: U, step: 'offer', sdp: 'v=0' + 'x'.repeat(59998) } });
+addMeta({ entities: [{ type: 'text_link', offset: 0, length: 1, url: 'https://' + 'a'.repeat(2040) }] }); addMeta({ entities: [{ type: 'text_link', offset: 0, length: 1, url: 'https://' + 'a'.repeat(2041) }] }); addMeta({ entities: [{ type: 'pre', offset: 0, length: 1, language: 'l'.repeat(33) }] }); addMeta({ entities: [{ type: 'bold', offset: 0, length: 1, language: 'x' }] });
+writeFileSync(join(out, 'message-meta.json'), '[\n' + metaValues.map(value => JSON.stringify({ meta: value === undefined ? null : JSON.stringify(value), valid: validMeta(value) })).join(',\n') + '\n]\n');
+const links = ['https://a', 'http://a', 'HTTP://A', 'hTtPs://x.y/z?q=1#f', 'https://', 'http:/a', 'https://a b', 'https://a\n', ' https://a', 'https://a\u00a0b', 'https://a\ufeffb', 'https://a\u0085b', 'https://\ud83d', 'ftp://a', '', 5, null, 'https://' + 'a'.repeat(2040), 'https://' + 'a'.repeat(2041)];
+writeFileSync(join(out, 'links.json'), JSON.stringify(links.map(url => ({ url: JSON.stringify(url), valid: validLinkUrl(url) })), null, 1) + '\n');
+console.log('message-meta', metaValues.length, 'valid', metaValues.filter(validMeta).length, 'links', links.length, typeof validEntities);
