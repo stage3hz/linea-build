@@ -11,7 +11,7 @@ use crate::ffi::{
     invizent_api_call, invizent_core_version, invizent_crypto_call, invizent_crypto_free, invizent_crypto_new, invizent_http_prepare, invizent_http_read,
     invizent_proof_call, invizent_proof_free, invizent_proof_new, invizent_safety_code, invizent_string_free, invizent_view, InvizentCrypto, InvizentHost, InvizentProof,
 };
-use crate::ffi::{invizent_file_bytes_free, invizent_file_call, invizent_file_clean_jpeg, invizent_file_open, invizent_file_seal, InvizentBytes};
+use crate::ffi::{invizent_file_bytes_free, invizent_file_call, invizent_file_clean_jpeg, invizent_file_open, invizent_file_open_chunk, invizent_file_seal, invizent_file_seal_chunk, InvizentBytes};
 use jni_sys::{jboolean, jbyteArray, jclass, jint, jlong, jmethodID, jobject, jsize, jstring, jvalue, JNIEnv, JavaVM, JNI_EDETACHED, JNI_OK, JNI_VERSION_1_6};
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic::catch_unwind;
@@ -427,5 +427,41 @@ pub unsafe extern "system" fn Java_com_linea_messenger_attachments_FileCore_file
     let Some(jpeg) = bytes(env, jpeg) else { return std::ptr::null_mut() };
     let mut out = InvizentBytes { data: std::ptr::null_mut(), len: 0 };
     let words = invizent_file_clean_jpeg(jpeg.as_ptr(), jpeg.len(), &mut out);
+    file_answer(env, words, out)
+}
+
+// ── Big files (the chunked scheme) ───────────────────────────────────────────────────────────────────────────
+//
+// The functions of `object ChunkCore` (Kotlin, `com.linea.messenger.video`). One chunk's bytes cross as a Java
+// `byte[]`, as a small file's do; the answers are those of `fileSeal` / `fileOpen`. The by-name functions of the
+// scheme (`newChunkedEncryption`, `chunks`, `chunk`, `chunkAfter`, `chunked`) go through `FileCore.fileCall`.
+
+/// `ChunkCore.fileSealChunk(plain: ByteArray, encryptionJson: String, index: Long, size: Long): Any?` — see
+/// `invizent_file_seal_chunk`: the chunk's ciphertext with its tag (`byte[]`), or the words for the person
+/// (`String`). A negative index or size is not a chunk: null.
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and objects of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_video_ChunkCore_fileSealChunk(env: *mut JNIEnv, _class: jclass, plain: jbyteArray, encryption_json: jstring, index: jlong, size: jlong) -> jobject {
+    let (Some(plain), Some(encryption)) = (bytes(env, plain), c_text(env, encryption_json)) else { return std::ptr::null_mut() };
+    let (Ok(index), Ok(size)) = (u64::try_from(index), u64::try_from(size)) else { return std::ptr::null_mut() };
+    let mut out = InvizentBytes { data: std::ptr::null_mut(), len: 0 };
+    let words = invizent_file_seal_chunk(plain.as_ptr(), plain.len(), encryption.as_ptr(), index, size, &mut out);
+    file_answer(env, words, out)
+}
+
+/// `ChunkCore.fileOpenChunk(cipher: ByteArray, attachmentJson: String, index: Long): Any?` — see
+/// `invizent_file_open_chunk`: the chunk's bytes (`byte[]`), or the words for the person (`String`); a chunk
+/// that fails its check is never given out. A negative index is not a chunk: null.
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and objects of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_video_ChunkCore_fileOpenChunk(env: *mut JNIEnv, _class: jclass, cipher: jbyteArray, attachment_json: jstring, index: jlong) -> jobject {
+    let (Some(cipher), Some(attachment)) = (bytes(env, cipher), c_text(env, attachment_json)) else { return std::ptr::null_mut() };
+    let Ok(index) = u64::try_from(index) else { return std::ptr::null_mut() };
+    let mut out = InvizentBytes { data: std::ptr::null_mut(), len: 0 };
+    let words = invizent_file_open_chunk(cipher.as_ptr(), cipher.len(), attachment.as_ptr(), index, &mut out);
     file_answer(env, words, out)
 }
