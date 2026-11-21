@@ -132,7 +132,6 @@ final class AuthViewController: UIViewController, UITextFieldDelegate {
             hint.text = "Введи слово подтверждения, которое выбрал при регистрации."
             field.attributedPlaceholder = NSAttributedString(string: "Твоё слово для входа", attributes: [.foregroundColor: Theme.subtle])
             field.isSecureTextEntry = true
-            field.textContentType = .oneTimeCode
             field.textContentType = nil
             field.returnKeyType = .go
         }
