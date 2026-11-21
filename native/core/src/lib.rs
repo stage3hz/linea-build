@@ -8,6 +8,7 @@
 
 pub mod attest;
 pub mod device_proof;
+pub mod e2ee;
 pub mod http;
 pub mod json;
 pub mod message_meta;

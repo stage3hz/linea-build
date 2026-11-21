@@ -1,0 +1,328 @@
+{
+ "codes": [
+  {
+   "own": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "other": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "code": "39CC 4AB6 B86D 2294 8AF7 E796 1329 8424 5799 E2B5 75C3 8439 89B2 6347 4556 1975"
+  },
+  {
+   "own": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "code": "AF70 193A 4444 03CA D8B9 AD66 89D7 1ACC 890F 0AC4 FFB4 D55D C7F1 A724 2314 CE35"
+  },
+  {
+   "own": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "code": "288D 006D 5C43 CA13 7A94 2F3A 68FC 4196 2CC1 4A0A D651 20B9 CA3F CB35 CDF9 A65B"
+  },
+  {
+   "own": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "other": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "code": "F745 BC57 C285 0542 8EFE 1A99 08FA 7748 293B 8392 DC11 4FA9 DF72 7E8D 48AA 0593"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "other": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "code": "AF70 193A 4444 03CA D8B9 AD66 89D7 1ACC 890F 0AC4 FFB4 D55D C7F1 A724 2314 CE35"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "code": "E03D 40CB 0564 6FC2 C6CC 96E2 32A5 A08C 0290 6AF7 1FE3 64EC 4B59 06E8 F445 1D99"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "code": "F1FD F697 39CC 6FF1 547B 3113 F3D4 EBB3 E827 52D8 2B98 D6D5 5962 0ADA B579 5A91"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "other": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "code": "C0A3 FDD3 5EED D8D5 6CE9 E8E0 28E3 4C41 BDD6 BC8D 473E 2310 E302 A33C A0C1 D2EE"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "other": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "code": "288D 006D 5C43 CA13 7A94 2F3A 68FC 4196 2CC1 4A0A D651 20B9 CA3F CB35 CDF9 A65B"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "code": "F1FD F697 39CC 6FF1 547B 3113 F3D4 EBB3 E827 52D8 2B98 D6D5 5962 0ADA B579 5A91"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "code": "9FC6 922A 8852 AC8A 2B18 C34A 71A0 880F 746B 2541 D819 6025 4262 D9FB 12E3 01E6"
+  },
+  {
+   "own": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "other": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "code": "1EB8 0513 504F 0809 BAF4 A942 4736 179C 5EA6 75EF CB94 5A58 19EA 9474 EE3E 6E0E"
+  },
+  {
+   "own": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "other": {
+    "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    "registrationId": 1
+   },
+   "code": "F745 BC57 C285 0542 8EFE 1A99 08FA 7748 293B 8392 DC11 4FA9 DF72 7E8D 48AA 0593"
+  },
+  {
+   "own": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "00000000-0000-0000-0000-000000000000",
+    "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "registrationId": 16383
+   },
+   "code": "C0A3 FDD3 5EED D8D5 6CE9 E8E0 28E3 4C41 BDD6 BC8D 473E 2310 E302 A33C A0C1 D2EE"
+  },
+  {
+   "own": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "other": {
+    "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "deviceId": "99999999-9999-9999-9999-999999999999",
+    "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "registrationId": 77
+   },
+   "code": "1EB8 0513 504F 0809 BAF4 A942 4736 179C 5EA6 75EF CB94 5A58 19EA 9474 EE3E 6E0E"
+  },
+  {
+   "own": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "other": {
+    "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+    "deviceId": "a0000000-0000-0000-0000-000000000000",
+    "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+    "registrationId": 4242
+   },
+   "code": "9369 D51B 7BC6 48E8 7CFA DEC3 61DF C7D3 489E 753C 75FC F5BF F032 020B 4A3E 1BBA"
+  }
+ ],
+ "sets": [
+  {
+   "devices": [
+    {
+     "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+     "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+     "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+     "registrationId": 1
+    },
+    {
+     "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+     "deviceId": "00000000-0000-0000-0000-000000000000",
+     "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "registrationId": 16383
+    },
+    {
+     "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+     "deviceId": "99999999-9999-9999-9999-999999999999",
+     "identityKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "registrationId": 77
+    },
+    {
+     "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+     "deviceId": "a0000000-0000-0000-0000-000000000000",
+     "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+     "registrationId": 4242
+    }
+   ],
+   "sorted": [
+    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "00000000-0000-0000-0000-000000000000",
+    "99999999-9999-9999-9999-999999999999",
+    "a0000000-0000-0000-0000-000000000000"
+   ],
+   "fingerprint": "24ac73179d4923c8085dcbb3832798698361db2ad82cc4ebe725a79101d0d6e7"
+  },
+  {
+   "devices": [
+    {
+     "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+     "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+     "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+     "registrationId": 1
+    },
+    {
+     "userId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+     "deviceId": "00000000-0000-0000-0000-000000000000",
+     "identityKey": "BQxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "registrationId": 16383
+    }
+   ],
+   "sorted": [
+    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "00000000-0000-0000-0000-000000000000"
+   ],
+   "fingerprint": "0ac8a63ebbac03a87abec3d0c8f3229622c5c42f494acbe47416d00b88639eac"
+  },
+  {
+   "devices": [
+    {
+     "userId": "7C9E6679-7425-40DE-944B-E07FC1F90AE7",
+     "deviceId": "a0000000-0000-0000-0000-000000000000",
+     "identityKey": "/+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+     "registrationId": 4242
+    },
+    {
+     "userId": "0f8fad5b-d9cb-469f-a165-70867728950e",
+     "deviceId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+     "identityKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+     "registrationId": 1
+    }
+   ],
+   "sorted": [
+    "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "a0000000-0000-0000-0000-000000000000"
+   ],
+   "fingerprint": "97bb709b8db8a757b751f80d297c507a0414921d8c9cc4e25c8041dd346e8d48"
+  },
+  {
+   "devices": [],
+   "sorted": [],
+   "fingerprint": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  }
+ ]
+}

@@ -11,6 +11,8 @@ import { stripTypeScriptTypes } from 'node:module';
 import { classify, addSample, timeoutFor, autoload } from '../../../mobile/src/network/quality.ts';
 import { validMeta, REACTIONS } from '../../../mobile/src/messageMeta.ts';
 import { validEntities, validLinkUrl } from '../../../mobile/src/format/entities.ts';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { normalizeServer, verifyServerList, chooseServer, fallbackServer } from '../../../mobile/src/servers/list.ts';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), 'vectors');
@@ -163,3 +165,58 @@ writeFileSync(join(out, 'message-meta.json'), '[\n' + metaValues.map(value => JS
 const links = ['https://a', 'http://a', 'HTTP://A', 'hTtPs://x.y/z?q=1#f', 'https://', 'http:/a', 'https://a b', 'https://a\n', ' https://a', 'https://a\u00a0b', 'https://a\ufeffb', 'https://a\u0085b', 'https://\ud83d', 'ftp://a', '', 5, null, 'https://' + 'a'.repeat(2040), 'https://' + 'a'.repeat(2041)];
 writeFileSync(join(out, 'links.json'), JSON.stringify(links.map(url => ({ url: JSON.stringify(url), valid: validLinkUrl(url) })), null, 1) + '\n');
 console.log('message-meta', metaValues.length, 'valid', metaValues.filter(validMeta).length, 'links', links.length, typeof validEntities);
+
+// An encrypted message on the wire: the reference's own validators and canonical form, cut from its source.
+const coreSource = readFileSync(new URL('../../../mobile/src/e2ee/core.ts', import.meta.url), 'utf8');
+const coreCut = (from, to) => { const start = coreSource.indexOf(from); const end = coreSource.indexOf(to, start); if (start < 0 || end < 0) throw new Error('core.ts changed: ' + from); return coreSource.slice(start, end); };
+const base64js = createRequire(new URL('../../../mobile/package.json', import.meta.url))('base64-js');
+const wireCode = stripTypeScriptTypes(coreCut('export function canonicalEncrypted', '// Voice waveform travels').replace('export function', 'function'), { mode: 'transform' });
+const wire = new Function('toByteArray', 'fromByteArray', `const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; ${wireCode}; return { canonicalEncrypted, validEncrypted };`)(base64js.toByteArray, base64js.fromByteArray);
+const sha = text => createHash('sha256').update(text, 'utf8').digest('hex');
+const ids = ['0f8fad5b-d9cb-469f-a165-70867728950e', '7c9e6679-7425-40de-944b-e07fc1f90ae7', '7C9E6679-7425-40DE-944B-E07FC1F90AE7', '7c9e6679-7425-40de-944b-E07FC1F90AE7', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'AAAAAAAA-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaA', '00000000-0000-0000-0000-000000000000', '99999999-9999-9999-9999-999999999999', 'a0000000-0000-0000-0000-000000000000', '0a000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+  'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF', 'fFfFfFfF-ffff-ffff-ffff-ffffffffffff', 'FfFfFfFf-ffff-ffff-ffff-ffffffffffff', '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed', '1B9D6BCD-bbfd-4b2d-9b5d-ab8dfbbd4bed', '9a000000-0000-0000-0000-000000000000', 'a9000000-0000-0000-0000-000000000000'];
+const order = [];
+for (const a of ids) for (const b of ids) order.push({ a: `${a}:${ids[0]}`, b: `${b}:${ids[0]}`, sign: Math.sign(`${a}:${ids[0]}`.localeCompare(`${b}:${ids[0]}`)) }, { a: `${ids[0]}.${a}`, b: `${ids[0]}.${b}`, sign: Math.sign(`${ids[0]}.${a}`.localeCompare(`${ids[0]}.${b}`)) });
+writeFileSync(join(out, 'id-order.json'), '[\n' + order.map(row => JSON.stringify(row)).join(',\n') + '\n]\n');
+const body = bytes => Buffer.from(bytes).toString('base64');
+const envelope = (userId, deviceId, type = 3, bytes = [1, 2, 3]) => ({ userId, deviceId, type, body: body(bytes) });
+const goodMessages = [
+  { scheme: 'signal-v1', senderDeviceId: ids[0], envelopes: [envelope(ids[1], ids[4])] },
+  { scheme: 'signal-v1', senderDeviceId: ids[0], envelopes: [envelope(ids[1], ids[4], 2, [255]), envelope(ids[0], ids[7], 3, [0, 0]), envelope(ids[2], ids[8], 3, [9, 9, 9, 9])], attachmentIds: [ids[11], ids[3], ids[0]] },
+  { scheme: 'signal-v1', senderDeviceId: ids[2], envelopes: [envelope(ids[4], ids[15]), envelope(ids[5], ids[16]), envelope(ids[6], ids[9])], attachmentIds: [], lane: 'scheduled' },
+  { scheme: 'signal-v1', senderDeviceId: ids[0], envelopes: Array.from({ length: 10 }, (_, i) => envelope(ids[i % 3], `${String(i).repeat(8)}-0000-0000-0000-000000000000`, i % 2 ? 2 : 3, Array(i + 1).fill(i))), attachmentIds: Array.from({ length: 10 }, (_, i) => `${String(9 - i).repeat(8)}-aaaa-aaaa-aaaa-aaaaaaaaaaaa`) },
+  { scheme: 'signal-v1', senderDeviceId: ids[0], envelopes: [envelope(ids[1], ids[4], 3, Array(65536).fill(7))] },
+];
+const wireValues = [null, 5, 'x', [], {}];
+const seenWire = new Set(wireValues.map(v => JSON.stringify(v)));
+const addWire = v => { const key = JSON.stringify(v); if (!seenWire.has(key)) { seenWire.add(key); wireValues.push(v); } };
+const wireOdd = [null, true, 0, 1, 2, 3, 4, 2.5, '', 'signal-v2', 'scheduled', 'voice', ids[0], ids[0].toUpperCase(), ids[0].slice(1), 'AQID', 'AQI=', 'AQ==', 'AQ=', 'AQI', 'AR==', 'AQJ=', '!!!!', 'AQID AQID', '====', [], {}, [ids[0]], [ids[0], ids[0].toUpperCase()]];
+const walkWire = (root, node, path) => {
+  for (const key of Object.keys(node)) {
+    const at = [...path, key];
+    if (JSON.stringify(node[key]).length > 4000) continue;
+    const set = value => { const copy = structuredClone(root); let target = copy; for (const step of at.slice(0, -1)) target = target[step]; if (value === walkWire) { if (Array.isArray(target)) target.splice(Number(key), 1); else delete target[key]; } else target[key] = value; return copy; };
+    addWire(set(walkWire));
+    for (const value of wireOdd) addWire(set(value));
+    if (node[key] && typeof node[key] === 'object') { if (!Array.isArray(node[key])) { const extra = structuredClone(root); let target = extra; for (const step of at) target = target[step]; target.extra = 1; addWire(extra); } walkWire(root, node[key], at); }
+  }
+};
+for (const message of goodMessages.slice(0, 3)) { addWire(message); addWire({ ...message, extra: 1 }); walkWire(message, message, []); }
+addWire(goodMessages[3]); addWire(goodMessages[4]);
+addWire({ ...goodMessages[0], envelopes: [envelope(ids[1], ids[4], 3, Array(65537).fill(7))] });
+addWire({ ...goodMessages[0], envelopes: Array.from({ length: 11 }, (_, i) => envelope(ids[1], `${String(i % 10).repeat(8)}-0000-0000-0000-00000000000${i > 9 ? 'a' : '0'}`)) });
+addWire({ ...goodMessages[0], attachmentIds: Array.from({ length: 11 }, (_, i) => `${String(i % 10).repeat(8)}-aaaa-aaaa-aaaa-aaaaaaaaaaa${i > 9 ? 'b' : 'a'}`) });
+addWire({ ...goodMessages[0], envelopes: [envelope(ids[1], ids[1]), envelope(ids[0], ids[2])] });
+writeFileSync(join(out, 'encrypted.json'), '[\n' + wireValues.map(value => { const valid = wire.validEncrypted(value); return JSON.stringify({ value: JSON.stringify(value), valid, ...(valid ? { fingerprint: sha(wire.canonicalEncrypted(value)), canonical: JSON.stringify(value).length < 3000 ? wire.canonicalEncrypted(value) : null } : {}) }); }).join(',\n') + '\n]\n');
+// The codes people compare and the fingerprint of a conversation's devices, computed the way `snapshot` does.
+const snapshotCode = coreCut("const pair=[selfIdentity,", 'return {...device');
+if (!snapshotCode.includes("linea-safety-code-v1\\u0000${pair.join('\\u0000')}")) throw new Error('core.ts changed: the safety code');
+const identity = (userId, deviceId, identityKey, registrationId) => ({ userId, deviceId, identityKey, registrationId });
+const people = [identity(ids[0], ids[4], 'A'.repeat(43) + '=', 1), identity(ids[1], ids[7], 'BQ' + 'x'.repeat(42), 16383), identity(ids[1], ids[8], 'b'.repeat(44), 77), identity(ids[2], ids[9], '/+' + 'Z'.repeat(42), 4242)];
+const line = d => `${d.userId}.${d.deviceId}:${d.identityKey}:${d.registrationId}`;
+const codes = [];
+for (const own of people) for (const other of people) { const pair = [line(own), line(other)].sort(); codes.push({ own, other, code: sha(`linea-safety-code-v1\u0000${pair.join('\u0000')}`).toUpperCase().match(/.{1,4}/g).join(' ') }); }
+const sets = [people, people.slice(0, 2), [people[3], people[0]], []].map(devices => { const sorted = [...devices].sort((a, b) => `${a.userId}.${a.deviceId}`.localeCompare(`${b.userId}.${b.deviceId}`)); return { devices, sorted: sorted.map(d => d.deviceId), fingerprint: sha(JSON.stringify(sorted.map(d => [d.userId, d.deviceId, d.identityKey, d.registrationId]))) }; });
+writeFileSync(join(out, 'trust.json'), JSON.stringify({ codes, sets }, null, 1) + '\n');
+console.log('id-order', order.length, 'encrypted', wireValues.length, 'valid', wireValues.filter(wire.validEncrypted).length, 'codes', codes.length);
