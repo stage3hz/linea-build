@@ -677,8 +677,11 @@ final class ChatHistory {
             add(true, "🗳 Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [1]]])
             let picnic: [String: Any] = ["question": "Что взять на пикник?", "options": ["Плед", "Мяч", "Термос", "Гитара"], "multiple": true]
             add(true, PollText.fallback(picnic), "09:46", ["poll": picnic])
-            add(false, "🎉🔥", "09:47", [:])
-            add(true, "👍", "09:47", [:])
+            for (mine, words) in [(false, "🎉🔥"), (true, "👍")] {
+                let id = list.count + 1
+                list.append(["id": id, "chatId": chatId, "senderId": mine ? userId : ChatHistory.demoPeer, "clientId": client(id), "text": words,
+                             "attachment": NSNull(), "createdAt": at("09:47", id), "cryptoState": "decrypted"])
+            }
             add(true, "Не буду звонить, напиши, как проснёшься", "09:48", ["silent": true])
             let albumId = "a0000000-0000-4000-8000-000000000001"
             let shapes: [(CGFloat, CGFloat)] = [(240, 160), (160, 240), (240, 180)]
