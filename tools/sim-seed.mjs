@@ -78,15 +78,16 @@ const PEOPLE = [
   ['Ксюша', [[224, 128, 59], [240, 168, 96]], ['😂😂😂', 'Ну ты даёшь', 'Давай в семь у метро']],
   ['Dimas', null, ['Го вечером?', 'Я освобожусь после шести']],
   ['Лариса Новикова', [[176, 74, 122], [224, 106, 154]], Array.from({ length: 24 }, (_, i) => `Сообщение номер ${i + 1}${i % 5 === 4 ? ' — подлиннее, чтобы перенеслось на вторую строку и было видно, как ведёт себя пузырь' : ''}`)],
-  // SIM_SEED_RICH=1 (.github/workflows/native-compare.yml): more people, so the list scrolls; inserted before the
-  // last person, whose chat stays the first of the list. Off by default: the other workflows see the same list as before.
+  // SIM_SEED_RICH=1 (.github/workflows/native-compare.yml): more people, so the list scrolls. They write first (see
+  // the sending below), so their chats are the oldest, at the bottom of the list; the people above keep their places
+  // (index, list order). Off by default: the other workflows see the same list as before.
   ...(process.env.SIM_SEED_RICH === '1' ? [
-    ['Олег Смирнов', [[90, 160, 90], [140, 200, 120]], ['Завтра созвон в 11, не забудь']],
-    ['Вера', null, ['Спасибо! 🙏']],
-    ['Павел Крылов', [[200, 90, 70], [240, 140, 100]], ['Фото с выходных скину вечером', 'Там их штук двести 😅']],
-    ['Софья Миронова', [[120, 100, 210], [170, 150, 240]], ['Ключи у консьержа']],
-    ['Игорь', null, ['Ок']],
-    ['Наташа Белова', [[60, 170, 200], [110, 210, 230]], ['С днём рождения! 🎉 Желаю, чтобы всё получалось и было побольше поводов улыбаться']],
+    ['Олег Смирнов', [[90, 160, 90], [140, 200, 120]], ['Завтра созвон в 11, не забудь'], 'extra'],
+    ['Вера', null, ['Спасибо! 🙏'], 'extra'],
+    ['Павел Крылов', [[200, 90, 70], [240, 140, 100]], ['Фото с выходных скину вечером', 'Там их штук двести 😅'], 'extra'],
+    ['Софья Миронова', [[120, 100, 210], [170, 150, 240]], ['Ключи у консьержа'], 'extra'],
+    ['Игорь', null, ['Ок'], 'extra'],
+    ['Наташа Белова', [[60, 170, 200], [110, 210, 230]], ['С днём рождения! 🎉 Желаю, чтобы всё получалось и было побольше поводов улыбаться'], 'extra'],
   ] : []),
   ['Тимур Богданов', [[61, 139, 208], [94, 176, 240]], ['Список покупок:\n— молоко\n— хлеб\n— сыр', FORMATTED, 'Не забудь!']],
 ];
@@ -95,7 +96,9 @@ for (const [index, [name, colors]] of PEOPLE.entries()) people.push(await peer(`
 const found = (await people[0].api.users('@' + handle)).users[0];
 if (!found) { console.error(`the test account @${handle} was not found`); process.exit(1); }
 let sent = 0;
-for (const [index, [, , texts]] of PEOPLE.entries()) for (const text of texts) { await say(people[index], found.id, text); sent++; }
+// The extra people (SIM_SEED_RICH=1) write first; the order of the others is as listed.
+const sendOrder = [...PEOPLE.keys()].sort((a, b) => Number(!!PEOPLE[b][3]) - Number(!!PEOPLE[a][3]));
+for (const index of sendOrder) for (const text of PEOPLE[index][2]) { await say(people[index], found.id, text); sent++; }
 // An encrypted photo and an encrypted file from the last person (their chat is then the first in the list), sent
 // the way the app sends them: sealed with a fresh key, uploaded as ciphertext, the key travelling inside the
 // message. Not fatal: an older server without the files route just has no attachments to show.

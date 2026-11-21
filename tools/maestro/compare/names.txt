@@ -1,0 +1,22 @@
+# The screens of .github/workflows/native-compare.yml, in order: ref-<line>.yaml photographs the previous app,
+# the workflow's `nat`/`natflow` lines (and nat/nat-<line>.yaml) the native app; pairs: pair-<line>.jpg.
+01-chatlist
+02-chatlist-scrolled
+03-chat-text
+04-chat-media
+05-message-menu
+06-chat-avatar-peek
+07-profile
+08-settings
+09-appearance
+10-privacy
+11-people
+12-channels
+13-community
+14-channel-chat
+15-music
+16-ai
+17-attach-panel
+18-emoji-panel
+19-chatlist-search
+20-sections

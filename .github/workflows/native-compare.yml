@@ -1,0 +1,249 @@
+# The side-by-side comparison: the previous app (React Native, mobile/) and the native iPhone app (native/ios)
+# photographed on the SAME simulator with the SAME data, screen by screen, so every visual or behavioural difference
+# can be found by looking at two pictures next to each other.
+#
+# As in native-takeover.yml: the previous app is built for the simulator with the release identifier
+# com.invizent.app, signs in to a test account on a LOCAL test server (HTTPS with a test CA trusted inside this
+# simulator only; TLS stays on), made-up people send it really encrypted messages (tools/sim-seed.mjs, here with
+# SIM_SEED_RICH=1 and the account's sign-in: more people, a friend and a request, a community with channels).
+# Then, BEFORE the native app exists on the simulator, Maestro walks the previous app through the screens listed in
+# tools/maestro/compare/names.txt (one flow per screen, tools/maestro/compare/ref-*.yaml) and photographs each:
+# compare/ref-NN-name.png. Then the native app is installed over it (the update keeps the session, the keys and the
+# storage) and is photographed on the same screens — started with its simulator launch arguments
+# (native/ios/Sources/App/SceneDelegate.swift) and, where no argument reaches the screen, moved there by the same
+# gestures (tools/maestro/compare/nat/*.yaml, sharing tools/maestro/compare/act/*.yaml with the reference flows):
+# compare/nat-NN-name.png. tools/compare-pairs.py puts each pair next to each other (compare/pair-NN-name.jpg)
+# and writes compare/INDEX.md (what was photographed, what was not and why). All of it goes to the branch
+# native-compare-output.
+#
+# Start: git push origin <commit>:native-compare
+# Nothing here talks to the real server: every address of the real service resolves to this Mac for the whole run,
+# the apps are pointed at https://localhost:8443 only.
+name: Native iOS side-by-side comparison
+on:
+  push:
+    branches: [native-compare]
+permissions:
+  contents: write
+concurrency:
+  group: native-compare
+  cancel-in-progress: true
+jobs:
+  compare:
+    runs-on: macos-26
+    timeout-minutes: 240
+    env:
+      EXPO_NO_TELEMETRY: '1'
+      CI: '1'
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
+      # The made-up account of tools/native-sim-account.mjs (lives for this run only, on the local server only).
+      TEST_LOGIN: nativetester
+      TEST_HANDLE: native_check
+      TEST_PASSWORD: 'Synthetic!Native.42'
+      TEST_WORD: ambergardenprism
+      SERVER: https://localhost:8443
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Keep the real service unreachable from this Mac
+        run: |
+          # Belt and braces: the apps are pointed at localhost, but should anything try the real addresses, it gets this Mac.
+          echo "127.0.0.1 api.invizent.com invizent.com invizent-api.invizent-8165e2.workers.dev 141-133-194-51.nip.io" | sudo tee -a /etc/hosts
+          sudo route -n add -host 194.87.254.249 127.0.0.1 || true
+          sudo dscacheutil -flushcache || true; sudo killall -HUP mDNSResponder || true
+      - name: Build both apps, photograph the previous app, install the native app over it, photograph it
+        id: work
+        continue-on-error: true
+        timeout-minutes: 225
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/out"; CMP="$OUT/compare"; mkdir -p "$OUT/ref" "$CMP"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          stage() { echo "$1" > "$OUT/STAGE.txt"; echo "== $1"; }
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
+          pod --version || sudo gem install cocoapods
+          ARCH=$(uname -m); if [ "$ARCH" = arm64 ]; then SIM_RUST=aarch64-apple-ios-sim; else SIM_RUST=x86_64-apple-ios; fi
+          rustup target add "$SIM_RUST" || true
+          # Both apps are signed the same way for the simulator (ad hoc, no team), so both get the same keychain group.
+          SIGN=(CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES)
+
+          stage "build the native app"
+          which protoc || brew install protobuf
+          which xcodegen || brew install xcodegen
+          native/ios/build-core.sh "$SIM_RUST"
+          (cd native/ios && xcodegen generate && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" build > "$OUT/native-build.log" 2>&1) \
+            || { grep -E "error:" "$OUT/native-build.log" | head -60; tail -60 "$OUT/native-build.log"; exit 1; }
+          NATIVE_APP="$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
+
+          stage "build the previous app (release identifier, local test server baked in)"
+          (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
+          # APP_ENV=production gives the release identifier (mobile/app.config.js), as on the owner's phone.
+          # EXPO_PUBLIC_SIMULATOR_SERVER is accepted by that app only as https://localhost:<port> (src/serverConfig.ts):
+          # it then has no other address at all. EXPO_PUBLIC_API_URL only satisfies the production config's check.
+          (cd mobile && export APP_ENV=production IOS_BUNDLE_ID=com.invizent.app EXPO_PUBLIC_API_URL="$SERVER" EXPO_PUBLIC_SIMULATOR_SERVER="$SERVER" EXPO_PUBLIC_ALLOW_LOCAL_HTTP=0 \
+            && npx expo prebuild --platform ios --clean --no-install \
+            && cd ios && { for attempt in 1 2 3; do pod install && break; [ "$attempt" = 3 ] && exit 1; sleep 30; done; } \
+            && SCHEME=$(basename *.xcworkspace .xcworkspace) && echo "$SCHEME" > "$RUNNER_TEMP/scheme" \
+            && xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator \
+              -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES \
+              CARGO_BUILD_TARGET="$SIM_RUST" LINEA_SIGNAL_FFI_TARGET="$SIM_RUST" "${SIGN[@]}" build > "$OUT/reference-build.log" 2>&1) \
+            || { grep -E "error:" "$OUT/reference-build.log" | head -60; tail -80 "$OUT/reference-build.log"; exit 1; }
+          REF_APP="$PWD/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/$(cat "$RUNNER_TEMP/scheme").app"
+          for app in "$REF_APP" "$NATIVE_APP"; do
+            id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist"); echo "$app -> $id"
+            [ "$id" = com.invizent.app ] || { echo "::error::$app has identifier $id, not com.invizent.app"; exit 1; }
+            codesign -d --entitlements :- "$app" > "$OUT/entitlements-$(basename "$app" .app).plist" 2>/dev/null || true
+          done
+
+          stage "local test server"
+          OSSL=$(brew --prefix openssl@3 2>/dev/null)/bin/openssl; [ -x "$OSSL" ] || OSSL=openssl
+          mkdir -p tls && (cd tls \
+            && "$OSSL" req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=INVIZENT Simulator Test CA" -keyout ca.key -out ca.pem -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null \
+            && "$OSSL" req -newkey rsa:2048 -nodes -subj "/CN=localhost" -keyout leaf.key -out leaf.csr 2>/dev/null \
+            && printf "subjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\n" > ext.cnf \
+            && "$OSSL" x509 -req -in leaf.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 2 -sha256 -extfile ext.cnf -out leaf.pem 2>/dev/null)
+          mkdir -p srvdata
+          (cd server && DATA_DIR="$GITHUB_WORKSPACE/srvdata" PORT=3999 HOST=127.0.0.1 nohup node src/index.js > "$OUT/server.log" 2>&1 &)
+          proxy() { nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 >> "$OUT/proxy.log" 2>&1 & for i in $(seq 1 30); do curl -fsS --cacert tls/ca.pem "$SERVER/health" >/dev/null && return 0; sleep 1; done; return 1; }
+          proxy || { echo "::error::the local server never answered"; cat "$OUT/server.log"; exit 1; }
+          ACCOUNT=$(node tools/native-sim-account.mjs http://127.0.0.1:3999 "$TEST_LOGIN" "$TEST_HANDLE")
+          USER_ID=$(printf '%s' "$ACCOUNT" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
+          echo "account $TEST_LOGIN id $USER_ID"; echo "$USER_ID" > "$OUT/user-id.txt"
+          SCOPE=$(node -e 'console.log(require("crypto").createHash("sha256").update(process.argv[1]+"\u0000"+process.argv[2]).digest("hex"))' "$SERVER" "$USER_ID")
+          echo "scope of the account's storage: $SCOPE"
+
+          stage "simulator"
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          UDID=$(python3 - "$RUNNER_TEMP/simulators.json" <<'PY'
+          import json,re,sys
+          devices=json.load(open(sys.argv[1]))['devices']
+          phones=[(tuple(map(int,re.findall(r'\d+',runtime))),d) for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
+          latest=max(v for v,_ in phones)
+          pros=[d for v,d in phones if v==latest and 'Pro' in d['name'] and 'Max' not in d['name']] or [d for v,d in phones if v==latest]
+          phone=sorted(pros,key=lambda d:d['name'])[-1]
+          sys.stderr.write('Simulator: %s %s\n'%(phone['name'],latest)); print(phone['udid'])
+          PY
+          )
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          limit 120 xcrun simctl boot "$UDID" || true
+          limit 600 xcrun simctl bootstatus "$UDID" -b
+          limit 120 xcrun simctl keychain "$UDID" add-root-cert tls/ca.pem
+          limit 60 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          limit 60 xcrun simctl ui "$UDID" appearance dark || true
+          limit 60 xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true || true
+          shot() { limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1 || { sleep 5; limit 90 xcrun simctl io "$UDID" screenshot "$OUT/$1.png" >/dev/null 2>&1; } || echo "no picture: $1"; }
+          # A screen that could not be reached: what was on the screen instead is kept under another name, with the reason.
+          miss() { echo "$1: $2" >> "$CMP/missing.txt"; echo "::warning::$1: $2"; }
+          # Maestro writes a picture where it was started, or next to the flow in some versions: gathered here.
+          gather() { find "$GITHUB_WORKSPACE/tools/maestro" "$OUT/ref" -maxdepth 3 \( -name 'ref-[0-9][0-9]-*.png' -o -name 'nat-[0-9][0-9]-*.png' \) -exec mv -f {} "$CMP/" \; 2>/dev/null || true; }
+          export PATH="$HOME/.maestro/bin:$PATH"
+
+          stage "the previous app signs in"
+          limit 600 xcrun simctl install "$UDID" "$REF_APP"
+          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+          for attempt in 1 2 3; do curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break; [ "$attempt" = 3 ] && exit 1; rm -rf "$HOME/.maestro"; sleep 30; done
+          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test -e LOGIN="$TEST_LOGIN" -e PASSWORD="$TEST_PASSWORD" -e WORD="$TEST_WORD" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml") \
+            || { shot ref-signin-failed; echo "::error::the previous app did not sign in"; exit 1; }
+
+          stage "people write to the account (more people, a friend, a community); the previous app decrypts them"
+          SIM_SEED_RICH=1 node tools/sim-seed.mjs http://127.0.0.1:3999 "$TEST_HANDLE" "$GITHUB_WORKSPACE/srvdata" "$TEST_LOGIN" "$TEST_PASSWORD" "$TEST_WORD" | tee "$OUT/seed.txt"
+          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/takeover-read.yaml") \
+            || { shot ref-read-failed; echo "::error::the previous app did not show the chats"; exit 1; }
+          gather
+
+          stage "the previous app, screen by screen"
+          NAMES="$GITHUB_WORKSPACE/tools/maestro/compare/names.txt"
+          while read -r name; do
+            case "$name" in ''|'#'*) continue;; esac
+            echo "-- ref-$name"
+            if ! (cd "$CMP" && limit 420 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/compare/ref-$name.yaml" < /dev/null); then
+              shot "compare/ref-$name-failed"; miss "ref-$name" "the Maestro flow did not reach the screen (what was shown instead: ref-$name-failed.png)"
+            fi
+            gather
+            [ -f "$CMP/ref-$name.png" ] || [ -f "$CMP/ref-$name-failed.png" ] || miss "ref-$name" "no picture"
+          done < "$NAMES"
+          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+
+          stage "the native app is installed OVER the previous one"
+          limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
+          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+          start() { # seconds, launch arguments… — always pointed at the local test server
+            local wait="$1"; shift
+            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server "$SERVER" "$@"
+            sleep "$wait"
+          }
+          # nat NN-name seconds args…: a screen reached by launch arguments alone.
+          nat() {
+            local name="$1"; shift; echo "-- nat-$name"
+            start "$@" || miss "nat-$name" "the app did not start"
+            shot "compare/nat-$name"
+            [ -f "$CMP/nat-$name.png" ] || miss "nat-$name" "no picture"
+          }
+          # natflow NN-name seconds args…: started by launch arguments, then moved by the same gestures as the reference.
+          natflow() {
+            local name="$1"; shift; echo "-- nat-$name (launch arguments, then tools/maestro/compare/nat/nat-$name.yaml)"
+            start "$@" || miss "nat-$name" "the app did not start"
+            if ! (cd "$CMP" && limit 420 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/compare/nat/nat-$name.yaml" < /dev/null); then
+              shot "compare/nat-$name-failed"; miss "nat-$name" "the Maestro flow did not reach the screen (what was shown instead: nat-$name-failed.png)"
+            fi
+            gather
+            [ -f "$CMP/nat-$name.png" ] || [ -f "$CMP/nat-$name-failed.png" ] || miss "nat-$name" "no picture"
+          }
+
+          stage "the native app, screen by screen"
+          # The first start reads what the previous app left (session, keys, storage): given more time, not photographed.
+          start 40
+          nat 01-chatlist 25
+          natflow 02-chatlist-scrolled 25
+          natflow 03-chat-text 30 -openchat 1
+          nat 04-chat-media 35 -openchat 1
+          nat 05-message-menu 40 -openchat 1 -chataction menu
+          natflow 06-chat-avatar-peek 30 -openchat 1
+          nat 07-profile 40 -profile chat
+          nat 08-settings 20 -settings root
+          nat 09-appearance 20 -settings appearance
+          nat 10-privacy 20 -settings privacy
+          nat 11-people 25 -tab people
+          nat 12-channels 25 -tab channels
+          nat 13-community 30 -channels community
+          nat 14-channel-chat 35 -channels chat
+          nat 15-music 25 -tab music
+          nat 16-ai 25 -tab ai
+          natflow 17-attach-panel 30 -openchat 1
+          natflow 18-emoji-panel 30 -openchat 1
+          nat 19-chatlist-search 30 -chatsearch "Тим"
+          natflow 20-sections 25
+          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+
+          stage "pairs"
+          python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install -q pillow
+          "$RUNNER_TEMP/venv/bin/python" tools/compare-pairs.py "$CMP" "$NAMES"
+          cat "$CMP/INDEX.md"
+          shots=$(ls "$CMP" | grep -E '^(ref|nat)-[0-9]{2}-[a-z-]+\.png$' | grep -vc -- '-failed\.png$' || true)
+          echo "pictures: $shots of $(( 2 * $(grep -cvE '^(#|$)' "$NAMES") ))" | tee "$OUT/VERDICT.txt"
+          [ "${shots:-0}" -gt 0 ]
+      - name: Publish the pictures (branch native-compare-output)
+        if: always()
+        run: |
+          OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT"; cd "$OUT"
+          [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 2h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
+          verdict=$(cat VERDICT.txt 2>/dev/null || echo "NOT REACHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
+          echo "$verdict ${{ steps.work.outcome }} $GITHUB_SHA $(date -u) $(uname -m)" > STATUS.txt
+          for f in native-build.log reference-build.log; do [ -f "$f" ] && { grep -nE "error:|ld: " "$f" | head -200 > "${f%.log}-errors.txt"; tail -200 "$f" > "${f%.log}-tail.txt"; rm "$f"; } || true; done
+          # The comparison pictures stay full-size PNG (compare/); every other picture becomes a smaller JPEG.
+          find . -path ./compare -prune -o -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
+          find . -name 'commands-*.json' -delete; find . -path ./compare -prune -o -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native side-by-side comparison for $GITHUB_SHA: $verdict"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-compare-output" && break; sleep 15; done
+      - name: Fail the job unless the comparison ran
+        if: steps.work.outcome != 'success'
+        run: exit 1
