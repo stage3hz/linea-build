@@ -182,7 +182,14 @@ final class VoicePlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     private func play(_ file: URL) {
-        guard let made = try? AVAudioPlayer(contentsOf: file) else {
+        // By its content first; a file whose name says another container than it holds gets one more try as bytes.
+        var opened = try? AVAudioPlayer(contentsOf: file)
+        if opened == nil, let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size <= 20 * 1024 * 1024, let bytes = try? Data(contentsOf: file) {
+            for hint in [AVFileType.m4a, AVFileType.wav, AVFileType.mp3] where opened == nil {
+                opened = try? AVAudioPlayer(data: bytes, fileTypeHint: hint.rawValue)
+            }
+        }
+        guard let made = opened else {
             activeKey = ""
             publish()
             onProblem?("Не удалось воспроизвести голосовое.")

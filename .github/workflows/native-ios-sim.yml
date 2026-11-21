@@ -151,6 +151,9 @@ jobs:
           live 30-react-real 35 -openchat 1 -chataction react
           live 31-list-archive 25 -chatlist archive
           live 32-list-search 25 -chatsearch Ксюша
+          shot 33-voice-demo -demo 1 -chat 1 -voicedemo 1
+          shot 34-voice-recording -demo 1 -chat 1 -voicedemo recording
+          shot 35-video-demo -demo 1 -chat 1 -videodemo 1
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player

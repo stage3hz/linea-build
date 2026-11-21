@@ -109,6 +109,17 @@ try {
   await sayFile(last, found.id, Buffer.from('%PDF-1.4\n% a made-up file for the simulator\n', 'utf8'), { name: 'Договор.pdf', mimeType: 'application/pdf' }, 'Посмотри договор');
   await sayFile(last, found.id, png([61, 139, 208], [240, 168, 96]), { name: 'photo.png', mimeType: 'image/png', media: { width: 96, height: 96, hdr: 'sdr' } });
   sent += 2;
+  // A voice message: three seconds of a tone. The bytes are a hand-built WAV under the app's voice name — enough
+  // for the apps' own check here (they fall back by content); real voice messages are AAC in MPEG-4.
+  const rate = 8000, samples = rate * 3, pcm = Buffer.alloc(samples * 2);
+  for (let i = 0; i < samples; i++) pcm.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * 440 / rate) * 12000), i * 2);
+  const head = Buffer.alloc(44);
+  head.write('RIFF'); head.writeUInt32LE(36 + pcm.length, 4); head.write('WAVEfmt ', 8);
+  head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(1, 22);
+  head.writeUInt32LE(rate, 24); head.writeUInt32LE(rate * 2, 28); head.writeUInt16LE(2, 32); head.writeUInt16LE(16, 34);
+  head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
+  await sayFile(last, found.id, Buffer.concat([head, pcm]), { name: `voice-${Date.now()}.m4a`, mimeType: 'audio/mp4', media: { durationMs: 3000, waveform: 'AFKPUZbfbZUPKFA'.repeat(6) } });
+  sent += 1;
 } catch (error) { console.log(`attachments not sent: ${error.message}`); }
 // A community with two channels and a blog, when the test account's sign-in is given (the fifth to seventh
 // arguments: login, password, confirmation word): the account joins by invite as a person would. Not fatal.
