@@ -60,7 +60,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private var shownBusy = false
   /** The permission to set a new password, while a recovery is under way. */
   private var grant: RecoveryGrant? = null
-  /** The server's clock minus this phone's, in milliseconds. */
+  /** The server's clock minus this phone's (`nowMs`), in milliseconds. */
   private var serverOffset = 0.0
   private var entered = false
   private var pending = false
@@ -273,7 +273,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       "expiresAt" to ready.plusSeconds(20 * 60).toString(), "serverTime" to now.toString())) ?: return
     sample = true
     grant = made
-    serverOffset = 0.0
+    serverOffset = made.serverMs - nowMs
     nameEntry.value = Demo.authLogin
     noticeText = if (wanted == "reset") "Сервер разрешил сменить пароль. Оба секретных слова останутся прежними." else ""
     mode = if (wanted == "waiting") Mode.WAITING else Mode.RESET
@@ -281,8 +281,10 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   // What is on the screen
 
-  private val nowMs: Double get() = System.currentTimeMillis().toDouble()
   private val elapsed: Long get() = SystemClock.elapsedRealtime()
+  /** This phone's clock for the countdowns: the one that only counts forward, so setting the phone's time does
+   *  not move them. Only its distance to the server's clock (`serverOffset`) is ever used. */
+  private val nowMs: Double get() = elapsed.toDouble()
   private val login: String get() = AuthRules.name(nameEntry.value)
   private val isLogin: Boolean get() = mode in loginSteps
   private val isRegister: Boolean get() = mode in registerSteps
