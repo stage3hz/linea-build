@@ -1,3 +1,4 @@
+import ImageIO
 import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
@@ -37,7 +38,8 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     private let waitingStrip = UIStackView()
 
     private var reply: CommunityMessage?
-    private var editing: CommunityMessage?
+    /// The message being changed (its text is in the field).
+    private var editingMessage: CommunityMessage?
     private var replyAuthor = ""
     private var sending = false
     private var loadedOnce = false
@@ -225,7 +227,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         sendButton.isHidden = sending
         if sending { busy.startAnimating() } else { busy.stopAnimating() }
         hint.isHidden = !(field.text ?? "").isEmpty
-        attachButton.isHidden = editing != nil
+        attachButton.isHidden = editingMessage != nil
     }
 
     private func showEmpty() {
@@ -265,7 +267,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         notice.frame = CGRect(x: 12, y: header.frame.maxY + 6, width: width - 24, height: 40)
         var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
         if canWrite {
-            let side: CGFloat = editing == nil ? 44 : 14
+            let side: CGFloat = editingMessage == nil ? 44 : 14
             let fieldWidth = width - 24 - side - 46
             let wanted = ceil(field.sizeThatFits(CGSize(width: fieldWidth, height: 1000)).height)
             let tall = min(140, max(48, wanted))
@@ -288,7 +290,8 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
                 floor = contextBar.frame.minY
             }
             if !waitingStrip.arrangedSubviews.isEmpty {
-                let tallStrip = waitingStrip.systemLayoutSizeFitting(CGSize(width: width - 24, height: UIView.layoutFittingCompressedSize.height)).height
+                let count = CGFloat(waitingStrip.arrangedSubviews.count)
+                let tallStrip = count * 34 + (count - 1) * 4
                 waitingStrip.frame = CGRect(x: 12, y: floor - tallStrip - 6, width: width - 24, height: tallStrip)
                 floor = waitingStrip.frame.minY
             }
@@ -405,8 +408,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     }
 
     private func showContext() {
-        if let editing {
-            _ = editing
+        if editingMessage != nil {
             contextIcon.image = UIImage(systemName: "square.and.pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .medium))
             contextWords.text = "Редактирование"
             contextBar.isHidden = false
@@ -423,8 +425,8 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
 
     @objc private func dropContext() {
         reply = nil
-        if editing != nil {
-            editing = nil
+        if editingMessage != nil {
+            editingMessage = nil
             field.text = ""
         }
         showContext()
@@ -437,14 +439,14 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         let communityId = community.id, channelId = channel.id
         sending = true
         showSend()
-        if let editing {
-            messenger.server.ask("editChannelMessage", [communityId, channelId, editing.id, value]) { [weak self] result in
+        if let changing = editingMessage {
+            messenger.server.ask("editChannelMessage", [communityId, channelId, changing.id, value]) { [weak self] result in
                 guard let self else { return }
                 self.sending = false
                 switch result {
                 case .success(let body):
                     self.engine.put(body["message"], own: false)
-                    self.editing = nil
+                    self.editingMessage = nil
                     self.field.text = ""
                     self.showContext()
                 case .failure(let error):
@@ -666,7 +668,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     }
 
     private func startReply(_ message: CommunityMessage) {
-        editing = nil
+        editingMessage = nil
         reply = message
         replyAuthor = names[message.senderId] ?? ""
         showContext()
@@ -675,7 +677,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
 
     private func startEdit(_ message: CommunityMessage) {
         reply = nil
-        editing = message
+        editingMessage = message
         field.text = message.text
         showContext()
         field.becomeFirstResponder()

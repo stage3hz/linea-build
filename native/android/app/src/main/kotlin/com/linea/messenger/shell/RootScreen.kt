@@ -27,7 +27,7 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     Section("people", "Люди", "people") { PeopleScreen(it, messenger) },
     Section("channels", "Каналы", "waves") { PlaceholderScreen(it, "Каналы") },
     Section("music", "Музыка", "headphones") { PlaceholderScreen(it, "Музыка") },
-    Section("profile", "Настройки", "gear") { SettingsScreen(it) },
+    Section("profile", "Настройки", "gear") { SettingsScreen(it, messenger) },
   )
   /** The two sections that have an icon in the bar; the others are in the list under the first one. */
   private val inBar = listOf("chats", "profile")
@@ -113,6 +113,9 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
   fun showSections() = bar.openList(sticky = true)
 
   fun closeSections() = bar.closeList()
+
+  /** For the emulator check: the «Настройки» section, once it has been opened. */
+  fun settingsPage(): SettingsScreen? = pages["profile"] as? SettingsScreen
 
   /** Opens the first chat of the list (for a check on the emulator). */
   fun openFirstChat() { (pages["chats"] as? ChatsScreen)?.openFirst() }

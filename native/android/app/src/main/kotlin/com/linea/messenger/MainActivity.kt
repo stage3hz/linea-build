@@ -17,13 +17,14 @@ import com.linea.messenger.chat.ChatScreen
 import com.linea.messenger.core.Core
 import com.linea.messenger.net.Server
 import com.linea.messenger.net.ServerError
+import com.linea.messenger.settings.AccountHost
 import com.linea.messenger.shell.BackGate
 import com.linea.messenger.shell.Navigation
 import com.linea.messenger.shell.RootScreen
 
 /** The app's only window: the stack of pages with the shell at its bottom. It decides what the app opens with —
  *  the chats of the signed-in account, or signing in — and holds the account while the window lives. */
-class MainActivity : Activity(), Launcher {
+class MainActivity : Activity(), Launcher, AccountHost {
   private lateinit var stack: Navigation
   /** The shell, when it is what the window shows (not while signing in or waiting). */
   private var root: RootScreen? = null
@@ -32,6 +33,8 @@ class MainActivity : Activity(), Launcher {
   private var front = false
   /** The system's Back on Android 13 and later; before that `onBackPressed` is asked. */
   private var gate: BackGate? = null
+  /** Settings: the few words shown over signing in after the account was left (`closeAccount`). */
+  private var said: android.app.Dialog? = null
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -59,6 +62,7 @@ class MainActivity : Activity(), Launcher {
   }
 
   override fun onDestroy() {
+    said?.dismiss()
     messenger?.close()
     messenger = null
     super.onDestroy()
@@ -154,6 +158,26 @@ class MainActivity : Activity(), Launcher {
   }
 
   override fun openFirstChat() { root?.openFirstChat() }
+
+  /** Settings: the account was left (signed out, a secret changed, the session ended, the account deleted).
+   *  The session is already forgotten (settings/AccountActions.kt); the account's work on this device ends —
+   *  its storage and keys stay — and signing in is shown, with a few words why. */
+  override fun closeAccount(notice: String) {
+    messenger?.close()
+    messenger = null
+    showAuth()
+    if (notice.isEmpty() || isFinishing || isDestroyed) return
+    said?.dismiss()
+    said = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setMessage(notice).setPositiveButton("Понятно", null).show()
+  }
+
+  /** Settings, for the emulator check: the section and one of its pages (settings/SettingsScreen.kt, `openDetail`). */
+  override fun openSettings(page: String): Boolean {
+    val shell = root ?: return false
+    shell.show("profile")
+    if (page != "root") shell.settingsPage()?.openDetail(page)
+    return true
+  }
 
   override fun openChat(target: ChatTarget, animated: Boolean) {
     stack.push(ChatScreen(this, target.name, messenger.takeIf { target.chatId.isNotEmpty() }, target.chatId, target.peerId, target.peerLastRead) { stack.pop() }, animated)

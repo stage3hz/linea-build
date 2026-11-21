@@ -85,7 +85,7 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     val row = LinearLayout(context)
     row.orientation = LinearLayout.HORIZONTAL
     row.gravity = Gravity.CENTER_VERTICAL
-    colors.forEachIndexed { index, _ ->
+    palette.forEachIndexed { index, _ ->
       if (index > 0) row.addView(Space(context), LinearLayout.LayoutParams(0, 1, 1f))
       val dot = View(context)
       dot.contentDescription = "Цвет ${index + 1}"
@@ -128,10 +128,10 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     birthdayRow.setValue(BirthdayWords.format(birthday).ifEmpty { "Не указан" })
     genderRow.setValue(if (gender == "male") "Мужской" else if (gender == "female") "Женский" else "Не указан")
     swatches.forEachIndexed { index, dot ->
-      val on = colors[index].equals(color, ignoreCase = true)
+      val on = palette[index].equals(color, ignoreCase = true)
       dot.background = GradientDrawable().apply {
         shape = GradientDrawable.OVAL
-        setColor(0xFF000000.toInt() or Messenger.color(colors[index]))
+        setColor(0xFF000000.toInt() or Messenger.color(palette[index]))
         if (on) setStroke(dp(3f), Theme.text)
       }
       dot.isSelected = on
@@ -140,8 +140,8 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
   }
 
   private fun colorPicked(index: Int) {
-    if (busy || index !in colors.indices) return
-    color = colors[index]
+    if (busy || index !in palette.indices) return
+    color = palette[index]
     clearNotice()
     showValues()
   }
@@ -216,7 +216,7 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
 
   companion object {
     /** The colours a person can be seen in while there is no photo (the reference's eight). */
-    val colors = listOf("#596FE8", "#4088C7", "#9271C3", "#B78358", "#AD6C8C", "#667FA4", "#3FA37C", "#D0644E")
+    val palette = listOf("#596FE8", "#4088C7", "#9271C3", "#B78358", "#AD6C8C", "#667FA4", "#3FA37C", "#D0644E")
   }
 }
 
