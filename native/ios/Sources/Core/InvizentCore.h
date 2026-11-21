@@ -51,4 +51,9 @@ char *invizent_file_clean_jpeg(const uint8_t *jpeg, size_t jpeg_len, InvizentByt
 void invizent_file_bytes_free(InvizentBytes bytes);
 // The rest about files by name (newEncryption, uploadForm, attachment, preview, describe, received, sizeText).
 char *invizent_file_call(const char *name, const char *args_json);
+// Big files (the chunked scheme): one 4 MiB chunk at a time, `index` from 0, `size` the whole file's plaintext
+// bytes. Also by name through invizent_file_call: newChunkedEncryption, chunks, chunk, chunkAfter, chunked,
+// waveform, waveformBars, voiceTime, voiceTimeFine, voiceName, noteName, mediaKind, recordRules.
+char *invizent_file_seal_chunk(const uint8_t *plain, size_t plain_len, const char *encryption_json, uint64_t index, uint64_t size, InvizentBytes *out);
+char *invizent_file_open_chunk(const uint8_t *cipher, size_t cipher_len, const char *attachment_json, uint64_t index, InvizentBytes *out);
 #endif

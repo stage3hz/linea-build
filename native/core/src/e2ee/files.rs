@@ -208,3 +208,116 @@ pub fn kind(name: &JsString, mime_type: &JsString) -> Kind {
     if starts("audio/") || ends(AUDIO_ENDINGS) { return Kind::Audio }
     Kind::File
 }
+
+// ── Big files: the chunked scheme ────────────────────────────────────────────────────────────────────────────
+//
+// Reference: `mobile/src/e2ee/attachments.ts` (`chunkNonce`, `chunkAd`, `chunkedCipherSize`, `uploadChunks`,
+// `downloadChunked`). A file is cut into chunks of 4 MiB of plaintext; each chunk is one AES-256-GCM-SIV block
+// under the file's key, with a nonce of its own (the file's nonce with the chunk's index mixed into its last four
+// bytes) and with its place and the number of chunks authenticated — so chunks cannot be reordered, dropped or
+// cut off. On the server the chunks stand one after another, each with its 16-byte tag.
+
+/// The plaintext of one chunk; the last chunk of a file may be shorter.
+pub const CHUNK_PLAIN: usize = 4 * 1024 * 1024;
+pub const WRONG_NONCE: &str = "Неверный nonce вложения.";
+pub const FILE_CHANGED: &str = "Файл изменился во время отправки.";
+pub const NO_SIZE: &str = "Не удалось определить размер файла.";
+
+/// How many chunks a file of `size` bytes has: at least one.
+pub fn chunk_count(size: u64) -> u64 { size.div_ceil(CHUNK_PLAIN as u64).max(1) }
+/// How many bytes the server holds for a chunked file of `size` bytes.
+pub fn chunked_cipher_size(size: u64) -> u64 { size + chunk_count(size) * TAG as u64 }
+/// The plaintext bytes of chunk `index`; `None` when the file has no such chunk.
+pub fn chunk_plain_len(size: u64, index: u64) -> Option<usize> {
+    if index >= chunk_count(size) { return None }
+    Some((size - index * CHUNK_PLAIN as u64).min(CHUNK_PLAIN as u64) as usize)
+}
+/// Where chunk `index` stands on the server: its first byte and its last one (for a `Range` header).
+pub fn chunk_range(size: u64, index: u64) -> Option<(u64, u64)> {
+    chunk_plain_len(size, index)?;
+    let (full, start) = ((CHUNK_PLAIN + TAG) as u64, index * (CHUNK_PLAIN + TAG) as u64);
+    Some((start, chunked_cipher_size(size).min(start + full) - 1))
+}
+/// The chunk an upload goes on with after the server has `received` bytes.
+pub fn chunk_after(received: u64) -> u64 { received / (CHUNK_PLAIN + TAG) as u64 }
+
+/// The nonce of one chunk: the file's nonce with the index mixed into its last four bytes.
+pub fn chunk_nonce(base: &str, index: u64) -> Result<String, &'static str> {
+    use base64::Engine as _;
+    let engine = base64::engine::general_purpose::STANDARD;
+    let mut bytes = engine.decode(base).map_err(|_| WRONG_NONCE)?;
+    if bytes.len() != 12 { return Err(WRONG_NONCE) }
+    let mixed = u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]) ^ index as u32;
+    bytes[8..].copy_from_slice(&mixed.to_be_bytes());
+    Ok(engine.encode(bytes))
+}
+
+/// What is authenticated with one chunk: the file's key id, the chunk's place and the number of chunks.
+pub fn chunk_ad(file_key_id: &str, index: u64, count: u64) -> String {
+    use base64::Engine as _;
+    base64::engine::general_purpose::STANDARD.encode(format!("linea-attachment-v2:{file_key_id}:{index}:{count}"))
+}
+
+/// The description of a chunked file's encryption, as it travels inside the message.
+pub fn chunked_encryption(key: &str, nonce: &str, file_key_id: &str) -> Value {
+    Value::Object(vec![
+        (JsString::from_str("scheme"), Value::str(SCHEME_CHUNKED)), (JsString::from_str("key"), Value::str(key)),
+        (JsString::from_str("nonce"), Value::str(nonce)), (JsString::from_str("fileKeyId"), Value::str(file_key_id)),
+        (JsString::from_str("chunkSize"), Value::Number(CHUNK_PLAIN as f64)),
+    ])
+}
+
+/// The encryption of a new big file: a key, a nonce and a key id nobody has used before. An upload that starts
+/// again from its first byte takes a new one — different bytes are never sealed under the same key and nonce.
+pub fn fresh_chunked_encryption() -> Value {
+    let fresh = fresh_encryption();
+    let part = |key: &str| word(&fresh, key).and_then(JsString::to_str).unwrap_or_default();
+    chunked_encryption(&part("key"), &part("nonce"), &part("fileKeyId"))
+}
+
+fn is_chunked(encryption: Option<&Value>) -> bool {
+    encryption.is_some_and(|encryption| is(word(encryption, "scheme"), SCHEME_CHUNKED) && matches!(encryption.get("chunkSize"), Some(Value::Number(size)) if *size == CHUNK_PLAIN as f64))
+}
+
+/// What is known about a chunked attachment before anything is downloaded: its size in plaintext bytes.
+pub fn chunked_size(attachment: &Value) -> Result<u64, &'static str> {
+    if !is_chunked(attachment.get("encryption")) { return Err(NO_KEY) }
+    match attachment.get("size") {
+        Some(Value::Number(size)) if size.fract() == 0.0 && *size >= 0.0 && *size <= crate::e2ee::attachment::MAX_CHUNKED => Ok(*size as u64),
+        _ => Err(WRONG_SIZE),
+    }
+}
+
+/// Seals chunk `index` of a file of `size` bytes: exactly the chunk's bytes go in, the ciphertext with its tag
+/// comes out.
+#[cfg(feature = "signal")]
+pub fn seal_chunk(plain: &[u8], encryption: &Value, index: u64, size: u64) -> Result<Vec<u8>, &'static str> {
+    use base64::Engine as _;
+    if size == 0 { return Err(NO_SIZE) }
+    if !is_chunked(Some(encryption)) { return Err(NOT_SEALED) }
+    if chunk_plain_len(size, index) != Some(plain.len()) { return Err(FILE_CHANGED) }
+    let part = |key: &str| word(encryption, key).and_then(JsString::to_str).ok_or(NOT_SEALED);
+    let (key, nonce, ad) = (part("key")?, chunk_nonce(&part("nonce")?, index)?, chunk_ad(&part("fileKeyId")?, index, chunk_count(size)));
+    let engine = base64::engine::general_purpose::STANDARD;
+    let sealed = crate::signal::seal(&engine.encode(plain), &key, &nonce, &ad).map_err(|_| NOT_SEALED)?;
+    engine.decode(sealed).map_err(|_| NOT_SEALED)
+}
+
+/// Opens chunk `index` of a downloaded chunked file with the key from its message. Nothing is given out unless
+/// the chunk has the size its place asks for and the cipher's check passes — with this chunk's own nonce, its
+/// place and the number of chunks the message's size means.
+#[cfg(feature = "signal")]
+pub fn open_chunk(cipher: &[u8], attachment: &Value, index: u64) -> Result<Vec<u8>, &'static str> {
+    use base64::Engine as _;
+    let size = chunked_size(attachment)?;
+    let wanted = chunk_plain_len(size, index).ok_or(WRONG_SIZE)?;
+    if cipher.len() != wanted + TAG { return Err(WRONG_SIZE) }
+    let encryption = attachment.get("encryption").ok_or(NO_KEY)?;
+    let part = |key: &str| word(encryption, key).and_then(JsString::to_str).ok_or(NOT_AUTHENTIC);
+    let (key, nonce, ad) = (part("key")?, chunk_nonce(&part("nonce")?, index).map_err(|_| NOT_AUTHENTIC)?, chunk_ad(&part("fileKeyId")?, index, chunk_count(size)));
+    let engine = base64::engine::general_purpose::STANDARD;
+    let opened = crate::signal::open(&engine.encode(cipher), &key, &nonce, &ad).map_err(|_| NOT_AUTHENTIC)?;
+    let plain = engine.decode(opened).map_err(|_| NOT_AUTHENTIC)?;
+    if plain.len() != wanted { return Err(WRONG_SIZE) }
+    Ok(plain)
+}

@@ -84,6 +84,7 @@ object MusicCatalog {
   fun audiusId(value: Any?): String? = (value as? String)?.takeIf { audiusIdForm.matches(it) }
 
   private val digitsAndDots = Regex("^[\\d.]+$")
+  private val numberLabel = Regex("^(\\d+|0x[0-9a-f]*)$")
   private val closedNames = Regex("(?:^|\\.)(?:localhost|local|localdomain|internal|lan|home|invalid|test|onion)$")
   private val hostLabel = Regex("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
@@ -105,6 +106,8 @@ object MusicCatalog {
       if (port.isNotEmpty() && port.trimStart('0') != "443") return null
     }
     if (!host.contains('.') || host.endsWith(".") || digitsAndDots.matches(host)) return null
+    // A last label that is a number (decimal or 0x…) makes the whole name a spelling of an IPv4 address.
+    if (numberLabel.matches(host.substringAfterLast('.'))) return null
     if (closedNames.containsMatchIn(host)) return null
     if (!host.split('.').all { hostLabel.matches(it) }) return null
     return text
@@ -188,7 +191,7 @@ object MusicCatalog {
 
   // Audius requests (api.ts)
 
-  private val main = Handler(Looper.getMainLooper())
+  private val main: Handler by lazy { Handler(Looper.getMainLooper()) }
 
   /** The app's one client and its rules — TLS only, the system's certificate checks, no cookie jar, no cache, a
    *  redirect is never followed — with this catalogue's own time limit. Nothing of the messenger's session is

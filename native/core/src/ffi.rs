@@ -588,8 +588,112 @@ pub unsafe extern "C" fn invizent_file_call(name: *const c_char, args: *const c_
                 files::before_body((200.0..300.0).contains(status), claimed).err().map_or(Value::Null, Value::str)
             }
             ("sizeText", [Value::Number(bytes)]) => Value::str(&files::size_text(whole(*bytes)?)),
-            _ => return None,
+            // Big files, voice messages and round videos: see `file_call_more` at the end of this file.
+            (name, args) => return file_call_more(name, args),
         };
         Some(json::stringify(&out))
     }).ok().flatten().map_or(std::ptr::null_mut(), give)
+}
+
+// ── Big files (the chunked scheme), voice messages and round videos ──────────────────────────────────────────
+
+/// More of `invizent_file_call`, by name:
+/// - `newChunkedEncryption []` → `{scheme, key, nonce, fileKeyId, chunkSize}`: the key of one new big file (and of
+///   every new start of its upload from the first byte).
+/// - `chunks [size]` → `{count, chunkSize, cipherSize}`: how a file of `size` plaintext bytes is cut, and how many
+///   bytes the server holds for it.
+/// - `chunk [size, index]` → `{start, end, plain, cipher}`: chunk `index` on the server (its first and last byte,
+///   for `PUT …?offset=start` and `Range: bytes=start-end`) and its length before and after sealing; null when
+///   the file has no such chunk.
+/// - `chunkAfter [received]` → the chunk an upload goes on with once the server holds `received` bytes.
+/// - `chunked [attachment]` → `{size, count, cipherSize, refusal: null}` for an attachment of the chunked scheme,
+///   or `{refusal}` with the words for the person.
+/// - `waveform [levels]` → the letters of a finished take's waveform (levels 0…1), or null when it has none.
+/// - `waveformBars [waveform|null, count]` → the bars a row draws, each 0…1.
+/// - `voiceTime [ms]` → «1:05»; `voiceTimeFine [ms]` → «0:04,63».
+/// - `voiceName [nowMs]` → `voice-<ms>.m4a`; `noteName [nowMs]` → `circle-<ms>.mp4`.
+/// - `mediaKind [attachment]` → "voice", "note", or what `describe` calls it ("photo", "video", "audio", "file").
+/// - `recordRules []` → `{voiceMime, noteMime, voiceMinMs, voiceMaxMs, noteMaxMs}`.
+fn file_call_more(name: &str, args: &[Value]) -> Option<String> {
+    use crate::e2ee::files;
+    use crate::media;
+    let whole = |number: f64| (number.fract() == 0.0 && (0.0..=9007199254740991.0).contains(&number)).then_some(number as u64);
+    let out = match (name, args) {
+        ("newChunkedEncryption", []) => files::fresh_chunked_encryption(),
+        ("chunks", [Value::Number(size)]) => {
+            let size = whole(*size)?;
+            json::object(vec![("count", Value::Number(files::chunk_count(size) as f64)), ("chunkSize", Value::Number(files::CHUNK_PLAIN as f64)), ("cipherSize", Value::Number(files::chunked_cipher_size(size) as f64))])
+        }
+        ("chunk", [Value::Number(size), Value::Number(index)]) => {
+            let (size, index) = (whole(*size)?, whole(*index)?);
+            match (files::chunk_range(size, index), files::chunk_plain_len(size, index)) {
+                (Some((start, end)), Some(plain)) => json::object(vec![("start", Value::Number(start as f64)), ("end", Value::Number(end as f64)), ("plain", Value::Number(plain as f64)), ("cipher", Value::Number((plain + files::TAG) as f64))]),
+                _ => Value::Null,
+            }
+        }
+        ("chunkAfter", [Value::Number(received)]) => Value::Number(files::chunk_after(whole(*received)?) as f64),
+        ("chunked", [attachment @ Value::Object(_)]) => match files::chunked_size(attachment) {
+            Ok(size) => json::object(vec![("size", Value::Number(size as f64)), ("count", Value::Number(files::chunk_count(size) as f64)), ("cipherSize", Value::Number(files::chunked_cipher_size(size) as f64)), ("refusal", Value::Null)]),
+            Err(words) => json::object(vec![("refusal", Value::str(words))]),
+        },
+        ("waveform", [Value::Array(levels)]) => {
+            let levels: Option<Vec<f64>> = levels.iter().map(|level| match level { Value::Number(level) => Some(*level), _ => None }).collect();
+            media::encode_waveform(&levels?).map_or(Value::Null, |letters| Value::str(&letters))
+        }
+        ("waveformBars", [waveform, Value::Number(count)]) => {
+            let letters = match waveform { Value::String(text) => Some(text.0.as_slice()), _ => None };
+            Value::Array(media::waveform_bars(letters, whole(*count)?.min(1000) as usize).into_iter().map(Value::Number).collect())
+        }
+        ("voiceTime", [Value::Number(ms)]) => Value::str(&media::voice_time(*ms)),
+        ("voiceTimeFine", [Value::Number(ms)]) => Value::str(&media::voice_time_fine(*ms)),
+        ("voiceName", [Value::Number(now)]) => Value::str(&media::voice_file_name(*now)),
+        ("noteName", [Value::Number(now)]) => Value::str(&media::video_note_file_name(*now)),
+        ("mediaKind", [attachment @ Value::Object(_)]) => {
+            let words = |key: &str| match attachment.get(key) { Some(Value::String(text)) => text.clone(), _ => crate::json::JsString::default() };
+            Value::str(if media::is_voice(attachment) { "voice" } else if media::is_video_note(attachment) { "note" } else { files::kind(&words("name"), &words("mimeType")).word() })
+        }
+        ("recordRules", []) => json::object(vec![
+            ("voiceMime", Value::str(media::VOICE_MIME)), ("noteMime", Value::str(media::VIDEO_NOTE_MIME)), ("voiceMinMs", Value::Number(media::VOICE_MIN_MS)),
+            ("voiceMaxMs", Value::Number(media::VOICE_MAX_MS)), ("noteMaxMs", Value::Number(media::VIDEO_NOTE_MAX_MS)),
+        ]),
+        _ => return None,
+    };
+    Some(json::stringify(&out))
+}
+
+/// Seals chunk `index` of a big file of `size` plaintext bytes: `encryption_json` is what
+/// `invizent_file_call("newChunkedEncryption")` gave, `plain` exactly that chunk's bytes. Answer: null, and `out`
+/// holds the chunk's ciphertext with its tag; or the words for the person, and `out` is empty.
+///
+/// # Safety
+/// `plain` points to `plain_len` bytes, `encryption_json` is a NUL-terminated string, `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_seal_chunk(plain: *const u8, plain_len: usize, encryption_json: *const c_char, index: u64, size: u64, out: *mut InvizentBytes) -> *mut c_char {
+    let (plain, encryption) = (file_bytes(plain, plain_len), take(encryption_json).and_then(|text| json::parse(&text).ok()));
+    file_step(out, || {
+        let encryption = encryption.ok_or(crate::e2ee::files::NOT_SEALED)?;
+        #[cfg(feature = "signal")]
+        { crate::e2ee::files::seal_chunk(plain, &encryption, index, size) }
+        #[cfg(not(feature = "signal"))]
+        { let _ = (plain, encryption, index, size); Err(crate::e2ee::files::NOT_SEALED) }
+    })
+}
+
+/// Opens chunk `index` of a downloaded big file with the key of its message (`attachment_json`: the attachment of
+/// the decrypted message). Answer: null, and `out` holds the chunk's bytes; or the words for the person, and
+/// `out` is empty — a chunk of another size than its place asks for, moved from another place, or with a single
+/// changed byte is never given out.
+///
+/// # Safety
+/// `cipher` points to `cipher_len` bytes, `attachment_json` is a NUL-terminated string, `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn invizent_file_open_chunk(cipher: *const u8, cipher_len: usize, attachment_json: *const c_char, index: u64, out: *mut InvizentBytes) -> *mut c_char {
+    let (cipher, attachment) = (file_bytes(cipher, cipher_len), take(attachment_json).and_then(|text| json::parse(&text).ok()));
+    file_step(out, || {
+        let attachment = attachment.ok_or(crate::e2ee::files::NO_KEY)?;
+        #[cfg(feature = "signal")]
+        { crate::e2ee::files::open_chunk(cipher, &attachment, index) }
+        #[cfg(not(feature = "signal"))]
+        { let _ = (cipher, attachment, index); Err(crate::e2ee::files::NOT_AUTHENTIC) }
+    })
 }
