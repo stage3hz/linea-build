@@ -18,7 +18,7 @@ final class ChannelHeaderView: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = Theme.bg.withAlphaComponent(0.94)
+        backgroundColor = Theme.bg
         backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
         backButton.tintColor = Theme.text
         backButton.accessibilityLabel = "Назад"
