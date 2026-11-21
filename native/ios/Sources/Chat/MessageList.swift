@@ -290,7 +290,8 @@ struct MsgLayout {
       let laid = MsgText(row.fmt.isEmpty ? NSAttributedString(string: row.text, attributes: [.font: body, .paragraphStyle: msgWrap(true)])
         : msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
       let last = laid.lastLine
-      if last != .zero && ceil(last.maxX) + 8 + timeWidth <= inner {
+      // The time may stand out past the text's column, up to the page's own margin.
+      if last != .zero && ceil(last.maxX) + 8 + timeWidth <= width - 2 * (msgEdge + 13) {
         layout.timeInline = true
         layout.timeAt = CGPoint(x: ceil(last.maxX) + 8, y: last.maxY)
         w = max(w, ceil(last.maxX) + 8 + timeWidth)
@@ -509,7 +510,9 @@ final class MsgRowCanvas: UIView {
     let timeSize = time.size()
     // After the last word of the text, or in the plate's lower corner.
     let inline = layoutInfo.timeInline && bodyBox != .zero
-    let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks : left + bubble.width - 13
+    // Without a plate, a time on its own line stands under the start of the other side's text.
+    let under = msgOpenLook && !item.mine ? x + ceil(timeSize.width) + marks : left + bubble.width - 13
+    let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks : under
     let timeBottom = inline ? bodyBox.minY + layoutInfo.timeAt.y - 2 : bubble.height - 6
     time.draw(at: CGPoint(x: right - marks - ceil(timeSize.width), y: timeBottom - timeSize.height))
     let my = timeBottom - 6

@@ -36,7 +36,7 @@ extension Theme {
         palette.text = text; palette.muted = muted; palette.accent = accent; palette.onAccent = onAccent; palette.subtle = subtle
         palette.mine = UIColor(red: 31 / 255, green: 32 / 255, blue: 35 / 255, alpha: 0.96)
         palette.theirs = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.96)
-        palette.notice = UIColor(red: 12 / 255, green: 18 / 255, blue: 34 / 255, alpha: 0.55); palette.noticeText = text
+        palette.notice = UIColor(white: 1, alpha: 0.06); palette.noticeText = text
         palette.danger = danger; palette.quote = UIColor(white: 1, alpha: 0.08)
         palette.mineMeta = muted; palette.mineMark = text
         return palette
