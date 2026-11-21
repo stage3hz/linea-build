@@ -208,17 +208,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         guard size > 0 else { return .failure(PhotoPrepare.Failure(words: "Не удалось прочитать файл.")) }
         if let source = CGImageSourceCreateWithURL(url as CFURL, nil), PhotoPrepare.isPicture(source) { return photo(at: url) }
         let type = UTType(filenameExtension: url.pathExtension)
-        var head = Data()
-        if let handle = try? FileHandle(forReadingFrom: url) {
-            head = (try? handle.read(upToCount: 16)) ?? Data()
-            try? handle.close()
-        }
-        let audio = type?.conforms(to: .audio) ?? false
-        let named = type.map { $0.conforms(to: .movie) || $0.conforms(to: .video) } ?? false
-        let iso = head.count >= 12 && head.subdata(in: 4..<8) == Data("ftyp".utf8)
-        let matroska = head.starts(with: [0x1a, 0x45, 0xdf, 0xa3])
-        let avi = head.count >= 12 && head.starts(with: Data("RIFF".utf8)) && head.subdata(in: 8..<12) == Data("AVI ".utf8)
-        if named || (iso && !audio) || matroska || avi { return .failure(PhotoPrepare.Failure(words: "Видео пока нельзя отправить в этой версии приложения.")) }
+        if ChatAttachments.isVideo(url) { return .failure(PhotoPrepare.Failure(words: "Видео пока нельзя отправить в этой версии приложения.")) }
         guard size <= ChatAttachments.maxFile else { return .failure(PhotoPrepare.Failure(words: "Файл слишком большой. Максимум — 20 МБ.")) }
         guard let bytes = try? Data(contentsOf: url), !bytes.isEmpty, bytes.count <= ChatAttachments.maxFile else { return .failure(PhotoPrepare.Failure(words: "Не удалось прочитать файл.")) }
         return .success(Prepared(bytes: bytes, name: url.lastPathComponent, mimeType: type?.preferredMIMEType ?? "application/octet-stream", media: nil, preview: nil))

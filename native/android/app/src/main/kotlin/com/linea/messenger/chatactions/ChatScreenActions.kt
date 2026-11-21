@@ -468,7 +468,19 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private fun quotePressed(key: String) {
     val message = history.shown.messages[key] ?: return
     if (selecting) { toggle(key); return }
-    val client = Core.map(Core.map(message["meta"])?.get("reply"))?.get("clientId") as? String ?: return
+    val meta = Core.map(message["meta"])
+    // Stories: the quote «История» of an answer to a story opens that story (or says it is gone).
+    val story = if (meta?.get("reply") == null) Core.map(meta?.get("story")) else null
+    val ownerId = story?.get("ownerId") as? String
+    val storyId = story?.get("id") as? String
+    if (ownerId != null && storyId != null) {
+      val messenger = messenger ?: return
+      val host = host ?: return
+      tick()
+      com.linea.messenger.stories.StoryQuote.open(ownerId, storyId, messenger, host) { words -> say(words) }
+      return
+    }
+    val client = Core.map(meta?.get("reply"))?.get("clientId") as? String ?: return
     tick()
     jumpTo(client)
   }
@@ -658,6 +670,16 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     clearField()
     showBar()
     list?.scrollToNewest(animated = true)
+  }
+
+  /** Attachments, Voice/Video: a photo, a file, a voice message or a video sent while an answer is being written
+   *  is that answer — its `meta`, and the bar above the field closes. Null: nothing is being answered. */
+  fun takeReply(): Map<String, Any?>? {
+    if (editing != null) return null
+    val message = replyTo ?: return null
+    replyTo = null
+    showBar()
+    return replyMeta(message)
   }
 
   private fun clearField() {

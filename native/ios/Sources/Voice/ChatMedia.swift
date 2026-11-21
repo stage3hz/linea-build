@@ -77,6 +77,8 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         let big = BigTransfer()
         var removed = false
         var percent = -1
+        /// What goes with the message inside the ciphertext: the answer it is, or nil.
+        var meta: [String: Any]?
 
         init(kind: String) {
             self.kind = kind
@@ -145,6 +147,8 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         // a big file of any kind opens.
         attachments.mediaPressed = { [weak self] (key: String) -> Bool in self?.pressed(key) ?? false }
         attachments.onVideo = { [weak self] in self?.pickVideo() }
+        attachments.onVideoFile = { [weak self] (url: URL) -> Bool in self?.takeVideoFile(url) ?? false }
+        attachments.takeReply = { [weak self] () -> [String: Any]? in self?.actions?.takeReply() }
         list.onMediaPress = { [weak self] (event: [String: Any]) -> Void in
             self?.partPressed(event["key"] as? String ?? "", part: event["part"] as? String ?? "", fraction: CGFloat((event["fraction"] as? NSNumber)?.doubleValue ?? 0))
         }
@@ -318,6 +322,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         var media: [String: Any] = ["durationMs": take.durationMs]
         if let waveform = take.waveform { media["waveform"] = waveform }
         let item = Outgoing(kind: "voice")
+        item.meta = actions?.takeReply()
         item.wave = take.waveform ?? ""
         item.mediaTime = FileCore.call("voiceTime", [take.durationMs]) as? String ?? ""
         item.payload = Payload(file: take.file, name: name, mimeType: "audio/mp4", media: media, preview: nil, video: false)
@@ -339,6 +344,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
                 return
             }
             let item = Outgoing(kind: "note")
+            item.meta = self.actions?.takeReply()
             item.source = file
             self.add(item)
             self.run(item)
@@ -365,6 +371,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         picker.dismiss(animated: true)
         for result in results {
             let item = Outgoing(kind: "video")
+            item.meta = actions?.takeReply()
             add(item)
             let provider = result.itemProvider
             guard provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier) else {
@@ -390,6 +397,18 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
                 }
             }
         }
+    }
+
+    /// A video chosen in «Файл» (the picker's copy, which becomes this item's): it is written anew without its
+    /// metadata, as one from the gallery. False: there is no account to send it with.
+    func takeVideoFile(_ url: URL) -> Bool {
+        guard messenger != nil else { return false }
+        let item = Outgoing(kind: "video")
+        item.meta = actions?.takeReply()
+        item.source = url
+        add(item)
+        run(item)
+        return true
     }
 
     // MARK: On the way out
@@ -519,7 +538,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
             guard let attachment = FileCore.call("attachment", parts) as? [String: Any] else { return failed("Не удалось отправить файл.") }
             DispatchQueue.main.async {
                 guard !item.removed else { return }
-                messenger.send(chatId: chatId, peerId: peerId, text: "", attachment: attachment) { (result: Result<Void, CryptoFailure>) -> Void in
+                messenger.send(chatId: chatId, peerId: peerId, text: "", attachment: attachment, meta: item.meta) { (result: Result<Void, CryptoFailure>) -> Void in
                     // Without an answer the message stays among the unsent ones and goes out by itself later,
                     // with this very attachment: the row has done its part either way.
                     if case .failure(let failure) = result, failure.name != "NetworkError" {

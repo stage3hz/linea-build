@@ -435,7 +435,18 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func quotePressed(_ key: String) {
         guard let message = history.shown.messages[key] else { return }
         if selecting { toggle(key); return }
-        guard let reply = (message["meta"] as? [String: Any])?["reply"] as? [String: Any], let client = reply["clientId"] as? String else { return }
+        let meta = message["meta"] as? [String: Any]
+        // Stories: the quote «История» of an answer to a story opens that story (or says it is gone).
+        if meta?["reply"] == nil, let story = meta?["story"] as? [String: Any],
+           let ownerId = story["ownerId"] as? String, let storyId = story["id"] as? String {
+            guard let messenger, let host else { return }
+            UISelectionFeedbackGenerator().selectionChanged()
+            StoryQuote.open(ownerId: ownerId, storyId: storyId, messenger: messenger, from: host, unavailable: { [weak self] (words: String) -> Void in
+                self?.say(words)
+            })
+            return
+        }
+        guard let reply = meta?["reply"] as? [String: Any], let client = reply["clientId"] as? String else { return }
         UISelectionFeedbackGenerator().selectionChanged()
         jumpTo(client)
     }

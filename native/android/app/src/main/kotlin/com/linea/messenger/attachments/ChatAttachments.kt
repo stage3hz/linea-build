@@ -85,6 +85,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     var transfer: FileTransfer? = null
     var removed = false
     var percent = -1
+    /** What goes with the message inside the ciphertext: the answer it is, or null. */
+    var meta: Map<String, Any?>? = null
   }
 
   private val context: Context = host.context
@@ -108,6 +110,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   var mediaPressed: ((String) -> Boolean)? = null
   /** Voice/Video: «Видео» of the paperclip's list. */
   var onVideo: (() -> Unit)? = null
+  /** Voice/Video: a video chosen in «Файл» goes the way of «Видео» (written anew without its metadata), with the
+   *  answer it is. True: it was taken. */
+  var onVideoFile: ((Uri, Map<String, Any?>?) -> Boolean)? = null
+  /** ChatActions: the answer being written, taken by the first thing sent (see `ChatScreenActions.takeReply`). */
+  var takeReply: (() -> Map<String, Any?>?)? = null
 
   init {
     val app = context.applicationContext
@@ -166,6 +173,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     val resolver = context.contentResolver
     for (uri in chosen) {
       val item = add(Pending("🖼 Фотография"))
+      item.meta = takeReply?.invoke()
       // What the picker gave is read and drawn anew right here, one picture at a time.
       preparing.execute {
         val prepared = photo(resolver, uri)
@@ -179,9 +187,19 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     val resolver = context.contentResolver
     for (uri in chosen) {
       val item = add(Pending("📎 Файл"))
+      item.meta = takeReply?.invoke()
       preparing.execute {
         val about = about(resolver, uri)
         main.post { if (!item.removed) { item.heading = "📎 " + about.name; onPendingChanged?.invoke() } }
+        if (onVideoFile != null && looksLikeVideo(resolver, uri, about)) {
+          main.post {
+            if (item.removed) return@post
+            // A video goes the way of «Видео»: its own row there replaces this one.
+            if (onVideoFile?.invoke(uri, item.meta) == true) remove(item)
+            else fail(item, "Видео пока нельзя отправить в этой версии приложения.")
+          }
+          return@execute
+        }
         val prepared = file(resolver, uri, about)
         main.post { ready(item, prepared) }
       }
@@ -215,8 +233,17 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     }
   }
 
-  /** A file chosen in the system's files: a picture is prepared as a photo whatever its name says, a video is
-   *  not sent (it cannot be cleaned of its metadata here yet), anything else goes as it is. */
+  /** Whether a chosen file is a video, by its kind or by how it begins (a picture is never one). */
+  private fun looksLikeVideo(resolver: ContentResolver, uri: Uri, about: About): Boolean {
+    if (PhotoPrepare.isPicture(resolver, uri)) return false
+    val type = about.mimeType ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(about.name.substringAfterLast('.', "").lowercase())
+    val head = try { resolver.openInputStream(uri)?.use { input -> ByteArray(16).let { it.copyOf(maxOf(0, input.read(it))) } } } catch (_: Exception) { null } ?: return false
+    return FileRules.isVideo(type, head)
+  }
+
+  /** A file chosen in the system's files: a picture is prepared as a photo whatever its name says, a video goes the
+   *  way of «Видео» (see `onVideoFile`; with nobody to take it, it is not sent — it cannot be cleaned of its
+   *  metadata here), anything else goes as it is. */
   private fun file(resolver: ContentResolver, uri: Uri, about: About): Result<Prepared> {
     val unread = Result.failure<Prepared>(PhotoPrepare.Failure("Не удалось прочитать файл."))
     if (about.size == 0L) return unread
@@ -315,7 +342,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
         ?: return@execute failed("Не удалось отправить файл.")
       main.post {
         if (item.removed) return@post
-        messenger.send(chatId, peerId, "", attachment) { result ->
+        messenger.send(chatId, peerId, "", attachment, item.meta) { result ->
           // Without an answer the message stays among the unsent ones and goes out by itself later, with this
           // very attachment: the row has done its part either way.
           val failure = CryptoService.failure(result)

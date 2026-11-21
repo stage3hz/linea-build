@@ -142,6 +142,8 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     val big = BigTransfer()
     var removed = false
     var percent = -1
+    /** What goes with the message inside the ciphertext: the answer it is, or null. */
+    var meta: Map<String, Any?>? = null
   }
 
   private val context: Context = host.context
@@ -200,6 +202,8 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     // a big file of any kind opens.
     attachments.mediaPressed = { key -> pressed(key) }
     attachments.onVideo = { pickVideo() }
+    attachments.onVideoFile = { uri, meta -> takeVideoFile(uri, meta) }
+    attachments.takeReply = { this.actions?.takeReply() }
     list.onMediaPress = { key, part, fraction -> partPressed(key, part, fraction) }
     list.onRowsMoved = { notes.follow() }
 
@@ -355,6 +359,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     media["durationMs"] = take.durationMs
     take.waveform?.let { media["waveform"] = it }
     val item = Outgoing("voice")
+    item.meta = actions?.takeReply()
     item.wave = take.waveform ?: ""
     item.mediaTime = FileCore.call("voiceTime", listOf(take.durationMs)) as? String ?: ""
     item.payload = Payload(take.file, name, "audio/mp4", media, null, video = false)
@@ -373,6 +378,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     val screen = NoteRecorder(activity, startAtOnce = true)
     screen.onDone = { file ->
       val item = Outgoing("note")
+      item.meta = actions?.takeReply()
       item.source = file
       add(item)
       run(item)
@@ -397,10 +403,23 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   private fun videosPicked(chosen: List<Uri>) {
     for (uri in chosen) {
       val item = Outgoing("video")
+      item.meta = actions?.takeReply()
       item.picked = uri
       add(item)
       run(item)
     }
+  }
+
+  /** A video chosen in «Файл»: it is copied and written anew without its metadata, as one from the gallery.
+   *  False: there is no account to send it with. */
+  fun takeVideoFile(uri: Uri, meta: Map<String, Any?>?): Boolean {
+    if (messenger == null) return false
+    val item = Outgoing("video")
+    item.meta = meta
+    item.picked = uri
+    add(item)
+    run(item)
+    return true
   }
 
   // On the way out
@@ -494,7 +513,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
         ?: return@execute failed("Не удалось отправить файл.")
       main.post {
         if (item.removed) return@post
-        messenger.send(chatId, peerId, "", attachment) { result ->
+        messenger.send(chatId, peerId, "", attachment, item.meta) { result ->
           // Without an answer the message stays among the unsent ones and goes out by itself later, with this
           // very attachment: the row has done its part either way.
           val failure = CryptoService.failure(result)

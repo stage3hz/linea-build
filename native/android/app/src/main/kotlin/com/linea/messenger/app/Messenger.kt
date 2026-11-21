@@ -205,10 +205,11 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
   }
 
   /** Attachments: sends a message that carries a file — already sealed, uploaded and described by the core
-   *  (attachments/ChatAttachments.kt). A failure is a `CryptoFailure`. */
-  fun send(chatId: String, peerId: String, text: String, attachment: Map<String, Any?>, done: (Result<Unit>) -> Unit) {
+   *  (attachments/ChatAttachments.kt). A failure is a `CryptoFailure`.
+   *  `meta`: what goes with it inside the ciphertext (the answer it is — `reply`), or null. */
+  fun send(chatId: String, peerId: String, text: String, attachment: Map<String, Any?>, meta: Map<String, Any?>? = null, done: (Result<Unit>) -> Unit) {
     val clientId = UUID.randomUUID().toString().lowercase()
-    crypto.run({ crypto -> deliver(crypto, chatId, peerId, clientId, text, attachment, null) }, done)
+    crypto.run({ crypto -> deliver(crypto, chatId, peerId, clientId, text, attachment, meta) }, done)
   }
 
   /** Messages that were encrypted and kept but never confirmed by the server (the app was closed, the network
