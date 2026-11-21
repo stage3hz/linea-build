@@ -19,6 +19,8 @@ object Symbols {
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). An unknown name draws nothing. */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // Channels: the pictures of «Каналы» (channels/ChannelIcons.kt), so that its rows of settings can show them.
+    if (com.linea.messenger.channels.ChannelIcons.adds(name)) return com.linea.messenger.channels.ChannelIcons.draw(canvas, name, cx, cy, size, color)
     stroke.color = color; fill.color = color; letters.color = color; stroke.strokeWidth = 1.7f
     canvas.save()
     canvas.translate(cx - size / 2, cy - size / 2)

@@ -92,6 +92,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -attachdemo 1|viewer / -openattachment photo|file    attachments: sample rows in the -demo chat; with an account, opens the chat's newest photo or file (Attachments/ChatAttachments.swift)
     ///   -channelsdemo 1|community|blog|chat|menu|settings / -channels community|chat|create|join    «Каналы»: samples without an account; with an account, a community, a channel, a form (Channels/ChannelsSimulator.swift)
     ///   -aidemo 1|history / -musicdemo 1|player    «AI» and «Музыка» with samples, no account (Music/MusicSimulator.swift); with an account: -tab ai, -tab music
+    ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft    actions on messages in the -demo chat; -chataction menu|delete|reply|edit|pin|select|forward|react with -openchat 1 (ChatActions/ChatScreenActions.swift)
+    ///   -chatlist menu|mute|delete|archive|archived|draft|unread / -chatsearch <query>    actions on the chats of the list, with an account or -demo (ChatActions/ChatListActions.swift)
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
@@ -125,7 +127,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if args.bool(forKey: "openchat") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
                 guard let stack = self?.window?.rootViewController as? NavigationController, let root = stack.viewControllers.first as? RootViewController else { return }
-                root.openFirstChat()
+                // ChatActions: the list of chats comes from the server; the first chat is opened once it is there.
+                PeopleSimulator.openFirstChat(stack: stack, root: root, tries: 20) { (_: ChatViewController) -> Void in }
             }
         }
         // People: with an account — a section, the search, a profile (People/PeopleSimulator.swift).

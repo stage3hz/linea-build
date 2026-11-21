@@ -663,9 +663,11 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     try { context.startActivity(Intent(Intent.ACTION_VIEW, url)) } catch (_: ActivityNotFoundException) { }
   }
 
-  /** For the emulator check: the menu of the newest message. */
-  fun emulatorMenu() {
-    list.newest?.let { openMenu(it, height / 2f) }
+  /** For the emulator check: the menu of the newest message. False while there are no rows yet. */
+  fun emulatorMenu(): Boolean {
+    val newest = list.newest ?: return false
+    openMenu(newest, height / 2f)
+    return true
   }
 
   private fun openMenu(layout: ChannelRowLayout, y: Float) {

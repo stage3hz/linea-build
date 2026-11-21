@@ -7,6 +7,8 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.linea.messenger.app.ChatTarget
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.channels.ChannelsScreen
+import com.linea.messenger.channels.ChannelsStore
 import com.linea.messenger.chats.ChatsScreen
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.GlassSource
@@ -25,7 +27,7 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     Section("chats", "Чаты", "chats") { ChatsScreen(it, messenger, openChat) },
     Section("ai", "AI", "sparkles") { PlaceholderScreen(it, "AI") },
     Section("people", "Люди", "people") { PeopleScreen(it, messenger) },
-    Section("channels", "Каналы", "waves") { PlaceholderScreen(it, "Каналы") },
+    Section("channels", "Каналы", "waves") { ChannelsScreen(it, messenger) },
     Section("music", "Музыка", "headphones") { PlaceholderScreen(it, "Музыка") },
     Section("profile", "Настройки", "gear") { SettingsScreen(it, messenger) },
   )
@@ -64,21 +66,25 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     show("chats")
     // People: the requests to be friends of this account (people/PeopleServer.kt).
     FriendRequests.start(messenger)
+    // Channels: what is unread in the communities of this account (channels/ChannelsStore.kt).
+    ChannelsStore.start(context, messenger)
   }
 
   /** People: the number of requests to be friends on the row of «Люди». */
   private val peopleBadge: (Unit) -> Unit = {
-    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else 0) })
+    bar.setItems(sections.map { TabEntry(it.id, it.label, it.symbol, badge = if (it.id == "people") FriendRequests.incoming.size else if (it.id == "channels") ChannelsStore.badge else 0) })
   }
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     FriendRequests.changed.watch(peopleBadge)
+    ChannelsStore.changed.watch(peopleBadge)
     peopleBadge(Unit)
   }
 
   override fun onDetachedFromWindow() {
     FriendRequests.changed.unwatch(peopleBadge)
+    ChannelsStore.changed.unwatch(peopleBadge)
     super.onDetachedFromWindow()
   }
 
@@ -113,6 +119,9 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
   fun showSections() = bar.openList(sticky = true)
 
   fun closeSections() = bar.closeList()
+
+  /** For the emulator check: the «Каналы» section, once it has been opened. */
+  fun channelsPage(): ChannelsScreen? = pages["channels"] as? ChannelsScreen
 
   /** For the emulator check: the «Настройки» section, once it has been opened. */
   fun settingsPage(): SettingsScreen? = pages["profile"] as? SettingsScreen

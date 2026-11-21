@@ -414,7 +414,7 @@ class ChannelRowView(context: Context) : View(context) {
         is ChannelPiece.Block -> { canvas.save(); canvas.translate(piece.x, piece.y); piece.layout.draw(canvas); canvas.restore() }
         is ChannelPiece.Avatar -> {
           val box = piece.box
-          val image = ChannelImages.image(piece.id, ChannelImages.pixels(box.width(), box.height()))
+          val image = ChannelImages.image(piece.id, ChannelPixels.pixels(box.width(), box.height()))
           if (image != null) {
             val shader = cover(image, box, piece.picture, piece.pictureOf)
             piece.picture = shader; piece.pictureOf = image
@@ -431,7 +431,7 @@ class ChannelRowView(context: Context) : View(context) {
         }
         is ChannelPiece.Picture -> {
           val box = piece.box
-          val image = ChannelImages.image(piece.id, ChannelImages.pixels(box.width(), box.height())) ?: continue
+          val image = ChannelImages.image(piece.id, ChannelPixels.pixels(box.width(), box.height())) ?: continue
           val shader = cover(image, box, piece.shader, piece.shaderOf)
           piece.shader = shader; piece.shaderOf = image
           picture.shader = shader

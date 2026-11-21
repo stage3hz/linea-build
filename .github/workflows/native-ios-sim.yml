@@ -143,6 +143,14 @@ jobs:
           live 18-community 30 -channels community
           live 19-channel-chat 35 -channels chat
           shot 20-channels-demo-chat -channelsdemo chat
+          shot 25-chat-menu -demo 1 -chat 1 -chatdemo menu
+          shot 26-chat-reply -demo 1 -chat 1 -chatdemo reply
+          shot 27-chat-quotes -demo 1 -chat 1 -chatdemo quotes
+          shot 28-chat-select -demo 1 -chat 1 -chatdemo select
+          shot 29-chat-pinned -demo 1 -chat 1 -chatdemo pinned
+          live 30-react-real 35 -openchat 1 -chataction react
+          live 31-list-archive 25 -chatlist archive
+          live 32-list-search 25 -chatsearch Ксюша
           shot 21-ai-demo -aidemo 1
           shot 22-music-demo -musicdemo 1
           shot 23-music-player -musicdemo player

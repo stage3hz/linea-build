@@ -452,7 +452,8 @@ final class ChoiceSheet: UIViewController {
         var total: CGFloat = 30 + 30
         if !note.isEmpty { total += 44 }
         for choice in choices { total += choice.note.isEmpty ? 54 : 76 }
-        return total + 24
+        // And the room under the last choice (the home indicator).
+        return total + 44
     }
 
     override func viewDidLoad() {

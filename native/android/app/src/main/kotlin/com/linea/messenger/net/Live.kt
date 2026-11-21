@@ -119,6 +119,8 @@ class Live(private val server: Server) {
   }
 
   private fun handle(type: String, data: Map<String, Any?>) {
+    // Channels (channels/): events about communities go to that section as they come.
+    if (type == "ready" || type.startsWith("community")) communityEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -166,5 +168,8 @@ class Live(private val server: Server) {
     val presenceChanged = Signal<String?>()
     /** Posted on the main thread when friends or requests to be friends changed on the server. */
     val friendsChanged = Signal<Unit>()
+    /** Posted on the main thread for every event of the line about communities (its `type` begins with
+     *  «community») and when the line is ready again: the event as it came. */
+    val communityEvent = Signal<Map<String, Any?>>()
   }
 }

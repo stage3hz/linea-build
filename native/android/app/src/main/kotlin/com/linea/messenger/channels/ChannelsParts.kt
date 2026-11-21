@@ -80,7 +80,7 @@ class CommunityAvatarView(context: Context) : View(context) {
     if (w <= 0f || h <= 0f) return
     val radius = minOf(w, h) / 2
     // Decoded off the main thread at the size shown; `ready` draws this view again when it has come.
-    val face = if (pictureId.isEmpty()) null else ChannelImages.image(pictureId, ChannelImages.pixels(w, h))
+    val face = if (pictureId.isEmpty()) null else ChannelImages.image(pictureId, ChannelPixels.pixels(w, h))
     if (face != null) {
       val shader = BitmapShader(face, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
       val scale = maxOf(w / face.width, h / face.height)

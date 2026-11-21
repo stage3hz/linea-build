@@ -11,6 +11,9 @@ final class ChatsViewController: UIViewController {
     private let messenger: Messenger?
     private var summaries: [Messenger.ChatSummary] = []
     private var demo: [ChatRow] = []
+    /// ChatActions: the buttons behind a row, the long-press choices, «Архив», drafts and the search
+    /// (Sources/ChatActions/ChatListActions.swift).
+    private lazy var actions = ChatListActions(messenger: messenger)
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -40,13 +43,21 @@ final class ChatsViewController: UIViewController {
         empty.textColor = Theme.muted
         empty.textAlignment = .center
         view.addSubview(empty)
+        // ChatActions: the rows are made there (swipe buttons, drafts, «Архив», what the search found) and come back here.
+        actions.install(host: self, list: list)
+        actions.onRows = { [weak self] (rows: [ChatRow], emptyWords: String) -> Void in
+            guard let self else { return }
+            self.list.setRows(rows)
+            self.empty.text = emptyWords
+            self.empty.isHidden = !rows.isEmpty
+        }
+        actions.onHeading = { [weak self] (words: String) -> Void in self?.heading.text = words }
+        actions.onReload = { [weak self] in self?.reload() }
         list.onRowPress = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
-            if let chat = self.summaries.first(where: { $0.id == id }), let messenger = self.messenger {
-                let screen = ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId)
-                screen.peerLastRead = chat.peerLastRead
-                self.navigationController?.pushViewController(screen, animated: true)
-            } else if let row = self.demo.first(where: { $0.id == id }) {
+            // ChatActions: «Архив», a found message, and the chats of an account are opened there.
+            if self.actions.pressed(id) { return }
+            if let row = self.demo.first(where: { $0.id == id }) {
                 self.navigationController?.pushViewController(ChatViewController(name: row.title), animated: true)
             }
         }
@@ -57,6 +68,10 @@ final class ChatsViewController: UIViewController {
             #endif
             list.setRows(demo)
             empty.isHidden = !demo.isEmpty
+            #if targetEnvironment(simulator)
+            // ChatActions: the samples as chats the actions can work on.
+            actions.showSamples(demo)
+            #endif
         } else {
             empty.text = "Загрузка…"
         }
@@ -81,10 +96,8 @@ final class ChatsViewController: UIViewController {
 
     #if targetEnvironment(simulator)
     func openFirst() {
-        guard let chat = summaries.first, let messenger else { return }
-        let screen = ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId)
-        screen.peerLastRead = chat.peerLastRead
-        navigationController?.pushViewController(screen, animated: false)
+        guard let chat = summaries.first, messenger != nil else { return }
+        actions.open(chat.id, focus: "", animated: false)
     }
     #endif
 
@@ -95,9 +108,8 @@ final class ChatsViewController: UIViewController {
             switch result {
             case .success(let chats):
                 self.summaries = chats
-                self.list.setRows(ChatRow.parse(chats.map { $0.row }))
-                self.empty.text = "Пока нет чатов"
-                self.empty.isHidden = !chats.isEmpty
+                // ChatActions: shown through `actions.onRows`.
+                self.actions.show(chats)
             case .failure(let error):
                 if self.summaries.isEmpty { self.empty.text = error.words; self.empty.isHidden = false }
             }
@@ -111,7 +123,8 @@ final class ChatsViewController: UIViewController {
         newChat.frame = CGRect(x: view.bounds.width - 20 - 40, y: top + 8, width: 40, height: 40)
         list.frame = view.bounds
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
-        list.setPad(top: Double(top + 8 + 41 + 8), bottom: Double(barRoom))
+        // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
+        list.setPad(top: Double(actions.place(in: view, safeTop: top)), bottom: Double(barRoom))
         empty.frame = CGRect(x: 20, y: view.bounds.midY - 12, width: view.bounds.width - 40, height: 24)
     }
 }

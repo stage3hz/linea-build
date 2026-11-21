@@ -6,6 +6,7 @@ import android.os.Looper
 import com.linea.messenger.app.ChatTarget
 import com.linea.messenger.app.Launcher
 import com.linea.messenger.attachments.AttachmentsDemo
+import com.linea.messenger.channels.ChannelsSimulator
 import com.linea.messenger.chat.MsgRow
 import com.linea.messenger.chats.ChatRow
 import com.linea.messenger.design.orbPair
@@ -100,6 +101,7 @@ object Demo {
    *    --es login … --es password … --es word …    signs in, to the test server given by `server` only
    *    --ez openchat true                          with an account: opens the first chat of the list
    *    --es tab people / --es peoplesearch … / --es profile friend|chat    «Люди» and a profile (people/PeopleDemo.kt)
+   *    --es channelsdemo 1|community|blog|chat|menu|settings / --es channels community|chat|create|join    «Каналы» (channels/ChannelsDemo.kt)
    *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
@@ -108,6 +110,7 @@ object Demo {
     authMode = intent.getStringExtra("authmode")
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
     intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
+    if (ChannelsSimulator.demo(intent, launcher)) return true
     if (intent.getBooleanExtra("demo", false)) {
       val root = launcher.showDemo()
       if (intent.getBooleanExtra("chat", false)) launcher.openChat(ChatTarget("Алиса Воронцова"), animated = false)
@@ -125,6 +128,7 @@ object Demo {
       Handler(Looper.getMainLooper()).postDelayed({ launcher.openFirstChat() }, 6000)
     }
     PeopleSimulator.later(intent, launcher)
+    ChannelsSimulator.later(intent, launcher)
     return false
   }
 }

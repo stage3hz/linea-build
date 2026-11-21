@@ -1,24 +1,28 @@
 import UIKit
 
 /// One chat: the messages, the header with the person's name, the field to write in.
-final class ChatViewController: UIViewController, UITextFieldDelegate {
+final class ChatViewController: UIViewController {
     private let name: String
     private let list = MsgListView()
     private let header = UIView()
     private let back = UIButton(type: .system)
     private let heading = UILabel()
     private let composer = UIVisualEffectView(effect: nil)
-    private let field = UITextField()
+    /// ChatActions: several lines, growing with the text (Sources/ChatActions/ChatParts.swift).
+    private let field = ComposerField()
     private let send = UIButton(type: .system)
     private var rows: [[String: Any]] = []
-    /// What sends a message; nil while there is nothing to send with.
-    var onSend: ((String) -> Void)?
 
     private let messenger: Messenger?
     private let chatId: String
     private let peerId: String
     /// Attachments: the paperclip, sending and opening photos and files (Sources/Attachments/ChatAttachments.swift).
     private lazy var attachments = ChatAttachments(messenger: messenger, chatId: chatId, peerId: peerId)
+    /// ChatActions: the menu of a message with its reactions, answers, edits, forwards, pins, deletions, the
+    /// multi-select, the draft, «печатает…», the way down and older pages (Sources/ChatActions/ChatScreenActions.swift).
+    private(set) lazy var actions = ChatScreenActions(messenger: messenger, chatId: chatId, peerId: peerId, name: name)
+    /// Attachments: the simulator's sample rows (-attachdemo), kept after the chat's own.
+    private var sampleRows: [[String: Any]] = []
 
     /// With a `messenger`: the real chat. Without: the simulator's sample chat.
     init(name: String, messenger: Messenger? = nil, chatId: String = "", peerId: String = "") {
@@ -30,23 +34,33 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
     }
 
     /// Up to which message the other side has read (for the two ticks).
-    var peerLastRead = 0
+    var peerLastRead = 0 {
+        didSet { actions.peerLastRead = peerLastRead }
+    }
     /// Up to which message this screen has told the server «read».
     private var reportedRead = 0
 
-    /// Reads the chat's newest page and shows it; what came from the other side is reported as read.
+    /// Reads the chat's newest page and shows it.
+    /// ChatActions: the pages are read, folded and turned into rows there; they come back through `actions.onRows`.
     private func load() {
-        messenger?.messagesAndNewest(chatId: chatId, peerLastRead: peerLastRead) { [weak self] result in
-            guard let self, case .success(let page) = result else { return }
-            self.rows = page.rows
-            // Attachments: what is still on its way out stands after the chat's own rows.
-            self.rows += self.attachments.loaded(page.rows)
-            self.list.setRows(MsgRow.parse(self.rows))
-            // Reported once per new message: the server answers a read mark with an event, which reads the page again.
-            if self.viewIfLoaded?.window != nil, page.newestTheirs > self.reportedRead {
-                self.reportedRead = page.newestTheirs
-                self.messenger?.markRead(chatId: self.chatId, messageId: page.newestTheirs)
-            }
+        actions.load()
+    }
+
+    /// The chat's rows as they are now, with what the attachments add after them.
+    private func showRows(_ made: [[String: Any]]) {
+        rows = made
+        // Attachments: what is still on its way out stands after the chat's own rows.
+        rows += attachments.loaded(made)
+        rows += sampleRows
+        list.setRows(MsgRow.parse(rows))
+    }
+
+    /// The newest page was read: what came from the other side is reported as read.
+    private func loaded(newestTheirs: Int) {
+        // Reported once per new message: the server answers a read mark with an event, which reads the page again.
+        if viewIfLoaded?.window != nil, newestTheirs > reportedRead {
+            reportedRead = newestTheirs
+            messenger?.markRead(chatId: chatId, messageId: newestTheirs)
         }
     }
 
@@ -88,13 +102,6 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
 
         composer.clipsToBounds = true
         view.addSubview(composer)
-        field.attributedPlaceholder = NSAttributedString(string: "Сообщение", attributes: [.foregroundColor: Theme.muted])
-        field.font = .systemFont(ofSize: 17)
-        field.textColor = Theme.text
-        field.tintColor = Theme.text
-        field.keyboardAppearance = .dark
-        field.returnKeyType = .send
-        field.delegate = self
         composer.contentView.addSubview(field)
         send.setImage(UIImage(systemName: "arrow.up.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)), for: .normal)
         send.tintColor = Theme.text
@@ -104,35 +111,25 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         // Attachments: the paperclip in the composer; a touch on a row opens its photo or file.
         attachments.install(host: self, composer: composer.contentView)
         attachments.onPendingChanged = { [weak self] in self?.showPendingAttachments() }
-        list.onMsgPress = { [weak self] row in self?.attachments.pressed(row["key"] as? String ?? "") }
+        // ChatActions: a touch on a message (the menu, a reaction, an attachment), the field, the bars, the header's
+        // status line — and the rows themselves, with or without an account (the simulator's sample chat).
+        actions.install(host: self, list: list, header: header, heading: heading, back: back, composer: composer, field: field, send: send, attachments: attachments)
+        actions.onRows = { [weak self] (made: [[String: Any]]) -> Void in self?.showRows(made) }
+        actions.onLoaded = { [weak self] (newestTheirs: Int) -> Void in self?.loaded(newestTheirs: newestTheirs) }
 
-        if let messenger {
+        if messenger != nil {
             NotificationCenter.default.addObserver(self, selector: #selector(changed(_:)), name: Messenger.changed, object: nil)
             NotificationCenter.default.addObserver(self, selector: #selector(peerRead(_:)), name: Messenger.peerRead, object: nil)
-            onSend = { [weak self] text in
-                guard let self else { return }
-                // Shown at once as being sent; the list is read again when the server has taken it.
-                self.rows.append(["key": "sending-\(self.rows.count)", "kind": 0, "mine": true, "text": text, "time": Messenger.clock.string(from: Date()), "ticks": 3, "tail": true])
-                self.list.setRows(MsgRow.parse(self.rows))
-                messenger.send(chatId: self.chatId, peerId: self.peerId, text: text) { [weak self] _ in self?.load() }
-            }
-            load()
         } else {
             #if targetEnvironment(simulator)
-            rows = SimulatorDemo.messages()
             // Attachments: -attachdemo 1 adds sample rows with a photo and files, -attachdemo viewer also opens the photo viewer.
             if let sample = UserDefaults.standard.string(forKey: "attachdemo") {
-                rows += ChatAttachments.demoRows()
+                sampleRows = ChatAttachments.demoRows()
                 if sample == "viewer" { ChatAttachments.demoViewer(over: self) }
-            }
-            onSend = { [weak self] text in
-                guard let self else { return }
-                self.rows.append(["key": "local-\(self.rows.count)", "kind": 0, "mine": true, "text": text, "time": "09:41", "ticks": 1, "tail": true])
-                self.list.setRows(MsgRow.parse(self.rows))
             }
             #endif
         }
-        list.setRows(MsgRow.parse(rows))
+        load()
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
     }
 
@@ -158,17 +155,21 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         header.frame = CGRect(x: 0, y: 0, width: width, height: top + 48)
         back.frame = CGRect(x: 6, y: top + 2, width: 44, height: 44)
         heading.frame = CGRect(x: 56, y: top + 2, width: width - 112, height: 44)
-        let composerHeight: CGFloat = 48
+        // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
+        // the paperclip stay at its lower edge.
+        let composerHeight = actions.composerHeight(fieldWidth: width - 24 - 100)
         let floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
         composer.frame = CGRect(x: 12, y: floor - composerHeight, width: width - 24, height: composerHeight)
-        composer.layer.cornerRadius = composerHeight / 2
+        composer.layer.cornerRadius = min(24, composerHeight / 2)
         composer.layer.cornerCurve = .continuous
         if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: true) }
         field.frame = CGRect(x: 18, y: 0, width: composer.bounds.width - 18 - 50, height: composerHeight)
-        send.frame = CGRect(x: composer.bounds.width - 46, y: 2, width: 44, height: 44)
+        send.frame = CGRect(x: composer.bounds.width - 46, y: composerHeight - 46, width: 44, height: 44)
         attachments.place(field: field, height: composerHeight)
         list.frame = view.bounds
-        list.setPad(top: Double(header.frame.maxY + 8), bottom: Double(view.bounds.height - composer.frame.minY + 8))
+        // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
+        let room = actions.place(in: view, headerBottom: header.frame.maxY, safeTop: top, composerFrame: composer.frame)
+        list.setPad(top: Double(room.top), bottom: Double(room.bottom))
     }
 
     /// Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded).
@@ -186,15 +187,8 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         navigationController?.pushViewController(PersonProfileViewController(messenger: messenger, userId: peerId, name: name, chatId: messenger == nil ? "demo" : chatId), animated: true)
     }
 
+    /// ChatActions: the message, an answer, an edit or a forward — whatever the field is for at the moment.
     @objc private func sendNow() {
-        let text = (field.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, let onSend else { return }
-        field.text = ""
-        onSend(text)
-    }
-
-    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-        sendNow()
-        return false
+        actions.submit()
     }
 }

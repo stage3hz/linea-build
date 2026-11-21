@@ -127,11 +127,12 @@ final class ChatHistory {
             loadingNewest = true
         }
         let (chatId, me) = (self.chatId, self.userId)
+        let pageBefore = before
         messenger.crypto.run({ (crypto: CryptoService) -> Result<(page: Page, newestTheirs: Int), ServerError> in
             // First everything new is opened and kept (each message exactly once), then the page is shown from the kept copies.
             if case .failure(let failure) = crypto.callNow("sync", [chatId]), failure.name == "NetworkError" { return .failure(.network(failure.message)) }
             var args: [Any] = [chatId]
-            if let before { args.append(before) }
+            if let pageBefore { args.append(pageBefore) }
             switch messenger.server.opAndWait("messages", args) {
             case .failure(let error): return .failure(error)
             case .success(let body):

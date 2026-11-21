@@ -520,7 +520,9 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             for reaction in message["reactions"] as? [[String: Any]] ?? [] where reaction["mine"] as? Bool == true {
                 current = reaction["emoji"] as? String ?? ""
             }
-            reactions = MessageReactions.all.map { (emoji: String) -> (emoji: String, chosen: Bool) in (emoji, emoji == current) }
+            reactions = MessageReactions.all.map { (emoji: String) -> (emoji: String, chosen: Bool) in
+                return (emoji: emoji, chosen: emoji == current)
+            }
         }
         host.view.endEditing(true)
         let menu = MessageMenuController(anchorY: y, mine: mine, preview: Messenger.previewText(message), reactions: reactions, items: items)
@@ -808,7 +810,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     /// A tap on a quote or on the pinned bar (the reference's replyJump.ts): when the original is not loaded yet,
     /// earlier pages are read one after another until it is there; then the list scrolls to it and it lights up.
     func jumpTo(_ clientId: String) {
-        jump = (clientId, 0)
+        jump = (clientId: clientId, pages: 0)
         stepJump()
     }
 
@@ -842,7 +844,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             say("Сообщение слишком далеко в истории")
             return
         }
-        jump = (wanted.clientId, wanted.pages + 1)
+        jump = (clientId: wanted.clientId, pages: wanted.pages + 1)
         history.load(older: true) { [weak self] (read: Bool) -> Void in
             if !read { self?.jump = nil }
         }
@@ -898,11 +900,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         }
     }
 
-    private var simulatorDone: Bool {
-        get { objc_getAssociatedObject(self, &ChatScreenActions.simulatorKey) as? Bool ?? false }
-        set { objc_setAssociatedObject(self, &ChatScreenActions.simulatorKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC) }
-    }
-    private static var simulatorKey: UInt8 = 0
+    private var simulatorDone = false
 
     /// What the simulator check asks of an open chat, once its messages are on screen:
     ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft   the sample chat (with -demo 1 -chat 1)

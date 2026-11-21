@@ -171,6 +171,27 @@ object ChannelFiles {
   }
 }
 
+/** The sizes pictures are decoded at: plain arithmetic. */
+object ChannelPixels {
+  /** How many pixels a picture shown in a box of this size (px) is decoded at. */
+  fun pixels(width: Float, height: Float): Int = (maxOf(width, height) * 1.5f).roundToInt()
+
+  /** The size a picture of `width`×`height` is decoded at so that its longer side is at most `pixels`. */
+  fun fit(width: Int, height: Int, pixels: Int): Pair<Int, Int> {
+    val longer = maxOf(width, height); val most = maxOf(16, pixels)
+    if (longer <= most) return Pair(width, height)
+    val scale = most.toDouble() / longer
+    return Pair(maxOf(1, (width * scale).roundToInt()), maxOf(1, (height * scale).roundToInt()))
+  }
+
+  /** The largest power of two a picture can be made smaller by while its longer side stays at least `pixels`. */
+  fun sample(width: Int, height: Int, pixels: Int): Int {
+    var by = 1
+    while (maxOf(width, height) / (by * 2) >= maxOf(16, pixels)) by *= 2
+    return by
+  }
+}
+
 /** The pictures the section shows — attachments, people, communities. A picture is read from the cache folder
  *  (or downloaded into it), decoded OFF the main thread straight at the size it is shown at, and kept in memory
  *  under a limit counted in bytes. */
@@ -187,9 +208,6 @@ object ChannelImages {
   private val main = Handler(Looper.getMainLooper())
   /** For the debug build's samples: pictures that are simply there, at whatever size they are asked for. */
   private val samples = HashMap<String, Bitmap>()
-
-  /** How many pixels a picture shown in a box of this size (px) is decoded at. */
-  fun pixels(width: Float, height: Float): Int = (maxOf(width, height) * 1.5f).roundToInt()
 
   /** Main thread only. The picture at `pixels` on its longer side; null while it is not here — `ready` is
    *  posted when it is. */
@@ -227,21 +245,6 @@ object ChannelImages {
 
   fun putSample(image: Bitmap, id: String) { samples[id] = image }
 
-  /** The size a picture of `width`×`height` is decoded at so that its longer side is at most `pixels`. */
-  fun fit(width: Int, height: Int, pixels: Int): Pair<Int, Int> {
-    val longer = maxOf(width, height); val most = maxOf(16, pixels)
-    if (longer <= most) return Pair(width, height)
-    val scale = most.toDouble() / longer
-    return Pair(maxOf(1, (width * scale).roundToInt()), maxOf(1, (height * scale).roundToInt()))
-  }
-
-  /** The largest power of two a picture can be made smaller by while its longer side stays at least `pixels`. */
-  fun sample(width: Int, height: Int, pixels: Int): Int {
-    var by = 1
-    while (maxOf(width, height) / (by * 2) >= maxOf(16, pixels)) by *= 2
-    return by
-  }
-
   /** The picture of a file, decoded at once at no more than `pixels` on its longer side, upright. Any thread. */
   fun decode(file: File, pixels: Int): Bitmap? = try {
     if (Build.VERSION.SDK_INT >= 28) NewDecoder.decode(file, pixels) else decodeOld(file, pixels)
@@ -250,7 +253,7 @@ object ChannelImages {
   @android.annotation.TargetApi(28)
   private object NewDecoder {
     fun decode(file: File, pixels: Int): Bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, info, _ ->
-      val size = fit(info.size.width, info.size.height, pixels)
+      val size = ChannelPixels.fit(info.size.width, info.size.height, pixels)
       decoder.setTargetSize(size.first, size.second)
       // Drawn through a shader on any canvas (and counted in the cache by its bytes).
       decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
@@ -261,9 +264,9 @@ object ChannelImages {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(file.path, bounds)
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-    val options = BitmapFactory.Options().apply { inSampleSize = sample(bounds.outWidth, bounds.outHeight, pixels) }
+    val options = BitmapFactory.Options().apply { inSampleSize = ChannelPixels.sample(bounds.outWidth, bounds.outHeight, pixels) }
     val raw = BitmapFactory.decodeFile(file.path, options) ?: return null
-    val size = fit(raw.width, raw.height, pixels)
+    val size = ChannelPixels.fit(raw.width, raw.height, pixels)
     val matrix = Matrix()
     matrix.setScale(size.first.toFloat() / raw.width, size.second.toFloat() / raw.height)
     when (try { ExifInterface(file.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) } catch (_: Exception) { ExifInterface.ORIENTATION_NORMAL }) {
