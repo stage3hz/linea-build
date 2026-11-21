@@ -133,7 +133,7 @@ class ChatScreen(
   }
 
   /** Up to which message this screen has told the server «read». */
-  private var reportedRead = 0
+  private var reportedRead = 0L
 
   override fun changed(chatId: String?) {
     if (chatId != null && chatId != this.chatId) return
