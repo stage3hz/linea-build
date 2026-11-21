@@ -12,6 +12,7 @@ pub mod chat_view;
 pub mod device_proof;
 pub mod e2ee;
 pub mod ffi;
+pub mod format;
 pub mod http;
 #[cfg(target_os = "android")] mod jni;
 pub mod json;
