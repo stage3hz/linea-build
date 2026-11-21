@@ -160,10 +160,10 @@ object RoomVoice {
     val attempt = joining
     lastError = ""
     CallAudio.allow(window.get(), video = false) asked@{ words ->
-      if (joining != attempt) return@asked done(null)
+      if (joining != attempt) return@asked // a newer attempt answers instead
       if (words != null) return@asked done(words.replace("чтобы звонить", "чтобы зайти в комнату"))
       messenger.callIceServers { servers ->
-        if (joining != attempt) return@callIceServers done(null)
+        if (joining != attempt) return@callIceServers // a newer attempt answers instead
         // Without the server's list: the public address finder alone, as the reference does.
         iceServers = servers ?: CallRules.publicIce
         // This phone's encryption device: the others seal their notes for exactly this device.
@@ -171,7 +171,7 @@ object RoomVoice {
           crypto.callNow("initialize")
           crypto.callNow("deviceId").getOrNull() as? String
         }) { device ->
-          if (joining != attempt) return@run done(null)
+          if (joining != attempt) return@run // a newer attempt answers instead
           if (device.isNullOrEmpty()) return@run done("Шифрование ещё не готово. Попробуй ещё раз.")
           if (Calls.call?.isOver == false) return@run done("Сначала заверши звонок.")
           begin(messenger, roomId, name, device, done)

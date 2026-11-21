@@ -128,10 +128,10 @@ final class RoomVoice {
         let attempt = joining
         lastError = ""
         CallAudio.allow(video: false) { [weak self] (words: String?) -> Void in
-            guard let self, self.joining == attempt else { return done(nil) }
+            guard let self, self.joining == attempt else { return } // a newer attempt answers instead
             if let words { return done(words.replacingOccurrences(of: "чтобы звонить", with: "чтобы зайти в комнату")) }
             messenger.callIceServers { [weak self] (servers: [[String: Any]]?) -> Void in
-                guard let self, self.joining == attempt else { return done(nil) }
+                guard let self, self.joining == attempt else { return } // a newer attempt answers instead
                 // Without the server's list: the public address finder alone, as the reference does.
                 self.iceServers = servers ?? [["urls": ["stun:stun.l.google.com:19302"]]]
                 // This phone's encryption device: the others seal their notes for exactly this device.
@@ -140,7 +140,7 @@ final class RoomVoice {
                     guard case .success(let value) = crypto.callNow("deviceId") else { return nil }
                     return value as? String
                 }, done: { [weak self] (device: String?) -> Void in
-                    guard let self, self.joining == attempt else { return done(nil) }
+                    guard let self, self.joining == attempt else { return } // a newer attempt answers instead
                     guard let device, !device.isEmpty else { return done("Шифрование ещё не готово. Попробуй ещё раз.") }
                     if let call = Calls.shared.call, !call.isOver { return done("Сначала заверши звонок.") }
                     self.begin(messenger, roomId: roomId, name: name, device: device, done: done)
