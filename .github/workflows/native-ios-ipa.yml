@@ -1,0 +1,80 @@
+# The native iPhone app (native/ios, Swift + the Rust core) built for a real phone, without code signing, as
+# Payload/Invizent.app inside an .ipa — for installing with the owner's own signing tool. Runs only for the
+# branch `native-ipa`. The file and a check of what is inside go to the branch native-ipa-output.
+#
+# The test build has its own identifier (com.invizent.app.native): it installs BESIDE the current app and
+# cannot touch its keys or history. Nothing here talks to any server.
+name: Native iOS unsigned IPA
+on:
+  push:
+    branches: [native-ipa]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: native-ios-ipa
+  cancel-in-progress: true
+jobs:
+  ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Request-signing key (empty secret = signing off)
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: |
+          # Written into this checkout only; never printed, never committed.
+          if printf '%s' "$ATTEST_KEY" | grep -Eq '^[A-Za-z0-9+/=_-]{16,200}$'; then
+            printf 'let attestKey = "%s"\n' "$ATTEST_KEY" > native/ios/Sources/Net/AttestKey.swift; echo "signing key: set"
+          else echo "signing key: none"; fi
+      - name: Build
+        id: work
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"; OUT="$RUNNER_TEMP/out"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version
+          which protoc || brew install protobuf
+          which xcodegen || brew install xcodegen
+          echo "== core for the phone"; native/ios/build-core.sh aarch64-apple-ios
+          cd native/ios && xcodegen generate
+          echo "== app"
+          xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -derivedDataPath build/dd ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            PRODUCT_BUNDLE_IDENTIFIER=com.invizent.app.native \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|ld: " "$OUT/xcodebuild.log" | head -60; tail -40 "$OUT/xcodebuild.log"; exit 1; }
+          APP="$PWD/build/dd/Build/Products/Release-iphoneos/Invizent.app"
+          mkdir -p pack/Payload && ditto "$APP" pack/Payload/Invizent.app
+          (cd pack && zip -qry "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" Payload)
+          echo "== what is inside"
+          A=pack/Payload/Invizent.app
+          {
+            echo "commit $GITHUB_SHA"; xcodebuild -version | tr '\n' ' '; echo
+            echo "== size"; ls -l "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" | awk '{print $5" bytes"}'; shasum -a 256 "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" | awk '{print "sha256 "$1}'
+            echo "== identity"; for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion MinimumOSVersion CFBundleDisplayName; do printf '%s: ' "$key"; /usr/libexec/PlistBuddy -c "Print :$key" "$A/Info.plist"; done
+            echo "== executable"; file "$A/Invizent"; lipo -info "$A/Invizent"
+            echo "== code signature (expected none)"; codesign -dv "$A" 2>&1 | head -3 || true
+            echo "== permissions asked in Info.plist (expected none)"; /usr/libexec/PlistBuddy -c "Print" "$A/Info.plist" | grep -i "UsageDescription" || echo "none"
+            echo "== simulator-only sample data (expected absent)"; if strings -a "$A/Invizent" | grep -q "Книжный клуб"; then echo "PRESENT"; else echo "absent"; fi
+            echo "== files"; (cd "$A" && find . -maxdepth 2 | head -40)
+          } > "$OUT/verify.txt"
+          cat "$OUT/verify.txt"
+          lipo -info "$A/Invizent" | grep -q arm64
+          ! grep -q "PRESENT" "$OUT/verify.txt"
+          echo "== done"
+      - name: Publish (branch native-ipa-output)
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/out" 2>/dev/null || { mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"; }
+          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u)" > STATUS.txt
+          [ -f xcodebuild.log ] && { grep -nE "error:|ld: |Undefined symbols" xcodebuild.log | head -200 > xcodebuild-errors.txt; tail -150 xcodebuild.log > xcodebuild-tail.txt; mv xcodebuild.log xcodebuild-full.log; : > xcodebuild-full.log; } || true
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native iOS unsigned IPA for $GITHUB_SHA: ${{ steps.work.outcome }}"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-ipa-output" && break; sleep 15; done
+      - name: Fail the job if the build failed
+        if: steps.work.outcome != 'success'
+        run: exit 1

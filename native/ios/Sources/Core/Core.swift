@@ -40,6 +40,7 @@ enum Core {
         var request: [String: Any] = ["method": method, "path": path, "jsonBody": jsonBody, "platform": "ios",
                                       "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
                                       "nowMs": Int(Date().timeIntervalSince1970 * 1000)]
+        if !attestKey.isEmpty { request["attestKey"] = attestKey }
         if let token { request["token"] = token }
         if let proof { request["proof"] = proof }
         guard let json = text(request), let made = value(json.withCString { take(invizent_http_prepare($0)) }) as? [String: Any],

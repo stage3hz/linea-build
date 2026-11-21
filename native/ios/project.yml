@@ -39,6 +39,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.invizent.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_OBJC_BRIDGING_HEADER: Sources/Core/InvizentCore.h
         LIBRARY_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/build/core"]
         OTHER_LDFLAGS: ["$(inherited)", "-linvizent_core"]
