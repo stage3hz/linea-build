@@ -107,7 +107,8 @@ object Demo {
    *    --es channelsdemo 1|community|blog|chat|menu|settings / --es channels community|chat|create|join    «Каналы» (channels/ChannelsDemo.kt)
    *    --es attachdemo 1|viewer / --es openattachment photo|file           attachments (attachments/AttachmentsDemo.kt)
    *    --es chatdemo … / --es chataction … / --es chatlist … / --es chatsearch …   actions on messages and chats (chatactions/ChatActionsDemo.kt)
-   *    --es calldemo outgoing|incoming|active|video|ended|retry|bar        calls: a sample call in each state, no account (calls/CallsDemo.kt) */
+   *    --es calldemo outgoing|incoming|active|video|ended|retry|bar        calls: a sample call in each state, no account (calls/CallsDemo.kt)
+   *    --es storiesdemo strip|viewer|viewers|compose|posts|own / --es stories viewer|own|ownstories|compose    stories and profile posts (stories/StoriesDemo.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
@@ -122,6 +123,8 @@ object Demo {
     if (com.linea.messenger.calls.CallsDemo.start(intent, launcher)) return true
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
     intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
+    // Stories: `storiesdemo` — the strip, the viewer, the screen that publishes, a profile's posts (stories/StoriesDemo.kt).
+    if (com.linea.messenger.stories.StoriesSimulator.demo(intent, launcher)) return true
     if (ChannelsSimulator.demo(intent, launcher)) return true
     if (intent.getBooleanExtra("demo", false)) {
       val root = launcher.showDemo()
@@ -141,6 +144,7 @@ object Demo {
     }
     PeopleSimulator.later(intent, launcher)
     ChannelsSimulator.later(intent, launcher)
+    com.linea.messenger.stories.StoriesSimulator.later(intent, launcher)
     return false
   }
 }

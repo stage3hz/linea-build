@@ -37,6 +37,8 @@ class ChatsScreen(
   /** ChatActions: the buttons behind a row, the long-press choices, «Архив», drafts and the search
    *  (chatactions/ChatListActions.kt). */
   private val actions = ChatListActions(context, messenger)
+  /** Stories: the strip of stories above the chats (stories/StoriesStrip.kt). */
+  private val stories = com.linea.messenger.stories.StoriesStrip(context, messenger)
 
   init {
     setBackgroundColor(Theme.bg)
@@ -58,6 +60,8 @@ class ChatsScreen(
     addView(empty)
     // ChatActions: the rows are made there (swipe buttons, drafts, «Архив», what the search found) and come back here.
     actions.install(this, list)
+    // Stories: the strip is the list's header.
+    stories.install(this, list)
     actions.onRows = { rows, emptyWords ->
       list.setRows(rows)
       empty.text = emptyWords
@@ -150,7 +154,11 @@ class ChatsScreen(
     put(newChat, width - dp(20f) - dp(40f), top + dp(8f), dp(40f), dp(40f))
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
     // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
-    list.setPad(actions.place(width, top, top + dp(8f) + headingHeight + dp(8f)), barRoom)
+    val listTop = top + dp(8f) + headingHeight + dp(8f)
+    val pad = actions.place(width, top, listTop)
+    list.setPad(pad, barRoom)
+    // Stories: not in «Архив» and not while searching (the search field takes room under the heading).
+    stories.place(allowed = heading.text.toString() == "Чаты" && pad <= listTop)
     put(list, 0, 0, width, height)
     put(empty, dp(20f), height / 2 - dp(24f), width - dp(40f), dp(48f))
   }

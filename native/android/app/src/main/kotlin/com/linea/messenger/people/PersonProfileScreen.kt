@@ -97,6 +97,8 @@ class PersonProfileScreen(
   private val noticeLabel = TextView(context)
   private val problemLabel = TextView(context)
   private val card = LinearLayout(context)
+  /** Stories: «Публикации» / «Истории» under the card and the ring around the picture (stories/ProfilePosts.kt). */
+  private val postsBlock = com.linea.messenger.stories.ProfilePostsBlock(context)
 
   private val fromChat: Boolean get() = chatId.isNotEmpty()
   private val presenceChanged: (String?) -> Unit = { refreshStatus() }
@@ -143,6 +145,9 @@ class PersonProfileScreen(
     card.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 22f * d }
     card.clipToOutline = true
     row(card, wide, wrap, 16f)
+    // Stories: the person's posts and stories.
+    row(postsBlock, wide, wrap, 16f)
+    postsBlock.attach(this, messenger, userId, own = false, avatar = avatar)
 
     topBar.setBackgroundColor(Theme.alpha(Theme.bg, 0.92f))
     addView(topBar)
@@ -213,6 +218,7 @@ class PersonProfileScreen(
   private fun refresh() {
     val shown = shownPerson
     avatar.show(shown, messenger?.personAvatarAddress(shown.avatarId) ?: "")
+    postsBlock.setColor(shown.avatarColor) // Stories: the ring is lit by the person's own colour
     nameLabel.text = shown.displayName
     refreshStatus()
     noticeLabel.text = noticeWords
@@ -393,6 +399,8 @@ class PersonProfileScreen(
         apply()
         say(notice = notice)
         FriendRequests.refresh()
+        // Stories: posts and stories are for friends — what may be seen has changed.
+        postsBlock.reload()
       }
     }
     if (friendNow) {

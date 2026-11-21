@@ -108,10 +108,12 @@ object StoryPrepare {
    *  names for a wider one (null: as it is). Never more than 16 million pixels. Null for a size no picture has. */
   fun photoSize(width: Int, height: Int, resizeWidth: Int?): Pair<Int, Int>? {
     if (width <= 0 || height <= 0 || width > 20000 || height > 20000) return null
-    var scale = minOf(1.0, (resizeWidth ?: width).toDouble() / width)
-    val pixelsThen = width.toDouble() * height * scale * scale
-    if (pixelsThen > maxPixels) scale *= sqrt(maxPixels / pixelsThen)
-    return Pair(maxOf(1, floor(width * scale).toInt()), maxOf(1, floor(height * scale).toInt()))
+    var wide = width.toDouble(); var tall = height.toDouble()
+    val wanted = resizeWidth?.takeIf { it in 1 until width }
+    if (wanted != null) { tall = floor(height.toDouble() * wanted / width); wide = wanted.toDouble() }
+    val pixels = wide * tall
+    if (pixels > maxPixels) { val scale = sqrt(maxPixels / pixels); wide = floor(wide * scale); tall = floor(tall * scale) }
+    return Pair(maxOf(1, wide.toInt()), maxOf(1, tall.toInt()))
   }
 
   private fun orientation(resolver: ContentResolver, uri: Uri): Int = try {

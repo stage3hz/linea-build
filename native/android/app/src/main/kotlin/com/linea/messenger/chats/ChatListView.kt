@@ -143,9 +143,10 @@ class ChatListView(context: Context) : FrameLayout(context) {
     selector = ColorDrawable(Color.TRANSPARENT); cacheColorHint = Color.TRANSPARENT
     isVerticalScrollBarEnabled = false; clipToPadding = false; overScrollMode = View.OVER_SCROLL_ALWAYS
     this.adapter = this@ChatListView.adapter
-    setOnItemClickListener { _, _, position, _ -> rows.getOrNull(position)?.let { onRowPress(it.id) } }
+    // Stories: a header above the first chat (`setHeader`) takes the first place of the list.
+    setOnItemClickListener { _, _, position, _ -> rows.getOrNull(position - headerViewsCount)?.let { onRowPress(it.id) } }
     setOnItemLongClickListener { _, _, position, _ ->
-      val row = rows.getOrNull(position) ?: return@setOnItemLongClickListener false
+      val row = rows.getOrNull(position - headerViewsCount) ?: return@setOnItemLongClickListener false
       onRowLongPress(row.id, lastTouchY); true
     }
   }
@@ -169,5 +170,15 @@ class ChatListView(context: Context) : FrameLayout(context) {
   fun setPlates(plates: Map<String, String>) { if (DecorStore.setPlates(plates)) adapter.notifyDataSetChanged() }
 
   /** Room above the first row and under the last one, px: what the heading and the bar cover. */
+  /** Stories: a view above the first chat that scrolls away with the list (stories/StoriesStrip.kt); null takes
+   *  it away. The view comes with its size set. */
+  fun setHeader(view: View?) {
+    if (view === header) return
+    header?.let { list.removeHeaderView(it) }
+    header = view
+    if (view != null) list.addHeaderView(view, null, false)
+  }
+  private var header: View? = null
+
   fun setPad(top: Int, bottom: Int) { if (list.paddingTop != top || list.paddingBottom != bottom) list.setPadding(0, top, 0, bottom) }
 }

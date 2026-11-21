@@ -64,7 +64,10 @@ class SettingsScreen internal constructor(context: Context, private val account:
 
     val profile = SettingsRow(context, symbol = "person", label = "Мой профиль")
     profile.onPress = { openProfile() }
-    addGroup(rows = listOf(profile))
+    // Stories: the account's own posts and stories (stories/ProfilePosts.kt).
+    val posts = SettingsRow(context, symbol = "posts.grid", label = com.linea.messenger.stories.OwnPostsScreen.NAME)
+    posts.onPress = { account?.let { own -> com.linea.messenger.stories.StoriesStore.account?.takeIf { it.userId == own.userId }?.let { open(com.linea.messenger.stories.OwnPostsScreen(context, it)) } } }
+    addGroup(rows = listOf(profile, posts))
 
     // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
     // «Язык» here: not built in this app yet.)

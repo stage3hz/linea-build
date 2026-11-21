@@ -141,6 +141,9 @@ class Live(private val server: Server) {
     // an outgoing call got, `ready` — that the line is up again.
     if (type == "ready") line = "connected"
     if (type == "ready" || type == "message" || type == "call.reach") callEvent.post(data)
+    // Stories (stories/): somebody's stories or posts changed (`story`), a story of this account was watched
+    // (`story.view`), or the line came up again.
+    if (type == "ready" || type.startsWith("story")) storyEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -194,5 +197,8 @@ class Live(private val server: Server) {
     /** Posted on the main thread for what a call needs from the line: the server's event — a `message`,
      *  `call.reach`, `ready` — or `{"type": "line"}` when the line went up or down (see `line`). */
     val callEvent = Signal<Map<String, Any?>>()
+    /** Stories: posted on the main thread when somebody's stories or posts changed, a story of this account was
+     *  watched, or the line came up again — the strip reads the feed anew (stories/StoriesModel.kt). */
+    val storyEvent = Signal<Map<String, Any?>>()
   }
 }

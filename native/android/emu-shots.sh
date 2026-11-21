@@ -70,6 +70,14 @@ shot 44-appearance --ez demo true --es settings appearance
 shot 45-appearance-graphite --ez demo true --es settings appearance --es settheme graphite
 shot 47-accent --ez demo true --es settings accent --es settheme black --es setaccent FF9500
 shot 49b-reset --ez demo true --es setaccent none --es settheme black
+# Stories and profile posts: the strip above the chats, a friend's story, «Просмотры» of the account's own story,
+# the screen before publishing, a person's profile with its posts, «Публикации и истории».
+shot 50-stories-strip --es storiesdemo strip
+shot 51-stories-viewer --es storiesdemo viewer
+shot 52-stories-viewers --es storiesdemo viewers
+shot 53-stories-compose --es storiesdemo compose
+shot 54-stories-posts --es storiesdemo posts
+shot 55-own-posts --es storiesdemo own
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true
