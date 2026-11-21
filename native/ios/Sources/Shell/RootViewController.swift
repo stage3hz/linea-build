@@ -4,8 +4,18 @@ import UIKit
 final class RootViewController: UIViewController {
     private struct Section { let id: String; let label: String; let symbol: String; let make: () -> UIViewController }
 
-    private let sections: [Section] = [
-        Section(id: "chats", label: "Чаты", symbol: "bubble.left.and.bubble.right") { ChatsViewController() },
+    /// The signed-in account; nil shows the shell with the simulator's samples.
+    private let messenger: Messenger?
+
+    init(messenger: Messenger? = nil) {
+        self.messenger = messenger
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    private lazy var sections: [Section] = [
+        Section(id: "chats", label: "Чаты", symbol: "bubble.left.and.bubble.right") { [messenger] in ChatsViewController(messenger: messenger) },
         Section(id: "ai", label: "AI", symbol: "sparkles") { PlaceholderViewController(title: "AI") },
         Section(id: "people", label: "Люди", symbol: "person.2") { PlaceholderViewController(title: "Люди") },
         Section(id: "channels", label: "Каналы", symbol: "dot.radiowaves.left.and.right") { PlaceholderViewController(title: "Каналы") },
@@ -71,6 +81,11 @@ final class RootViewController: UIViewController {
             if let previous, self.pages[self.open]?.view !== previous { previous.removeFromSuperview() }
         })
     }
+
+    #if targetEnvironment(simulator)
+    /// For the simulator check: opens the first chat of the list.
+    func openFirstChat() { (pages["chats"] as? ChatsViewController)?.openFirst() }
+    #endif
 
     /// The list of the sections without an icon (for a check on the simulator and for accessibility).
     func showSections() { bar.openList(sticky: true) }

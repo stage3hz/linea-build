@@ -5,6 +5,17 @@ final class ChatsViewController: UIViewController {
     private let heading = UILabel()
     private let list = ChatListView()
     private let empty = UILabel()
+    /// The account whose chats are shown; nil shows the simulator's samples (or nothing on a phone).
+    private let messenger: Messenger?
+    private var summaries: [Messenger.ChatSummary] = []
+    private var demo: [ChatRow] = []
+
+    init(messenger: Messenger? = nil) {
+        self.messenger = messenger
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -20,15 +31,50 @@ final class ChatsViewController: UIViewController {
         empty.textColor = Theme.muted
         empty.textAlignment = .center
         view.addSubview(empty)
-        var rows: [ChatRow] = []
-        #if targetEnvironment(simulator)
-        rows = SimulatorDemo.chats()
-        #endif
-        list.setRows(rows)
-        empty.isHidden = !rows.isEmpty
         list.onRowPress = { [weak self] event in
-            guard let self, let id = event["id"] as? String, let row = rows.first(where: { $0.id == id }) else { return }
-            self.navigationController?.pushViewController(ChatViewController(name: row.title), animated: true)
+            guard let self, let id = event["id"] as? String else { return }
+            if let chat = self.summaries.first(where: { $0.id == id }), let messenger = self.messenger {
+                self.navigationController?.pushViewController(ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId), animated: true)
+            } else if let row = self.demo.first(where: { $0.id == id }) {
+                self.navigationController?.pushViewController(ChatViewController(name: row.title), animated: true)
+            }
+        }
+        if messenger == nil {
+            #if targetEnvironment(simulator)
+            demo = SimulatorDemo.chats()
+            #endif
+            list.setRows(demo)
+            empty.isHidden = !demo.isEmpty
+        } else {
+            empty.text = "Загрузка…"
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        reload()
+    }
+
+    #if targetEnvironment(simulator)
+    func openFirst() {
+        guard let chat = summaries.first, let messenger else { return }
+        navigationController?.pushViewController(ChatViewController(name: chat.title, messenger: messenger, chatId: chat.id, peerId: chat.peerId), animated: false)
+    }
+    #endif
+
+    /// Asks the server for the chats again (on opening the screen and on coming back from a chat).
+    func reload() {
+        messenger?.chats { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let chats):
+                self.summaries = chats
+                self.list.setRows(ChatRow.parse(chats.map { $0.row }))
+                self.empty.text = "Пока нет чатов"
+                self.empty.isHidden = !chats.isEmpty
+            case .failure(let error):
+                if self.summaries.isEmpty { self.empty.text = error.words; self.empty.isHidden = false }
+            }
         }
     }
 

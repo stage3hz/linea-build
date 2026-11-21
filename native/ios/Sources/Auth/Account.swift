@@ -30,4 +30,10 @@ enum Account {
         return ["deviceName": model, "platform": "ios", "deviceModel": model, "osVersion": "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)",
                 "appVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"]
     }
+
+    /// The account's public profile as the server last gave it: lets the app open without waiting for the network.
+    static var cachedUser: [String: Any]? {
+        get { (UserDefaults.standard.string(forKey: "invizent.session-user.v1")).flatMap { Core.value($0) as? [String: Any] } }
+        set { UserDefaults.standard.set(newValue.flatMap { Core.text($0) }, forKey: "invizent.session-user.v1") }
+    }
 }

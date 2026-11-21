@@ -68,10 +68,10 @@ jobs:
             limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"
           }
           shot 01-core-check -corecheck 1
-          shot 02-chats
-          shot 03-sections -sections 1
-          shot 04-settings -tab profile
-          shot 05-chat -chat 1
+          shot 02-chats -demo 1
+          shot 03-sections -demo 1 -sections 1
+          shot 04-settings -demo 1 -tab profile
+          shot 05-chat -demo 1 -chat 1
           shot 06-auth -auth 1
           echo "== done"
       - name: Publish the result (branch native-sim-output-<runner>)

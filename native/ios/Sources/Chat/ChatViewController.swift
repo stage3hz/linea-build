@@ -14,9 +14,26 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
     /// What sends a message; nil while there is nothing to send with.
     var onSend: ((String) -> Void)?
 
-    init(name: String) {
+    private let messenger: Messenger?
+    private let chatId: String
+    private let peerId: String
+
+    /// With a `messenger`: the real chat. Without: the simulator's sample chat.
+    init(name: String, messenger: Messenger? = nil, chatId: String = "", peerId: String = "") {
         self.name = name
+        self.messenger = messenger
+        self.chatId = chatId
+        self.peerId = peerId
         super.init(nibName: nil, bundle: nil)
+    }
+
+    /// Reads the chat's newest page and shows it.
+    private func load() {
+        messenger?.messages(chatId: chatId, peerLastRead: 0) { [weak self] result in
+            guard let self, case .success(let rows) = result else { return }
+            self.rows = rows
+            self.list.setRows(MsgRow.parse(rows))
+        }
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -56,14 +73,25 @@ final class ChatViewController: UIViewController, UITextFieldDelegate {
         send.addTarget(self, action: #selector(sendNow), for: .touchUpInside)
         composer.contentView.addSubview(send)
 
-        #if targetEnvironment(simulator)
-        rows = SimulatorDemo.messages()
-        onSend = { [weak self] text in
-            guard let self else { return }
-            self.rows.append(["key": "local-\(self.rows.count)", "kind": 0, "mine": true, "text": text, "time": "09:41", "ticks": 1, "tail": true])
-            self.list.setRows(MsgRow.parse(self.rows))
+        if let messenger {
+            onSend = { [weak self] text in
+                guard let self else { return }
+                // Shown at once as being sent; the list is read again when the server has taken it.
+                self.rows.append(["key": "sending-\(self.rows.count)", "kind": 0, "mine": true, "text": text, "time": Messenger.clock.string(from: Date()), "ticks": 3, "tail": true])
+                self.list.setRows(MsgRow.parse(self.rows))
+                messenger.send(chatId: self.chatId, peerId: self.peerId, text: text) { [weak self] _ in self?.load() }
+            }
+            load()
+        } else {
+            #if targetEnvironment(simulator)
+            rows = SimulatorDemo.messages()
+            onSend = { [weak self] text in
+                guard let self else { return }
+                self.rows.append(["key": "local-\(self.rows.count)", "kind": 0, "mine": true, "text": text, "time": "09:41", "ticks": 1, "tail": true])
+                self.list.setRows(MsgRow.parse(self.rows))
+            }
+            #endif
         }
-        #endif
         list.setRows(MsgRow.parse(rows))
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
     }
