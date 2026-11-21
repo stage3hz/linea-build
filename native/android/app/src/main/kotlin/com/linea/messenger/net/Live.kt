@@ -39,6 +39,11 @@ class Live(private val server: Server) {
   /** Called on the main thread. */
   var onEvent: ((Event) -> Unit)? = null
 
+  // People (people/): who is in the line now and who was when — the server's `presence` items by the person's
+  // id, as they come (PresenceWords words them). Main thread only.
+  var presence: Map<String, Map<String, Any?>> = emptyMap()
+    private set
+
   fun start() {
     stopped = false
     connect()
@@ -127,6 +132,18 @@ class Live(private val server: Server) {
         val chatId = data["chatId"] as? String; val userId = data["userId"] as? String
         if (chatId != null && userId != null) onEvent?.invoke(Event.Typing(chatId, userId, data["isTyping"] as? Boolean ?: false))
       }
+      // People (people/): presence and friends.
+      "presence.snapshot" -> {
+        val all = LinkedHashMap<String, Map<String, Any?>>()
+        for (item in (data["items"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }) (item["userId"] as? String)?.let { all[it] = item }
+        presence = all
+        presenceChanged.post(null)
+      }
+      "presence" -> {
+        val item = Core.map(data["presence"]); val id = item?.get("userId") as? String
+        if (item != null && id != null) { presence = presence + (id to item); presenceChanged.post(id) }
+      }
+      "friends" -> friendsChanged.post(Unit)
     }
   }
 
@@ -134,5 +151,20 @@ class Live(private val server: Server) {
   fun typing(chatId: String, on: Boolean) {
     val frame = Core.text(mapOf("type" to "typing", "chatId" to chatId, "isTyping" to on)) ?: return
     socket?.send(frame)
+  }
+
+  /** What several screens hear of at once (the app's own small notice board). Main thread only. */
+  class Signal<T> {
+    private val heard = LinkedHashSet<(T) -> Unit>()
+    fun watch(watcher: (T) -> Unit) { heard.add(watcher) }
+    fun unwatch(watcher: (T) -> Unit) { heard.remove(watcher) }
+    fun post(value: T) { for (watcher in heard.toList()) watcher(value) }
+  }
+
+  companion object {
+    /** Posted on the main thread when `presence` changed: the person's id, or null for everyone. */
+    val presenceChanged = Signal<String?>()
+    /** Posted on the main thread when friends or requests to be friends changed on the server. */
+    val friendsChanged = Signal<Unit>()
   }
 }

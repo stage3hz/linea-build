@@ -11,7 +11,8 @@ use crate::ffi::{
     invizent_api_call, invizent_core_version, invizent_crypto_call, invizent_crypto_free, invizent_crypto_new, invizent_http_prepare, invizent_http_read,
     invizent_proof_call, invizent_proof_free, invizent_proof_new, invizent_safety_code, invizent_string_free, invizent_view, InvizentCrypto, InvizentHost, InvizentProof,
 };
-use jni_sys::{jboolean, jclass, jint, jlong, jmethodID, jobject, jsize, jstring, jvalue, JNIEnv, JavaVM, JNI_EDETACHED, JNI_OK, JNI_VERSION_1_6};
+use crate::ffi::{invizent_file_bytes_free, invizent_file_call, invizent_file_clean_jpeg, invizent_file_open, invizent_file_seal, InvizentBytes};
+use jni_sys::{jboolean, jbyteArray, jclass, jint, jlong, jmethodID, jobject, jsize, jstring, jvalue, JNIEnv, JavaVM, JNI_EDETACHED, JNI_OK, JNI_VERSION_1_6};
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic::catch_unwind;
 
@@ -341,4 +342,90 @@ pub unsafe extern "system" fn Java_com_linea_messenger_core_Core_cryptoFree(env:
     invizent_crypto_free(service.crypto);
     let app = Box::from_raw(service.app);
     if !env.is_null() { if let Some(delete) = (**env).DeleteGlobalRef { delete(env, app.host) } }
+}
+
+// ── Files attached to encrypted messages ─────────────────────────────────────────────────────────────────────
+//
+// The functions of `object FileCore` (Kotlin, `com.linea.messenger.attachments`). A file's bytes cross as a Java
+// `byte[]`, copied once on the way in and once on the way out (never as base64 inside JSON). A step answers
+// with an object: a `byte[]` — its result — or a `String` — the words of the refusal; null only when the JVM
+// could not make the answer.
+
+/// The bytes of a Java array; none for null.
+unsafe fn bytes(env: *mut JNIEnv, array: jbyteArray) -> Option<Vec<u8>> {
+    if env.is_null() || array.is_null() { return None }
+    let table = &**env;
+    let length = (table.GetArrayLength?)(env, array);
+    let mut out = vec![0u8; usize::try_from(length).ok()?];
+    if length > 0 { (table.GetByteArrayRegion?)(env, array, 0, length, out.as_mut_ptr().cast()) }
+    Some(out)
+}
+
+/// The answer of a step on a file for Kotlin: the words when there are some, else the bytes as a new `byte[]`.
+/// The core's memory is given back either way.
+unsafe fn file_answer(env: *mut JNIEnv, words: *mut c_char, out: InvizentBytes) -> jobject {
+    if !words.is_null() {
+        invizent_file_bytes_free(out);
+        return give(env, words)
+    }
+    let made = (|| -> Option<jobject> {
+        if env.is_null() { return None }
+        let table = &**env;
+        let length = jsize::try_from(out.len).ok()?;
+        let array = (table.NewByteArray?)(env, length);
+        if array.is_null() { return None }
+        if length > 0 && !out.data.is_null() { (table.SetByteArrayRegion?)(env, array, 0, length, out.data.cast_const().cast()) }
+        Some(array)
+    })();
+    invizent_file_bytes_free(out);
+    made.unwrap_or(std::ptr::null_mut())
+}
+
+/// `FileCore.fileCall(name: String, argsJson: String): String?` — see `invizent_file_call`.
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and strings of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_attachments_FileCore_fileCall(env: *mut JNIEnv, _class: jclass, name: jstring, args_json: jstring) -> jstring {
+    let (Some(name), Some(args)) = (c_text(env, name), c_text(env, args_json)) else { return std::ptr::null_mut() };
+    give(env, invizent_file_call(name.as_ptr(), args.as_ptr()))
+}
+
+/// `FileCore.fileSeal(plain: ByteArray, encryptionJson: String): Any?` — see `invizent_file_seal`: the
+/// ciphertext with its tag (`byte[]`), or the words for the person (`String`).
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and objects of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_attachments_FileCore_fileSeal(env: *mut JNIEnv, _class: jclass, plain: jbyteArray, encryption_json: jstring) -> jobject {
+    let (Some(plain), Some(encryption)) = (bytes(env, plain), c_text(env, encryption_json)) else { return std::ptr::null_mut() };
+    let mut out = InvizentBytes { data: std::ptr::null_mut(), len: 0 };
+    let words = invizent_file_seal(plain.as_ptr(), plain.len(), encryption.as_ptr(), &mut out);
+    file_answer(env, words, out)
+}
+
+/// `FileCore.fileOpen(cipher: ByteArray, attachmentJson: String): Any?` — see `invizent_file_open`: the file
+/// (`byte[]`), or the words for the person (`String`); a file that fails its check is never given out.
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and objects of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_attachments_FileCore_fileOpen(env: *mut JNIEnv, _class: jclass, cipher: jbyteArray, attachment_json: jstring) -> jobject {
+    let (Some(cipher), Some(attachment)) = (bytes(env, cipher), c_text(env, attachment_json)) else { return std::ptr::null_mut() };
+    let mut out = InvizentBytes { data: std::ptr::null_mut(), len: 0 };
+    let words = invizent_file_open(cipher.as_ptr(), cipher.len(), attachment.as_ptr(), &mut out);
+    file_answer(env, words, out)
+}
+
+/// `FileCore.fileCleanJpeg(jpeg: ByteArray): Any?` — see `invizent_file_clean_jpeg`: the picture alone
+/// (`byte[]`), or the words for the person (`String`).
+///
+/// # Safety
+/// Called by the JVM with its own environment pointer and an array of its own (or null).
+#[no_mangle]
+pub unsafe extern "system" fn Java_com_linea_messenger_attachments_FileCore_fileCleanJpeg(env: *mut JNIEnv, _class: jclass, jpeg: jbyteArray) -> jobject {
+    let Some(jpeg) = bytes(env, jpeg) else { return std::ptr::null_mut() };
+    let mut out = InvizentBytes { data: std::ptr::null_mut(), len: 0 };
+    let words = invizent_file_clean_jpeg(jpeg.as_ptr(), jpeg.len(), &mut out);
+    file_answer(env, words, out)
 }
