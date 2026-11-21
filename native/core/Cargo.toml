@@ -8,6 +8,8 @@ publish = false
 
 [lib]
 name = "invizent_core"
+# staticlib: linked into the iOS app; cdylib: loaded by the Android app; rlib: tests and tools.
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 base64 = "0.22"

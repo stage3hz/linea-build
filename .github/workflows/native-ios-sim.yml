@@ -1,0 +1,78 @@
+# The native iPhone app (native/ios, Swift) with the shared core (native/core, Rust), built for the simulator
+# and photographed. Runs only for the branch `native-walk`. The result — the screenshot, or the end of the
+# build log when something failed — goes to the branch native-sim-output-<runner>, so it can be read without
+# the Actions page. Nothing here touches the real server.
+name: Native iOS simulator check
+on:
+  push:
+    branches: [native-walk]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: native-ios-sim
+  cancel-in-progress: true
+jobs:
+  sim:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15-intel, macos-26]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, launch and photograph
+        id: work
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"; OUT="$RUNNER_TEMP/out"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
+          ARCH=$(uname -m); if [ "$ARCH" = arm64 ]; then SIM_RUST=aarch64-apple-ios-sim; else SIM_RUST=x86_64-apple-ios; fi
+          echo "== core tests"; (cd native/core && cargo test --quiet 2>&1 | grep -E "test result|FAILED|panicked" || true)
+          echo "== core for $SIM_RUST"; native/ios/build-core.sh "$SIM_RUST"
+          echo "== project"; which xcodegen || brew install xcodegen
+          cd native/ios && xcodegen generate
+          echo "== app"
+          xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGN_IDENTITY='-' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|warning: unre" "$OUT/xcodebuild.log" | head -60; tail -60 "$OUT/xcodebuild.log"; exit 1; }
+          tail -3 "$OUT/xcodebuild.log"
+          APP="$PWD/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
+          echo "== simulator"
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          UDID=$(python3 - "$RUNNER_TEMP/simulators.json" <<'PY'
+          import json,re,sys
+          devices=json.load(open(sys.argv[1]))['devices']
+          phones=[(tuple(map(int,re.findall(r'\d+',runtime))),d) for runtime,items in devices.items() if 'iOS' in runtime for d in items if 'iPhone' in d['name']]
+          latest=max(v for v,_ in phones)
+          pros=[d for v,d in phones if v==latest and 'Pro' in d['name'] and 'Max' not in d['name']] or [d for v,d in phones if v==latest]
+          phone=sorted(pros,key=lambda d:d['name'])[-1]
+          sys.stderr.write('Simulator: %s %s\n'%(phone['name'],latest)); print(phone['udid'])
+          PY
+          )
+          limit 120 xcrun simctl boot "$UDID" || true
+          limit 600 xcrun simctl bootstatus "$UDID" -b
+          limit 60 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+          limit 60 xcrun simctl ui "$UDID" appearance dark || true
+          limit 600 xcrun simctl install "$UDID" "$APP"
+          limit 120 xcrun simctl launch "$UDID" com.invizent.app
+          sleep 20
+          limit 60 xcrun simctl io "$UDID" screenshot "$OUT/01-core-check.png"
+          echo "== done"
+      - name: Publish the result (branch native-sim-output-<runner>)
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/out" 2>/dev/null || { mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"; }
+          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u) ${{ matrix.runner }} $(uname -m)" > STATUS.txt
+          [ -f xcodebuild.log ] && { grep -nE "error:|warning: unre|ld: " xcodebuild.log | head -200 > xcodebuild-errors.txt; tail -200 xcodebuild.log > xcodebuild-tail.txt; rm xcodebuild.log; } || true
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native simulator check for $GITHUB_SHA: ${{ steps.work.outcome }}"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-sim-output-${{ matrix.runner }}" && break; sleep 15; done
+      - name: Fail the job if the work failed
+        if: steps.work.outcome != 'success'
+        run: exit 1

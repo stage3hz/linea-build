@@ -1,0 +1,39 @@
+# The iPhone app, written in Swift. The project file is generated: `xcodegen generate` in this directory.
+# The shared core (native/core, Rust) is built first by build-core.sh into build/core/libinvizent_core.a.
+name: Invizent
+options:
+  bundleIdPrefix: com.invizent
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.17.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Invizent:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: INVIZENT
+        UILaunchScreen: { UIColorName: "" }
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIUserInterfaceStyle: Dark
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.invizent.app
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/Core/InvizentCore.h
+        LIBRARY_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/build/core"]
+        OTHER_LDFLAGS: ["$(inherited)", "-linvizent_core"]
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO

@@ -9,6 +9,7 @@
 pub mod attest;
 pub mod device_proof;
 pub mod e2ee;
+pub mod ffi;
 pub mod http;
 pub mod json;
 pub mod media;
