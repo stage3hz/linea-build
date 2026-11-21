@@ -6,3 +6,5 @@ local.properties
 .idea/
 # The request-signing key is injected at build time and never committed.
 attest.properties
+# The shared core, built by build-core.sh.
+app/src/main/jniLibs/

@@ -11,6 +11,7 @@ pub mod device_proof;
 pub mod e2ee;
 pub mod ffi;
 pub mod http;
+#[cfg(target_os = "android")] mod jni;
 pub mod json;
 pub mod media;
 pub mod message_meta;
