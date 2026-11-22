@@ -162,7 +162,9 @@ export async function afterSeed(ctx) {
   // Gifts to the account (its profile's «Подарки»).
   await step('gift from Анна', () => anna.api.sendGift(found.id, 'bouquet', 'С праздником!'));
   await step('gift from Тимур', () => timur.api.sendGift(found.id, 'rocket'));
-  // A room of «свои»: Анна, the account and Ксюша.
+  // A room of «свои»: Анна, the account and Ксюша. Only friends can be called into a room: Анна and Ксюша become
+  // friends first (Анна and the account already are, sim-seed.mjs).
+  await step('Анна and Ксюша friends', async () => { await anna.api.addContact(ksyusha.id); await ksyusha.api.addContact(anna.id); });
   await step('room', () => anna.api.createRoom([found.id, ksyusha.id], 'Вечерний созвон'));
   console.log('rich seed: the account side seeded');
 }

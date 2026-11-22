@@ -1,0 +1,42 @@
+appId: com.linea.messenger.preview
+---
+# The comparison's version of tools/maestro/takeover-read.yaml: the previous app opens the chat list, Анна's chat
+# and Тимур's chat once, so what the seeding sent is decrypted and stored before the screens are photographed.
+# Тимур's chat now ends with the attachments and «Как тебе фото» (tools/sim-seed.mjs, SIM_SEED_RICH=1), not with
+# «Не забудь!», which is why the shared flow cannot be used here. Waits are generous: decrypting ~75 messages,
+# a few of them with files, takes a while on a busy runner.
+- launchApp
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 300000
+- tapOn:
+    text: "Allow|Разрешить"
+    optional: true
+- extendedWaitUntil:
+    visible: "Анна Лебедева.*"
+    timeout: 180000
+- waitForAnimationToEnd
+- tapOn:
+    text: "Анна Лебедева.*"
+- extendedWaitUntil:
+    visible: ".*Ок, жду.*|.*Пропущенный.*|.*Звонок.*"
+    timeout: 120000
+    optional: true
+- waitForAnimationToEnd
+- launchApp
+- extendedWaitUntil:
+    visible: "Тимур Богданов.*"
+    timeout: 300000
+- tapOn:
+    text: "Тимур Богданов.*"
+- extendedWaitUntil:
+    visible: ".*Как тебе фото.*"
+    timeout: 180000
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-read-timur
+- launchApp
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 300000
+- waitForAnimationToEnd

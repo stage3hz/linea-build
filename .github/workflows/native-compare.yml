@@ -242,8 +242,16 @@ jobs:
           limit 600 xcrun simctl install "$UDID" "$REF_APP"
           grant
           for attempt in 1 2 3; do curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break; [ "$attempt" = 3 ] && exit 1; rm -rf "$HOME/.maestro"; sleep 30; done
-          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "${MENV[@]}" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml") \
-            || { shot ref-signin-failed; echo "::error::the previous app did not sign in"; exit 1; }
+          # Up to three tries: the flow starts the app afresh each time (launchApp with clearState) and retries the
+          # typing itself; a Maestro driver that dies mid-flow (seen on these runners) gets a new try here.
+          signed=0
+          for attempt in 1 2 3; do
+            if (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "${MENV[@]}" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml" < /dev/null); then signed=1; break; fi
+            shot "ref-signin-failed-$attempt"; echo "::warning::the previous app did not sign in (try $attempt of 3)"
+            limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
+            sleep 10
+          done
+          [ "$signed" = 1 ] || { echo "::error::the previous app did not sign in after three tries"; exit 1; }
 
           stage "people write to the account and set up its world; the previous app decrypts them"
           # The seeding process stays running in the background for the whole job (SIM_SEED_SERVE): Ксюша types,
@@ -255,11 +263,15 @@ jobs:
             sleep 5
           done
           cat "$OUT/seed.txt"
-          grep -q '"messages"' "$OUT/seed.txt" || { echo "::error::the seeding did not finish"; exit 1; }
+          # Without the summary line the seeding stopped somewhere; the screens are still photographed with what
+          # arrived (each pair is compared on the same data either way) and the report says so.
+          grep -q '"messages"' "$OUT/seed.txt" || miss "seed" "the seeding did not finish (see seed.txt); the screens show what arrived"
+          grep -E "^rich seed: .* not done|not seeded|not sent|not set" "$OUT/seed.txt" | while read -r line; do miss "seed" "$line"; done || true
           for i in $(seq 1 12); do curl -fsS http://127.0.0.1:3998/health >/dev/null && break; sleep 5; done || true
           curl -fsS http://127.0.0.1:3998/health >/dev/null || miss "seed-serve" "the seeding process does not answer on 127.0.0.1:3998 (no ring for the call pairs)"
-          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/takeover-read.yaml") \
-            || { shot ref-read-failed; echo "::error::the previous app did not show the chats"; exit 1; }
+          # The previous app opens the chats once (compare/act/read.yaml: Тимур's chat now ends with «Как тебе фото»).
+          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "$FLOWS/act/read.yaml" < /dev/null) \
+            || { shot ref-read-failed; miss "read" "the previous app did not open the chats once before the screens (ref-read-failed.jpg)"; }
           gather
 
           # ref NAME PHASE: the reference flow of one pair (or of a setup step: nothing photographed).
@@ -328,7 +340,7 @@ jobs:
           stage "the native app, screen by screen"
           # The first start reads what the previous app left (session, keys, storage, its settings): given more
           # time, not photographed.
-          start 40
+          start 40 || miss "native-first-start" "the native app's first start failed"
           nats main
           setlook dark
           limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview || true
@@ -345,11 +357,9 @@ jobs:
               grant
             }
             stage "signed out: the previous app"
-            fresh "$REF_APP"
-            refs auth
+            if fresh "$REF_APP"; then refs auth; else miss "auth-ref" "the previous app could not be installed fresh"; fi
             stage "signed out: the native app"
-            fresh "$NATIVE_APP"
-            nats auth
+            if fresh "$NATIVE_APP"; then nats auth; else miss "auth-nat" "the native app could not be installed fresh"; fi
           fi
 
           stage "done"
