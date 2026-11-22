@@ -583,7 +583,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
         "pin" -> MessageMenu.Item(if (pinnedNow) "pin.slash" else "pin", if (pinnedNow) "Открепить" else "Закрепить") {
           history.sendAction(mapOf("type" to "pin", "target" to (if (pinnedNow) null else client)), text)
         }
-        "forward" -> MessageMenu.Item("forward", "Переслать") { startForward(listOf(message)) }
+        // Attachments: an album's row stands for every photo and video of it (each goes on as its own message).
+        "forward" -> MessageMenu.Item("forward", "Переслать") { startForward(withAlbum(listOf(key)).filter { readable(it) }) }
         "edit" -> MessageMenu.Item("pencil", "Изменить") { startEdit(message, focus = true) }
         "retry" -> MessageMenu.Item("refresh", "Повторить отправку") { history.retryFailed() }
         "delete" -> MessageMenu.Item("trash", "Удалить", danger = true, stays = true) { openedMenu?.replace(deleteItems(listOf(key)) {}) }
@@ -886,6 +887,12 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   }
 
   /** The chosen messages, oldest first. */
+  /** The messages of these rows, an album's row with every photo and video of it, in their order. */
+  private fun withAlbum(keys: List<String>): List<Map<String, Any?>> {
+    val shown = history.shown
+    return keys.flatMap { listOf(it) + (shown.albumParts[it] ?: emptyList()) }.mapNotNull { shown.messages[it] }
+  }
+
   private fun chosenMessages(): List<Map<String, Any?>> {
     val chosen = history.selection ?: return emptyList()
     val shown = history.shown
@@ -921,7 +928,9 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   }
 
   private fun forwardSelected() {
-    startForward(chosenMessages().filter { readable(it) && !outgoing(it) })
+    // Attachments: a chosen album's row stands for every photo and video of it.
+    val chosen = history.selection ?: emptySet()
+    startForward(withAlbum(history.shown.order.filter { chosen.contains(it) }).filter { readable(it) && !outgoing(it) })
   }
 
   private fun shareSelected() {

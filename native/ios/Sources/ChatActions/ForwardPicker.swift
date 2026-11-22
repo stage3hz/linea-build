@@ -134,6 +134,9 @@ enum ChatForward {
 
     /// The file of a message as a new encrypted file on the server. Runs on a background queue.
     private static func copied(_ attachment: [String: Any], server: Server) -> Result<[String: Any], FileCore.Failure> {
+        // A big file (a long video, a round video, a file over 20 MB) goes in encrypted chunks: it is taken down
+        // chunk by chunk into a private file and goes up again the same way, under a new key.
+        if ChunkCore.isChunked(attachment) { return copiedBig(attachment, server: server) }
         let unable = FileCore.Failure(words: "Не удалось переслать.")
         let about = FileCore.describe(attachment)
         if let refusal = about.refusal { return .failure(FileCore.Failure(words: refusal)) }
@@ -169,6 +172,42 @@ enum ChatForward {
         let parts: [Any] = [newId, name, type, plain.count, encryption, media, preview]
         guard let made = FileCore.call("attachment", parts) as? [String: Any] else { return .failure(unable) }
         return .success(made)
+    }
+
+    /// A file of the chunked scheme as a new chunked file on the server (the reference's forward: the file is
+    /// opened here and sent again as a new encrypted file; the key of the first one is never reused). One 4 MiB
+    /// chunk is in memory at a time; the opened copy lives in a private folder that goes as soon as this ends.
+    /// Runs on a background queue.
+    private static func copiedBig(_ attachment: [String: Any], server: Server) -> Result<[String: Any], FileCore.Failure> {
+        let unable = FileCore.Failure(words: "Не удалось переслать.")
+        let manager = FileManager.default
+        let folder = manager.temporaryDirectory.appendingPathComponent("invizent-forward-" + UUID().uuidString, isDirectory: true)
+        do {
+            try manager.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.complete])
+        } catch {
+            return .failure(FileCore.Failure(words: "Не удалось открыть файл."))
+        }
+        defer { try? manager.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("forward.bin")
+        let quiet: (Int, Int) -> Void = { (_: Int, _: Int) -> Void in }
+        switch BigFiles.download(server, attachment: attachment, to: file, transfer: BigTransfer(), progress: quiet) {
+        case .failure(let failure): return .failure(failure)
+        case .success: break
+        }
+        let name = attachment["name"] as? String ?? "file"
+        let type = attachment["mimeType"] as? String ?? "application/octet-stream"
+        // A video goes up under the video limit (the same for everyone), anything else under the file limit.
+        let video = type.lowercased().hasPrefix("video/")
+        switch BigFiles.upload(server, file: file, video: video, transfer: BigTransfer(), progress: quiet) {
+        case .failure(let failure):
+            return .failure(failure)
+        case .success(let done):
+            let media: Any = attachment["media"] ?? NSNull()
+            let preview: Any = attachment["preview"] ?? NSNull()
+            let parts: [Any] = [done.id, name, type, done.size, done.encryption, media, preview]
+            guard let made = FileCore.call("attachment", parts) as? [String: Any] else { return .failure(unable) }
+            return .success(made)
+        }
     }
 }
 

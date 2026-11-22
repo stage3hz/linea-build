@@ -593,7 +593,10 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             }))
         }
         if !locked && readable && !outgoing {
-            items.append(MessageMenuController.Item(symbol: "arrowshape.turn.up.right", label: "Переслать", run: { [weak self] in self?.startForward([message]) }))
+            // Attachments: an album's row stands for every photo and video of it (each goes on as its own message).
+            let parts: [[String: Any]] = (shown.albumParts[key] ?? []).compactMap { shown.messages[$0] }.filter { ChatScreenActions.readable($0) }
+            let album: [[String: Any]] = [message] + parts
+            items.append(MessageMenuController.Item(symbol: "arrowshape.turn.up.right", label: "Переслать", run: { [weak self] in self?.startForward(album) }))
         }
         if editable(message) {
             items.append(MessageMenuController.Item(symbol: "square.and.pencil", label: "Изменить", run: { [weak self] in self?.startEdit(message, focus: true) }))
@@ -969,7 +972,12 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     }
 
     private func forwardSelected() {
-        let messages = chosenMessages().filter { ChatScreenActions.readable($0) && !ChatScreenActions.outgoing($0) }
+        // Attachments: a chosen album's row stands for every photo and video of it.
+        let shown = history.shown
+        let chosen: Set<String> = history.selection ?? []
+        let keys: [String] = shown.order.filter { chosen.contains($0) }
+        let all: [[String: Any]] = keys.flatMap { [$0] + (shown.albumParts[$0] ?? []) }.compactMap { shown.messages[$0] }
+        let messages = all.filter { ChatScreenActions.readable($0) && !ChatScreenActions.outgoing($0) }
         startForward(messages)
     }
 

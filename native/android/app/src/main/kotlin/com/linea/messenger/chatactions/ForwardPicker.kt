@@ -22,17 +22,22 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.attachments.DecryptedFiles
 import com.linea.messenger.attachments.FileCore
 import com.linea.messenger.attachments.FileTransfer
 import com.linea.messenger.attachments.downloadSealedFile
 import com.linea.messenger.attachments.uploadSealedFile
 import com.linea.messenger.core.Core
 import com.linea.messenger.crypto.CryptoService
+import com.linea.messenger.video.BigFiles
+import com.linea.messenger.video.BigTransfer
+import com.linea.messenger.video.ChunkCore
 import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Server
 import com.linea.messenger.people.Person
 import com.linea.messenger.people.PersonAvatarView
 import com.linea.messenger.people.personAvatarAddress
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
 
@@ -167,6 +172,9 @@ object ChatForward {
   /** The file of a message as a new encrypted file on the server. Runs on a background thread. A failure is a
    *  `FileCore.Failure`. */
   private fun copied(attachment: Map<String, Any?>, server: Server): Result<Map<String, Any?>> {
+    // A big file (a long video, a round video, a file over 20 MB) goes in encrypted chunks: it is taken down chunk
+    // by chunk into a private file and goes up again the same way, under a new key.
+    if (ChunkCore.isChunked(attachment)) return copiedBig(attachment, server)
     fun failure(words: String) = Result.failure<Map<String, Any?>>(FileCore.Failure(words))
     val unable = failure("Не удалось переслать.")
     val about = FileCore.describe(attachment)
@@ -188,6 +196,34 @@ object ChatForward {
     val type = attachment["mimeType"] as? String ?: "application/octet-stream"
     val made = Core.map(FileCore.call("attachment", listOf(newId, name, type, plain.size, encryption, attachment["media"], attachment["preview"]))) ?: return unable
     return Result.success(made)
+  }
+
+  /** A file of the chunked scheme as a new chunked file on the server (the reference's forward: the file is opened
+   *  here and sent again as a new encrypted file; the key of the first one is never reused). One 4 MiB chunk is in
+   *  memory at a time; the opened copy lives in a private folder of the app's cache that goes as soon as this ends
+   *  (its name is that of the opened files, so a copy left by a killed app is swept with them). Background thread. */
+  private fun copiedBig(attachment: Map<String, Any?>, server: Server): Result<Map<String, Any?>> {
+    fun failure(words: String) = Result.failure<Map<String, Any?>>(FileCore.Failure(words))
+    val cache = File(System.getProperty("java.io.tmpdir") ?: return failure("Не удалось открыть файл."))
+    val folder = File(cache, DecryptedFiles.prefix + UUID.randomUUID().toString().lowercase())
+    try {
+      if (!folder.mkdirs()) return failure("Не удалось открыть файл.")
+      val file = File(folder, "forward.bin")
+      val quiet: (Long, Long) -> Unit = { _, _ -> }
+      val brought = BigFiles.download(server, attachment, file, BigTransfer(), quiet)
+      if (brought.isFailure) return failure(FileCore.words(brought))
+      val name = attachment["name"] as? String ?: "file"
+      val type = attachment["mimeType"] as? String ?: "application/octet-stream"
+      // A video goes up under the video limit (the same for everyone), anything else under the file limit.
+      val video = type.lowercase(java.util.Locale.ROOT).startsWith("video/")
+      val uploaded = BigFiles.upload(server, file, video, BigTransfer(), progress = quiet)
+      val done = uploaded.getOrNull() ?: return failure(FileCore.words(uploaded))
+      val made = Core.map(FileCore.call("attachment", listOf(done.id, name, type, done.size, done.encryption, attachment["media"], attachment["preview"])))
+        ?: return failure("Не удалось переслать.")
+      return Result.success(made)
+    } finally {
+      folder.deleteRecursively()
+    }
   }
 }
 
