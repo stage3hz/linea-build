@@ -23,6 +23,16 @@ settings:
     SWIFT_VERSION: "5.9"
     MARKETING_VERSION: "0.17.0"
     CURRENT_PROJECT_VERSION: "1"
+    # The app's identity, one setting for both targets: the extension is <bundle>.ScreenBroadcast and the App Group
+    # group.<bundle>.screen (Info.plist, Invizent.entitlements, InvizentPush.entitlements, ScreenBroadcast.entitlements
+    # all use $(INVIZENT_BUNDLE_ID)). The default is the sideloaded preview identity the owner's phone has
+    # (com.linea.messenger.preview, see the app's settings below); the App Store build passes
+    # INVIZENT_BUNDLE_ID=com.invizent.app to xcodebuild (.github/workflows/native-ios-appstore.yml).
+    INVIZENT_BUNDLE_ID: com.linea.messenger.preview
+    # The app's entitlements for a phone build. Default: without «aps-environment» (sideloaded builds). A build signed
+    # with Push (the App Store) passes INVIZENT_APP_ENTITLEMENTS=InvizentPush.entitlements — only the app gets it,
+    # not the extension (a plain CODE_SIGN_ENTITLEMENTS= on the command line would reach both targets).
+    INVIZENT_APP_ENTITLEMENTS: Invizent.entitlements
 targets:
   Invizent:
     type: application
@@ -50,8 +60,9 @@ targets:
         # Voice messages and round videos (Sources/Voice, Sources/Video): asked when the record button is first held.
         # Calls (Sources/Calls) use the same two: asked at the first call and at the first video call.
         NSMicrophoneUsageDescription: "Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи."
-        # Composer: also the camera tile of the paperclip's panel (a photo or a video straight from the chat).
-        NSCameraUsageDescription: "Камера нужна для видеозвонков, видеосообщений в кружке и снимков прямо из чата. Она включается только во время видеозвонка, пока открыта запись или съёмка."
+        # Composer: also the camera tile of the paperclip's panel (a photo or a video straight from the chat), and the
+        # QR code of the backup key (Sources/Settings/HistorySettings.swift, restoring the backup).
+        NSCameraUsageDescription: "Камера нужна для видеозвонков, видеосообщений в кружке, снимков прямо из чата и чтобы считать QR-код ключа резервной копии. Она включается только на время звонка, записи, съёмки или сканирования."
         # Composer/Attachments: «Сохранить фото» / «Сохранить видео» of a message (Sources/Attachments/SaveMedia.swift) —
         # add-only: the app puts the chosen photo or video into the gallery and never sees what else is there.
         NSPhotoLibraryAddUsageDescription: "Чтобы сохранять фото и видео из чатов в галерею. Инвиз только добавляет выбранный снимок и не видит остальные фото."
@@ -64,12 +75,12 @@ targets:
         # Links: invitations open the app (Sources/Links/DeepLinks.swift), as linea://invite/CODE did before. The schemes
         # are the previous app's: Expo's prebuild registers `scheme: 'linea'` and the bundle identifier (app.config.js).
         CFBundleURLTypes:
-          - CFBundleURLSchemes: [linea, com.linea.messenger.preview]
+          - CFBundleURLSchemes: [linea, $(INVIZENT_BUNDLE_ID)]
         # ScreenShare (Sources/ScreenShare): the App Group shared with the broadcast extension and the extension's
         # identifier — the reference's names (mobile/plugins/withScreenBroadcast.js: group.<bundle>.screen, <bundle>.ScreenBroadcast)
-        # for the preview bundle the owner's phone has (APP_ENV=development, .github/workflows/ios-unsigned-ipa.yml).
-        RTCAppGroupIdentifier: group.com.linea.messenger.preview.screen
-        RTCScreenSharingExtension: com.linea.messenger.preview.ScreenBroadcast
+        # derived from INVIZENT_BUNDLE_ID (preview: group.com.linea.messenger.preview.screen; App Store: group.com.invizent.app.screen).
+        RTCAppGroupIdentifier: group.$(INVIZENT_BUNDLE_ID).screen
+        RTCScreenSharingExtension: $(INVIZENT_BUNDLE_ID).ScreenBroadcast
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations:
@@ -82,8 +93,9 @@ targets:
         # APP_ENV other than production gives com.linea.messenger.preview; ios-unsigned-ipa.yml builds it so). The same
         # identifier is what makes this app an UPDATE of that one: the same data container (Documents/SQLite, the
         # preferences) and the same keychain group (the session, the storage keys, the device key) — with another
-        # identifier the phone installs a second app beside it, which is a new device to the account.
-        PRODUCT_BUNDLE_IDENTIFIER: com.linea.messenger.preview
+        # identifier the phone installs a second app beside it, which is a new device to the account (so does the App
+        # Store build, INVIZENT_BUNDLE_ID=com.invizent.app: it gets the chats through the history transfer).
+        PRODUCT_BUNDLE_IDENTIFIER: $(INVIZENT_BUNDLE_ID)
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Effects: «Иконка приложения» — the reference's other icons (Sources/Settings/AppearanceEffects.swift).
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Outline AppIcon-Light AppIcon-Aurora"
@@ -95,8 +107,8 @@ targets:
         # ScreenShare: the App Group, for builds signed with Xcode (the unsigned IPA leaves entitlements to the signing tool).
         # Push: no «aps-environment» here, as the previous app's sideloaded builds (mobile/plugins/withNoIosPush.js): a
         # sideloading certificate without Push cannot sign it. A build signed with Push (the App Store) passes
-        # CODE_SIGN_ENTITLEMENTS=InvizentPush.entitlements, which adds it (Sources/Shell/Push.swift registers then).
-        "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": Invizent.entitlements
+        # INVIZENT_APP_ENTITLEMENTS=InvizentPush.entitlements, which adds it (Sources/Shell/Push.swift registers then).
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": $(INVIZENT_APP_ENTITLEMENTS)
   # ScreenShare: «INVIZENT Screen», the broadcast upload extension (ReplayKit) that sends this phone's screen to the app
   # over the shared App Group — the reference's mobile/plugins/screen-broadcast, same identifier and group.
   ScreenBroadcast:
@@ -111,7 +123,7 @@ targets:
         CFBundleDisplayName: INVIZENT Screen
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        RTCAppGroupIdentifier: group.com.linea.messenger.preview.screen
+        RTCAppGroupIdentifier: group.$(INVIZENT_BUNDLE_ID).screen
         NSExtension:
           NSExtensionPointIdentifier: com.apple.broadcast-services-upload
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
@@ -119,7 +131,7 @@ targets:
             RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.linea.messenger.preview.ScreenBroadcast
+        PRODUCT_BUNDLE_IDENTIFIER: $(INVIZENT_BUNDLE_ID).ScreenBroadcast
         PRODUCT_NAME: ScreenBroadcast
         GENERATE_INFOPLIST_FILE: NO
         APPLICATION_EXTENSION_API_ONLY: YES

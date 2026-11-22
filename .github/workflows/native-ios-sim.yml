@@ -41,7 +41,7 @@ jobs:
           echo "== app"
           xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES \
-            CODE_SIGN_IDENTITY='-' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|warning: unre" "$OUT/xcodebuild.log" | head -60; tail -60 "$OUT/xcodebuild.log"; exit 1; }
+            CODE_SIGN_IDENTITY='-' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES INVIZENT_BUNDLE_ID=com.linea.messenger.preview build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|warning: unre" "$OUT/xcodebuild.log" | head -60; tail -60 "$OUT/xcodebuild.log"; exit 1; }
           tail -3 "$OUT/xcodebuild.log"
           APP="$PWD/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
           echo "== simulator"

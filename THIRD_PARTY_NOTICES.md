@@ -93,3 +93,35 @@ Tsuda Kageyu, BSD 2-Clause License (включает Hacker Disassembler Engine 
 [expokit](https://github.com/Anshkaran7/expokit) (commit 14ddb96), © 2025-2026 Karan
 (anshkaran7), лицензия MIT. Файлы — `mobile/src/kit/`, текст лицензии —
 `mobile/src/kit/LICENSE`.
+
+## Нативное приложение для iPhone (native/ios)
+
+Что входит в сборку `native/ios` (App Store: `.github/workflows/native-ios-appstore.yml`; preview: `native-ios-ipa.yml`):
+
+- **Ядро `native/core`** (Rust, собственный код проекта) — AGPL-3.0-only (`native/core/Cargo.toml`), статически
+  слинковано в приложение (`libinvizent_core.a`).
+- **libsignal v0.106.0** — крейты `libsignal-protocol`, `libsignal-core`, `signal-crypto`, `libsignal-debug` из
+  [signalapp/libsignal](https://github.com/signalapp/libsignal/tree/v0.106.0) и
+  [SparsePostQuantumRatchet v1.6.0](https://github.com/signalapp/SparsePostQuantumRatchet/tree/v1.6.0) (`spqr`),
+  © Signal Messenger, LLC — GNU AGPL-3.0-only, текст: `licenses/libsignal-AGPL-3.0.txt`. Собираются из исходников по
+  тегу (`native/ios/build-core.sh`, фича `signal`) и статически линкуются в ядро.
+- **Остальные Rust-крейты ядра** (точные версии — `native/core/Cargo.lock`; список с лицензиями:
+  `cargo tree --features signal --target aarch64-apple-ios -e normal -f '{p} {l}'`): в основном MIT и/или Apache-2.0;
+  также BSD-3-Clause (`curve25519-dalek`, `ed25519-dalek` и др.), Unicode-3.0 (`icu_*`, `zerovec`, `yoke`, `tinystr`
+  и др., через `url`/`idna`) и MPL-2.0 (`hpke-rs`, `hpke-rs-crypto`, через libsignal; исходники MPL-файлов доступны на
+  crates.io без изменений).
+- **SQLCipher 4.20.0** ([sqlcipher/SQLCipher.swift](https://github.com/sqlcipher/SQLCipher.swift)) — готовый
+  framework, © Zetetic LLC, BSD-style лицензия SQLCipher Community Edition (основан на SQLite — public domain).
+- **LiveKitWebRTC 150.7871.03** ([livekit/webrtc-xcframework](https://github.com/livekit/webrtc-xcframework)) — готовый
+  framework WebRTC: BSD-3-Clause (The WebRTC project authors) и лицензии его сторонних частей (BoringSSL, libvpx,
+  libyuv, Opus, Abseil и др.), перечисленные в пакете.
+- **Ionicons 7** (шрифт `Ionicons.ttf`, как в `@expo/vector-icons`) — MIT, © Ionic, текст: `licenses/Ionicons-MIT.txt`.
+- **Montserrat** — SIL OFL 1.1, `licenses/Montserrat-OFL-1.1.txt` (см. выше).
+- **Unbounded ExtraBold** (`Unbounded-ExtraBold.ttf`) — © 2022 The Unbounded Project Authors, SIL OFL 1.1,
+  текст: `licenses/Unbounded-OFL-1.1.txt`.
+
+Обязательства: приложение содержит код под AGPL-3.0 (ядро и libsignal), поэтому распространяемая сборка (в том числе
+через App Store/TestFlight) должна сопровождаться предложением исходного кода (Corresponding Source) той же версии —
+этот репозиторий с тегом/коммитом сборки — и текстом лицензии; BSD/MIT/OFL требуют воспроизвести уведомления об
+авторских правах. Совместимость условий App Store с GPL/AGPL (запрет «дополнительных ограничений», GPLv3 §10) для
+стороннего кода libsignal — юридический вопрос владельца (см. docs/APPSTORE-NATIVE.md).

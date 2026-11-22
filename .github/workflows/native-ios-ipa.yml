@@ -10,6 +10,8 @@
 # (the run number), so every build installs over the one before. As the previous app's sideloaded builds
 # (mobile/plugins/withNoIosPush.js) it has no «aps-environment»: such a build has no push token and says
 # «Уведомления не настроены в этой сборке приложения.». Nothing here talks to any server.
+# The identity is project.yml's INVIZENT_BUNDLE_ID (default: the preview identity), passed here explicitly; the App
+# Store build of the same project is native-ios-appstore.yml (com.invizent.app, with Push).
 name: Native iOS unsigned IPA
 on:
   push:
@@ -52,7 +54,7 @@ jobs:
           xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -derivedDataPath build/dd ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" INVIZENT_BUNDLE_ID=com.linea.messenger.preview \
             build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|ld: " "$OUT/xcodebuild.log" | head -60; tail -40 "$OUT/xcodebuild.log"; exit 1; }
           APP="$PWD/build/dd/Build/Products/Release-iphoneos/Invizent.app"
           mkdir -p pack/Payload && ditto "$APP" pack/Payload/Invizent.app
@@ -68,7 +70,7 @@ jobs:
             echo "== push: no aps-environment in an unsigned build (expected: none)"; codesign -d --entitlements :- "$A" 2>/dev/null | grep -A1 aps-environment || echo "none"
             echo "== executable"; file "$A/Invizent"; lipo -info "$A/Invizent"
             echo "== code signature (expected none)"; codesign -dv "$A" 2>&1 | head -3 || true
-            echo "== permissions asked in Info.plist (expected none)"; /usr/libexec/PlistBuddy -c "Print" "$A/Info.plist" | grep -i "UsageDescription" || echo "none"
+            echo "== permissions asked in Info.plist"; /usr/libexec/PlistBuddy -c "Print" "$A/Info.plist" | grep -i "UsageDescription" || echo "none"
             echo "== simulator-only sample data (expected absent)"; if strings -a "$A/Invizent" | grep -q "Книжный клуб"; then echo "PRESENT"; else echo "absent"; fi
             echo "== files"; (cd "$A" && find . -maxdepth 2 | head -40)
             # ScreenShare: the broadcast extension must be inside (PlugIns/ScreenBroadcast.appex), with its own identifier.
@@ -94,6 +96,8 @@ jobs:
           [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$A/Info.plist")" = "$GITHUB_RUN_NUMBER" ]
           # Push: the long ringtone of a call's notification is in the bundle (server: call_ring_ios.wav).
           test -f "$A/call_ring_ios.wav"
+          # App Store: the privacy manifests of the app and of the extension are in the bundles.
+          test -f "$A/PrivacyInfo.xcprivacy" && test -f "$A/PlugIns/ScreenBroadcast.appex/PrivacyInfo.xcprivacy"
           ! grep -q "PRESENT" "$OUT/verify.txt"
           echo "== done"
       - name: Publish (branch native-ipa-output)

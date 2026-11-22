@@ -76,7 +76,7 @@ jobs:
           which xcodegen || brew install xcodegen
           native/ios/build-core.sh "$SIM_RUST"
           (cd native/ios && xcodegen generate && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" build > "$OUT/native-build.log" 2>&1) \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" INVIZENT_BUNDLE_ID=com.linea.messenger.preview build > "$OUT/native-build.log" 2>&1) \
             || { grep -E "error:" "$OUT/native-build.log" | head -60; tail -60 "$OUT/native-build.log"; exit 1; }
           NATIVE_APP="$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
 

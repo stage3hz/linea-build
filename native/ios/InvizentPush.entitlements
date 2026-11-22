@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- A build signed with a Push-capable profile (the App Store): the App Group of Invizent.entitlements plus APNs.
+<!-- A build signed with a Push-capable profile (the App Store, .github/workflows/native-ios-appstore.yml passes
+     INVIZENT_APP_ENTITLEMENTS=InvizentPush.entitlements): the App Group of Invizent.entitlements plus APNs. The App
+     Group follows the identifier ($(INVIZENT_BUNDLE_ID), project.yml): group.<bundle>.screen.
      Sideloaded and unsigned builds use Invizent.entitlements, without «aps-environment», as the previous app's
      sideloaded builds did (mobile/plugins/withNoIosPush.js); push then says «Уведомления не настроены в этой сборке
      приложения.» (Sources/Shell/Push.swift). -->
@@ -10,7 +12,7 @@
 	<string>production</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.linea.messenger.preview.screen</string>
+		<string>group.$(INVIZENT_BUNDLE_ID).screen</string>
 	</array>
 </dict>
 </plist>

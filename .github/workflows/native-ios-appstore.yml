@@ -1,0 +1,219 @@
+name: Native iOS App Store / TestFlight
+
+# Signed Release build of the NATIVE iPhone app (native/ios: Swift/UIKit + the Rust core native/core) for the App
+# Store, uploaded to App Store Connect (then TestFlight). The same signing and upload as ios-appstore.yml (the previous
+# React Native app): automatic signing through an App Store Connect API key (role App Manager), Xcode creates the
+# certificates and profiles itself. Secrets (added by the owner in GitHub):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (contents of the .p8), APPLE_TEAM_ID (10 characters); ATTEST_KEY optional.
+# The key file is written to the runner's temp folder only for this job and removed at the end.
+#
+# One project for both identities (native/ios/project.yml): the sideloaded preview builds keep the default
+# INVIZENT_BUNDLE_ID=com.linea.messenger.preview; this build passes INVIZENT_BUNDLE_ID=<bundle_id>, which gives the
+# extension <bundle_id>.ScreenBroadcast and the App Group group.<bundle_id>.screen (Info.plist and the entitlements),
+# and INVIZENT_APP_ENTITLEMENTS=InvizentPush.entitlements (aps-environment production, the app only).
+# Server: compiled in — https://api.invizent.com (Sources/Auth/Account.swift; the -server override exists only in
+# simulator builds). Version: MARKETING_VERSION of project.yml. Build number: the run number.
+# Owner's guide: docs/APPSTORE-NATIVE.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_id:
+        description: Bundle ID registered in the Apple Developer account
+        default: com.invizent.app
+      runner:
+        description: macOS runner label
+        default: macos-26
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ios-appstore
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner || 'macos-26' }}
+    timeout-minutes: 120
+    env:
+      IOS_BUNDLE_ID: ${{ inputs.bundle_id || 'com.invizent.app' }}
+      # Every upload needs a bigger build number than the previous one (of the same version).
+      IOS_BUILD_NUMBER: ${{ github.run_number }}
+      PRODUCTION_SERVER: https://api.invizent.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets and inputs
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do [ -n "${!v}" ] || missing="$missing $v"; done
+          [ -z "$missing" ] || { echo "::error::Добавь секреты в GitHub (Settings → Secrets and variables → Actions):$missing"; exit 1; }
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "::error::APPLE_TEAM_ID — 10 символов (латиница и цифры)"; exit 1; }
+          [[ "$IOS_BUNDLE_ID" =~ ^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$ ]] || { echo "::error::bundle_id выглядит неправильно: $IOS_BUNDLE_ID"; exit 1; }
+          [ "$IOS_BUNDLE_ID" != com.linea.messenger.preview ] || echo "::warning::bundle_id = идентификатор preview-сборки: такое приложение заменит установленное вручную."
+          echo "bundle: $IOS_BUNDLE_ID, extension: $IOS_BUNDLE_ID.ScreenBroadcast, App Group: group.$IOS_BUNDLE_ID.screen, build: $IOS_BUILD_NUMBER"
+
+      - name: Select newest Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+
+      - name: Production server and version
+        working-directory: native/ios
+        run: |
+          # The phone build has no switch: Account.server returns the production address; the local test server
+          # (-server https://localhost:…) is read only under targetEnvironment(simulator).
+          grep -q "return \"$PRODUCTION_SERVER\"" Sources/Auth/Account.swift || { echo "::error::Sources/Auth/Account.swift не возвращает $PRODUCTION_SERVER"; exit 1; }
+          awk '/static var server/,/^    }/' Sources/Auth/Account.swift | grep -q "#if targetEnvironment(simulator)" || { echo "::error::переопределение сервера должно быть только для симулятора"; exit 1; }
+          VERSION=$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\} *$/\1/p' project.yml | head -1)
+          [ -n "$VERSION" ] || { echo "::error::MARKETING_VERSION не найден в project.yml"; exit 1; }
+          # At least the previous app's version (mobile/app.config.js 0.16.3): App Store Connect wants it to grow.
+          python3 -c 'import sys; v=[int(x) for x in sys.argv[1].split(".")]; sys.exit(0 if v >= [0,16,3] else 1)' "$VERSION" \
+            || { echo "::error::MARKETING_VERSION $VERSION меньше версии прежнего приложения (0.16.3)"; exit 1; }
+          echo "MARKETING_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "server: $PRODUCTION_SERVER, version: $VERSION ($IOS_BUILD_NUMBER)"
+
+      - name: Request-signing key (empty secret = signing off)
+        env:
+          ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+        run: |
+          # Written into this checkout only; never printed, never committed.
+          if printf '%s' "$ATTEST_KEY" | grep -Eq '^[A-Za-z0-9+/=_-]{16,200}$'; then
+            printf 'let attestKey = "%s"\n' "$ATTEST_KEY" > native/ios/Sources/Net/AttestKey.swift; echo "set" > "$RUNNER_TEMP/attest.txt"
+          else echo "none" > "$RUNNER_TEMP/attest.txt"; fi
+          echo "signing key: $(cat "$RUNNER_TEMP/attest.txt")"
+
+      - name: Core for the phone and the Xcode project
+        run: |
+          set -euo pipefail
+          which protoc || brew install protobuf
+          which xcodegen || brew install xcodegen
+          native/ios/build-core.sh aarch64-apple-ios
+          cd native/ios && xcodegen generate
+
+      - name: API key for signing and upload
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          umask 077
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          grep -q "BEGIN PRIVATE KEY" "$KEY" || { echo "::error::ASC_KEY_P8 должен содержать весь файл .p8 со строками BEGIN/END"; exit 1; }
+          echo "ASC_KEY_PATH=$KEY" >> $GITHUB_ENV
+
+      - name: Archive (automatic signing)
+        working-directory: native/ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Invizent.xcodeproj -scheme Invizent -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Invizent.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            INVIZENT_BUNDLE_ID="$IOS_BUNDLE_ID" INVIZENT_APP_ENTITLEMENTS=InvizentPush.entitlements \
+            CURRENT_PROJECT_VERSION="$IOS_BUILD_NUMBER" \
+            2>&1 | tee ../../archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)|\*\* " || true
+          grep -q "ARCHIVE SUCCEEDED" ../../archive.log
+
+      - name: Verify the archive (identity, version, entitlements; no secrets)
+        run: |
+          set -euo pipefail
+          A="$RUNNER_TEMP/Invizent.xcarchive/Products/Applications/Invizent.app"
+          X="$A/PlugIns/ScreenBroadcast.appex"
+          P() { /usr/libexec/PlistBuddy -c "Print :$1" "$2" 2>/dev/null || echo "<none>"; }
+          ents() { codesign -d --entitlements :- "$1" 2>/dev/null > "$RUNNER_TEMP/ents.plist" || true; /usr/libexec/PlistBuddy -c "Print :$2" "$RUNNER_TEMP/ents.plist" 2>/dev/null || true; }
+          strings -a "$A/Invizent" > "$RUNNER_TEMP/strings.txt"
+          {
+            echo "commit $GITHUB_SHA"; xcodebuild -version | tr '\n' ' '; echo
+            echo "request-signing key: $(cat "$RUNNER_TEMP/attest.txt" 2>/dev/null || echo unknown)"
+            echo "== app"
+            for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion CFBundleDisplayName MinimumOSVersion UIDeviceFamily UISupportedInterfaceOrientations UIBackgroundModes RTCAppGroupIdentifier RTCScreenSharingExtension CFBundleURLTypes ITSAppUsesNonExemptEncryption; do
+              printf '%s: ' "$key"; P "$key" "$A/Info.plist" | tr -s ' \n' ' '; echo
+            done
+            echo "== usage descriptions"; /usr/libexec/PlistBuddy -c "Print" "$A/Info.plist" | grep "UsageDescription" || echo "none"
+            echo "== app entitlements (archive signature; the export re-signs for distribution)"; codesign -d --entitlements :- "$A" 2>/dev/null | plutil -p - 2>/dev/null || echo "none"
+            echo "== extension"; for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion RTCAppGroupIdentifier; do printf '%s: ' "$key"; P "$key" "$X/Info.plist"; done
+            echo "== extension entitlements"; codesign -d --entitlements :- "$X" 2>/dev/null | plutil -p - 2>/dev/null || echo "none"
+            echo "== privacy manifests"; ls -l "$A/PrivacyInfo.xcprivacy" "$X/PrivacyInfo.xcprivacy" 2>&1 || true
+            echo "== app icons in the bundle"; ls "$A" | grep -E "^AppIcon" || echo "none"
+            echo "== alternate icons"; P CFBundleIcons:CFBundleAlternateIcons "$A/Info.plist" | grep -E "^ {4}[A-Za-z]" || echo "none"
+            echo "== executable"; lipo -info "$A/Invizent"
+            echo "== production server compiled in"; if grep -qF "$PRODUCTION_SERVER" "$RUNNER_TEMP/strings.txt"; then echo "server: yes"; else echo "server: NO"; fi
+            echo "== simulator-only sample data (expected absent)"; if grep -q "Книжный клуб" "$RUNNER_TEMP/strings.txt"; then echo "sample data: PRESENT"; else echo "sample data: absent"; fi
+          } | tee verify.txt
+          fail() { echo "::error::$1"; exit 1; }
+          [ "$(P CFBundleIdentifier "$A/Info.plist")" = "$IOS_BUNDLE_ID" ] || fail "идентификатор приложения не $IOS_BUNDLE_ID"
+          [ "$(P CFBundleIdentifier "$X/Info.plist")" = "$IOS_BUNDLE_ID.ScreenBroadcast" ] || fail "идентификатор расширения не $IOS_BUNDLE_ID.ScreenBroadcast"
+          [ "$(P RTCScreenSharingExtension "$A/Info.plist")" = "$IOS_BUNDLE_ID.ScreenBroadcast" ] || fail "RTCScreenSharingExtension не $IOS_BUNDLE_ID.ScreenBroadcast"
+          [ "$(P RTCAppGroupIdentifier "$A/Info.plist")" = "group.$IOS_BUNDLE_ID.screen" ] || fail "App Group приложения (Info.plist) не group.$IOS_BUNDLE_ID.screen"
+          [ "$(P RTCAppGroupIdentifier "$X/Info.plist")" = "group.$IOS_BUNDLE_ID.screen" ] || fail "App Group расширения (Info.plist) не group.$IOS_BUNDLE_ID.screen"
+          ents "$A" com.apple.security.application-groups | grep -qxF "    group.$IOS_BUNDLE_ID.screen" || fail "в подписи приложения нет App Group group.$IOS_BUNDLE_ID.screen"
+          ents "$X" com.apple.security.application-groups | grep -qxF "    group.$IOS_BUNDLE_ID.screen" || fail "в подписи расширения нет App Group group.$IOS_BUNDLE_ID.screen"
+          [ -n "$(ents "$A" aps-environment)" ] || fail "в подписи приложения нет aps-environment (Push)"
+          [ -z "$(ents "$X" aps-environment)" ] || fail "у расширения не должно быть aps-environment"
+          [ "$(P CFBundleShortVersionString "$A/Info.plist")" = "$MARKETING_VERSION" ] || fail "версия не $MARKETING_VERSION"
+          [ "$(P CFBundleVersion "$A/Info.plist")" = "$IOS_BUILD_NUMBER" ] || fail "номер сборки не $IOS_BUILD_NUMBER"
+          [ "$(P CFBundleVersion "$X/Info.plist")" = "$IOS_BUILD_NUMBER" ] || fail "номер сборки расширения не $IOS_BUILD_NUMBER"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes' "$A/Info.plist" | grep -qxF "    $IOS_BUNDLE_ID" || fail "схема ссылок $IOS_BUNDLE_ID не задана"
+          test -f "$A/PrivacyInfo.xcprivacy" || fail "нет PrivacyInfo.xcprivacy в приложении"
+          test -f "$X/PrivacyInfo.xcprivacy" || fail "нет PrivacyInfo.xcprivacy в расширении"
+          test -f "$A/call_ring_ios.wav" || fail "нет мелодии звонка call_ring_ios.wav"
+          lipo -info "$A/Invizent" | grep -q arm64 || fail "нет arm64"
+          grep -qx "server: yes" verify.txt || fail "адрес $PRODUCTION_SERVER не найден в приложении"
+          grep -qx "sample data: absent" verify.txt || fail "в сборке остались данные симулятора"
+          echo "Проверка пройдена: $IOS_BUNDLE_ID $MARKETING_VERSION ($IOS_BUILD_NUMBER)"
+
+      - name: Export and upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Invizent.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee export.log
+          grep -q -E "EXPORT SUCCEEDED|Upload succeeded|Uploaded" export.log
+          echo "Сборка $MARKETING_VERSION ($IOS_BUILD_NUMBER, $IOS_BUNDLE_ID) отправлена в App Store Connect. Через 10–30 минут она появится в TestFlight."
+
+      - name: Remove the key
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+          git checkout -- native/ios/Sources/Net/AttestKey.swift 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-ios-appstore-logs
+          path: |
+            archive.log
+            verify.txt
+            export.log
+          if-no-files-found: ignore

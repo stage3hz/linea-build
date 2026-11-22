@@ -75,12 +75,12 @@ jobs:
           which xcodegen || brew install xcodegen
           native/ios/build-core.sh "$SIM_RUST"
           (cd native/ios && xcodegen generate && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" CURRENT_PROJECT_VERSION=1 build > "$OUT/native-build.log" 2>&1) \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" INVIZENT_BUNDLE_ID="$BUNDLE" CURRENT_PROJECT_VERSION=1 build > "$OUT/native-build.log" 2>&1) \
             || { grep -E "error:" "$OUT/native-build.log" | head -60; tail -60 "$OUT/native-build.log"; exit 1; }
           NATIVE_APP="$RUNNER_TEMP/native-1/Invizent.app"; mkdir -p "$RUNNER_TEMP/native-1" && ditto "$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app" "$NATIVE_APP"
           # The next build (N+1): the same sources with the next build number, as the next update will come.
           (cd native/ios && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" CURRENT_PROJECT_VERSION=2 build > "$OUT/native-build-next.log" 2>&1) \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" INVIZENT_BUNDLE_ID="$BUNDLE" CURRENT_PROJECT_VERSION=2 build > "$OUT/native-build-next.log" 2>&1) \
             || { grep -E "error:" "$OUT/native-build-next.log" | head -60; exit 1; }
           NATIVE_NEXT="$RUNNER_TEMP/native-2/Invizent.app"; mkdir -p "$RUNNER_TEMP/native-2" && ditto "$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app" "$NATIVE_NEXT"
           [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$NATIVE_APP/Info.plist")" = 1 ] && [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$NATIVE_NEXT/Info.plist")" = 2 ]
