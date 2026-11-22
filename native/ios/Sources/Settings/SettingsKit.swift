@@ -31,7 +31,10 @@ enum SettingsLook {
         toggle.clipsToBounds = false
     }
 
+    /// "ion:<name>" is the reference's own Ionicons glyph (Design/IonIcon.swift), `size` points square as
+    /// `<Icon size>` draws it; any other name is a system symbol.
     static func symbol(_ name: String, size: CGFloat, weight: UIImage.SymbolWeight = .regular) -> UIImage? {
+        if name.hasPrefix("ion:") { return IonIcon.image(String(name.dropFirst(4)), size: size) }
         return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))
     }
 

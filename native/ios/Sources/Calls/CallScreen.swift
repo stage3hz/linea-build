@@ -7,14 +7,15 @@ final class CallRoundButton: UIControl {
     private let caption = UILabel()
     var onPress: (() -> Void)?
 
-    /// `color`: the button's own colour (red, green); without one it is white when `active`, else translucent.
-    init(symbol: String, words: String, active: Bool = false, color: UIColor? = nil) {
+    /// `icon`: the reference's Ionicons name (27 pt). `color`: the button's own colour (red, green); without one it
+    /// is white when `active`, else translucent.
+    init(icon name: String, words: String, active: Bool = false, color: UIColor? = nil) {
         super.init(frame: CGRect(x: 0, y: 0, width: 76, height: 88))
         circle.backgroundColor = color ?? (active ? UIColor.white : UIColor(white: 1, alpha: 0.22))
         circle.layer.cornerRadius = 31
         circle.isUserInteractionEnabled = false
         addSubview(circle)
-        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 24, weight: .medium))
+        icon.image = IonIcon.image(name, size: 27)
         icon.tintColor = color != nil ? UIColor.white : (active ? UIColor(hex: 0x1B2440) : UIColor.white)
         icon.contentMode = .center
         circle.addSubview(icon)
@@ -64,6 +65,12 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
     private let minimizeButton = UIButton(type: .system)
     private let keyPill = UIView()
     private let keyLabel = UILabel()
+    /// The reference's `lock-closed` (13 pt) before the key's emoji, 6 pt from them.
+    private let keyLock = UIImageView()
+    /// The music screen's still ambient under everything (the reference's `<MusicAmbient still>`).
+    private let ambient = MusicAmbientView(tone: Theme.dark && ThemeStore.look.black ? "black" : "dark", still: true)
+    /// «Звук», opened over the call.
+    private var audioPanel: CallAudioPanelView?
     private let pulse = UIView()
     private let avatar = PersonAvatarView()
     private let nameLabel = UILabel()
@@ -89,6 +96,8 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         super.init(frame: frame)
         backgroundColor = .black
         clipsToBounds = true
+        ambient.isUserInteractionEnabled = false
+        addSubview(ambient)
         tint.startPoint = CGPoint(x: 0.5, y: 0)
         tint.endPoint = CGPoint(x: 0.5, y: 1)
         layer.addSublayer(tint)
@@ -112,7 +121,7 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         layer.addSublayer(sampleRemote)
         #endif
 
-        minimizeButton.setImage(UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
+        minimizeButton.setImage(IonIcon.image("chevron-down", size: 24), for: .normal)
         minimizeButton.tintColor = .white
         minimizeButton.backgroundColor = UIColor(white: 0, alpha: 0.2)
         minimizeButton.layer.cornerRadius = 20
@@ -126,6 +135,10 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         keyLabel.textColor = .white
         keyLabel.textAlignment = .center
         keyPill.addSubview(keyLabel)
+        keyLock.image = IonIcon.image("lock-closed", size: 13)
+        keyLock.tintColor = .white
+        keyLock.isHidden = true
+        keyPill.addSubview(keyLock)
 
         pulse.backgroundColor = UIColor(white: 1, alpha: 0.35)
         pulse.layer.cornerRadius = 70
@@ -238,13 +251,16 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
 
         // The key of the call, or — before it is known — what protects it.
         if let key = call.key {
-            keyLabel.attributedText = NSAttributedString(string: "🔒 " + key.joined(separator: " "), attributes: [.font: UIFont.systemFont(ofSize: 15), .kern: 2, .foregroundColor: UIColor.white])
+            keyLabel.attributedText = NSAttributedString(string: key.joined(separator: " "), attributes: [.font: UIFont.systemFont(ofSize: 15), .kern: 2, .foregroundColor: UIColor.white])
             keyPill.backgroundColor = UIColor(white: 0, alpha: 0.18)
+            keyLock.isHidden = false
             keyPill.accessibilityLabel = "Ключ звонка: " + key.joined(separator: " ")
         } else {
             keyLabel.attributedText = NSAttributedString(string: "🔒 Звонок защищён сквозным шифрованием", attributes: [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: UIColor(white: 1, alpha: 0.8)])
             keyPill.backgroundColor = .clear
+            keyLock.isHidden = true
         }
+        if call.isOver || call.status == "incoming" { closeAudio() }
 
         let canMinimize = call.status != "incoming" && !call.isOver
         minimizeButton.isHidden = !canMinimize
@@ -331,36 +347,37 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         }
         var made: [CallRoundButton] = []
         let red = UIColor(hex: 0xFF3B30), green = UIColor(hex: 0x34C759)
-        let callSymbol = call.video ? "video.fill" : "phone.fill"
+        let callSymbol = call.video ? "videocam" : "call"
         if call.status == "incoming" {
-            let decline = CallRoundButton(symbol: "xmark", words: "Отклонить", color: red)
+            let decline = CallRoundButton(icon: "close", words: "Отклонить", color: red)
             decline.onPress = { Calls.shared.hangup() }
-            let answer = CallRoundButton(symbol: callSymbol, words: "Ответить", color: green)
+            let answer = CallRoundButton(icon: callSymbol, words: "Ответить", color: green)
             answer.onPress = { Calls.shared.accept() }
             made = [decline, answer]
         } else if call.isOver {
             if call.retry {
-                let close = CallRoundButton(symbol: "xmark", words: "Закрыть")
+                let close = CallRoundButton(icon: "close", words: "Закрыть")
                 close.onPress = { Calls.shared.close() }
-                let again = CallRoundButton(symbol: callSymbol, words: "Повторить", color: green)
+                let again = CallRoundButton(icon: callSymbol, words: "Повторить", color: green)
                 again.onPress = { Calls.shared.retry() }
                 made = [close, again]
             }
         } else {
             let cameraOn = call.video && !call.cameraOff
-            let speaker = CallRoundButton(symbol: "speaker.wave.3.fill", words: "Динамик", active: call.speaker)
-            speaker.onPress = { Calls.shared.toggleSpeaker() }
-            let camera = CallRoundButton(symbol: cameraOn ? "video.fill" : "video.slash.fill", words: "Видео", active: cameraOn)
+            // «Звук»: the microphone and the output of this call (CallAudioPanel.swift), as the reference's iPhone build.
+            let speaker = CallRoundButton(icon: "volume-high", words: "Звук", active: call.speaker)
+            speaker.onPress = { [weak self] in self?.openAudio() }
+            let camera = CallRoundButton(icon: cameraOn ? "videocam" : "videocam-off", words: "Видео", active: cameraOn)
             camera.onPress = { Calls.shared.toggleCamera() }
             made = [speaker, camera]
             if cameraOn {
-                let flip = CallRoundButton(symbol: "arrow.triangle.2.circlepath.camera.fill", words: "Повернуть")
+                let flip = CallRoundButton(icon: "camera-reverse", words: "Повернуть")
                 flip.onPress = { Calls.shared.flipCamera() }
                 made.append(flip)
             }
-            let mute = CallRoundButton(symbol: call.muted ? "mic.slash.fill" : "mic.fill", words: call.muted ? "Звук выкл" : "Убрать звук", active: call.muted)
+            let mute = CallRoundButton(icon: call.muted ? "mic-off" : "mic", words: call.muted ? "Звук выкл" : "Убрать звук", active: call.muted)
             mute.onPress = { Calls.shared.toggleMute() }
-            let end = CallRoundButton(symbol: "xmark", words: "Завершить", color: red)
+            let end = CallRoundButton(icon: "close", words: "Завершить", color: red)
             end.onPress = { Calls.shared.hangup() }
             made.append(mute)
             made.append(end)
@@ -390,7 +407,7 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         both.animations = [grow, fade]
         both.duration = 1.4
         both.repeatCount = .infinity
-        both.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        both.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.46, 0.45, 0.94) // Easing.out(Easing.quad)
         both.isRemovedOnCompletion = false
         pulse.layer.add(both, forKey: "pulse")
     }
@@ -419,21 +436,29 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         tint.frame = bounds
+        tint.isHidden = !picture.isHidden
         #if targetEnvironment(simulator)
         sampleRemote.frame = bounds
         #endif
         CATransaction.commit()
         // The picture behind is a little larger than the screen, so its blurred edges stay outside.
+        ambient.frame = bounds
         picture.frame = bounds.insetBy(dx: -width * 0.125, dy: -height * 0.125)
         blur.frame = bounds
         dim.frame = bounds
         remoteVideo.frame = bounds
         minimizeButton.frame = CGRect(x: 16, y: safeAreaInsets.top + 6, width: 40, height: 40)
 
+        // With the key: padding 12 × 6, the lock, 6 pt, the emoji; before it — the words alone, centred.
+        let lockRoom: CGFloat = keyLock.isHidden ? 0 : 13 + 6
         let keySize = keyLabel.sizeThatFits(CGSize(width: width - 140, height: 40))
-        let pillWidth = min(width - 140, keySize.width + 24)
-        keyPill.frame = CGRect(x: (width - pillWidth) / 2, y: top, width: pillWidth, height: 34)
-        keyLabel.frame = keyPill.bounds
+        let pillWidth = min(width - 140, keySize.width + lockRoom + 24)
+        let pillHeight: CGFloat = keyLock.isHidden ? 34 : ceil(keySize.height) + 12
+        keyPill.frame = CGRect(x: (width - pillWidth) / 2, y: top, width: pillWidth, height: pillHeight)
+        keyLock.frame = CGRect(x: 12, y: (pillHeight - 13) / 2, width: 13, height: 13)
+        keyLabel.frame = CGRect(x: 12 + lockRoom, y: 0, width: pillWidth - 24 - lockRoom, height: pillHeight)
+        if keyLock.isHidden { keyLabel.frame = keyPill.bounds }
+        audioPanel?.frame = bounds
 
         let buttonsInset: CGFloat = buttons.arrangedSubviews.count <= 2 ? 30 : 8
         buttons.frame = CGRect(x: buttonsInset, y: height - bottom - 88, width: width - buttonsInset * 2, height: 88)

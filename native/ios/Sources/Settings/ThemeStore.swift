@@ -54,6 +54,10 @@ struct ThemeLook {
     var surface2 = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.92)
     var border = UIColor(hex: 0x23252A)
     var danger = UIColor(hex: 0xFF9CB0)
+    /// Settings: the reference's `dangerBg` (the circle of «Выйти из аккаунта») and `glassOpaque` (the flat card of a
+    /// group in «Чёрная»).
+    var dangerBg = UIColor(red: 69 / 255, green: 20 / 255, blue: 31 / 255, alpha: 0.88)
+    var glassOpaque = UIColor(hex: 0x0F1011)
     var bubble = UIColor(red: 31 / 255, green: 32 / 255, blue: 35 / 255, alpha: 0.96)
     var incoming = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.96)
     /// What the look was made from: two looks with the same words here are the same look.
@@ -75,6 +79,8 @@ struct ThemeLook {
         surface2 = ThemeLook.color(fields["surface2"] as? String) ?? surface2
         border = ThemeLook.color(fields["border"] as? String) ?? border
         danger = ThemeLook.color(fields["danger"] as? String) ?? danger
+        dangerBg = ThemeLook.color(fields["dangerBg"] as? String) ?? dangerBg
+        glassOpaque = ThemeLook.color(fields["glassOpaque"] as? String) ?? glassOpaque
         bubble = ThemeLook.color(fields["bubble"] as? String) ?? bubble
         incoming = ThemeLook.color(fields["incoming"] as? String) ?? incoming
         source = id + "|" + (fields["accent"] as? String ?? "")

@@ -500,14 +500,8 @@ final class ChatHistory {
                 rows.append(["key": "d" + key, "kind": 1, "text": today])
                 missingRow = -1
             }
-            if let after = input.unreadAfter, !unreadShown, !mine, id > after, id < localBase {
-                unreadShown = true
-                // Not before the very first row of the page: there it would say nothing.
-                if rows.contains(where: { ($0["kind"] as? Int) == 0 }) {
-                    rows.append(["key": "unread", "kind": 1, "text": "Непрочитанные сообщения"])
-                    missingRow = -1
-                }
-            }
+            // The reference's chat (ChatScreen.tsx) draws no «Непрочитанные сообщения» line: none here either.
+            if input.unreadAfter != nil, !unreadShown, !mine, id > (input.unreadAfter ?? 0), id < localBase { unreadShown = true }
             // A run of messages this device has no key for is one line.
             if message["cryptoState"] as? String == "no-key" {
                 out.noKey.insert(client)
