@@ -108,7 +108,7 @@ final class ProfileMediaViewer: UIViewController, UIScrollViewDelegate, UIGestur
         view.addGestureRecognizer(pull)
 
         let back = UIButton(type: .system)
-        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        back.setImage(BackChevronGlyph.image(size: 24), for: .normal) // «chevron-back» 24
         back.tintColor = .white
         back.backgroundColor = UIColor(white: 1, alpha: 0.12)
         back.layer.cornerRadius = 22

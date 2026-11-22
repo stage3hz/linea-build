@@ -231,7 +231,7 @@ enum ProfileChatExtras {
         let ttl = link.ttl
         let noCopy = link.noCopy
         var top: [UIMenuElement] = []
-        top.append(UIAction(title: "Автоудаление · " + autoDeleteLabel(ttl), image: UIImage(systemName: "timer")) { [weak profile, weak link] (_: UIAction) -> Void in
+        top.append(UIAction(title: "Автоудаление · " + autoDeleteLabel(ttl), image: IonIcon.image("timer-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
             guard let profile, let link else { return }
             ProfileChatExtras.autoDeleteSheet(current: link.ttl, over: profile) { (next: Int) -> Void in
                 link.setRules(ttl: next, noCopy: link.noCopy)
@@ -239,22 +239,22 @@ enum ProfileChatExtras {
             }
         })
         top.append(UIAction(title: noCopy ? "Разрешить пересылку и копирование" : "Запретить пересылку и копирование",
-                            image: UIImage(systemName: noCopy ? "lock.fill" : "lock.open")) { [weak link] (_: UIAction) -> Void in
+                            image: IonIcon.image(noCopy ? "lock-closed" : "lock-open-outline", size: 20)) { [weak link] (_: UIAction) -> Void in
             guard let link else { return }
             Haptic.light()
             let was = link.noCopy
             link.setRules(ttl: link.ttl, noCopy: !was)
             notice(ProfileChatExtras.noCopyNotice(wasNoCopy: was))
         })
-        top.append(UIAction(title: "Обои", image: UIImage(systemName: "photo")) { [weak profile, weak link] (_: UIAction) -> Void in
+        top.append(UIAction(title: "Обои", image: IonIcon.image("image-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
             guard let profile, let link else { return }
             link.openWallpaper(from: profile)
         })
-        top.append(UIAction(title: "Поиск", image: UIImage(systemName: "magnifyingglass")) { [weak profile, weak link] (_: UIAction) -> Void in
+        top.append(UIAction(title: "Поиск", image: IonIcon.image("search-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
             guard let profile, let link else { return }
             link.openSearch(from: profile)
         })
-        let clear = UIAction(title: "Очистить историю", image: UIImage(systemName: "trash")) { [weak profile, weak link] (_: UIAction) -> Void in
+        let clear = UIAction(title: "Очистить историю", image: IonIcon.image("trash-bin-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
             guard let profile, let link else { return }
             ProfileChatExtras.clearSheet(name: name, over: profile) {
                 link.clearForBoth()
@@ -540,7 +540,7 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
             if let data = Data(base64Encoded: base64, options: .ignoreUnknownCharacters), let image = UIImage(data: data) {
                 picture.image = image
             } else {
-                picture.image = UIImage(systemName: "photo", withConfiguration: UIImage.SymbolConfiguration(pointSize: 22, weight: .regular))
+                picture.image = IonIcon.image("image-outline", size: 22) // SharedMedia.tsx: «image-outline» 22
                 picture.contentMode = .center
                 picture.tintColor = Theme.muted
             }
@@ -630,7 +630,7 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
             let icon = UIView()
             icon.backgroundColor = Theme.accent
             icon.layer.cornerRadius = voiceList ? 21 : 10
-            let mark = UIImageView(image: UIImage(systemName: voiceList ? (note ? "video.fill" : "play.fill") : "doc.text.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)))
+            let mark = UIImageView(image: IonIcon.image(voiceList ? (note ? "videocam" : "play") : "document-text", size: 20)) // SharedMedia.tsx: 20 in `onAccent`
             mark.tintColor = Theme.onAccent
             mark.translatesAutoresizingMaskIntoConstraints = false
             icon.addSubview(mark)

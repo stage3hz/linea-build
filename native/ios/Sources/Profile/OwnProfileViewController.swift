@@ -81,7 +81,7 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
         view.addSubview(barBackdrop)
         bar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(bar)
-        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
+        back.setImage(BackChevronGlyph.image(size: 23), for: .normal) // IconButton «chevron-back», 23
         back.tintColor = Theme.text
         back.accessibilityLabel = "Назад"
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)

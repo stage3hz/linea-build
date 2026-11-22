@@ -89,6 +89,8 @@ class ThemeLook {
   /** The reference's `glass` and `glassBorder` (theme.tsx). */
   var glass = 0x9E0F1011.toInt(); private set
   var glassBorder = 0x14FFFFFF; private set
+  /** The reference's `dangerBg` (the circle of a missed call's row, MessageRow.tsx CallServiceRow). */
+  var dangerBg = 0xE045141F.toInt(); private set
   /** What the look was made from: two looks with the same words here are the same look. */
   var source = "black|"; private set
 
@@ -112,6 +114,7 @@ class ThemeLook {
     incoming = color(fields["incoming"] as? String) ?: incoming
     glass = color(fields["glass"] as? String) ?: glass
     glassBorder = color(fields["glassBorder"] as? String) ?: glassBorder
+    dangerBg = color(fields["dangerBg"] as? String) ?: dangerBg
     source = id + "|" + (fields["accent"] as? String ?: "")
   }
 

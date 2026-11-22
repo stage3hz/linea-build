@@ -127,9 +127,7 @@ class ChatRowView(context: Context) : View(context) {
     // The word «Черновик:» of a draft is red.
     val line: CharSequence = if (item.previewRed > 0 && item.preview.isNotEmpty())
       android.text.SpannableString(item.preview).apply { setSpan(android.text.style.ForegroundColorSpan(palette.danger), 0, minOf(item.previewRed, length), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
-      // Offline: a message this device cannot open is said quietly, in italics.
-      else if (item.quietPreview && item.preview.isNotEmpty())
-        android.text.SpannableString(item.preview).apply { setSpan(android.text.style.StyleSpan(android.graphics.Typeface.ITALIC), 0, length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
+      // The reference draws a line this device cannot open like any other line (no italic, no lock).
       else item.preview
     preview = StaticLayout.Builder.obtain(line, 0, line.length, previewPaint, width)
       .setAlignment(Layout.Alignment.ALIGN_NORMAL).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
@@ -226,13 +224,11 @@ class ChatRowView(context: Context) : View(context) {
     // The ticks stand before the time; under the time is the unread badge or, without one, the pin.
     val tickWidth = if (item.ticks > 0) 22f * d else 0f
     val markWidth = if (badge.isEmpty() && item.pinned) 20f * d else badgeWidth
-    // ChatsPlus: a chat without sound shows a crossed bell right after its name (ChatListScreen.tsx), room kept for it.
-    val bellRoom = if (item.muted) 18f * d else 0f
-    val titleWidth = right - x - timeWidth - 8f * d - tickWidth - bellRoom
+    // A chat without sound carries « 🔕» at the end of its title (ChatListScreen.tsx nativeRows).
+    val titleWidth = right - x - timeWidth - 8f * d - tickWidth
     val small = thumb
     val mic = small == null && item.previewIcon == "mic"
-    val lock = small == null && !mic && item.quietPreview
-    val thumbRoom = if (small != null) 26f * d else if (mic) 19f * d else if (lock) 16f * d else 0f
+    val thumbRoom = if (small != null) 26f * d else if (mic) 19f * d else 0f
     val textWidth = (right - x - thumbRoom - (if (markWidth > 0f) markWidth + 8f * d else 0f)).toInt()
     if (builtFor != item || builtWidth != width) build(item, textWidth, titleWidth)
 
@@ -247,24 +243,9 @@ class ChatRowView(context: Context) : View(context) {
       titlePaint.shader = null
       if (nameEnd < title.length) canvas.drawText(title, nameEnd, title.length, x + nameWidth, top - titlePaint.ascent(), titlePaint)
     } else canvas.drawText(title, 0, title.length, x, top - titlePaint.ascent(), titlePaint)
-    if (item.muted) {
-      val drawn = titlePaint.measureText(title, 0, title.length)
-      val bellSize = 13f * d
-      com.linea.messenger.chatsplus.PlusIcons.draw(canvas, "bell.slash.fill", x + drawn + 5f * d + bellSize / 2, top + (titlePaint.descent() - titlePaint.ascent()) / 2, bellSize, if (plate != null) 0x9EFFFFFF.toInt() else palette.subtle)
-    }
     canvas.drawText(item.time, right - timeWidth, top - timePaint.ascent() + 1.5f * d, timePaint)
 
-    previewPaint.color = if (item.accentPreview) palette.accent else if (item.quietPreview) palette.subtle else mutedColor
-    if (lock) {
-      // Offline: a small lock before the quiet words of a message this device cannot open — the body and the shackle.
-      val lx = x + 5f * d; val ly = top + 23f * d + 10f * d
-      fill.color = palette.subtle
-      canvas.drawRoundRect(lx - 4.5f * d, ly - 1.5f * d, lx + 4.5f * d, ly + 5f * d, 1.5f * d, 1.5f * d, fill)
-      stroke.color = palette.subtle; stroke.strokeWidth = 1.4f * d
-      canvas.drawArc(lx - 3f * d, ly - 6.5f * d, lx + 3f * d, ly - 0.5f * d, 180f, 180f, false, stroke)
-      canvas.drawLine(lx - 3f * d, ly - 3.5f * d, lx - 3f * d, ly - 1.5f * d, stroke)
-      canvas.drawLine(lx + 3f * d, ly - 3.5f * d, lx + 3f * d, ly - 1.5f * d, stroke)
-    }
+    previewPaint.color = if (item.accentPreview) palette.accent else mutedColor
     if (small != null) drawPicture(canvas, small, x, top + 23f * d, 20f * d, if (item.thumbRound) 10f * d else 4f * d, false)
     if (mic) {
       // A voice message is a grey microphone before its name. The capsule, the cradle and the stand.

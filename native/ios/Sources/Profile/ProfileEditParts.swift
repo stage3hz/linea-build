@@ -11,7 +11,7 @@ enum ProfileEditMedia {
         banner.clipsToBounds = true
         banner.accessibilityLabel = "Изменить баннер"
         banner.translatesAutoresizingMaskIntoConstraints = false
-        let placeholderIcon = UIImageView(image: UIImage(systemName: "photo", withConfiguration: UIImage.SymbolConfiguration(pointSize: 22, weight: .regular)))
+        let placeholderIcon = UIImageView(image: IonIcon.image("image-outline", size: 24)) // Ionicons «image-outline» 24
         placeholderIcon.tintColor = Theme.muted
         let placeholderWords = SettingsLook.words("Баннер", size: 13, color: Theme.muted)
         let placeholder = UIStackView(arrangedSubviews: [placeholderIcon, placeholderWords])
@@ -83,7 +83,7 @@ enum ProfileEditMedia {
     }
 
     private static func badge(size: CGFloat, fill: UIColor, tint: UIColor, border: UIColor?) -> UIView {
-        let badge = UIImageView(image: UIImage(systemName: "camera", withConfiguration: UIImage.SymbolConfiguration(pointSize: size * 0.48, weight: .regular)))
+        let badge = UIImageView(image: IonIcon.image("camera-outline", size: size == 34 ? 18 : 16)) // «camera-outline» 18 on the banner, 16 on the avatar
         badge.tintColor = tint
         badge.backgroundColor = fill
         badge.contentMode = .center
@@ -158,7 +158,7 @@ final class PatternPickerViewController: UIViewController {
                 cell.titleLabel?.font = .systemFont(ofSize: 24)
                 cell.accessibilityLabel = option
             } else {
-                cell.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
+                cell.setImage(IonIcon.image("close", size: 20), for: .normal)
                 cell.tintColor = Theme.muted
                 cell.accessibilityLabel = "Без узора"
             }

@@ -49,7 +49,9 @@ object Theme {
   /** The colours the chat list draws with. */
   val chatList: ChatPalette get() = ChatPalette(
     text = text, muted = muted, subtle = subtle, accent = accent, onAccent = onAccent, border = 0,
-    pressed = veil(0.07f), selected = veil(0.07f), badgeMuted = surface2, bg = bg, pinned = veil(0.055f), danger = danger,
+    // ChatListScreen.tsx nativePalette: pressed 0.07 white / 0.05 black, selected accentSoft, pinned 0.055 / 0.045.
+    pressed = veil(if (dark) 0.07f else 0.05f), selected = ThemeStore.look.accentSoft, badgeMuted = surface2, bg = bg,
+    pinned = veil(if (dark) 0.055f else 0.045f), danger = danger,
   )
 
   /** The colours a chat's messages draw with. */

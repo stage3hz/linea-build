@@ -30,6 +30,8 @@ object PlusIcons {
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     if (name in fromAI) return AIIcons.draw(canvas, name, cx, cy, size, color)
     if (name in fromChats) return ChatIcons.draw(canvas, name, cx, cy, size, color)
     if (name == "phone") return com.linea.messenger.calls.CallIcons.draw(canvas, name, cx, cy, size, color)
