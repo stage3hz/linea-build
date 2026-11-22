@@ -58,6 +58,11 @@ struct ThemeLook {
     /// group in «Чёрная»).
     var dangerBg = UIColor(red: 69 / 255, green: 20 / 255, blue: 31 / 255, alpha: 0.88)
     var glassOpaque = UIColor(hex: 0x0F1011)
+    /// The reference's flat glass (inside an opaque sheet, FlatGlassScope): `glassClear` fill, `glassBorder` rim,
+    /// `glassHighlight` line.
+    var glassClear = UIColor(red: 15 / 255, green: 16 / 255, blue: 17 / 255, alpha: 0.26)
+    var glassBorder = UIColor(white: 1, alpha: 0.08)
+    var glassHighlight = UIColor(white: 1, alpha: 0.10)
     /// The reference's `accentGradient` (the main `Button`); empty: the accent alone.
     var accentGradient: [UIColor] = [UIColor(hex: 0xF2F2F2), UIColor(hex: 0xC8C8C8)]
     var bubble = UIColor(red: 31 / 255, green: 32 / 255, blue: 35 / 255, alpha: 0.96)
@@ -88,6 +93,9 @@ struct ThemeLook {
         danger = ThemeLook.color(fields["danger"] as? String) ?? danger
         dangerBg = ThemeLook.color(fields["dangerBg"] as? String) ?? dangerBg
         glassOpaque = ThemeLook.color(fields["glassOpaque"] as? String) ?? glassOpaque
+        glassClear = ThemeLook.color(fields["glassClear"] as? String) ?? glassClear
+        glassBorder = ThemeLook.color(fields["glassBorder"] as? String) ?? glassBorder
+        glassHighlight = ThemeLook.color(fields["glassHighlight"] as? String) ?? glassHighlight
         accentGradient = (fields["accentGradient"] as? [Any] ?? []).compactMap { (item: Any) -> UIColor? in ThemeLook.color(item as? String) }
         bubble = ThemeLook.color(fields["bubble"] as? String) ?? bubble
         incoming = ThemeLook.color(fields["incoming"] as? String) ?? incoming

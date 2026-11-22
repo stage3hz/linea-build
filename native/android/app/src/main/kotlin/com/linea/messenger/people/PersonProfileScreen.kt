@@ -94,6 +94,12 @@ class PersonProfileScreen(
   // platinum name and emoji status, the effect (profile/ProfileHead.kt).
   private val hero = com.linea.messenger.profile.ProfileHeroView(context)
   private val topLayers = com.linea.messenger.profile.ProfileTopLayers(context)
+  /** The page's background and its banner / light as a glass source: the action tiles blur them, as the reference's
+   *  GlassSurface does (its children are placed by this screen, not by the frame). */
+  private val backdrop = object : com.linea.messenger.design.GlassSource(context) {
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {}
+  }
+  private val backdropFill = View(context)
   private val avatar: View get() = hero.avatar
   /** Profile: the chat this profile was opened from — «Звук», «Поиск», the shared media and the chat's items of
    *  «Ещё» (profile/ProfileChatExtras.kt). Null: opened from elsewhere. */
@@ -115,7 +121,11 @@ class PersonProfileScreen(
   init {
     setBackgroundColor(Theme.bg)
 
-    addView(topLayers.back) // Profile
+    backdropFill.setBackgroundColor(Theme.bg)
+    backdrop.addView(backdropFill)
+    backdrop.addView(topLayers.back) // Profile
+    backdrop.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    addView(backdrop)
     scroll.isVerticalScrollBarEnabled = false
     scroll.isFillViewport = false
     scroll.clipChildren = false
@@ -216,6 +226,8 @@ class PersonProfileScreen(
     val padTop = top + dp(48f + 18f)
     if (content.paddingBottom != dp(32f) + edges.bottom || content.paddingTop != padTop) content.setPadding(dp(18f), padTop, dp(18f), dp(32f) + edges.bottom)
     put(scroll, 0, 0, width, height)
+    put(backdrop, 0, 0, width, height)
+    put(backdropFill, 0, 0, width, height)
     put(topLayers.back, 0, 0, width, topLayers.backHeight(hero.bottom))
     put(topLayers.front, 0, 0, width, topLayers.frontHeight())
     fitTiles(width)
@@ -312,6 +324,7 @@ class PersonProfileScreen(
 
   private fun makeTile(symbol: String, words: String, loading: Boolean, active: Boolean = false, sub: String = ""): ProfileTile {
     val tile = ProfileTile(context, symbol, words, loading, active, sub)
+    tile.source = backdrop
     tile.isEnabled = !loading && !busy
     val gap = if (tiles.childCount == 0) 0 else dp(10f)
     // The reference's tile: 12 + 22 + 6 + the label's line + 12 (and the sublabel's line, 3 closer).
@@ -611,6 +624,10 @@ class ProfileTile(context: Context, private val symbol: String, private val word
   // The reference's tile (UserProfile.tsx): glass, radius 18; the Ionicons glyph 22 from 12, 6 to the label (12 SemiBold),
   // the sublabel 10 in `muted` 3 closer; an active one (a friend, a quiet chat) in the accent.
   private val glass = com.linea.messenger.design.Glass(this)
+  /** The page the tile blurs. */
+  var source: com.linea.messenger.design.GlassSource?
+    get() = glass.source
+    set(value) { glass.source = value; invalidate() }
   private val label = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Theme.weight(600); textAlign = Paint.Align.CENTER }
   private val small = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f * d; typeface = Theme.weight(400); textAlign = Paint.Align.CENTER; color = Theme.muted }
 

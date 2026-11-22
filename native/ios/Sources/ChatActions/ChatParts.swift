@@ -438,54 +438,83 @@ final class ChoiceSheet: UIViewController {
     private let headingWords: String
     private let noteWords: String
     private let choices: [Choice]
+    private let dim = UIView()
+    private let card = UIView()
+    private let grabber = UIView()
     private let headingLabel = UILabel()
+    private let close = GlassRoundButton(symbol: "ion:close", label: "Закрыть", iconSize: 23)
+    private let scroll = UIScrollView()
     private let noteLabel = UILabel()
     private var rows: [ChoiceRow] = []
+    private var dragStart: CGFloat = 0
 
+    /// The reference's `Sheet` (components.tsx) holding `SheetAction`s: a floating card over a dim (fading in, as the
+    /// reference's Modal `animationType="fade"`), 12 from the sides and max(12, the safe area) from the bottom, at most
+    /// 580 wide and 88% tall; radius 32, the theme's `glassOpaque`, a hairline `border`, 22 inside (25 at the bottom), a
+    /// shadow (0.18, 24, 0 −4). On top: the handle (36 × 4, `subtle` at 0.45, 17 under it), then the title (Unbounded
+    /// 19, line 25, −0.2) and the round close button 12 apart, 13 above the content. A pull down closes it (a quarter
+    /// of its height or a flick), a tap on the dim too.
     init(heading: String, note: String = "", choices: [Choice]) {
         headingWords = heading
         noteWords = note
         self.choices = choices
         super.init(nibName: nil, bundle: nil)
-        modalPresentationStyle = .pageSheet
-        if let sheet = sheetPresentationController {
-            let wanted = ChoiceSheet.height(heading: heading, note: note, choices: choices)
-            sheet.detents = [UISheetPresentationController.Detent.custom(resolver: { context in
-                return min(wanted, context.maximumDetentValue)
-            })]
-            sheet.prefersGrabberVisible = true
-            sheet.preferredCornerRadius = 28
-        }
+        modalPresentationStyle = .overFullScreen
+        modalTransitionStyle = .crossDissolve
     }
 
     required init?(coder: NSCoder) { return nil }
 
-    private static func height(heading: String, note: String, choices: [Choice]) -> CGFloat {
-        var total: CGFloat = 30 + 30
-        if !note.isEmpty { total += 44 }
-        for choice in choices { total += ChoiceSheet.rowHeight(choice) }
-        // And the room under the last choice (the home indicator).
-        return total + 44
-    }
-
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.page(UIColor(hex: 0x141516))
-        headingLabel.text = headingWords
-        headingLabel.font = Theme.title(Theme.TypeSize.sheetTitle) // Fonts: a sheet's heading
-        headingLabel.textColor = Theme.text
-        view.addSubview(headingLabel)
-        noteLabel.text = noteWords
-        noteLabel.font = .systemFont(ofSize: 13)
-        noteLabel.textColor = Theme.muted
+        view.backgroundColor = .clear
+        // The dim: «Чёрная» rgba(0,0,0,0.55), other dark themes rgba(0,5,19,0.5), light rgba(20,32,60,0.28).
+        dim.backgroundColor = ThemeStore.look.black ? UIColor(white: 0, alpha: 0.55)
+            : Theme.dark ? UIColor(red: 0, green: 5 / 255, blue: 19 / 255, alpha: 0.5) : UIColor(red: 20 / 255, green: 32 / 255, blue: 60 / 255, alpha: 0.28)
+        dim.isAccessibilityElement = true
+        dim.accessibilityLabel = "Закрыть"
+        dim.accessibilityTraits = .button
+        dim.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(closePressed)))
+        view.addSubview(dim)
+
+        card.backgroundColor = ThemeStore.look.glassOpaque
+        card.layer.cornerRadius = 32
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1 / UIScreen.main.scale
+        card.layer.borderColor = ThemeStore.look.border.cgColor
+        card.layer.shadowColor = UIColor.black.cgColor
+        card.layer.shadowOpacity = 0.18
+        card.layer.shadowRadius = 24
+        card.layer.shadowOffset = CGSize(width: 0, height: -4)
+        view.addSubview(card)
+        card.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(pulled(_:))))
+
+        grabber.backgroundColor = Theme.subtle.withAlphaComponent(0.45)
+        grabber.layer.cornerRadius = 2
+        card.addSubview(grabber)
+        headingLabel.attributedText = NSAttributedString(string: headingWords, attributes: [.font: Theme.title(Theme.TypeSize.sheetTitle), .kern: -0.2, .foregroundColor: Theme.text])
+        headingLabel.numberOfLines = 2
+        headingLabel.accessibilityTraits = .header
+        card.addSubview(headingLabel)
+        close.onPress = { [weak self] in self?.closePressed() }
+        card.addSubview(close)
+
+        scroll.showsVerticalScrollIndicator = false
+        scroll.alwaysBounceVertical = false
+        card.addSubview(scroll)
+        // The words under the title (MuteSheet.tsx): 13, line 19, `muted`, two lines at most, 6 above the actions.
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 19
+        style.maximumLineHeight = 19
+        noteLabel.attributedText = NSAttributedString(string: noteWords, attributes: [.font: UIFont.systemFont(ofSize: 13), .foregroundColor: Theme.muted, .paragraphStyle: style])
         noteLabel.numberOfLines = 2
         noteLabel.isHidden = noteWords.isEmpty
-        view.addSubview(noteLabel)
+        scroll.addSubview(noteLabel)
         for (index, choice) in choices.enumerated() {
             let row = ChoiceRow(choice: choice)
             row.tag = index
             row.addTarget(self, action: #selector(chosen(_:)), for: .touchUpInside)
-            view.addSubview(row)
+            scroll.addSubview(row)
             rows.append(row)
         }
     }
@@ -494,6 +523,31 @@ final class ChoiceSheet: UIViewController {
         guard sender.tag < choices.count else { return }
         let run = choices[sender.tag].run
         dismiss(animated: true) { run() }
+    }
+
+    @objc private func closePressed() {
+        dismiss(animated: true)
+    }
+
+    /// The reference's swipe-to-dismiss: the card follows the finger down, the dim fades with it; past a quarter of the
+    /// card's height or with a flick it closes, otherwise it springs back.
+    @objc private func pulled(_ pan: UIPanGestureRecognizer) {
+        let moved = max(0, pan.translation(in: view).y)
+        switch pan.state {
+        case .changed:
+            card.transform = CGAffineTransform(translationX: 0, y: moved)
+            dim.alpha = 1 - min(1, moved / max(1, card.bounds.height))
+        case .ended, .cancelled:
+            if moved > card.bounds.height / 4 || pan.velocity(in: view).y > 900 {
+                dismiss(animated: true)
+            } else {
+                UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0, options: [.allowUserInteraction], animations: { () -> Void in
+                    self.card.transform = .identity
+                    self.dim.alpha = 1
+                })
+            }
+        default: break
+        }
     }
 
     /// The reference's SheetAction: 13 above and below a 46 tile (72), at least 76 for an action; a two-line note adds 18.
@@ -505,25 +559,43 @@ final class ChoiceSheet: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let width = view.bounds.width
-        var y: CGFloat = 30
-        headingLabel.frame = CGRect(x: 20, y: y, width: width - 40, height: 26)
-        y += 30
+        dim.frame = view.bounds
+        let safe = view.safeAreaInsets
+        let width = min(580, view.bounds.width - 24)
+        let inner = width - 44
+        var y: CGFloat = 0
         if !noteWords.isEmpty {
-            noteLabel.frame = CGRect(x: 20, y: y, width: width - 40, height: 38)
-            y += 44
+            let noteHeight = min(38, noteLabel.sizeThatFits(CGSize(width: inner, height: 38)).height)
+            noteLabel.frame = CGRect(x: 0, y: 0, width: inner, height: noteHeight)
+            y = noteHeight + 6
         }
         for (index, row) in rows.enumerated() {
             let height = ChoiceSheet.rowHeight(choices[index])
-            row.frame = CGRect(x: 8, y: y, width: width - 16, height: height)
+            row.frame = CGRect(x: 0, y: y, width: inner, height: height)
             y += height
         }
+        scroll.contentSize = CGSize(width: inner, height: y)
+        let titleHeight = max(44, min(50, headingLabel.sizeThatFits(CGSize(width: inner - 44 - 12, height: 50)).height))
+        let top: CGFloat = 22 + 4 + 17 + titleHeight + 13
+        let most = view.bounds.height * 0.88
+        let height = min(most, top + y + 25)
+        let bottom = max(12, safe.bottom)
+        card.bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        card.center = CGPoint(x: view.bounds.width / 2, y: view.bounds.height - bottom - height / 2)
+        grabber.frame = CGRect(x: (width - 36) / 2, y: 22, width: 36, height: 4)
+        let rowTop: CGFloat = 22 + 4 + 17
+        close.frame = CGRect(x: width - 22 - 44, y: rowTop + (titleHeight - 44) / 2, width: 44, height: 44)
+        headingLabel.frame = CGRect(x: 22, y: rowTop, width: inner - 44 - 12, height: titleHeight)
+        scroll.frame = CGRect(x: 22, y: top, width: inner, height: height - top - 25)
     }
 }
 
 /// One choice of a `ChoiceSheet`.
 private final class ChoiceRow: UIControl {
-    private let tile = UIVisualEffectView(effect: TabGlass.effect(clear: true, interactive: false, dark: Theme.dark))
+    /// Glass inside the opaque sheet draws flat (glass.tsx FlatGlassScope): `glassClear`, a 1 `glassBorder` rim and the
+    /// `glassHighlight` line at the top (0.7, 0.58 of the radius in from the sides).
+    private let tile = UIView()
+    private let shine = UIView()
     private let mark = UIImageView()
     private let nameLabel = UILabel()
     private let noteLabel = UILabel()
@@ -539,15 +611,22 @@ private final class ChoiceRow: UIControl {
         hasNote = !choice.note.isEmpty
         isChoice = choice.selected != nil
         super.init(frame: .zero)
+        tile.backgroundColor = ThemeStore.look.glassClear
+        tile.layer.borderWidth = 1
+        tile.layer.borderColor = ThemeStore.look.glassBorder.cgColor
         tile.layer.cornerRadius = 16
         tile.layer.cornerCurve = .continuous
         tile.clipsToBounds = true
         tile.isUserInteractionEnabled = false
         addSubview(tile)
+        shine.backgroundColor = ThemeStore.look.glassHighlight
+        shine.alpha = 0.7
+        shine.layer.cornerRadius = 0.5
+        tile.addSubview(shine)
         mark.image = chatSymbol(choice.symbol, 22)
         mark.tintColor = choice.danger ? Theme.danger : Theme.accent
         mark.contentMode = .center
-        tile.contentView.addSubview(mark)
+        tile.addSubview(mark)
         nameLabel.text = choice.label
         nameLabel.font = .systemFont(ofSize: 16, weight: .semibold)
         nameLabel.textColor = choice.danger ? Theme.danger : Theme.text
@@ -580,6 +659,7 @@ private final class ChoiceRow: UIControl {
         let width = bounds.width, height = bounds.height
         tile.frame = CGRect(x: 10, y: (height - 46) / 2, width: 46, height: 46)
         mark.frame = tile.bounds
+        shine.frame = CGRect(x: 16 * 0.58, y: 1, width: 46 - 2 * 16 * 0.58, height: 1)
         let left: CGFloat = 10 + 46 + 14
         let right: CGFloat = isChoice ? 10 : 10 + 18 + 14
         chevron.frame = CGRect(x: width - 10 - 18, y: (height - 18) / 2, width: 18, height: 18)

@@ -95,6 +95,8 @@ class ThemeLook {
   var dangerBg = 0xE045141F.toInt(); private set
   /** Settings: the reference's `glassOpaque` (the flat card of a group in «Чёрная») and `accentGradient` (the main `Button`). */
   var glassOpaque = 0xFF0F1011.toInt(); private set
+  /** The reference's `glassHighlight` (the line at the top of its glass). */
+  var glassHighlight = 0x1AFFFFFF; private set
   var accentGradient: List<Int> = listOf(0xFFF2F2F2.toInt(), 0xFFC8C8C8.toInt()); private set
   /** What the look was made from: two looks with the same words here are the same look. */
   var source = "black|"; private set
@@ -122,6 +124,7 @@ class ThemeLook {
     glassHighlight = color(fields["glassHighlight"] as? String) ?: glassHighlight
     dangerBg = color(fields["dangerBg"] as? String) ?: dangerBg
     glassOpaque = color(fields["glassOpaque"] as? String) ?: glassOpaque
+    glassHighlight = color(fields["glassHighlight"] as? String) ?: glassHighlight
     accentGradient = ((fields["accentGradient"] as? List<*>) ?: emptyList<Any?>()).mapNotNull { color(it as? String) }
     source = id + "|" + (fields["accent"] as? String ?: "")
   }

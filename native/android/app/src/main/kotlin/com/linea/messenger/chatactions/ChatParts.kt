@@ -507,29 +507,96 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
 
+  /** The reference's `Sheet` (components.tsx): a floating card over a dim (the Modal fades in), 12 from the sides and
+   *  max(12, the bottom inset) from the bottom, at most 580 wide and 88% tall; radius 32, `glassOpaque`, a hairline
+   *  `border`, 22 inside (25 at the bottom), a shadow; the handle (36 × 4, `subtle` at 0.45, 17 under it), the title
+   *  (Unbounded 19, line 25, −0.2) and the round close button 12 apart, 13 above the content. A pull down closes it. */
+  private val card = LinearLayout(context)
+
   init {
     requestWindowFeature(Window.FEATURE_NO_TITLE)
-    val stack = LinearLayout(context).apply {
-      orientation = LinearLayout.VERTICAL
-      setPadding(dp(8f), dp(30f), dp(8f), dp(24f))
-      background = GradientDrawable().apply { setColor(Theme.page(0xFF141516.toInt())); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
-    }
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
-    stack.addView(TextView(context).apply {
-      text = heading; textSize = 20f; typeface = Theme.weight(700); setTextColor(Theme.text); maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-      com.linea.messenger.design.Titles.title(this, Theme.TypeSize.sheetTitle) // Fonts: a sheet's heading
-    }, LinearLayout.LayoutParams(wide, wrap).apply { leftMargin = dp(12f); rightMargin = dp(12f); bottomMargin = dp(6f) })
+    val root = object : android.widget.FrameLayout(context) {
+      override fun onApplyWindowInsets(insets: android.view.WindowInsets): android.view.WindowInsets {
+        val bottom = if (android.os.Build.VERSION.SDK_INT >= 30) insets.getInsets(android.view.WindowInsets.Type.systemBars()).bottom else @Suppress("DEPRECATION") insets.systemWindowInsetBottom
+        (card.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { it.bottomMargin = maxOf(dp(12f), bottom); card.layoutParams = it }
+        return insets
+      }
+    }
+    root.fitsSystemWindows = false
+    // The dim: «Чёрная» rgba(0,0,0,0.55), other dark themes rgba(0,5,19,0.5), light rgba(20,32,60,0.28).
+    val dim = View(context).apply {
+      setBackgroundColor(if (com.linea.messenger.settings.ThemeStore.look.black) 0x8C000000.toInt() else if (Theme.dark) 0x80000513.toInt() else 0x4714203C)
+      contentDescription = "Закрыть"
+      setOnClickListener { dismiss() }
+    }
+    root.addView(dim, android.widget.FrameLayout.LayoutParams(wide, wide))
+    card.orientation = LinearLayout.VERTICAL
+    card.setPadding(dp(22f), dp(22f), dp(22f), dp(25f))
+    card.background = GradientDrawable().apply {
+      setColor(com.linea.messenger.settings.ThemeStore.look.glassOpaque); cornerRadius = 32f * d
+      setStroke(maxOf(1, Math.round(0.5f * d)), com.linea.messenger.settings.ThemeStore.look.border)
+    }
+    card.elevation = 12f * d
+    card.isClickable = true
+    card.addView(View(context).apply { background = GradientDrawable().apply { setColor(Theme.alpha(Theme.subtle, 0.45f)); cornerRadius = 2f * d } },
+      LinearLayout.LayoutParams(dp(36f), dp(4f)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(17f) })
+    val head = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    head.addView(TextView(context).apply {
+      text = heading; setTextColor(Theme.text); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
+      com.linea.messenger.design.Titles.title(this, Theme.TypeSize.sheetTitle) // Unbounded 19, letter spacing −0.2
+      if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = dp(25f)
+    }, LinearLayout.LayoutParams(0, wrap, 1f))
+    val close = com.linea.messenger.design.GlassRoundButton(context, "ion:close", "Закрыть", 23f)
+    close.onPress = { dismiss() }
+    head.addView(close, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { leftMargin = dp(12f) })
+    card.addView(head, LinearLayout.LayoutParams(wide, wrap).apply { bottomMargin = dp(13f) })
+    val stack = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    // The words under the title (MuteSheet.tsx): 13, line 19, `muted`, two lines at most, 6 above the actions.
     if (note.isNotEmpty()) stack.addView(TextView(context).apply {
-      text = note; textSize = 13f; setTextColor(Theme.muted); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
-    }, LinearLayout.LayoutParams(wide, wrap).apply { leftMargin = dp(12f); rightMargin = dp(12f); bottomMargin = dp(8f) })
+      text = note; textSize = 13f; typeface = Theme.weight(400); setTextColor(Theme.muted); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
+      if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = dp(19f)
+    }, LinearLayout.LayoutParams(wide, wrap).apply { bottomMargin = dp(6f) })
     for (choice in choices) stack.addView(row(choice), LinearLayout.LayoutParams(wide, wrap))
-    val scroll = ScrollView(context).apply { addView(stack); isVerticalScrollBarEnabled = false }
-    setContentView(scroll, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+    val scroll = object : ScrollView(context) {
+      override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val most = (context.resources.displayMetrics.heightPixels * 0.88f).toInt() - dp(22f + 4f + 17f + 44f + 13f + 25f)
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxOf(0, most), MeasureSpec.AT_MOST))
+      }
+    }
+    scroll.isVerticalScrollBarEnabled = false
+    scroll.addView(stack)
+    card.addView(scroll, LinearLayout.LayoutParams(wide, wrap))
+    val screen = context.resources.displayMetrics.widthPixels
+    root.addView(card, android.widget.FrameLayout.LayoutParams(minOf(dp(580f), screen - dp(24f)), wrap, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(12f) })
+    // A pull down on the card closes it past a quarter of its height (or with a flick), else it springs back.
+    var startY = 0f
+    var tracker: android.view.VelocityTracker? = null
+    card.setOnTouchListener { view, event ->
+      when (event.actionMasked) {
+        android.view.MotionEvent.ACTION_DOWN -> { startY = event.rawY; tracker = android.view.VelocityTracker.obtain().also { it.addMovement(event) } }
+        android.view.MotionEvent.ACTION_MOVE -> {
+          tracker?.addMovement(event)
+          val moved = maxOf(0f, event.rawY - startY)
+          view.translationY = moved; dim.alpha = 1f - minOf(1f, moved / maxOf(1, view.height))
+        }
+        android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+          tracker?.addMovement(event); tracker?.computeCurrentVelocity(1000)
+          val flick = (tracker?.yVelocity ?: 0f) > 900f * d
+          tracker?.recycle(); tracker = null
+          if (view.translationY > view.height / 4f || flick) dismiss()
+          else { view.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.8f)).start(); dim.animate().alpha(1f).setDuration(200).start() }
+        }
+      }
+      true
+    }
+    setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     window?.apply {
       setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-      setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
-      setGravity(Gravity.BOTTOM)
-      setDimAmount(0.5f)
+      setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+      setDimAmount(0f)
+      setWindowAnimations(android.R.style.Animation_Toast) // a fade, as the reference's Modal `animationType="fade"`
+      if (android.os.Build.VERSION.SDK_INT >= 30) setDecorFitsSystemWindows(false)
     }
     setCanceledOnTouchOutside(true)
   }
@@ -553,10 +620,20 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
       }
       setOnClickListener { chosen(choice) }
     }
+    // Glass inside the opaque sheet draws flat (glass.tsx FlatGlassScope; Android without a live blur): `glassOpaque` at
+    // 0.78 for clear glass, a 1 `glassBorder` rim, the `glassHighlight` line at the top (0.7, 0.58 of the radius in).
     val tile = object : android.widget.FrameLayout(context) {
-      private val glass = com.linea.messenger.design.Glass(this)
+      private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.alpha(com.linea.messenger.settings.ThemeStore.look.glassOpaque, 0.78f) }
+      private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = d; color = com.linea.messenger.settings.ThemeStore.look.glassBorder }
+      private val shine = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.alpha(com.linea.messenger.settings.ThemeStore.look.glassHighlight, 0.7f * android.graphics.Color.alpha(com.linea.messenger.settings.ThemeStore.look.glassHighlight) / 255f) }
       init { setWillNotDraw(false) }
-      override fun onDraw(canvas: android.graphics.Canvas) { glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 16f * d); super.onDraw(canvas) }
+      override fun onDraw(canvas: android.graphics.Canvas) {
+        val r = 16f * d; val h = d / 2
+        canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, fill)
+        canvas.drawRoundRect(h, h, width - h, height - h, r - h, r - h, rim)
+        canvas.drawRect(r * 0.58f, d, width - r * 0.58f, 2 * d, shine)
+        super.onDraw(canvas)
+      }
     }
     tile.addView(ChatIconView(context, choice.symbol, 22f, if (choice.danger) Theme.danger else Theme.accent), android.widget.FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER))
     row.addView(tile, LinearLayout.LayoutParams(dp(46f), dp(46f)).apply { rightMargin = dp(14f) })
