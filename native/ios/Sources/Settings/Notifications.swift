@@ -65,7 +65,7 @@ final class MutedChatRow: UIControl {
         texts.isUserInteractionEnabled = false
         texts.translatesAutoresizingMaskIntoConstraints = false
         let bell = UIButton(type: .system)
-        bell.setImage(SettingsLook.symbol("bell", size: 16, weight: .medium), for: .normal)
+        bell.setImage(SettingsLook.symbol("ion:notifications-outline", size: 20), for: .normal)
         bell.tintColor = Theme.accent
         bell.accessibilityLabel = "Включить звук"
         bell.addTarget(self, action: #selector(bellPressed), for: .touchUpInside)
@@ -182,7 +182,7 @@ final class NotificationsViewController: SettingsPage {
 
         var melody = ""
         for tone in ThemeStore.list("ringtones") where tone["id"] as? String == NotificationPrefs.ringtone { melody = tone["label"] as? String ?? "" }
-        let melodyRow = SettingsRow(symbol: "music.note", label: "Мелодия", value: melody)
+        let melodyRow = SettingsRow(symbol: "ion:musical-notes", label: "Мелодия", value: melody)
         melodyRow.onPress = { [weak self] in self?.askMelody() }
         addGroup("Звонки", rows: [
             melodyRow,
@@ -214,7 +214,7 @@ final class NotificationsViewController: SettingsPage {
         if !quiet.isEmpty { addGroup("Чаты без звука", rows: quiet) }
         if !failure.isEmpty { add(SettingsNotice(failure, error: true), gap: 12) }
 
-        let reset = SettingsRow(symbol: "arrow.counterclockwise", label: "Сбросить настройки", danger: true)
+        let reset = SettingsRow(symbol: "ion:refresh", label: "Сбросить настройки", danger: true)
         reset.onPress = { [weak self] in self?.askReset() }
         addGroup(rows: [reset])
         add(SettingsLook.foot("Переключатели хранятся только на этом устройстве. Выключенный звук чата действует на всех твоих устройствах: сервер просто не отправляет уведомление, пока он выключен."), gap: 10)
@@ -225,7 +225,7 @@ final class NotificationsViewController: SettingsPage {
         let current = NotificationPrefs.ringtone
         for tone in ThemeStore.list("ringtones") {
             guard let id = tone["id"] as? String, let label = tone["label"] as? String else { continue }
-            choices.append(ChoiceSheet.Choice(symbol: id == current ? "checkmark.circle" : "circle", label: label, run: { [weak self] in
+            choices.append(ChoiceSheet.Choice(symbol: id == current ? "ion:checkmark-circle" : "ion:ellipse-outline", label: label, run: { [weak self] in
                 NotificationPrefs.set("calls", "ringtone", id)
                 self?.fill()
             }))
@@ -251,7 +251,7 @@ final class NotificationsViewController: SettingsPage {
     private func askMute(_ chat: Messenger.ChatSummary, settings: [String: Any]) {
         var choices: [ChoiceSheet.Choice] = []
         let now = NotificationsViewController.muteState(settings)
-        choices.append(ChoiceSheet.Choice(symbol: "bell", label: "Включить звук", note: "Сейчас звук выключен " + (now["until"] as? String ?? "навсегда") + ".", run: { [weak self] in
+        choices.append(ChoiceSheet.Choice(symbol: "ion:notifications-outline", label: "Включить звук", note: "Сейчас звук выключен " + (now["until"] as? String ?? "навсегда") + ".", run: { [weak self] in
             self?.change(chat, ["muted": false])
         }))
         for choice in ThemeStore.list("muteChoices") {
@@ -263,12 +263,12 @@ final class NotificationsViewController: SettingsPage {
                     let state = NotificationsViewController.muteState(["muted": true, "mutedUntil": preview])
                     note = "Без звука " + (state["until"] as? String ?? "") + "."
                 }
-                choices.append(ChoiceSheet.Choice(symbol: "clock", label: label, note: note, run: { [weak self] in
+                choices.append(ChoiceSheet.Choice(symbol: "ion:time-outline", label: label, note: note, run: { [weak self] in
                     guard let until = NotificationsViewController.muteEnd(id) else { return }
                     self?.change(chat, ["mutedUntil": until])
                 }))
             } else {
-                choices.append(ChoiceSheet.Choice(symbol: "bell.slash", label: label, note: "Пока не включишь снова. Звонки продолжат звонить.", run: { [weak self] in
+                choices.append(ChoiceSheet.Choice(symbol: "ion:notifications-off-outline", label: label, note: "Пока не включишь снова. Звонки продолжат звонить.", run: { [weak self] in
                     self?.change(chat, ["muted": true])
                 }))
             }

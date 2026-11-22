@@ -43,6 +43,10 @@ final class GlassRoundButton: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     func setSymbol(_ symbol: String, size: CGFloat = 19, weight: UIImage.SymbolWeight = .regular) {
+        // "ion:<name>": the reference's own Ionicons glyph, `size` points square (Design/IonIcon.swift).
+        // «ion:chevron-back» is the reference's own drawn chevron (components.tsx `BackChevron`).
+        if symbol == "ion:chevron-back" { icon.image = BackChevronGlyph.image(size: size); return }
+        if symbol.hasPrefix("ion:") { icon.image = IonIcon.image(String(symbol.dropFirst(4)), size: size); return }
         icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))
     }
 
@@ -110,7 +114,7 @@ final class GlassHeaderView: UIView {
         pill.contentView.addSubview(row)
 
         if let back {
-            let button = GlassRoundButton(symbol: "chevron.left", label: backLabel, iconSize: 19, weight: .medium)
+            let button = GlassRoundButton(symbol: "ion:chevron-back", label: backLabel, iconSize: 23) // IconButton «chevron-back», 23
             button.onPress = back
             button.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
@@ -208,7 +212,7 @@ final class GlassSearchField: UIView {
         backgroundColor = .clear
         pill.shape(radius: 24)
         addSubview(pill)
-        icon.image = UIImage(systemName: "magnifyingglass", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular))
+        icon.image = IonIcon.image("search-outline", size: 21) // the reference's own glyph, 21
         icon.tintColor = Theme.accent
         icon.contentMode = .center
         pill.contentView.addSubview(icon)
@@ -219,11 +223,11 @@ final class GlassSearchField: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         pill.frame = bounds
-        icon.frame = CGRect(x: 15, y: 0, width: 22, height: bounds.height)
+        icon.frame = CGRect(x: 15, y: 0, width: 21, height: bounds.height)
     }
 
     /// Where the words go (after the magnifier and 10 of room).
-    var wordsLeft: CGFloat { return 15 + 22 + 10 }
+    var wordsLeft: CGFloat { return 15 + 21 + 10 }
 }
 
 /// A round of clear glass under the icon of a plain button that keeps its own target or menu (the reference's

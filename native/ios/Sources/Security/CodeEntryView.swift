@@ -164,7 +164,7 @@ final class CodeEntryView: UIView, UITextFieldDelegate {
             pad.addArrangedSubview(doneButton)
             if let biometric {
                 bioButton.setTitle(" " + biometric.label, for: .normal)
-                bioButton.setImage(SettingsLook.symbol(biometric.symbol, size: 18, weight: .medium), for: .normal)
+                bioButton.setImage(SettingsLook.symbol(biometric.symbol, size: 20, weight: .medium), for: .normal)
                 pad.addArrangedSubview(bioButton)
             }
             applyDisabled()
@@ -185,7 +185,7 @@ final class CodeEntryView: UIView, UITextFieldDelegate {
             last.append(blank())
         }
         last.append(digitKey("0"))
-        let erase = iconKey("delete.left", label: "Стереть", action: #selector(erasePressed))
+        let erase = iconKey("ion:backspace-outline", label: "Стереть", action: #selector(erasePressed))
         erase.tag = 77
         last.append(erase)
         let line = UIStackView(arrangedSubviews: last)
@@ -223,7 +223,7 @@ final class CodeEntryView: UIView, UITextFieldDelegate {
 
     private func iconKey(_ symbol: String, label: String, action: Selector) -> UIView {
         let key = PadKeyButton(frame: .zero)
-        key.setImage(SettingsLook.symbol(symbol, size: 26, weight: .regular), for: .normal)
+        key.setImage(SettingsLook.symbol(symbol, size: symbol.hasPrefix("ion:") ? 28 : 26, weight: .regular), for: .normal) // PadKey: Ionicons 28
         key.tintColor = Theme.text
         key.accessibilityLabel = label
         key.addTarget(self, action: action, for: .touchUpInside)

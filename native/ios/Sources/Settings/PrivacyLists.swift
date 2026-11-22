@@ -24,7 +24,7 @@ final class PersonListRow: UIView {
         let texts = UIStackView(arrangedSubviews: [name, handle])
         texts.axis = .vertical
         texts.spacing = 1
-        button.setImage(SettingsLook.symbol(adding ? "plus.circle.fill" : "xmark.circle.fill", size: 20, weight: .regular), for: .normal)
+        button.setImage(SettingsLook.symbol(adding ? "ion:add-circle" : "ion:close-circle", size: 22), for: .normal)
         button.tintColor = adding ? Theme.accent : Theme.muted
         button.accessibilityLabel = (adding ? "Добавить в список" : "Убрать из списка") + ": " + (name.text ?? "")
         button.addTarget(self, action: #selector(pressed), for: .touchUpInside)
@@ -202,7 +202,7 @@ final class LastSeenExceptionsViewController: SettingsPage, UITextFieldDelegate 
             candidates.append(person)
             if candidates.count >= 50 { break }
         }
-        let icon = UIImageView(image: SettingsLook.symbol("magnifyingglass", size: 16, weight: .regular))
+        let icon = UIImageView(image: SettingsLook.symbol("ion:search", size: 18))
         icon.tintColor = Theme.muted
         icon.setContentHuggingPriority(.required, for: .horizontal)
         let search = UIStackView(arrangedSubviews: [icon, field])
@@ -320,7 +320,7 @@ final class CallRulesViewController: SettingsPage, UITextFieldDelegate {
         let at = SettingsLook.words("@", size: 15, color: Theme.muted)
         at.setContentHuggingPriority(.required, for: .horizontal)
         let plus = UIButton(type: .system)
-        plus.setImage(SettingsLook.symbol("plus", size: 18, weight: .semibold), for: .normal)
+        plus.setImage(SettingsLook.symbol("ion:add", size: 20), for: .normal)
         plus.tintColor = Theme.accent
         plus.backgroundColor = ThemeStore.look.accentSoft
         plus.layer.cornerRadius = 11

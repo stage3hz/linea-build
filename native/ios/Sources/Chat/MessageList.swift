@@ -109,8 +109,23 @@ struct MsgPalette: Equatable {
 }
 
 private let msgSmallFont = UIFont.systemFont(ofSize: 13)
-private let msgSmallBold = UIFont.systemFont(ofSize: 12.5, weight: .semibold)
+/// MessageRow.tsx: «Переслано от …» 11 semibold in the accent, 4 above what follows.
+private let msgForwardFont = UIFont.systemFont(ofSize: 11, weight: .semibold)
+/// MessageRow.tsx quote: the author 11 bold, the words 12 (two lines at most), 1 between, padding 5 above and below,
+/// 3-point bar, 7 from the bar to the words, 8 at the right, radius 10, 6 below the block.
+private let msgQuoteAuthorFont = UIFont.systemFont(ofSize: 11, weight: .bold)
+private let msgQuoteFont = UIFont.systemFont(ofSize: 12)
+private func msgQuoteStyle() -> NSParagraphStyle {
+  let style = NSMutableParagraphStyle()
+  style.lineBreakMode = .byWordWrapping
+  return style
+}
+private func msgQuoteHeight(_ textHeight: CGFloat) -> CGFloat { 5 + ceil(msgQuoteAuthorFont.lineHeight) + 1 + textHeight + 5 }
 private let msgMetaFont = UIFont.systemFont(ofSize: 11)
+/// MessageRow.tsx DayChip and CallServiceRow.
+private let msgDayFont = UIFont.systemFont(ofSize: 10, weight: .semibold)
+private let msgCallFont = UIFont.systemFont(ofSize: 14, weight: .semibold)
+private let msgCallTimeFont = UIFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
 
 private func msgWrap(_ lines: Bool) -> NSParagraphStyle {
   let style = NSMutableParagraphStyle()
@@ -211,11 +226,36 @@ final class MsgText {
   }
 }
 
-/// A paragraph style of a quote or a code block: the text stands in from the block's edge.
-private func msgBlockStyle(_ inset: CGFloat) -> NSParagraphStyle {
+/// chatPreferences.ts TEXT_SIZES: each text size has its own line (15/20, 17/22, 19/25, 22/28); the big emoji of
+/// MessageRow.tsx 64/76, 52/62, 44/54.
+func msgLineHeight(_ fontSize: CGFloat) -> CGFloat {
+  switch fontSize {
+  case 15: return 20
+  case 17: return 22
+  case 19: return 25
+  case 22: return 28
+  case 64: return 76
+  case 52: return 62
+  case 44: return 54
+  default: return (fontSize * 1.3).rounded()
+  }
+}
+
+/// The paragraph of a message's words: a fixed line, as React Native's `lineHeight` gives it.
+private func msgBodyStyle(_ fontSize: CGFloat) -> NSParagraphStyle {
   let style = NSMutableParagraphStyle()
   style.lineBreakMode = .byWordWrapping
-  style.lineSpacing = 2
+  style.minimumLineHeight = msgLineHeight(fontSize)
+  style.maximumLineHeight = msgLineHeight(fontSize)
+  return style
+}
+
+/// A paragraph style of a quote or a code block: the text stands in from the block's edge.
+private func msgBlockStyle(_ inset: CGFloat, fontSize: CGFloat) -> NSParagraphStyle {
+  let style = NSMutableParagraphStyle()
+  style.lineBreakMode = .byWordWrapping
+  style.minimumLineHeight = msgLineHeight(fontSize)
+  style.maximumLineHeight = msgLineHeight(fontSize)
   style.firstLineHeadIndent = inset
   style.headIndent = inset
   style.tailIndent = -8
@@ -226,7 +266,9 @@ private func msgBlockStyle(_ inset: CGFloat) -> NSParagraphStyle {
 /// 32 spoiler (a block until tapped), 64 link, 128 quote, 256 code block.
 func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quote: UIColor, revealed: Bool) -> NSAttributedString {
   let base = UIFont.systemFont(ofSize: fontSize)
-  let result = NSMutableAttributedString(string: row.text, attributes: [.font: base, .foregroundColor: text, .paragraphStyle: msgWrap(true)])
+  // React Native centres the glyphs in a fixed line: the baseline is lifted by half of the extra room.
+  let lift = max(0, (msgLineHeight(fontSize) - base.lineHeight) / 2)
+  let result = NSMutableAttributedString(string: row.text, attributes: [.font: base, .foregroundColor: text, .paragraphStyle: msgBodyStyle(fontSize), .baselineOffset: lift])
   let total = (row.text as NSString).length
   var i = 0
   while i + 2 < row.fmt.count {
@@ -247,8 +289,8 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
     if flags & 8 != 0 { result.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
     if mono && flags & 256 == 0 { result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.10), range: range) }
     // A quote and a code block are plates drawn under the text (MsgRowCanvas); here only their indents.
-    if flags & 128 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(11), range: range) }
-    if flags & 256 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(8), range: range) }
+    if flags & 128 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(11, fontSize: fontSize), range: range) }
+    if flags & 256 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(8, fontSize: fontSize), range: range) }
     if flags & 64 != 0 { result.addAttribute(.foregroundColor, value: link, range: range) }
     if flags & 32 != 0 {
       if revealed {
@@ -269,12 +311,24 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
 /// (Sources/ChatLook/BubbleLook.swift).
 var msgOpenLook: Bool { ChatBubbleLook.open }
 /// From the screen's edge to a message's plate (the text stands 13 further in).
-private var msgEdge: CGFloat { msgOpenLook ? 3 : 9 }
+private var msgEdge: CGFloat { msgOpenLook ? 6 : 9 } // ChatScreen.tsx listSide: 6 open, 9 with bubbles
+
+/// From the plate's edges to the words (MessageRow.tsx): bubbles 11 + the text's own 1 on both sides; the open look
+/// keeps the 2-point line + 10 + 1 at the other side's left and 4 + 1 at its right, own words 4 + 1 at the left and
+/// 0 + 1 at the right. A photo with words keeps its card.
+func msgPads(_ row: MsgRow) -> (left: CGFloat, right: CGFloat) {
+  if !msgOpenLook || row.media == "photo" { return (12, 12) }
+  return row.mine ? (5, 1) : (13, 5)
+}
 
 struct MsgLayout {
   /// The time stands on the text's last line, at this point from the text's corner (x: its left, y: the line's bottom).
   var timeInline = false
   var timeAt = CGPoint.zero
+  /// Bubbles: the time in the plate's lower corner, its room kept at the end of the words.
+  var timeCorner = false
+  /// The time at the right of the reaction chips' row.
+  var timeBeside = false
   var bubble = CGSize.zero
   var textSize = CGSize.zero
   var quoteSize = CGSize.zero
@@ -306,6 +360,27 @@ struct MsgLayout {
       layout.height = layout.bubble.height + 20
       return layout
     }
+    if row.kind == 1 && row.label == "day" {
+      // MessageRow.tsx DayChip: 10 pt semibold, padding 6/14, a 1-point border; 15 above, 18 below.
+      let words = NSAttributedString(string: row.text, attributes: [.font: msgDayFont])
+      let size = CGSize(width: ceil(words.size().width), height: ceil(msgDayFont.lineHeight))
+      layout.textSize = size
+      layout.bubble = CGSize(width: size.width + 2 * 14 + 2, height: size.height + 2 * 6 + 2)
+      layout.height = 15 + layout.bubble.height + 18
+      return layout
+    }
+    if row.kind == 1 && row.label.hasPrefix("call") {
+      // MessageRow.tsx CallServiceRow: up to 360 wide, padding 8 left / 14 right / 7 vertical, a 1-point border,
+      // a 34-point round icon, 10 between; the words (14 semibold, one line) over the time (11); 6 below.
+      let time = ceil(NSAttributedString(string: row.time, attributes: [.font: msgCallTimeFont]).size().width)
+      let words = ceil(NSAttributedString(string: row.text, attributes: [.font: msgCallFont]).size().width)
+      let room = min(360, width - 2 * msgEdge) - 2 - 8 - 34 - 10 - 14
+      let textWidth = min(room, max(words, time))
+      layout.textSize = CGSize(width: textWidth, height: ceil(msgCallFont.lineHeight) + 1 + ceil(msgCallTimeFont.lineHeight))
+      layout.bubble = CGSize(width: 2 + 8 + 34 + 10 + textWidth + 14, height: 2 + 2 * 7 + max(34, layout.textSize.height))
+      layout.height = layout.bubble.height + 6
+      return layout
+    }
     if row.kind == 1 {
       let size = msgSize(row.text, msgSmallFont, width * 0.8, 120)
       layout.textSize = size
@@ -313,13 +388,21 @@ struct MsgLayout {
       layout.height = layout.bubble.height + 8
       return layout
     }
-    let inner = width * 0.78 - 26
-    let body = UIFont.systemFont(ofSize: fontSize)
-    layout.textSize = row.fmt.isEmpty ? msgSize(row.text, body, inner, 20000)
-      : MsgText(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner).size
-    if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty { layout.quoteSize = msgSize(row.quoteText.isEmpty ? " " : row.quoteText, msgSmallFont, inner - 12, 36) }
+    // MessageRow.tsx: a message is at most 85 % of the row (the list's own side margins taken off).
+    let pads = msgPads(row)
+    let inner = floor((width - 2 * msgEdge) * 0.85) - pads.left - pads.right
+    let laidBody = row.text.isEmpty ? nil : MsgText(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
+    layout.textSize = laidBody?.size ?? .zero
+    if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty {
+      let words = NSAttributedString(string: row.quoteText.isEmpty ? " " : row.quoteText, attributes: [.font: msgQuoteFont, .paragraphStyle: msgQuoteStyle()])
+      let box = words.boundingRect(with: CGSize(width: max(1, inner - 18), height: ceil(msgQuoteFont.lineHeight * 2) + 1), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      layout.quoteSize = CGSize(width: ceil(box.width), height: min(ceil(box.height), ceil(msgQuoteFont.lineHeight * 2)))
+    }
     layout.labelSize = msgSize(row.label, msgSmallFont, inner, 36)
-    layout.reactSize = row.chips.isEmpty ? msgSize(row.reactions, msgSmallFont, inner, 40) : msgChips(row, width: inner).size
+    // MessageRow.tsx `reactionsInside`: the chips and, 10 to their right, the time share one row.
+    let metaRoom = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 19 : 0) + (row.silent ? 15 : 0)
+    layout.timeBeside = !row.chips.isEmpty && row.media != "note" && row.bigEmoji == 0
+    layout.reactSize = row.chips.isEmpty ? msgSize(row.reactions, msgSmallFont, inner, 40) : msgChips(row, width: layout.timeBeside ? max(40, inner - 10 - metaRoom) : inner).size
     if hasThumb {
       let w = min(inner, 220)
       layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
@@ -333,7 +416,7 @@ struct MsgLayout {
       let w = min(inner, 220)
       layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
     } else if row.media == "voice" {
-      layout.voiceSize = CGSize(width: min(inner, 236), height: 50)
+      layout.voiceSize = CGSize(width: min(inner, MediaRowArt.voiceWidth), height: MediaRowArt.voiceHeight) // VoiceMessage.tsx: 262 wide
     } else if row.media == "photo" {
       // Attachments: a photo shown whole, a file as a card (MediaBubble.tsx; Sources/Attachments/InlineMedia.swift).
       layout.thumbSize = InlineMediaArt.photoSize(row, width: width)
@@ -342,14 +425,15 @@ struct MsgLayout {
       layout.fileSize = InlineMediaArt.fileSize(row, inner: inner)
       layout.labelSize = .zero
     }
-    let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 22 : 0) + (row.silent ? 15 : 0) // Composer: the bell of «без звука»
+    let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 19 : 0) + (row.silent ? 15 : 0) // the mark 4 + 15 after the time; Composer: the bell of «без звука»
     var w = max(max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width), max(layout.reactSize.width, layout.voiceSize.width))
+    if layout.timeBeside { w = max(w, min(inner, layout.reactSize.width + 10 + metaRoom)) }
     w = max(w, layout.fileSize.width) // Attachments
     if layout.quoteSize != .zero {
-      let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgSmallBold]).size().width)
-      w = max(w, min(inner, max(layout.quoteSize.width, author) + 12))
+      let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgQuoteAuthorFont]).size().width)
+      w = max(w, min(inner, max(layout.quoteSize.width, author) + 18))
     }
-    if !row.forward.isEmpty { w = max(w, min(inner, ceil(NSAttributedString(string: row.forward, attributes: [.font: msgSmallBold]).size().width))) }
+    if !row.forward.isEmpty { w = max(w, min(inner, ceil(NSAttributedString(string: row.forward, attributes: [.font: msgForwardFont]).size().width) + 2)) }
     // LinkPreview: the card stands under the text, and the time then goes under the card.
     if let card = row.linkCard {
       layout.card = MsgLinkCardLayout.make(card, width: inner)
@@ -365,27 +449,48 @@ struct MsgLayout {
       layout.album = MsgAlbumLayout.make(album, screenWidth: width, inner: inner)
       w = max(w, layout.album.size.width)
     }
-    if msgOpenLook && layout.textSize != .zero && layout.reactSize == .zero && layout.card.size == .zero && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 }) {
-      let laid = MsgText(row.fmt.isEmpty ? NSAttributedString(string: row.text, attributes: [.font: body, .paragraphStyle: msgWrap(true)])
-        : msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
+    // MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside.
+    let endsInBlock = stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 })
+    if let laid = laidBody, layout.reactSize == .zero, layout.card.size == .zero, !endsInBlock, row.bigEmoji == 0 {
       let last = laid.lastLine
-      // The time may stand out past the text's column, up to the page's own margin.
-      if last != .zero && ceil(last.maxX) + 8 + timeWidth <= width - 2 * (msgEdge + 13) {
+      let line = msgLineHeight(fontSize)
+      if msgOpenLook && !(row.media == "photo") {
+        // The open look: the time follows the last word («\u00A0\u00A0» + time, then the mark), on the next line
+        // when it does not fit.
+        let gap = ceil(NSAttributedString(string: "\u{00A0}\u{00A0}", attributes: [.font: msgMetaFont]).size().width)
         layout.timeInline = true
-        layout.timeAt = CGPoint(x: ceil(last.maxX) + 8, y: last.maxY)
-        w = max(w, ceil(last.maxX) + 8 + timeWidth)
+        if last != .zero && ceil(last.maxX) + gap + timeWidth <= inner {
+          layout.timeAt = CGPoint(x: ceil(last.maxX) + gap, y: last.maxY)
+          w = max(w, ceil(last.maxX) + gap + timeWidth)
+        } else {
+          layout.textSize.height += line
+          layout.timeAt = CGPoint(x: 0, y: layout.textSize.height)
+        }
+      } else {
+        // Bubbles: the time sits in the lower corner (10 from the right, 6 from the bottom) and an invisible spacer
+        // at the end of the words keeps its room: «\u00A0\u00A0\u00A0[silent]time[mine: 7 × \u00A0]\u00A0» in 11 pt.
+        let spacer = "\u{00A0}\u{00A0}\u{00A0}" + (row.silent ? String(repeating: "\u{00A0}", count: 5) : "") + row.time + (row.mine ? String(repeating: "\u{00A0}", count: 7) : "") + "\u{00A0}"
+        let room = ceil(NSAttributedString(string: spacer, attributes: [.font: msgMetaFont]).size().width)
+        layout.timeCorner = true
+        if last != .zero && ceil(last.maxX) + room <= inner {
+          w = max(w, ceil(last.maxX) + room)
+        } else {
+          layout.textSize.height += line
+          w = max(w, min(inner, room))
+        }
       }
     }
     // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
     if row.media == "photo" && row.text.isEmpty && row.quoteText.isEmpty && row.quoteAuthor.isEmpty && row.forward.isEmpty && layout.reactSize == .zero {
       layout.photoBare = true
       layout.bubble = layout.thumbSize
-      layout.height = layout.thumbSize.height + (row.tail ? 7 : 2)
+      layout.height = layout.thumbSize.height + (row.tail ? 6 : 2)
       return layout
     }
-    var h: CGFloat = 9
-    if !row.forward.isEmpty { h += 18 }
-    if layout.quoteSize != .zero { h += 17 + layout.quoteSize.height + 8 }
+    // MessageRow.tsx: 6 above the content.
+    var h: CGFloat = 6
+    if !row.forward.isEmpty { h += ceil(msgForwardFont.lineHeight) + 4 }
+    if layout.quoteSize != .zero { h += msgQuoteHeight(layout.quoteSize.height) + 6 }
     if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
     if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
@@ -395,9 +500,17 @@ struct MsgLayout {
     h += layout.textSize.height
     if layout.card.size != .zero { h += layout.card.size.height + 7 }
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
-    h += layout.timeInline ? 6 : 16 + 6
-    layout.bubble = CGSize(width: w + 26, height: h)
-    layout.height = h + (row.tail ? 7 : 2)
+    if layout.timeBeside {
+      // The time stands beside the chips: only the plate's 5 below.
+      layout.bubble = CGSize(width: max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h + 5)
+      layout.height = h + 5 + (row.tail ? 6 : 2)
+      return layout
+    }
+    // Below: 6 under words that carry the time; else the time's own row (4 above it, 5 below).
+    h += layout.timeInline || layout.timeCorner ? 6 : 4 + ceil(msgMetaFont.lineHeight) + 5
+    // Bubbles are at least 60 wide; 6 under the last message of a run, 2 inside one (`groupNext`).
+    layout.bubble = CGSize(width: max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h)
+    layout.height = h + (row.tail ? 6 : 2)
     return layout
   }
 }
@@ -530,6 +643,52 @@ final class MsgRowCanvas: UIView {
         .draw(with: textBox, options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
       return
     }
+    if item.kind == 1 && item.label == "day" {
+      let look = ThemeStore.look
+      let box = CGRect(x: (w - bubble.width) / 2, y: 15, width: bubble.width, height: bubble.height)
+      let fill = look.black ? UIColor(white: 0, alpha: 0.68) : look.dark ? UIColor(red: 30 / 255, green: 36 / 255, blue: 53 / 255, alpha: 0.68) : UIColor(white: 1, alpha: 0.52)
+      let edge = look.dark ? UIColor(white: 1, alpha: 0.08) : UIColor(white: 1, alpha: 0.88)
+      let outline = UIBezierPath(roundedRect: box.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 13.5)
+      context.setFillColor(fill.cgColor)
+      context.addPath(UIBezierPath(roundedRect: box, cornerRadius: 14).cgPath)
+      context.fillPath()
+      context.setStrokeColor(edge.cgColor)
+      context.setLineWidth(1)
+      context.addPath(outline.cgPath)
+      context.strokePath()
+      NSAttributedString(string: item.text, attributes: [.font: msgDayFont, .foregroundColor: palette.muted])
+        .draw(at: CGPoint(x: box.minX + 15, y: box.minY + 7))
+      return
+    }
+    if item.kind == 1 && item.label.hasPrefix("call") {
+      let look = ThemeStore.look
+      let red = item.label.contains("!")
+      let box = CGRect(x: (w - bubble.width) / 2, y: 0, width: bubble.width, height: bubble.height)
+      let fill = item.checked == 1 ? look.accentSoft : pressed ? (look.dark ? UIColor(white: 1, alpha: 0.10) : UIColor(white: 1, alpha: 0.78))
+        : look.dark ? UIColor(red: 12 / 255, green: 15 / 255, blue: 24 / 255, alpha: 0.60) : UIColor(white: 1, alpha: 0.62)
+      let edge = look.dark ? UIColor(white: 1, alpha: 0.08) : UIColor(white: 1, alpha: 0.88)
+      context.setFillColor(fill.cgColor)
+      context.addPath(UIBezierPath(roundedRect: box, cornerRadius: 20).cgPath)
+      context.fillPath()
+      context.setStrokeColor(edge.cgColor)
+      context.setLineWidth(1)
+      context.addPath(UIBezierPath(roundedRect: box.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 19.5).cgPath)
+      context.strokePath()
+      let circle = CGRect(x: box.minX + 1 + 8, y: box.midY - 17, width: 34, height: 34)
+      context.setFillColor((red ? look.dangerBg : look.accentSoft).cgColor)
+      context.fillEllipse(in: circle)
+      let icon = IonIcon.image(item.label.contains("v") ? "videocam" : "call", size: 17).withTintColor(red ? palette.danger : palette.accent, renderingMode: .alwaysOriginal)
+      icon.draw(at: CGPoint(x: circle.midX - 8.5, y: circle.midY - 8.5))
+      let textX = circle.maxX + 10
+      let textY = box.midY - layoutInfo.textSize.height / 2
+      let line = NSMutableParagraphStyle()
+      line.lineBreakMode = .byTruncatingTail
+      NSAttributedString(string: item.text, attributes: [.font: msgCallFont, .foregroundColor: red ? palette.danger : palette.text, .paragraphStyle: line])
+        .draw(with: CGRect(x: textX, y: textY, width: layoutInfo.textSize.width, height: ceil(msgCallFont.lineHeight)), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      NSAttributedString(string: item.time, attributes: [.font: msgCallTimeFont, .foregroundColor: palette.muted])
+        .draw(at: CGPoint(x: textX, y: textY + ceil(msgCallFont.lineHeight) + 1))
+      return
+    }
     if item.kind == 1 {
       let box = CGRect(x: (w - bubble.width) / 2, y: 0, width: bubble.width, height: bubble.height)
       context.setFillColor(palette.notice.cgColor)
@@ -544,24 +703,17 @@ final class MsgRowCanvas: UIView {
     }
     var side: CGFloat = msgEdge
     if item.checked >= 0 {
-      let center = CGPoint(x: 21, y: bubble.height / 2)
+      // MessageRow.tsx: a chosen message lies on accentSoft (radius 14, 6 past the list's margins); the mark is
+      // <Icon name="checkmark-circle"|"ellipse-outline" size={24}> at the left of a 30-point column.
       if item.checked == 1 {
-        context.setFillColor(palette.accent.cgColor)
-        context.fillEllipse(in: CGRect(x: center.x - 11, y: center.y - 11, width: 22, height: 22))
-        context.setStrokeColor(palette.onAccent.cgColor)
-        context.setLineWidth(2)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-        context.move(to: CGPoint(x: center.x - 5, y: center.y))
-        context.addLine(to: CGPoint(x: center.x - 1.5, y: center.y + 3.5))
-        context.addLine(to: CGPoint(x: center.x + 5, y: center.y - 3.5))
-        context.strokePath()
-      } else {
-        context.setStrokeColor(palette.subtle.cgColor)
-        context.setLineWidth(1.6)
-        context.strokeEllipse(in: CGRect(x: center.x - 10.5, y: center.y - 10.5, width: 21, height: 21))
+        context.setFillColor(ThemeStore.look.accentSoft.cgColor)
+        context.addPath(UIBezierPath(roundedRect: CGRect(x: msgEdge - 6, y: 0, width: w - 2 * (msgEdge - 6), height: bounds.height), cornerRadius: 14).cgPath)
+        context.fillPath()
       }
-      if !item.mine { side += 34 }
+      let mark = IonIcon.image(item.checked == 1 ? "checkmark-circle" : "ellipse-outline", size: 24)
+        .withTintColor(item.checked == 1 ? palette.accent : palette.subtle, renderingMode: .alwaysOriginal)
+      mark.draw(at: CGPoint(x: msgEdge, y: bounds.height / 2 - 12))
+      if !item.mine { side += 30 }
     }
     let left = item.mine ? w - msgEdge - bubble.width : side
     let box = CGRect(x: left, y: 0, width: bubble.width, height: bubble.height)
@@ -588,38 +740,36 @@ final class MsgRowCanvas: UIView {
       // ChatLook: the open look — the other side's words carry a thin line in their colour.
       ChatBubbleLook.drawPeerLine(context, box: box, fallback: palette.accent)
     }
-    if pressed {
-      context.setFillColor(Theme.veil(0.08).cgColor)
-      context.addPath(shape.cgPath)
-      context.fillPath()
-    }
-    if flash {
-      context.setFillColor(Theme.veil(0.14).cgColor)
-      context.addPath(shape.cgPath)
-      context.fillPath()
-    }
+    // MessageRow.tsx: a message has no pressed look (a tap opens its menu); the light after a jump from a quote is
+    // the cell's JumpFlash (MsgRowCell.playFlash).
 
-    let x = left + 13
-    var y: CGFloat = 9
-    let inner = bubble.width - 26
+    let pads = msgPads(item)
+    let x = left + pads.left
+    var y: CGFloat = 6
+    let inner = bubble.width - pads.left - pads.right
     let metaColor = item.mine ? palette.mineMeta : palette.muted
     let markColor = item.mine ? palette.mineMark : palette.accent
     if !item.forward.isEmpty {
-      draw(item.forward, msgSmallBold, markColor, CGRect(x: x, y: y, width: inner, height: 17), lines: false)
-      y += 18
+      draw(item.forward, msgForwardFont, palette.accent, CGRect(x: x + 1, y: y, width: inner - 2, height: ceil(msgForwardFont.lineHeight)), lines: false)
+      y += ceil(msgForwardFont.lineHeight) + 4
     }
     if layoutInfo.quoteSize != .zero {
-      let height = 17 + layoutInfo.quoteSize.height + 2
+      let height = msgQuoteHeight(layoutInfo.quoteSize.height)
       quoteBox = CGRect(x: x, y: y, width: inner, height: height)
-      context.setFillColor(palette.quote.cgColor)
-      context.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: inner, height: height), cornerRadius: 6).cgPath)
+      context.setFillColor((Theme.dark ? UIColor(white: 1, alpha: 0.06) : UIColor(white: 0, alpha: 0.04)).cgColor)
+      context.addPath(UIBezierPath(roundedRect: quoteBox, cornerRadius: 10).cgPath)
       context.fillPath()
+      context.saveGState()
+      UIBezierPath(roundedRect: quoteBox, cornerRadius: 10).addClip()
       context.setFillColor(markColor.cgColor)
-      context.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: 3, height: height), cornerRadius: 1.5).cgPath)
+      context.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: 3, height: height), cornerRadius: 2).cgPath)
       context.fillPath()
-      draw(item.quoteAuthor, msgSmallBold, markColor, CGRect(x: x + 9, y: y + 2, width: inner - 12, height: 16), lines: false)
-      draw(item.quoteText, msgSmallFont, metaColor, CGRect(x: x + 9, y: y + 17, width: inner - 12, height: layoutInfo.quoteSize.height), lines: true)
-      y += 17 + layoutInfo.quoteSize.height + 8
+      context.restoreGState()
+      let words = x + 3 + 7
+      draw(item.quoteAuthor, msgQuoteAuthorFont, markColor, CGRect(x: words, y: y + 5, width: inner - 18, height: ceil(msgQuoteAuthorFont.lineHeight)), lines: false)
+      NSAttributedString(string: item.quoteText, attributes: [.font: msgQuoteFont, .foregroundColor: metaColor, .paragraphStyle: msgQuoteStyle()])
+        .draw(with: CGRect(x: words, y: y + 5 + ceil(msgQuoteAuthorFont.lineHeight) + 1, width: inner - 18, height: layoutInfo.quoteSize.height), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      y += height + 6
     }
     // Attachments: the album's mosaic.
     if layoutInfo.album.size != .zero, let album = item.album {
@@ -654,7 +804,7 @@ final class MsgRowCanvas: UIView {
       y += picture.height + 6
     }
     // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
-    if mediaBoxes.thumb != .zero { MediaRowArt.marks(context, row: item, state: mediaState, palette: palette, box: mediaBoxes.thumb) }
+    if mediaBoxes.thumb != .zero { MediaRowArt.marks(context, row: item, state: mediaState, palette: palette, box: mediaBoxes.thumb, hosted: subviews.contains { $0 is NotePlayerView }) }
     if layoutInfo.voiceSize != .zero {
       mediaBoxes = MediaRowArt.voice(context, row: item, state: mediaState, palette: palette, box: CGRect(x: x, y: y, width: layoutInfo.voiceSize.width, height: layoutInfo.voiceSize.height))
       y += layoutInfo.voiceSize.height + 4
@@ -680,7 +830,7 @@ final class MsgRowCanvas: UIView {
       if hideBody && item.bigEmoji > 0 {
         // Avatars: the big emoji is drawn by its pop for the moment (Sources/Avatars/BigEmojiPop.swift).
       } else if item.fmt.isEmpty {
-        draw(item.text, UIFont.systemFont(ofSize: fontSize), palette.text, bodyBox, lines: true)
+        MsgText(msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner).draw(at: CGPoint(x: x, y: y))
       } else {
         let laid = MsgText(msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner)
         // The plates of quotes (with the accent bar, as in the React list) and of code blocks, under the text.
@@ -713,11 +863,13 @@ final class MsgRowCanvas: UIView {
     }
     chipBoxes = []
     if layoutInfo.reactSize != .zero && !item.chips.isEmpty {
-      for chip in msgChips(item, width: inner).chips {
+      let metaRoom = ceil(NSAttributedString(string: item.time, attributes: [.font: msgMetaFont]).size().width) + (item.mine ? 19 : 0) + (item.silent ? 15 : 0)
+      for chip in msgChips(item, width: layoutInfo.timeBeside ? max(40, inner - 10 - metaRoom) : inner).chips {
         let frame = chip.frame.offsetBy(dx: x, dy: y + 6)
         chipBoxes.append((frame, chip.emoji))
-        context.setFillColor((chip.mine ? palette.accent : palette.text.withAlphaComponent(0.10)).cgColor)
-        context.addPath(UIBezierPath(roundedRect: frame, cornerRadius: 12).cgPath)
+        // MessageRow.tsx: mine in the accent, else white 0.10 on dark / black 0.06 on light; radius 14.
+        context.setFillColor((chip.mine ? palette.accent : Theme.dark ? UIColor(white: 1, alpha: 0.10) : UIColor(white: 0, alpha: 0.06)).cgColor)
+        context.addPath(UIBezierPath(roundedRect: frame, cornerRadius: min(14, frame.height / 2)).cgPath)
         context.fillPath()
         let emoji = NSAttributedString(string: chip.emoji, attributes: [.font: msgChipEmoji])
         let emojiSize = emoji.size()
@@ -731,46 +883,38 @@ final class MsgRowCanvas: UIView {
       draw(item.reactions, msgSmallFont, palette.text, CGRect(x: x, y: y + 6, width: inner, height: layoutInfo.reactSize.height + 2), lines: true)
     }
 
-    let marks: CGFloat = item.mine ? 20 : 0
-    let time = NSAttributedString(string: item.time, attributes: [.font: msgMetaFont, .foregroundColor: item.ticks == 4 ? palette.danger : metaColor])
+    let marks: CGFloat = item.mine ? 19 : 0 // a 15-point mark 4 after the time
+    let time = NSAttributedString(string: item.time, attributes: [.font: msgMetaFont, .foregroundColor: metaColor]) // the time keeps its colour; the red is the mark
     let timeSize = time.size()
     // After the last word of the text, or in the plate's lower corner.
     let inline = layoutInfo.timeInline && bodyBox != .zero
-    // Without a plate, a time on its own line stands under the start of the other side's text.
-    let under = msgOpenLook && !item.mine ? x + ceil(timeSize.width) + marks : left + bubble.width - 13
+    // MessageRow.tsx: in the corner of a bubble 10 from the right and 6 from the bottom; on a row of its own at the
+    // right of the content (justify flex-end), 5 above the plate's bottom.
+    let corner = layoutInfo.timeCorner && bodyBox != .zero
+    let under = left + bubble.width - (corner ? 10 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
     let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks + (item.silent ? 15 : 0) : under // Composer: room for the bell
-    let timeBottom = inline ? bodyBox.minY + layoutInfo.timeAt.y - 2 : bubble.height - 6
+    // Inline, the time shares the last line's baseline (it is a trailing run of the words in the reference).
+    let bodyFont = UIFont.systemFont(ofSize: fontSize)
+    let lift = max(0, (msgLineHeight(fontSize) - bodyFont.lineHeight) / 2)
+    let baseline = bodyBox.minY + layoutInfo.timeAt.y - lift + bodyFont.descender
+    let timeBottom = inline ? baseline - msgMetaFont.ascender + timeSize.height : bubble.height - (corner ? 6 : layoutInfo.timeBeside ? 6 : 5)
     time.draw(at: CGPoint(x: right - marks - ceil(timeSize.width), y: timeBottom - timeSize.height))
-    // Composer: «без звука» — a crossed bell before the time.
-    if item.silent, let bell = UIImage(systemName: "bell.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .regular))?
-      .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
-      bell.draw(at: CGPoint(x: right - marks - ceil(timeSize.width) - 4 - bell.size.width, y: timeBottom - timeSize.height / 2 - bell.size.height / 2))
+    // Composer: «без звука» — <Icon name="notifications-off" size={11} color={t.subtle}> before the time, 4 apart.
+    if item.silent {
+      let bell = IonIcon.image("notifications-off", size: 11).withTintColor(palette.subtle, renderingMode: .alwaysOriginal)
+      bell.draw(at: CGPoint(x: right - marks - ceil(timeSize.width) - 4 - 11, y: timeBottom - timeSize.height / 2 - 5.5))
     }
-    let my = timeBottom - 6
+    // MessageRow.tsx: after the time (4 apart) <Icon name="checkmark"|"checkmark-done" size={15}>, read in the accent;
+    // on its way <Icon name="time-outline" size={12}>; failed <Icon name="alert-circle" size={13} color={t.danger}>.
+    let middle = timeBottom - timeSize.height / 2
     if item.mine && (item.ticks == 1 || item.ticks == 2) {
-      context.setStrokeColor((item.ticks == 2 ? markColor : metaColor).cgColor)
-      context.setLineWidth(1.5)
-      context.setLineCap(.round)
-      context.setLineJoin(.round)
-      let bx = right - 15
-      context.move(to: CGPoint(x: bx, y: my))
-      context.addLine(to: CGPoint(x: bx + 3.5, y: my + 3.5))
-      context.addLine(to: CGPoint(x: bx + 10, y: my - 4))
-      if item.ticks == 2 {
-        context.move(to: CGPoint(x: bx + 5, y: my + 1.5))
-        context.addLine(to: CGPoint(x: bx + 7, y: my + 3.5))
-        context.addLine(to: CGPoint(x: bx + 13.5, y: my - 4))
-      }
-      context.strokePath()
+      let tick = IonIcon.image(item.ticks == 2 ? "checkmark-done" : "checkmark", size: 15).withTintColor(item.ticks == 2 ? markColor : metaColor, renderingMode: .alwaysOriginal)
+      tick.draw(at: CGPoint(x: right - 15, y: middle - 7.5))
     } else if item.mine && item.ticks >= 3 {
-      context.setStrokeColor((item.ticks == 4 ? palette.danger : metaColor).cgColor)
-      context.setLineWidth(1.4)
-      let center = CGPoint(x: right - 7, y: my)
-      context.strokeEllipse(in: CGRect(x: center.x - 5, y: center.y - 5, width: 10, height: 10))
-      context.move(to: CGPoint(x: center.x, y: center.y - 2.5))
-      context.addLine(to: CGPoint(x: center.x, y: center.y + (item.ticks == 3 ? 0 : 0.5)))
-      if item.ticks == 3 { context.addLine(to: CGPoint(x: center.x + 2, y: center.y + 1)) }
-      context.strokePath()
+      let failed = item.ticks == 4
+      let side: CGFloat = failed ? 13 : 12
+      let mark = IonIcon.image(failed ? "alert-circle" : "time-outline", size: side).withTintColor(failed ? palette.danger : metaColor, renderingMode: .alwaysOriginal)
+      mark.draw(at: CGPoint(x: right - 15 + (15 - side) / 2, y: middle - side / 2))
     }
   }
 }
@@ -795,6 +939,27 @@ final class MsgRowCell: UITableViewCell {
     contentView.addSubview(canvas)
   }
   required init?(coder: NSCoder) { return nil }
+
+  /// MessageRow.tsx JumpFlash: accentSoft over the row (9 past the list's margins, 2 higher), in 160 ms, held
+  /// 650 ms, out in 550 ms.
+  private let jumpLight = UIView()
+  func playFlash() {
+    if jumpLight.superview == nil {
+      jumpLight.isUserInteractionEnabled = false
+      contentView.insertSubview(jumpLight, belowSubview: canvas)
+    }
+    jumpLight.backgroundColor = ThemeStore.look.accentSoft
+    jumpLight.frame = CGRect(x: msgEdge - 9, y: -2, width: contentView.bounds.width - 2 * (msgEdge - 9), height: contentView.bounds.height)
+    jumpLight.alpha = 0
+    // withTiming's own easing: Easing.inOut(Easing.quad).
+    let light = jumpLight
+    let rise = UIViewPropertyAnimator(duration: 0.16, controlPoint1: CGPoint(x: 0.455, y: 0.03), controlPoint2: CGPoint(x: 0.515, y: 0.955)) { light.alpha = 1 }
+    rise.addCompletion { (_: UIViewAnimatingPosition) -> Void in
+      let fade = UIViewPropertyAnimator(duration: 0.55, controlPoint1: CGPoint(x: 0.455, y: 0.03), controlPoint2: CGPoint(x: 0.515, y: 0.955)) { light.alpha = 0 }
+      fade.startAnimation(afterDelay: 0.65)
+    }
+    rise.startAnimation()
+  }
 
   func show(_ row: MsgRow, _ palette: MsgPalette, _ fontSize: CGFloat, _ layout: MsgLayout, _ revealed: Bool) {
     // Voice/Video: a round video playing in place belongs to one row; a cell given to another row lets it go.
@@ -1148,6 +1313,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       if rowCell.canvas.flash != lit {
         rowCell.canvas.flash = lit
         rowCell.canvas.setNeedsDisplay()
+        if lit { rowCell.playFlash() }
       }
     }
   }

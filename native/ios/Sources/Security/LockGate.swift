@@ -162,7 +162,7 @@ final class LockGate: NSObject {
 final class LockCoverViewController: UIViewController {
     var onRetry: (() -> Void)?
     private let words = UILabel()
-    private let again = SettingsButton(label: "Повторить", kind: .secondary)
+    private let again = SettingsButton(label: "Повторить", kind: .primary, icon: "refresh-outline")
     private var retrying = false
 
     override func viewDidLoad() {
@@ -264,7 +264,7 @@ final class LockViewController: UIViewController {
         ])
         if LockStore.shared.current.biometrics, let label = LockBiometrics.label() {
             bioLabel = label
-            made.biometric = (symbol: label == "Face ID" ? "faceid" : "touchid", label: label, press: { [weak self] in self?.tryBiometrics() })
+            made.biometric = (symbol: label == "Face ID" ? "ion:scan-outline" : "ion:finger-print-outline", label: label, press: { [weak self] in self?.tryBiometrics() })
         }
         refreshWords()
         ticker = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] (_: Timer) -> Void in self?.refreshWords() }

@@ -4,9 +4,11 @@ import UIKit
 /// Ported from the reference's PeopleScreen.tsx (its «Звонки» half waits for calls).
 final class PeopleViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UITextFieldDelegate {
     private enum Item {
-        case label(String)
-        case notice(String)
+        /// A heading of the requests (`first`: the upper of the two sections; the next one stands 6 lower).
+        case label(String, first: Bool)
         case request(Person, incoming: Bool)
+        /// The 12 between the requests and the people (the requests' `paddingBottom`).
+        case gap
         case person(Person)
         case empty(heading: String, words: String)
     }
@@ -24,6 +26,10 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
     private let clearButton = UIButton(type: .system)
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let table = UITableView(frame: .zero, style: .plain)
+    /// What did not work (the reference's `Notice error`), above the list, 17 from the sides.
+    private let notice = PeopleNoticeView()
+    /// «ДРУЗЬЯ  5» / «РЕЗУЛЬТАТЫ ПОИСКА»: above the list, not in it (it does not scroll), 26 from the left.
+    private let listLabel = UILabel()
     /// ChatsPlus: «Друзья | Звонки» and the list of recent calls (Sources/ChatsPlus/CallHistory.swift).
     private lazy var calls = CallHistoryPanel(messenger: messenger)
 
@@ -77,6 +83,11 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
 
         view.addSubview(header)
         view.addSubview(searchBox)
+        notice.isHidden = true
+        view.addSubview(notice)
+        listLabel.isHidden = true
+        listLabel.accessibilityTraits = .header
+        view.addSubview(listLabel)
         field.attributedPlaceholder = NSAttributedString(string: "@имя или имя", attributes: [.foregroundColor: Theme.muted])
         field.font = .systemFont(ofSize: 15)
         field.textColor = Theme.text
@@ -90,7 +101,7 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         field.delegate = self
         field.addTarget(self, action: #selector(queryChanged), for: .editingChanged)
         searchBox.addSubview(field)
-        clearButton.setImage(UIImage(systemName: "xmark.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .regular)), for: .normal)
+        clearButton.setImage(IonIcon.image("close-circle", size: 18), for: .normal)
         clearButton.tintColor = Theme.muted
         clearButton.accessibilityLabel = "Очистить поиск"
         clearButton.addTarget(self, action: #selector(clearQuery), for: .touchUpInside)
@@ -129,10 +140,21 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: 72)
         // ChatsPlus: the switch «Друзья | Звонки» stands between the header and the search (14 under the pill).
         searchBox.frame = CGRect(x: 17, y: calls.place(in: view, top: header.frame.maxY + 2) + 14, width: width - 34, height: 54)
-        clearButton.frame = CGRect(x: searchBox.bounds.width - 46, y: 5, width: 44, height: 44)
+        // The clear button: `IconButton` 30 wide, 44 tall, at the end of the row (paddingHorizontal 15, gap 10).
+        clearButton.frame = CGRect(x: searchBox.bounds.width - 15 - 30, y: 5, width: 30, height: 44)
         spinner.center = clearButton.center
-        field.frame = CGRect(x: searchBox.wordsLeft, y: 0, width: searchBox.bounds.width - searchBox.wordsLeft - 48, height: 54)
-        let listTop = searchBox.frame.maxY + 17
+        field.frame = CGRect(x: searchBox.wordsLeft, y: 0, width: searchBox.bounds.width - searchBox.wordsLeft - 15 - 30 - 10, height: 54)
+        var listTop = searchBox.frame.maxY + 17
+        if !notice.isHidden {
+            let tall = notice.height(for: width - 34)
+            notice.frame = CGRect(x: 17, y: listTop, width: width - 34, height: tall)
+            listTop += tall + 12
+        }
+        if !listLabel.isHidden {
+            let tall = ceil(listLabel.sizeThatFits(CGSize(width: width - 52, height: 100)).height)
+            listLabel.frame = CGRect(x: 26, y: listTop, width: width - 52, height: tall)
+            listTop += tall + 12
+        }
         table.frame = CGRect(x: 0, y: listTop, width: width, height: view.bounds.height - listTop)
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
         let bottom = max(barRoom, keyboardHeight + 12)
@@ -234,22 +256,26 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
             clearButton.isHidden = (field.text ?? "").isEmpty
         }
         var list: [Item] = []
-        if !problem.isEmpty { list.append(.notice(problem)) }
+        notice.show(problem)
+        notice.isHidden = problem.isEmpty
         let search = isSearch
         if !search {
             let came = incoming, sent = outgoing
             if !came.isEmpty {
-                list.append(.label("ЗАЯВКИ В ДРУЗЬЯ  \(came.count)"))
+                list.append(.label("ЗАЯВКИ В ДРУЗЬЯ  \(came.count)", first: true))
                 for person in came { list.append(.request(person, incoming: true)) }
             }
             if !sent.isEmpty {
-                list.append(.label("ОТПРАВЛЕННЫЕ  \(sent.count)"))
+                list.append(.label("ОТПРАВЛЕННЫЕ  \(sent.count)", first: came.isEmpty))
                 for person in sent { list.append(.request(person, incoming: false)) }
             }
+            if !came.isEmpty || !sent.isEmpty { list.append(.gap) }
         }
         let shown = search ? found : friends
+        listLabel.isHidden = shown.isEmpty
+        listLabel.attributedText = NSAttributedString(string: search ? "РЕЗУЛЬТАТЫ ПОИСКА" : "ДРУЗЬЯ  \(friends.count)", attributes: PeopleLabelCell.attributes)
+        view.setNeedsLayout()
         if !shown.isEmpty {
-            list.append(.label(search ? "РЕЗУЛЬТАТЫ ПОИСКА" : "ДРУЗЬЯ  \(friends.count)"))
             for person in shown { list.append(.person(person)) }
         } else if !searching {
             if !search {
@@ -268,23 +294,24 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         switch items[indexPath.row] {
-        case .label: return 34
-        case .notice(let words): return PeopleLabelCell.height(words, width: tableView.bounds.width)
-        case .request: return 78
-        case .person: return 83
-        case .empty: return 300
+        // A request: 12 + the picture (54) + 12, and 6 under it; a person: 14 + 54 + 14, and 7 under it.
+        case .label(_, let first): return PeopleLabelCell.height + (first ? 0 : 6)
+        case .gap: return 12
+        case .request: return 84
+        case .person: return 89
+        case .empty: return max(PeopleEmptyCell.height(tableView.bounds.width), tableView.bounds.height - tableView.contentInset.bottom - 35)
         }
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         switch items[indexPath.row] {
-        case .label(let words):
+        case .label(let words, _):
             let cell = tableView.dequeueReusableCell(withIdentifier: "label", for: indexPath)
-            (cell as? PeopleLabelCell)?.show(words, notice: false)
+            (cell as? PeopleLabelCell)?.show(words)
             return cell
-        case .notice(let words):
+        case .gap:
             let cell = tableView.dequeueReusableCell(withIdentifier: "label", for: indexPath)
-            (cell as? PeopleLabelCell)?.show(words, notice: true)
+            (cell as? PeopleLabelCell)?.show("")
             return cell
         case .empty(let heading, let words):
             let cell = tableView.dequeueReusableCell(withIdentifier: "empty", for: indexPath)
@@ -295,9 +322,9 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
             var buttons: [PersonCell.Action] = []
             if came {
                 buttons.append(PersonCell.Action(symbol: "checkmark", words: "Принять: \(person.displayName)", look: .primary) { [weak self] in self?.answer(person, accept: true) })
-                buttons.append(PersonCell.Action(symbol: "xmark", words: "Отклонить: \(person.displayName)", look: .outline) { [weak self] in self?.answer(person, accept: false) })
+                buttons.append(PersonCell.Action(symbol: "close", words: "Отклонить: \(person.displayName)", look: .outline) { [weak self] in self?.answer(person, accept: false) })
             } else {
-                buttons.append(PersonCell.Action(symbol: "xmark", words: "Отменить заявку: \(person.displayName)", look: .outline) { [weak self] in self?.answer(person, accept: false) })
+                buttons.append(PersonCell.Action(symbol: "close", words: "Отменить заявку: \(person.displayName)", look: .outline) { [weak self] in self?.answer(person, accept: false) })
             }
             let handle = came ? "@\(person.username)" : "@\(person.username) · Ждёт ответа"
             (cell as? PersonCell)?.show(person, address: address(person), handle: handle, framed: true, dimmed: acting != nil && acting != person.id,
@@ -307,8 +334,8 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         case .person(let person):
             let cell = tableView.dequeueReusableCell(withIdentifier: "person", for: indexPath)
             let buttons: [PersonCell.Action] = [
-                PersonCell.Action(symbol: "info.circle", words: "Профиль \(person.displayName)", look: .plain) { [weak self] in self?.showProfile(person) },
-                PersonCell.Action(symbol: "bubble.left", words: "Написать: \(person.displayName)", look: .soft) { [weak self] in self?.openChat(person) },
+                PersonCell.Action(symbol: "information-circle-outline", words: "Профиль \(person.displayName)", look: .plain) { [weak self] in self?.showProfile(person) },
+                PersonCell.Action(symbol: "chatbubble-outline", words: "Написать: \(person.displayName)", look: .soft) { [weak self] in self?.openChat(person) },
             ]
             (cell as? PersonCell)?.show(person, address: address(person), handle: "@\(person.username)", framed: false, dimmed: creating != nil && creating != person.id,
                                         busy: creating == person.id, enabled: creating == nil, buttons: buttons)
@@ -416,91 +443,118 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
     #endif
 }
 
-/// A quiet heading of a part of the list («ДРУЗЬЯ  5»), or words about what did not work.
+/// A quiet heading of the requests («ЗАЯВКИ В ДРУЗЬЯ  2»): 10, bold, 1.7 apart, 26 from the left, 4 above, 10 under.
 final class PeopleLabelCell: UITableViewCell {
     private let words = UILabel()
-    private static let noticeFont = UIFont.systemFont(ofSize: 14)
+    static let attributes: [NSAttributedString.Key: Any] = [.kern: 1.7, .font: UIFont.systemFont(ofSize: 10, weight: .bold), .foregroundColor: Theme.muted]
+    static var height: CGFloat { return 4 + ceil(UIFont.systemFont(ofSize: 10, weight: .bold).lineHeight) + 10 }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectionStyle = .none
-        words.numberOfLines = 0
         contentView.addSubview(words)
     }
 
     required init?(coder: NSCoder) { return nil }
 
-    static func height(_ text: String, width: CGFloat) -> CGFloat {
-        let box = (text as NSString).boundingRect(with: CGSize(width: max(10, width - 52), height: 1000), options: [.usesLineFragmentOrigin], attributes: [.font: noticeFont], context: nil)
-        return ceil(box.height) + 22
-    }
-
-    func show(_ text: String, notice: Bool) {
-        if notice {
-            words.attributedText = nil
-            words.text = text
-            words.font = PeopleLabelCell.noticeFont
-            words.textColor = Theme.danger
-        } else {
-            words.attributedText = NSAttributedString(string: text, attributes: [.kern: 1.7, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
-        }
-        accessibilityTraits = notice ? .staticText : .header
+    func show(_ text: String) {
+        words.attributedText = NSAttributedString(string: text, attributes: PeopleLabelCell.attributes)
+        accessibilityTraits = .header
+        isAccessibilityElement = !text.isEmpty
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        words.frame = CGRect(x: 26, y: 0, width: contentView.bounds.width - 52, height: contentView.bounds.height - 8)
+        let line = ceil(UIFont.systemFont(ofSize: 10, weight: .bold).lineHeight)
+        words.frame = CGRect(x: 26, y: contentView.bounds.height - 10 - line, width: contentView.bounds.width - 52, height: line)
     }
 }
 
-/// «Кому напишем?» — the list is empty.
-final class PeopleEmptyCell: UITableViewCell {
-    private let badge = UIView()
-    private let icon = UIImageView()
-    private let heading = UILabel()
+/// What did not work (the reference's `Notice` with `error`): glass of radius 18 under the danger tint, the
+/// `alert-circle-outline` (19) and the words (13 on 19) in the danger colour, 14 inside, 10 between.
+final class PeopleNoticeView: UIView {
+    private let pill = GlassPill(interactive: false)
+    private let tint = UIView()
+    private let icon = UIImageView(image: IonIcon.image("alert-circle-outline", size: 19))
     private let words = UILabel()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        pill.shape(radius: 18)
+        addSubview(pill)
+        tint.layer.cornerRadius = 18
+        tint.layer.cornerCurve = .continuous
+        tint.isUserInteractionEnabled = false
+        addSubview(tint)
+        icon.tintColor = Theme.danger
+        addSubview(icon)
+        words.numberOfLines = 0
+        addSubview(words)
+        accessibilityTraits = .staticText
+        isAccessibilityElement = true
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    private func text(_ value: String) -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 19
+        style.maximumLineHeight = 19
+        return NSAttributedString(string: value, attributes: [.font: UIFont.systemFont(ofSize: 13), .foregroundColor: Theme.danger, .paragraphStyle: style])
+    }
+
+    func show(_ value: String) {
+        words.attributedText = text(value)
+        tint.backgroundColor = ThemeStore.look.dangerBg
+        accessibilityLabel = value
+        setNeedsLayout()
+    }
+
+    func height(for width: CGFloat) -> CGFloat {
+        let room = max(10, width - 28 - 19 - 10)
+        return max(19, ceil(words.sizeThatFits(CGSize(width: room, height: 1000)).height)) + 28
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        pill.frame = bounds
+        tint.frame = bounds
+        icon.frame = CGRect(x: 14, y: 14, width: 19, height: 19)
+        let room = max(10, bounds.width - 28 - 19 - 10)
+        words.frame = CGRect(x: 14 + 19 + 10, y: 14, width: room, height: bounds.height - 28)
+    }
+}
+
+/// «Кому напишем?» — the list is empty: the reference's `Empty` with `people-outline`, in the middle of the room
+/// left (`justifyContent: center`, 35 kept free under it).
+final class PeopleEmptyCell: UITableViewCell {
+    private let empty = EmptyStateView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectionStyle = .none
-        badge.backgroundColor = Theme.veil(0.07)
-        badge.layer.cornerRadius = 30
-        badge.layer.cornerCurve = .continuous
-        contentView.addSubview(badge)
-        icon.image = UIImage(systemName: "person.2", withConfiguration: UIImage.SymbolConfiguration(pointSize: 30, weight: .regular))
-        icon.tintColor = Theme.accent
-        icon.contentMode = .center
-        badge.addSubview(icon)
-        heading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
-        heading.textColor = Theme.text
-        heading.textAlignment = .center
-        contentView.addSubview(heading)
-        words.font = .systemFont(ofSize: 15)
-        words.textColor = Theme.muted
-        words.textAlignment = .center
-        words.numberOfLines = 0
-        contentView.addSubview(words)
+        contentView.addSubview(empty)
     }
 
     required init?(coder: NSCoder) { return nil }
 
+    private static let sizer = EmptyStateView()
+
+    static func height(_ width: CGFloat) -> CGFloat {
+        sizer.show(symbol: "ion:people-outline", title: "Кому напишем?", words: "Введи @имя целиком или его первые 4 символа, либо имя полностью.")
+        return sizer.height(for: width - 28)
+    }
+
     func show(heading title: String, words text: String) {
-        heading.text = title
-        words.text = text
+        empty.show(symbol: "ion:people-outline", title: title, words: text)
         setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let width = contentView.bounds.width
-        badge.frame = CGRect(x: (width - 94) / 2, y: 38, width: 94, height: 94)
-        icon.frame = badge.bounds
-        heading.frame = CGRect(x: 28, y: badge.frame.maxY + 21, width: width - 56, height: 27)
-        let room = min(310, width - 56)
-        let size = words.sizeThatFits(CGSize(width: room, height: 1000))
-        words.frame = CGRect(x: (width - room) / 2, y: heading.frame.maxY + 13, width: room, height: ceil(size.height))
+        empty.frame = CGRect(x: 14, y: 0, width: contentView.bounds.width - 28, height: contentView.bounds.height - 35)
     }
 }
 
@@ -532,8 +586,6 @@ final class PersonCell: UITableViewCell {
         card.layer.cornerCurve = .continuous
         contentView.addSubview(card)
         card.addSubview(avatar)
-        nameLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        nameLabel.textColor = Theme.text
         card.addSubview(nameLabel)
         handleLabel.font = .systemFont(ofSize: 12)
         handleLabel.textColor = Theme.muted
@@ -550,13 +602,15 @@ final class PersonCell: UITableViewCell {
     func show(_ person: Person, address: String, handle: String, framed: Bool, dimmed: Bool, busy: Bool, enabled: Bool, buttons actions: [Action]) {
         self.framed = framed
         avatar.show(person, address: address)
-        nameLabel.text = person.displayName
+        // A request: the name 15; a person: 16 with −0.2 between the letters (PeopleScreen.tsx).
+        nameLabel.attributedText = NSAttributedString(string: person.displayName, attributes: [.font: UIFont.systemFont(ofSize: framed ? 15 : 16, weight: .semibold), .foregroundColor: Theme.text, .kern: framed ? 0 : -0.2])
+        nameLabel.lineBreakMode = .byTruncatingTail
         statusEmoji.show(person.look, size: framed ? 14 : 15) // Avatars
         handleLabel.text = handle
-        card.layer.borderWidth = framed ? 1 : 0
-        card.layer.borderColor = Theme.veil(0.08).cgColor
-        card.backgroundColor = framed ? Theme.veil(0.04) : .clear
-        card.alpha = dimmed ? 0.5 : 1
+        card.layer.borderWidth = 1
+        paintCard(pressed: false)
+        card.layer.cornerRadius = framed ? 22 : 24
+        card.alpha = dimmed ? (framed ? 0.5 : 0.45) : 1
         for button in buttons { button.removeFromSuperview() }
         buttons = []
         // While this row's request is on its way, the wheel stands where its buttons were (in a list of
@@ -564,24 +618,39 @@ final class PersonCell: UITableViewCell {
         var shown: [Action] = actions
         if busy { shown = framed ? [] : Array(actions.dropLast()) }
         for action in shown {
-            let button = UIButton(type: .system)
-            button.setImage(UIImage(systemName: action.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: action.look == .plain ? 19 : 15, weight: .medium)), for: .normal)
+            let button = UIButton(type: .custom)
+            // `IconButton` (the info): 22 on a clear glass round 38 × 40; the others 19 on 38 × 38.
+            button.setImage(IonIcon.image(action.symbol, size: action.look == .plain ? 22 : 19), for: .normal)
             button.accessibilityLabel = action.words
             button.isEnabled = enabled
-            button.layer.cornerRadius = 19
+            button.layer.cornerCurve = .continuous
             switch action.look {
             case .plain:
                 button.tintColor = Theme.muted
             case .soft:
                 button.tintColor = Theme.accent
-                button.backgroundColor = Theme.veil(0.08)
+                button.backgroundColor = ThemeStore.look.accentSoft
+                button.layer.cornerRadius = 18
+                button.layer.borderWidth = 1
+                button.layer.borderColor = ThemeStore.look.border.cgColor
+                button.isUserInteractionEnabled = false // the row itself opens the chat
             case .primary:
                 button.tintColor = Theme.onAccent
                 button.backgroundColor = Theme.accent
+                button.layer.cornerRadius = 19
             case .outline:
                 button.tintColor = Theme.muted
+                button.layer.cornerRadius = 19
                 button.layer.borderWidth = 1
-                button.layer.borderColor = Theme.veil(0.14).cgColor
+                button.layer.borderColor = ThemeStore.look.border.cgColor
+            }
+            if action.look == .plain {
+                button.frame = CGRect(x: 0, y: 0, width: 38, height: 40)
+                GlassBacking.put(under: button, side: 38)
+            } else if action.look != .soft {
+                // Pressable with `opacity: pressed ? .6 : 1`.
+                button.addAction(UIAction { [weak button] _ in button?.alpha = 0.6 }, for: [.touchDown, .touchDragEnter])
+                button.addAction(UIAction { [weak button] _ in button?.alpha = 1 }, for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
             }
             let run = action.run
             button.addAction(UIAction { _ in run() }, for: .touchUpInside)
@@ -592,34 +661,54 @@ final class PersonCell: UITableViewCell {
         setNeedsLayout()
     }
 
+    /// A person's row: clear, and on a press the page's border and a light veil; a request's: always framed.
+    private func paintCard(pressed: Bool) {
+        if framed {
+            card.backgroundColor = Theme.dark ? UIColor(white: 1, alpha: 0.04) : UIColor(white: 1, alpha: 0.45)
+            card.layer.borderColor = ThemeStore.look.border.cgColor
+        } else {
+            card.backgroundColor = pressed ? (Theme.dark ? UIColor(white: 1, alpha: 0.07) : UIColor(white: 1, alpha: 0.5)) : .clear
+            card.layer.borderColor = pressed ? ThemeStore.look.border.cgColor : UIColor.clear.cgColor
+        }
+    }
+
     override func setHighlighted(_ highlighted: Bool, animated: Bool) {
         super.setHighlighted(highlighted, animated: animated)
-        card.backgroundColor = highlighted ? Theme.veil(0.07) : (framed ? Theme.veil(0.04) : .clear)
+        paintCard(pressed: highlighted)
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        // A request: 12 inside, 12 between, 6 under; a person: 14, 14, 7.
         let gap: CGFloat = framed ? 6 : 7
+        let inset: CGFloat = framed ? 12 : 14
+        let between: CGFloat = framed ? 12 : 14
         card.frame = CGRect(x: 14, y: 0, width: contentView.bounds.width - 28, height: contentView.bounds.height - gap)
         let height = card.bounds.height
-        avatar.frame = CGRect(x: 14, y: (height - 48) / 2, width: 48, height: 48)
-        var right = card.bounds.width - 12
+        avatar.frame = CGRect(x: inset, y: (height - 54) / 2, width: 54, height: 54)
+        var right = card.bounds.width - inset
         if waiting.isAnimating {
-            waiting.center = CGPoint(x: right - 19, y: height / 2)
-            right -= 38 + 6
+            waiting.center = CGPoint(x: right - waiting.bounds.width / 2, y: height / 2)
+            right -= waiting.bounds.width + between
         }
         for button in buttons.reversed() {
-            button.frame = CGRect(x: right - 38, y: (height - 38) / 2, width: 38, height: 38)
-            right -= 38 + 6
+            let tall: CGFloat = button.bounds.height == 40 ? 40 : 38
+            button.frame = CGRect(x: right - 38, y: (height - tall) / 2, width: 38, height: tall)
+            right -= 38 + between
         }
-        let left = avatar.frame.maxX + 14
-        let room = max(0, right - left)
+        right += between
+        let left = avatar.frame.maxX + between
+        let room = max(0, right - between - left)
         // Avatars: the name, then the emoji status 6 pt after it (the name gives way when the room is short).
         let emojiSize = statusEmoji.isHidden ? CGSize.zero : statusEmoji.intrinsicContentSize
         let emojiRoom = statusEmoji.isHidden ? 0 : emojiSize.width + 6
+        let nameLine = ceil(UIFont.systemFont(ofSize: framed ? 15 : 16, weight: .semibold).lineHeight)
+        let handleLine = ceil(UIFont.systemFont(ofSize: 12).lineHeight)
+        let spacing: CGFloat = framed ? 4 : 6
+        let top = (height - nameLine - spacing - handleLine) / 2
         let nameWidth = min(max(0, room - emojiRoom), ceil(nameLabel.intrinsicContentSize.width))
-        nameLabel.frame = CGRect(x: left, y: height / 2 - 21, width: nameWidth, height: 21)
-        statusEmoji.frame = CGRect(x: left + nameWidth + 6, y: height / 2 - 10.5 - emojiSize.height / 2, width: emojiSize.width, height: emojiSize.height)
-        handleLabel.frame = CGRect(x: left, y: height / 2 + 4, width: room, height: 16)
+        nameLabel.frame = CGRect(x: left, y: top, width: nameWidth, height: nameLine)
+        statusEmoji.frame = CGRect(x: left + nameWidth + 6, y: top + nameLine / 2 - emojiSize.height / 2, width: emojiSize.width, height: emojiSize.height)
+        handleLabel.frame = CGRect(x: left, y: top + nameLine + spacing, width: room, height: handleLine)
     }
 }

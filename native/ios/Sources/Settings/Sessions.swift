@@ -42,15 +42,15 @@ enum SessionWords {
         return false
     }
 
-    /// The icon of the device's kind.
+    /// The icon of the device's kind: the reference's `deviceIcon` (SecurityScreen.tsx), an Ionicons name with "ion:".
     static func symbol(_ session: [String: Any]) -> String {
         let platform = text(session, "platform")
         if platform == "ios" || platform == "android" {
-            return mentions(text(session, "deviceModel"), ["ipad", "tablet"]) ? "ipad" : "iphone"
+            return mentions(text(session, "deviceModel"), ["ipad", "tablet"]) ? "ion:tablet-portrait-outline" : "ion:phone-portrait-outline"
         }
-        if platform == "web" { return "globe" }
-        if platform == "windows" { return "desktopcomputer" }
-        return mentions(text(session, "deviceName"), ["android", "iphone", "ipad", "ios", "pixel", "galaxy"]) ? "iphone" : "desktopcomputer"
+        if platform == "web" { return "ion:globe-outline" }
+        if platform == "windows" { return "ion:desktop-outline" }
+        return mentions(text(session, "deviceName"), ["android", "iphone", "ipad", "ios", "pixel", "galaxy"]) ? "ion:phone-portrait-outline" : "ion:desktop-outline"
     }
 
     /// This device first, then the newest sign-ins.
@@ -96,7 +96,7 @@ final class SessionsViewController: SettingsPage {
     required init?(coder: NSCoder) { return nil }
 
     override func build() {
-        setSide(symbol: "arrow.clockwise", label: "Обновить список сеансов") { [weak self] in
+        setSide(symbol: "ion:refresh-outline", label: "Обновить список сеансов") { [weak self] in
             guard let self, !self.busy, !self.loading else { return }
             self.refresh()
         }
@@ -152,7 +152,7 @@ final class SessionsViewController: SettingsPage {
         if !current.isEmpty { addGroup(rows: current.map { row($0) }) }
 
         // «Завершить все другие сеансы» sits between this device and the other sessions.
-        let endOthers = SettingsButton(label: "Завершить все другие сеансы", kind: .danger)
+        let endOthers = SettingsButton(label: "Завершить все другие сеансы", kind: .danger, icon: "log-out-outline")
         endOthers.isEnabled = !busy && !others.isEmpty
         endOthers.onPress = { [weak self] in self?.askToEndOthers() }
         add(endOthers, gap: 14)
@@ -243,11 +243,13 @@ final class SessionRow: UIControl {
     init(session: [String: Any]) {
         super.init(frame: .zero)
         let current = SessionWords.isCurrent(session)
-        let icon = UIImageView(image: SettingsLook.symbol(SessionWords.symbol(session), size: 19))
-        icon.tintColor = Theme.text
+        // The reference's `SessionRow`: a 42 square of `accentSoft`, radius 16, the glyph 23 in the accent.
+        let icon = UIImageView(image: SettingsLook.symbol(SessionWords.symbol(session), size: 23))
+        icon.tintColor = Theme.accent
         icon.contentMode = .center
-        icon.backgroundColor = SettingsLook.chip
-        icon.layer.cornerRadius = 21
+        icon.backgroundColor = ThemeStore.look.accentSoft
+        icon.layer.cornerRadius = 16
+        icon.layer.cornerCurve = .continuous
         icon.layer.masksToBounds = true
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 42).isActive = true
@@ -264,8 +266,8 @@ final class SessionRow: UIControl {
             let mark = PaddedLabel()
             mark.text = "Это устройство"
             mark.font = .systemFont(ofSize: 10, weight: .bold)
-            mark.textColor = Theme.text
-            mark.backgroundColor = SettingsLook.chip
+            mark.textColor = Theme.accent
+            mark.backgroundColor = ThemeStore.look.accentSoft
             mark.layer.cornerRadius = 8
             mark.layer.masksToBounds = true
             mark.setContentHuggingPriority(.required, for: .horizontal)
@@ -292,7 +294,7 @@ final class SessionRow: UIControl {
         last.numberOfLines = 1
         texts.addArrangedSubview(last)
 
-        let chevron = UIImageView(image: SettingsLook.symbol("chevron.right", size: 13, weight: .semibold))
+        let chevron = UIImageView(image: IonIcon.image("chevron-forward", size: 18))
         chevron.tintColor = Theme.subtle
         chevron.contentMode = .center
         chevron.setContentHuggingPriority(.required, for: .horizontal)
@@ -341,7 +343,7 @@ final class SessionDetailViewController: SettingsPage {
         self.session = session
         self.onEnd = onEnd
         let current = SessionWords.isCurrent(session)
-        endButton = SettingsButton(label: current ? "Выйти на этом устройстве" : "Завершить сеанс", kind: .danger)
+        endButton = SettingsButton(label: current ? "Выйти на этом устройстве" : "Завершить сеанс", kind: .danger, icon: "log-out-outline")
         super.init(name: current ? "Это устройство" : "Сеанс")
     }
 
@@ -367,11 +369,13 @@ final class SessionDetailViewController: SettingsPage {
 
     override func build() {
         let current = SessionWords.isCurrent(session)
-        let icon = UIImageView(image: SettingsLook.symbol(SessionWords.symbol(session), size: 22))
-        icon.tintColor = Theme.text
+        // The reference's sheet: a 48 square of `accentSoft`, radius 18, the glyph 26 in the accent.
+        let icon = UIImageView(image: SettingsLook.symbol(SessionWords.symbol(session), size: 26))
+        icon.tintColor = Theme.accent
         icon.contentMode = .center
-        icon.backgroundColor = SettingsLook.chip
-        icon.layer.cornerRadius = 24
+        icon.backgroundColor = ThemeStore.look.accentSoft
+        icon.layer.cornerRadius = 18
+        icon.layer.cornerCurve = .continuous
         icon.layer.masksToBounds = true
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 48).isActive = true

@@ -7,6 +7,8 @@ final class SettingsViewController: SettingsPage {
     /// but «О приложении»).
     private let messenger: Messenger?
     private var leaving = false
+    /// How many chats are quiet right now (the reference's `mutedChats`), from the list kept on this device.
+    private var mutedChats = 0
     // Profile: the banner, the effect, «Изменить» and the decorated head (Sources/Profile/SettingsProfileHead.swift).
     private let profileChrome = SettingsProfileChrome()
 
@@ -32,6 +34,17 @@ final class SettingsViewController: SettingsPage {
         super.viewWillAppear(animated)
         messenger?.prepareSettingsAvatars()
         messenger?.refreshOwnProfile()
+        messenger?.cachedChats { [weak self] (list: [Messenger.ChatSummary]) -> Void in
+            guard let self else { return }
+            let quiet = list.filter { (chat: Messenger.ChatSummary) -> Bool in
+                guard let settings = chat.chat["settings"] as? [String: Any] else { return false }
+                return NotificationsViewController.muteState(settings)["muted"] as? Bool ?? false
+            }.count
+            if quiet != self.mutedChats {
+                self.mutedChats = quiet
+                self.build()
+            }
+        }
     }
 
     override func viewDidLayoutSubviews() {
@@ -65,74 +78,80 @@ final class SettingsViewController: SettingsPage {
             if !PlatinaState.shared.active && !PersonLook(who).platina { add(profileChrome.offer(), gap: 18) }
         }
 
-        let profile = SettingsRow(symbol: "person", label: "Мой профиль")
-        profile.onPress = { [weak self] in self?.openProfile() }
-        // M: the reference's `Root` has «Мой профиль» alone in its group (no «Публикации и истории» row: the posts
-        // are on the profile).
-        addGroup(rows: [profile])
+        // The reference's `Root` (SettingsScreen.tsx): its groups 14 apart, 18 under the head; the icons are its Ionicons.
+        let offered = !who.isEmpty && !PlatinaState.shared.active && !PersonLook(who).platina
+        var firstGap: CGFloat = offered ? 14 : 18
+        func group(_ rows: [UIView]) {
+            add(SettingsGroup(rows: rows), gap: firstGap)
+            firstGap = 14
+        }
 
-        // How it sounds and looks. (The reference also has «Папки с чатами» here: not built in this app yet.)
-        let notifications = SettingsRow(symbol: "bell", label: "Уведомления и звуки")
+        let profile = SettingsRow(symbol: "ion:person", label: "Мой профиль")
+        profile.onPress = { [weak self] in self?.openProfile() }
+        group([profile])
+
+        // «Уведомления и звуки» says how many chats are quiet right now («Без звука: N»).
+        let notifications = SettingsRow(symbol: "ion:notifications", label: "Уведомления и звуки", value: mutedChats > 0 ? "Без звука: \(mutedChats)" : "")
         notifications.onPress = { [weak self] in self?.openPage("notifications") }
         let shownTheme = ThemeStore.nightState()["shown"] as? String ?? "black"
-        let appearance = SettingsRow(symbol: "paintpalette", label: "Оформление", value: ThemeStore.themeName(shownTheme))
+        let appearance = SettingsRow(symbol: "ion:color-palette", label: "Оформление", value: ThemeStore.themeName(shownTheme))
         appearance.onPress = { [weak self] in self?.openPage("appearance") }
-        // Effects: «Энергосбережение и анимации» and «Язык» (Settings/PowerSettings.swift, Settings/LanguageSettings.swift).
-        let power = SettingsRow(symbol: "battery.50", label: "Энергосбережение и анимации")
-        power.onPress = { [weak self] in self?.openPage("power") }
-        let language = SettingsRow(symbol: "globe", label: "Язык", value: Language.chosenName)
-        language.onPress = { [weak self] in self?.openPage("language") }
-        // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (Sources/ChatsPlus/ChatFolders.swift).
-        let folders = SettingsRow(symbol: "folder", label: "Папки с чатами")
+        // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (Sources/ChatsPlus/ChatFolders.swift);
+        // the row shows how many there are.
+        let folderCount = messenger.map { (own: Messenger) -> Int in ChatFolderStore.of(own.userId).folders.count } ?? 0
+        let folders = SettingsRow(symbol: "ion:folder", label: "Папки с чатами", value: folderCount > 0 ? String(folderCount) : "")
         folders.onPress = { [weak self] in self?.open(FoldersSettingsPage(messenger: self?.messenger)) }
-        addGroup(rows: [notifications, appearance, folders, power, language])
+        // Effects: «Энергосбережение и анимации» and «Язык» (Settings/PowerSettings.swift, Settings/LanguageSettings.swift).
+        let power = SettingsRow(symbol: "ion:battery-half", label: "Энергосбережение и анимации")
+        power.onPress = { [weak self] in self?.openPage("power") }
+        let language = SettingsRow(symbol: "ion:language", label: "Язык", value: Language.chosenName)
+        language.onPress = { [weak self] in self?.openPage("language") }
+        group([notifications, appearance, folders, power, language])
 
-        let privacy = SettingsRow(symbol: "lock", label: "Конфиденциальность")
+        let privacy = SettingsRow(symbol: "ion:lock-closed", label: "Конфиденциальность")
         privacy.onPress = { [weak self] in
             guard let self, let messenger = self.messenger else { return }
             self.open(PrivacyViewController(messenger: messenger))
         }
-        let security = SettingsRow(symbol: "checkmark.shield", label: "Безопасность")
+        // «Безопасность и устройства»: the reference's one SecurityScreen — the secrets, the sessions, the blocked
+        // people and deleting the account (Settings/Security.swift).
+        let security = SettingsRow(symbol: "ion:shield-checkmark", label: "Безопасность и устройства")
         security.onPress = { [weak self] in
             guard let self, let messenger = self.messenger else { return }
             self.open(SecurityViewController(messenger: messenger))
         }
-        let sessions = SettingsRow(symbol: "iphone", label: "Активные сеансы")
-        sessions.onPress = { [weak self] in
-            guard let self, let messenger = self.messenger else { return }
-            self.open(SessionsViewController(messenger: messenger))
-        }
-        let blocked = SettingsRow(symbol: "hand.raised", label: "Заблокированные")
-        blocked.onPress = { [weak self] in
-            guard let self, let messenger = self.messenger else { return }
-            self.open(BlockedViewController(messenger: messenger))
-        }
-        let data = SettingsRow(symbol: "externaldrive", label: "Данные и память")
+        let data = SettingsRow(symbol: "ion:server", label: "Данные и память")
         data.onPress = { [weak self] in self?.openPage("data") }
-        addGroup(rows: [privacy, security, sessions, blocked, data])
+        group([privacy, security, data])
 
-        let help = SettingsRow(symbol: "lifepreserver", label: "Помощь и поддержка")
+        let help = SettingsRow(symbol: "ion:help-buoy", label: "Помощь и поддержка")
         help.onPress = { [weak self] in
             guard self?.messenger != nil, let address = URL(string: Account.server + "/support") else { return }
             UIApplication.shared.open(address, options: [:], completionHandler: nil)
         }
-        let about = SettingsRow(symbol: "info.circle", label: "О приложении", value: SettingsViewController.appVersion)
-        about.onPress = { [weak self] in self?.open(AboutViewController()) }
-        addGroup(rows: [help, about])
+        group([help])
 
-        let leave = SettingsRow(symbol: "rectangle.portrait.and.arrow.right", label: "Выйти из аккаунта", danger: true)
+        let leave = SettingsRow(symbol: "ion:log-out-outline", label: "Выйти из аккаунта", danger: true)
         leave.onPress = { [weak self] in self?.askToLeave() }
-        addGroup(rows: [leave])
+        group([leave])
 
-        // What the app is made of, in one quiet line (the simulator check reads it by its identifier).
+        // The technical line: «Чёрная» — monospaced (Menlo 12, `subtle`, letter spacing −0.15); other themes — 11 in `muted`.
         let made = UILabel()
-        made.text = "INVIZENT \(SettingsViewController.appVersion) · ядро \(Core.version)"
-        made.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        made.textColor = Theme.subtle
+        let version = SettingsViewController.appVersion
+        if ThemeStore.look.black {
+            made.attributedText = NSAttributedString(string: "INVIZENT \(version) · e2ee · signal", attributes: [
+                .font: UIFont(name: "Menlo", size: 12) ?? UIFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+                .foregroundColor: Theme.subtle, .kern: -0.15,
+            ])
+        } else {
+            made.text = "Инвиз \(version) · переписка защищена сквозным шифрованием"
+            made.font = .systemFont(ofSize: 11)
+            made.textColor = Theme.muted
+        }
         made.textAlignment = .center
         made.numberOfLines = 0
         made.accessibilityIdentifier = "core-version"
-        add(made, gap: 18)
+        add(made, gap: 14)
     }
 
     static var appVersion: String {

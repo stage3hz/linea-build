@@ -57,18 +57,21 @@ final class SecurityViewController: SettingsPage {
 
     /// The name of a secret word and whether it is set up.
     private func wordState(_ name: String, configured: Bool) -> UIView {
-        let icon = UIImageView(image: SettingsLook.symbol(configured ? "checkmark.circle" : "key", size: 20))
-        icon.tintColor = Theme.text
+        // The reference: Ionicons «checkmark-circle-outline» / «key-outline» 25 in the accent, on a 42 square of
+        // `accentSoft` with radius 16; «Настроено» in the accent.
+        let icon = UIImageView(image: IonIcon.image(configured ? "checkmark-circle-outline" : "key-outline", size: 25))
+        icon.tintColor = Theme.accent
         icon.contentMode = .center
-        icon.backgroundColor = SettingsLook.chip
-        icon.layer.cornerRadius = 21
+        icon.backgroundColor = ThemeStore.look.accentSoft
+        icon.layer.cornerRadius = 16
+        icon.layer.cornerCurve = .continuous
         icon.layer.masksToBounds = true
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.widthAnchor.constraint(equalToConstant: 42).isActive = true
         icon.heightAnchor.constraint(equalToConstant: 42).isActive = true
         let texts = UIStackView(arrangedSubviews: [
             SettingsLook.words(name, size: 15, color: Theme.text, weight: .bold),
-            SettingsLook.words(configured ? "Настроено" : "Пока не настроено", size: 12, color: configured ? Theme.text : Theme.muted),
+            SettingsLook.words(configured ? "Настроено" : "Пока не настроено", size: 12, color: configured ? Theme.accent : Theme.muted),
         ])
         texts.axis = .vertical
         texts.spacing = 4
@@ -94,14 +97,20 @@ final class SecurityViewController: SettingsPage {
             add(SettingsNotice("Заверши настройку двух слов. В старом аккаунте недостающие слова можно добавить, пока помнишь пароль."), gap: 14)
         }
 
-        let password = SettingsButton(label: "Изменить пароль", kind: .secondary)
+        let password = SettingsButton(label: "Изменить пароль", kind: .secondary, icon: "key-outline")
         password.onPress = { [weak self] in self?.openForm(.password, confirmationConfigured) }
-        addGroup("Пароль", rows: [card([
-            SettingsLook.words("Можно использовать длинную фразу. После смены пароля все сеансы завершатся.", size: 13, color: Theme.muted),
-            password,
-        ])])
+        // The reference: Ionicons «lock-closed-outline» 23 in the accent beside the words, 12 apart.
+        let lockIcon = UIImageView(image: IonIcon.image("lock-closed-outline", size: 23))
+        lockIcon.tintColor = Theme.accent
+        lockIcon.contentMode = .center
+        lockIcon.setContentHuggingPriority(.required, for: .horizontal)
+        let passwordLine = UIStackView(arrangedSubviews: [lockIcon, SettingsLook.words("Можно использовать длинную фразу. После смены пароля все сеансы завершатся.", size: 13, color: Theme.muted)])
+        passwordLine.axis = .horizontal
+        passwordLine.alignment = .center
+        passwordLine.spacing = 12
+        addGroup("Пароль", rows: [card([passwordLine, password])])
 
-        let confirmation = SettingsButton(label: confirmationConfigured ? "Изменить слово подтверждения" : "Настроить слово подтверждения", kind: .secondary)
+        let confirmation = SettingsButton(label: confirmationConfigured ? "Изменить слово подтверждения" : "Настроить слово подтверждения", kind: .secondary, icon: "key-outline")
         confirmation.onPress = { [weak self] in self?.openForm(.confirmation, confirmationConfigured) }
         addGroup("Подтверждение входа", rows: [card([
             wordState("Слово подтверждения", configured: confirmationConfigured),
@@ -119,7 +128,7 @@ final class SecurityViewController: SettingsPage {
         limit.backgroundColor = SettingsLook.chip
         limit.layer.cornerRadius = 14
         limit.layer.cornerCurve = .continuous
-        let recovery = SettingsButton(label: recoveryConfigured ? "Изменить слово восстановления" : "Настроить слово восстановления", kind: .secondary)
+        let recovery = SettingsButton(label: recoveryConfigured ? "Изменить слово восстановления" : "Настроить слово восстановления", kind: .secondary, icon: "key-outline")
         recovery.onPress = { [weak self] in self?.openForm(.recovery, confirmationConfigured) }
         addGroup("Восстановление доступа", rows: [card([
             wordState("Слово восстановления", configured: recoveryConfigured),
@@ -130,7 +139,22 @@ final class SecurityViewController: SettingsPage {
             recovery,
         ])])
 
-        let remove = SettingsRow(symbol: "trash", label: "Удалить аккаунт", danger: true)
+        // «Сеансы и устройства» and «Заблокированные» stand here in the reference's SecurityScreen (before «Удалить
+        // аккаунт»); their lists are on their own pages (Settings/Sessions.swift, Settings/PrivacyLists.swift).
+        let sessions = SettingsRow(symbol: "ion:phone-portrait-outline", label: "Активные сеансы")
+        sessions.onPress = { [weak self] in
+            guard let self else { return }
+            self.open(SessionsViewController(messenger: self.messenger))
+        }
+        addGroup("Сеансы и устройства", rows: [sessions])
+        let blocked = SettingsRow(symbol: "ion:hand-left-outline", label: "Заблокированные")
+        blocked.onPress = { [weak self] in
+            guard let self else { return }
+            self.open(BlockedViewController(messenger: self.messenger))
+        }
+        addGroup(rows: [blocked])
+
+        let remove = SettingsRow(symbol: "ion:trash-outline", label: "Удалить аккаунт", danger: true)
         remove.onPress = { [weak self] in
             guard let self else { return }
             self.open(DeleteAccountViewController(messenger: self.messenger, confirmationConfigured: confirmationConfigured))
@@ -334,7 +358,7 @@ final class DeleteAccountViewController: SettingsPage {
     private let password = SettingsField(caption: "Пароль", placeholder: "Пароль этого аккаунта", secret: true)
     private let word = SettingsField(caption: "Слово подтверждения", placeholder: "Слово для входа", secret: true)
     private let noticeBox = UIStackView()
-    private let removeButton = SettingsButton(label: "Удалить навсегда", kind: .danger)
+    private let removeButton = SettingsButton(label: "Удалить навсегда", kind: .danger, icon: "trash-outline")
 
     init(messenger: Messenger, confirmationConfigured: Bool? = nil) {
         self.messenger = messenger

@@ -65,7 +65,7 @@ final class LanguageRow: UIControl {
         let texts = UIStackView(arrangedSubviews: [first, second])
         texts.axis = .vertical
         texts.spacing = 2
-        let mark = UIImageView(image: SettingsLook.symbol("checkmark", size: 17, weight: .semibold))
+        let mark = UIImageView(image: SettingsLook.symbol("ion:checkmark", size: 20))
         mark.tintColor = Theme.accent
         mark.alpha = chosen ? 1 : 0
         mark.setContentHuggingPriority(.required, for: .horizontal)

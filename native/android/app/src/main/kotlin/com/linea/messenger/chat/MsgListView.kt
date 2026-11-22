@@ -133,6 +133,8 @@ class MsgListView(context: Context) : FrameLayout(context) {
     for (index in 0 until list.childCount) (list.getChildAt(index) as? MsgRowView)?.takeIf { it.rowKey == key }?.invalidate()
   }
 
+  /** Videonote: a row whose round video was brought, or whose player came or went, is drawn again. */
+  fun redrawRow(key: String) = inlineMediaChanged(key)
   override fun onAttachedToWindow() { super.onAttachedToWindow(); com.linea.messenger.attachments.InlineMedia.listen(inlineMediaChanged) } // Attachments
   override fun onDetachedFromWindow() { com.linea.messenger.attachments.InlineMedia.unlisten(inlineMediaChanged); super.onDetachedFromWindow() } // Attachments
 

@@ -76,11 +76,12 @@ object CallAudio {
     if (!running || system == null) return
     isVideo = video
     forcedNow = forced
-    val loud = forced ?: video
+    val picked = chosenKind
+    val loud = if (picked != null) picked == "speaker" else forced ?: video
     try {
       if (Build.VERSION.SDK_INT >= 31) {
         val offered = system.availableCommunicationDevices
-        val wanted = CallRules.soundRoute(forced, video, offered.any { kind(it.type) == "bluetooth" }, offered.any { kind(it.type) == "wired" })
+        val wanted = picked?.takeIf { want -> offered.any { kind(it.type) == want } } ?: CallRules.soundRoute(forced, video, offered.any { kind(it.type) == "bluetooth" }, offered.any { kind(it.type) == "wired" })
         val device = offered.firstOrNull { kind(it.type) == wanted }
         if (device != null) system.setCommunicationDevice(device) else system.clearCommunicationDevice()
       } else {
@@ -94,7 +95,7 @@ object CallAudio {
   @Suppress("DEPRECATION")
   private fun legacyRoute(system: AudioManager, forced: Boolean?, video: Boolean) {
     val outputs = system.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-    val wanted = CallRules.soundRoute(forced, video, system.isBluetoothScoAvailableOffCall && outputs.any { kind(it.type) == "bluetooth" }, outputs.any { kind(it.type) == "wired" })
+    val wanted = chosenKind?.takeIf { want -> want == "speaker" || want == "earpiece" || outputs.any { kind(it.type) == want } } ?: CallRules.soundRoute(forced, video, system.isBluetoothScoAvailableOffCall && outputs.any { kind(it.type) == "bluetooth" }, outputs.any { kind(it.type) == "wired" })
     if (wanted == "bluetooth") {
       if (!scoOn) { scoOn = true; system.startBluetoothSco(); system.isBluetoothScoOn = true }
     } else if (scoOn) {
@@ -105,12 +106,51 @@ object CallAudio {
     system.isSpeakerphoneOn = wanted == "speaker"
   }
 
+  // Звонок › «Звук» (the reference's CallAudioPanel on Android): one device takes both the sound and the microphone.
+
+  /** The device the person chose for this call ("bluetooth", "wired", "earpiece", "speaker"), or null — as the system routes it. */
+  var chosenKind: String? = null
+    private set
+
+  /** The devices this call can use, in the order people expect (`androidRoutes`): Bluetooth, wired, the phone, the speaker. */
+  @Suppress("DEPRECATION")
+  fun devicesNow(): List<String> {
+    val system = audio ?: return emptyList()
+    val kinds = HashSet<String>()
+    try {
+      if (Build.VERSION.SDK_INT >= 31) system.availableCommunicationDevices.forEach { device -> kind(device.type)?.let { kinds.add(it) } }
+      else {
+        system.getDevices(AudioManager.GET_DEVICES_OUTPUTS).forEach { device -> kind(device.type)?.let { kinds.add(it) } }
+        if (!system.isBluetoothScoAvailableOffCall) kinds.remove("bluetooth")
+        kinds.add("earpiece"); kinds.add("speaker")
+      }
+    } catch (_: Exception) {}
+    return listOf("bluetooth", "wired", "earpiece", "speaker").filter { it in kinds }
+  }
+
+  /** The device in use now, or "" when it is not known. */
+  @Suppress("DEPRECATION")
+  fun deviceNow(): String {
+    val system = audio ?: return ""
+    return try {
+      if (Build.VERSION.SDK_INT >= 31) system.communicationDevice?.let { kind(it.type) } ?: ""
+      else if (scoOn) "bluetooth" else if (system.isSpeakerphoneOn) "speaker" else if (system.isWiredHeadsetOn) "wired" else "earpiece"
+    } catch (_: Exception) { "" }
+  }
+
+  /** null: back to the system's choice; else that device for both the sound and the microphone. */
+  fun choose(kind: String?) {
+    chosenKind = kind
+    route(forcedNow, isVideo)
+  }
+
   /** The call is over: the sensor is released and other sound may come back. */
   @Suppress("DEPRECATION")
   fun stop() {
     if (!running) return
     running = false
     forcedNow = null
+    chosenKind = null
     try { nearEar?.let { if (it.isHeld) it.release() } } catch (_: Exception) {}
     val system = audio ?: return
     try { system.unregisterAudioDeviceCallback(devices) } catch (_: Exception) {}

@@ -185,7 +185,7 @@ final class PasscodeViewController: SettingsPage {
     private func fillSettings() {
         let settings = LockStore.shared.current
         guard settings.record != nil else {
-            let enable = SettingsRow(symbol: "circle.grid.3x3", label: "Включить код-пароль")
+            let enable = SettingsRow(symbol: "ion:keypad", label: "Включить код-пароль")
             enable.onPress = { [weak self] in
                 guard let self else { return }
                 self.kind = "digits"
@@ -199,13 +199,13 @@ final class PasscodeViewController: SettingsPage {
             add(SettingsLook.foot("Если ты забудешь код-пароль, придётся переустановить приложение (на компьютере — закрыть вкладку и войти снова)."), gap: 8)
             return
         }
-        let off = SettingsRow(symbol: "lock.open", label: "Выключить код-пароль", danger: true)
+        let off = SettingsRow(symbol: "ion:lock-open", label: "Выключить код-пароль", danger: true)
         off.onPress = { [weak self] in
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             LockStore.shared.disable()
             self?.fill()
         }
-        let change = SettingsRow(symbol: "key", label: "Сменить код-пароль")
+        let change = SettingsRow(symbol: "ion:key", label: "Сменить код-пароль")
         change.onPress = { [weak self] in
             guard let self else { return }
             self.kind = "digits"
@@ -220,7 +220,7 @@ final class PasscodeViewController: SettingsPage {
             bio.onChange = { [weak self] (on: Bool) -> Void in self?.toggleBiometrics(on) }
             addGroup(rows: [bio])
         }
-        let autolock = SettingsRow(symbol: "timer", label: "Автоблокировка", value: LockRules.autolockLabels[settings.autolock] ?? "")
+        let autolock = SettingsRow(symbol: "ion:timer", label: "Автоблокировка", value: LockRules.autolockLabels[settings.autolock] ?? "")
         autolock.onPress = { [weak self] in self?.chooseAutolock() }
         addGroup(rows: [autolock])
         add(SettingsLook.foot("Код-пароль запрашивается, если приложение не открывали дольше выбранного времени. «Сразу» блокирует при каждом уходе из Инвиза."), gap: 8)
@@ -247,17 +247,17 @@ final class PasscodeViewController: SettingsPage {
     }
 
     private func chooseAutolock() {
-        let current = LockStore.shared.current.autolock
-        let sheet = UIAlertController(title: "Автоблокировка", message: "«Выключена»: код запрашивается только при запуске приложения, а не при возвращении в него.", preferredStyle: .actionSheet)
-        for mode in LockRules.autolockModes {
-            let label = (LockRules.autolockLabels[mode] ?? mode) + (mode == current ? " ✓" : "")
-            sheet.addAction(UIAlertAction(title: label, style: .default, handler: { [weak self] (_: UIAlertAction) -> Void in
+        // The reference's Sheet «Автоблокировка»: a SheetAction per mode with `autolockIcon` (off «close-circle-outline»,
+        // immediate «flash-outline», a time «time-outline»).
+        let choices = LockRules.autolockModes.map { (mode: String) -> ChoiceSheet.Choice in
+            let symbol = mode == "off" ? "ion:close-circle-outline" : mode == "immediate" ? "ion:flash-outline" : "ion:time-outline"
+            return ChoiceSheet.Choice(symbol: symbol, label: LockRules.autolockLabels[mode] ?? mode, run: { [weak self] in
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 LockStore.shared.update { (settings: inout LockSettings) -> Void in settings.autolock = mode }
                 self?.fill()
-            }))
+            })
         }
-        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
+        let sheet = ChoiceSheet(heading: "Автоблокировка", note: "«Выключена»: код запрашивается только при запуске приложения, а не при возвращении в него.", choices: choices)
         present(sheet, animated: true)
     }
 }

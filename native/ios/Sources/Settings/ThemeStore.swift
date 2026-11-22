@@ -58,8 +58,13 @@ struct ThemeLook {
     /// group in «Чёрная»).
     var dangerBg = UIColor(red: 69 / 255, green: 20 / 255, blue: 31 / 255, alpha: 0.88)
     var glassOpaque = UIColor(hex: 0x0F1011)
+    /// The reference's `accentGradient` (the main `Button`); empty: the accent alone.
+    var accentGradient: [UIColor] = [UIColor(hex: 0xF2F2F2), UIColor(hex: 0xC8C8C8)]
     var bubble = UIColor(red: 31 / 255, green: 32 / 255, blue: 35 / 255, alpha: 0.96)
     var incoming = UIColor(red: 22 / 255, green: 23 / 255, blue: 24 / 255, alpha: 0.96)
+    /// The reference's `glass` and `glassBorder` (theme.tsx).
+    var glass = UIColor(red: 15 / 255, green: 16 / 255, blue: 17 / 255, alpha: 0.62)
+    var glassBorder = UIColor(white: 1, alpha: 0.08)
     /// What the look was made from: two looks with the same words here are the same look.
     var source = "black|"
 
@@ -81,8 +86,11 @@ struct ThemeLook {
         danger = ThemeLook.color(fields["danger"] as? String) ?? danger
         dangerBg = ThemeLook.color(fields["dangerBg"] as? String) ?? dangerBg
         glassOpaque = ThemeLook.color(fields["glassOpaque"] as? String) ?? glassOpaque
+        accentGradient = (fields["accentGradient"] as? [Any] ?? []).compactMap { (item: Any) -> UIColor? in ThemeLook.color(item as? String) }
         bubble = ThemeLook.color(fields["bubble"] as? String) ?? bubble
         incoming = ThemeLook.color(fields["incoming"] as? String) ?? incoming
+        glass = ThemeLook.color(fields["glass"] as? String) ?? glass
+        glassBorder = ThemeLook.color(fields["glassBorder"] as? String) ?? glassBorder
         source = id + "|" + (fields["accent"] as? String ?? "")
     }
 

@@ -56,7 +56,7 @@ final class ComposerExtras: NSObject {
         send.addGestureRecognizer(hold)
         send.accessibilityHint = "Удержи: без звука или отправить позже"
 
-        emojiButton.setImage(chatSymbol("face.smiling", 21), for: .normal)
+        emojiButton.setImage(chatSymbol("ion:happy-outline", 22), for: .normal)
         emojiButton.tintColor = Theme.muted
         emojiButton.accessibilityLabel = "Стикеры и эмодзи"
         emojiButton.addTarget(self, action: #selector(toggleEmoji), for: .touchUpInside)
@@ -106,7 +106,8 @@ final class ComposerExtras: NSObject {
             field.frame = frame
         }
         emojiButton.isHidden = hidden
-        emojiButton.setImage(chatSymbol(panel == nil ? "face.smiling" : "keyboard", 21), for: .normal)
+        // <Icon name={stickers ? 'keypad-outline' : 'happy-outline'} size={22}>, the accent while the panel is open.
+        emojiButton.setImage(chatSymbol(panel == nil ? "ion:happy-outline" : "ion:keypad-outline", 22), for: .normal)
         emojiButton.tintColor = panel == nil ? Theme.muted : Theme.accent
         var next = above
         if !formatBar.isHidden && !hidden {

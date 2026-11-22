@@ -214,6 +214,8 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     voice.onWillPlay = { notes.quiet() }
     notes.onState = { state -> list.setMediaState(state) }
     notes.onProblem = { words -> say(words) }
+    // A circle brought or dropped, its player come or gone: its row is drawn again.
+    notes.onReadyChanged = { key -> list.redrawRow(key) }
     notes.onWillPlay = { voice.pause() }
     // Also while the round video recorder stands over the chat (it uses the microphone).
     notes.holdsSilence = { recorder.isRecording || voice.isPlaying || noteScreen != null }
@@ -634,7 +636,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
       say(voice.cycleRate())
       return
     }
-    if (part == "wave" && voice.seek(key, fraction)) return
+    // The owner: a tap on a voice message only starts or pauses it — a tap on the waveform never seeks.
     pressed(key)
   }
 

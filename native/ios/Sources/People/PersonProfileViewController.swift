@@ -134,14 +134,14 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topLayers.front)
         view.addSubview(topBar)
-        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .medium)), for: .normal)
+        back.setImage(BackChevronGlyph.image(size: 23), for: .normal) // the reference's IconButton «chevron-back», 23
         back.tintColor = Theme.text
         back.accessibilityLabel = "Назад"
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         back.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(back)
         GlassBacking.put(under: back) // C: the reference's IconButton — a round of clear glass
-        more.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .medium)), for: .normal)
+        more.setImage(IonIcon.image("ellipsis-horizontal", size: 23), for: .normal) // Ionicons «ellipsis-horizontal», 23
         more.tintColor = Theme.text
         more.accessibilityLabel = "Ещё"
         more.showsMenuAsPrimaryAction = true
@@ -312,16 +312,20 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         sharedMedia.show(chatLink?.messages ?? []) // Profile
     }
 
-    private func makeTile(symbol: String, words: String, loading: Bool) -> UIButton {
+    /// The reference's action tile (UserProfile.tsx): glass, radius 18, 12 above and below, the Ionicons glyph 22,
+    /// 6 to the label (12 SemiBold); an active one (a friend, a quiet chat) is in the accent. `symbol` is an Ionicons name.
+    private func makeTile(symbol: String, words: String, loading: Bool, active: Bool = false) -> UIButton {
         var config = UIButton.Configuration.plain()
-        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium))
+        config.image = IonIcon.image(symbol, size: 22)
         config.title = words
         config.imagePlacement = .top
         config.imagePadding = 6
-        config.baseForegroundColor = Theme.text
-        config.background.backgroundColor = Theme.surface2
+        config.baseForegroundColor = active ? Theme.accent : Theme.text
+        let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
+        glass.isUserInteractionEnabled = false
+        config.background.customView = glass
         config.background.cornerRadius = 18
-        config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 4, bottom: 8, trailing: 4)
+        config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 4, bottom: 12, trailing: 4)
         config.titleLineBreakMode = .byTruncatingTail
         config.showsActivityIndicator = loading
         config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
@@ -332,8 +336,8 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         let button = UIButton(configuration: config)
         button.isEnabled = !loading && !busy
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.widthAnchor.constraint(equalToConstant: 104).isActive = true
-        button.heightAnchor.constraint(equalToConstant: 66).isActive = true
+        button.widthAnchor.constraint(equalToConstant: 120).isActive = true
+        Bouncy.attach(button, scale: 0.9) // `Bouncy scaleTo={.9}`
         return button
     }
 
@@ -343,7 +347,7 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             old.removeFromSuperview()
         }
         if !fromChat {
-            let write = makeTile(symbol: "bubble.left.fill", words: "Написать", loading: false)
+            let write = makeTile(symbol: "chatbubble", words: "Написать", loading: false)
             write.addTarget(self, action: #selector(writeTapped), for: .touchUpInside)
             tiles.addArrangedSubview(write)
         }
@@ -351,7 +355,7 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             // Calls: opened from a chat, the row is «Звонок», «Видео», «Ещё», as in the reference (the friends
             // action is in «Ещё» then). Sources/Calls/CallOverlay.swift places the call.
             for video in [false, true] {
-                let tile = makeTile(symbol: video ? "video.fill" : "phone.fill", words: video ? "Видео" : "Звонок", loading: false)
+                let tile = makeTile(symbol: video ? "videocam" : "call", words: video ? "Видео" : "Звонок", loading: false)
                 tile.addAction(UIAction { [weak self] (_: UIAction) -> Void in
                     guard let self else { return }
                     CallEntry.call(messenger: self.messenger, chatId: self.chatId, peerId: self.userId, name: self.name, person: self.shownPerson, video: video)
@@ -359,9 +363,9 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
                 tiles.addArrangedSubview(tile)
             }
         } else {
-            let symbol = isFriend == true ? "person.badge.minus" : request == "outgoing" ? "clock" : "person.badge.plus"
+            let symbol = isFriend == true ? "person-remove" : request == "outgoing" ? "time-outline" : "person-add"
             let words = isFriend == true ? "В друзьях" : request == "outgoing" ? "Заявка" : request == "incoming" ? "Принять" : "В друзья"
-            let friend = makeTile(symbol: symbol, words: words, loading: isFriend == nil && problemWords.isEmpty)
+            let friend = makeTile(symbol: symbol, words: words, loading: isFriend == nil && problemWords.isEmpty, active: isFriend == true || request == "incoming")
             if isFriend == nil { friend.isEnabled = false }
             friend.addTarget(self, action: #selector(friendTapped), for: .touchUpInside)
             tiles.addArrangedSubview(friend)
@@ -370,10 +374,9 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             // Profile: «Звук» / «Без звука» (with how long under it) and «Поиск», as the reference's row
             // «call · video · sound · search · more».
             let quiet = ProfileChatExtras.muted(link.settings)
-            let sound = makeTile(symbol: quiet ? "bell.slash.fill" : "bell.fill", words: quiet ? "Без звука" : "Звук", loading: false)
+            let sound = makeTile(symbol: quiet ? "notifications-off" : "notifications", words: quiet ? "Без звука" : "Звук", loading: false, active: quiet)
             if var config = sound.configuration {
                 if quiet {
-                    config.baseForegroundColor = Theme.accent
                     config.subtitle = ProfileChatExtras.untilLabel(link.settings["mutedUntil"] as? String)
                     config.subtitleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
                         var outgoing = incoming
@@ -387,14 +390,14 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             }
             sound.addTarget(self, action: #selector(soundTapped), for: .touchUpInside)
             tiles.addArrangedSubview(sound)
-            let search = makeTile(symbol: "magnifyingglass", words: "Поиск", loading: false)
+            let search = makeTile(symbol: "search", words: "Поиск", loading: false)
             search.addAction(UIAction { [weak self] (_: UIAction) -> Void in
                 guard let self, let link = self.chatLink else { return }
                 link.openSearch(from: self)
             }, for: .touchUpInside)
             tiles.addArrangedSubview(search)
         }
-        let other = makeTile(symbol: "ellipsis", words: "Ещё", loading: false)
+        let other = makeTile(symbol: "ellipsis-horizontal", words: "Ещё", loading: false)
         other.menu = moreMenu()
         other.showsMenuAsPrimaryAction = true
         tiles.addArrangedSubview(other)
@@ -405,8 +408,8 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         var actions: [UIMenuElement] = []
         if fromChat, let friendNow = isFriend {
             let words = friendNow ? "Удалить из друзей" : request == "outgoing" ? "Отменить заявку" : request == "incoming" ? "Принять в друзья" : "Добавить в друзья"
-            let symbol = friendNow ? "person.badge.minus" : "person.badge.plus"
-            actions.append(UIAction(title: words, image: UIImage(systemName: symbol)) { [weak self] _ in self?.friendTapped() })
+            let symbol = friendNow ? "person-remove-outline" : "person-add-outline"
+            actions.append(UIAction(title: words, image: IonIcon.image(symbol, size: 20)) { [weak self] _ in self?.friendTapped() })
         }
         // Profile: the chat's own items, then «Очистить историю» apart with «Заблокировать» and «Пожаловаться».
         var tail: [UIMenuElement] = []
@@ -420,11 +423,11 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             tail.append(items.clear)
         }
         if blocked {
-            actions.append(UIAction(title: "Разблокировать", image: UIImage(systemName: "hand.raised")) { [weak self] _ in self?.setBlocked(false) })
+            actions.append(UIAction(title: "Разблокировать", image: IonIcon.image("hand-left-outline", size: 20)) { [weak self] _ in self?.setBlocked(false) })
         } else {
-            actions.append(UIAction(title: "Заблокировать", image: UIImage(systemName: "minus.circle"), attributes: .destructive) { [weak self] _ in self?.confirmBlock() })
+            actions.append(UIAction(title: "Заблокировать", image: IonIcon.image("remove-circle-outline", size: 20), attributes: .destructive) { [weak self] _ in self?.confirmBlock() })
         }
-        actions.append(UIAction(title: "Пожаловаться", image: UIImage(systemName: "exclamationmark.triangle"), attributes: .destructive) { [weak self] _ in self?.report() })
+        actions.append(UIAction(title: "Пожаловаться", image: IonIcon.image("warning-outline", size: 20), attributes: .destructive) { [weak self] _ in self?.report() })
         if chatLink != nil {
             // Profile: «Очистить историю» stands apart (the reference's `separated`); block and report follow it.
             let firstTail = actions.firstIndex { ($0 as? UIAction)?.title == "Разблокировать" || ($0 as? UIAction)?.title == "Заблокировать" } ?? actions.count
@@ -442,7 +445,7 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         let count = CGFloat(tiles.arrangedSubviews.count)
         guard count > 0 else { return }
         let room = max(200, view.bounds.width - 36)
-        let each = min(104, floor((room - 10 * (count - 1)) / count))
+        let each = min(120, floor((room - 10 * (count - 1)) / count))
         for tile in tiles.arrangedSubviews {
             for constraint in tile.constraints where constraint.firstAttribute == .width && constraint.secondItem == nil {
                 constraint.constant = each
@@ -567,7 +570,7 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             card.addArrangedSubview(infoRow(label: "о себе", value: shown.bio, accent: false))
         }
         if !card.arrangedSubviews.isEmpty { card.addArrangedSubview(hairline()) }
-        let lock = UIImageView(image: UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular)))
+        let lock = UIImageView(image: IonIcon.image("lock-closed", size: 14)) // Ionicons «lock-closed» 14
         lock.tintColor = Theme.accent
         lock.setContentHuggingPriority(.required, for: .horizontal)
         lock.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -805,7 +808,7 @@ final class ReportSheetViewController: UIViewController {
         for (index, reason) in ReportSheetViewController.reasons.enumerated() {
             var config = UIButton.Configuration.plain()
             config.title = reason.label
-            config.image = UIImage(systemName: "circle")
+            config.image = IonIcon.image("ellipse-outline", size: 22)
             config.imagePadding = 12
             config.baseForegroundColor = Theme.text
             config.contentInsets = NSDirectionalEdgeInsets(top: 11, leading: 0, bottom: 11, trailing: 0)
@@ -851,7 +854,7 @@ final class ReportSheetViewController: UIViewController {
         chosen = sender.tag
         for row in rows {
             let on = row.tag == chosen
-            row.configuration?.image = UIImage(systemName: on ? "checkmark.circle.fill" : "circle")
+            row.configuration?.image = IonIcon.image(on ? "checkmark-circle" : "ellipse-outline", size: 22)
             row.accessibilityTraits = on ? [.button, .selected] : .button
         }
         sendButton.isEnabled = true

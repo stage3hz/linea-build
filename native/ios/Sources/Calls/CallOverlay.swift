@@ -12,11 +12,15 @@ private final class CallWindow: UIWindow {
 
 private final class CallHostController: UIViewController {
     let bar = CallBarView()
+    /// Above the bar, under the status bar: the page's colour, so the status bar keeps its usual look (CallBarFrame).
+    let strip = UIView()
     var callScreen: CallScreenView?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
+        strip.isUserInteractionEnabled = false
+        view.addSubview(strip)
         bar.isHidden = true
         view.addSubview(bar)
     }
@@ -26,31 +30,58 @@ private final class CallHostController: UIViewController {
         // Below the status bar with a gap: the clock, the island and the battery stay visible above it.
         let gap = CallBarView.gap
         bar.frame = CGRect(x: gap, y: view.safeAreaInsets.top + gap, width: max(0, view.bounds.width - gap * 2), height: CGFloat(CallRules.barHeight))
+        strip.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.safeAreaInsets.top)
+        strip.backgroundColor = Theme.bg
+        strip.isHidden = bar.isHidden
         if let callScreen, callScreen.transform.isIdentity { callScreen.frame = view.bounds }
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
 }
 
-/// The active-call bar while the call is minimised (the reference's `CallBanner`): a rounded strip a little below
-/// the status bar — the name and the status in the middle, a tap opens the call, the round button on the right ends
-/// it. Green while the call is up, orange while it reconnects or waits, blue before it connects.
+/// The active-call bar while the call is minimised (the reference's `CallBanner`): a full-width strip right under
+/// the status bar (the clock, the island and the battery stay visible above it) — the name and the status in the
+/// middle, a tap opens the call, the round button on the right ends it. Green while the call is up, orange while it
+/// reconnects or waits, blue before it connects.
 final class CallBarView: UIControl {
-    /// The space between the bar and the status bar above it, and the screen's edges at its sides.
-    static let gap: CGFloat = 8
-    /// What the app's screens give up at the top while the bar is shown: the gap, the bar and the gap under it.
-    static var room: CGFloat { return gap + CGFloat(CallRules.barHeight) + gap }
-    private let words = UILabel()
-    private let end = UIButton(type: .system)
+    /// No space between the bar and the status bar, nor at its sides (CallBarFrame: the bar sits at the frame's top).
+    static let gap: CGFloat = 0
+    /// What the app's screens give up at the top while the bar is shown: the bar's height.
+    static var room: CGFloat { return CGFloat(CallRules.barHeight) }
+    private let line = UIStackView()
+    private let icon = UIImageView()
+    private let name = UILabel()
+    private let dot = UILabel()
+    private let status = UILabel()
+    private let clock = UILabel()
+    private let end = UIButton(type: .custom)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        layer.cornerRadius = 14
-        layer.cornerCurve = .continuous
-        words.textAlignment = .center
-        words.lineBreakMode = .byTruncatingMiddle
-        addSubview(words)
-        end.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .bold)), for: .normal)
+        icon.tintColor = .white
+        icon.widthAnchor.constraint(equalToConstant: 14).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 14).isActive = true
+        for label in [name, dot, status, clock] {
+            label.font = .systemFont(ofSize: 14)
+            label.textColor = .white
+            label.numberOfLines = 1
+            label.setContentCompressionResistancePriority(.required, for: .horizontal)
+            line.addArrangedSubview(label)
+        }
+        line.insertArrangedSubview(icon, at: 0)
+        name.font = .systemFont(ofSize: 14, weight: .semibold)
+        name.lineBreakMode = .byTruncatingTail
+        // Only the name gives way when the line is too long (flexShrink 1; the rest 0).
+        name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        dot.text = "·"
+        dot.alpha = 0.85
+        clock.alpha = 0.85
+        line.axis = .horizontal
+        line.alignment = .center
+        line.spacing = 6
+        line.isUserInteractionEnabled = false
+        addSubview(line)
+        end.setImage(IonIcon.image("close", size: 15), for: .normal)
         end.tintColor = .white
         end.backgroundColor = UIColor(hex: 0xFF3B30)
         end.layer.cornerRadius = 13
@@ -59,16 +90,20 @@ final class CallBarView: UIControl {
         addSubview(end)
         addTarget(self, action: #selector(opened), for: .touchUpInside)
         isAccessibilityElement = false
-        words.isAccessibilityElement = true
-        words.accessibilityTraits = .button
-        words.accessibilityHint = "Вернуться к звонку"
+        line.isAccessibilityElement = true
+        line.accessibilityTraits = .button
+        line.accessibilityHint = "Вернуться к звонку"
     }
 
     required init?(coder: NSCoder) { return nil }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        words.frame = CGRect(x: 46, y: 0, width: max(0, bounds.width - 92), height: bounds.height)
+        // paddingHorizontal 46; the line is centred and never wider than that room.
+        let room = max(0, bounds.width - 92)
+        let fitted = line.systemLayoutSizeFitting(CGSize(width: room, height: 18), withHorizontalFittingPriority: .fittingSizeLevel, verticalFittingPriority: .required)
+        let width = min(room, ceil(fitted.width))
+        line.frame = CGRect(x: (bounds.width - width) / 2, y: (bounds.height - 18) / 2, width: width, height: 18)
         end.frame = CGRect(x: bounds.width - 8 - 26, y: (bounds.height - 26) / 2, width: 26, height: 26)
     }
 
@@ -77,30 +112,21 @@ final class CallBarView: UIControl {
     }
 
     func show(_ call: CallState) {
-        let status = CallRules.status(call, network: Calls.shared.signalNetwork)
-        switch status.tone {
+        let words = CallRules.status(call, network: Calls.shared.signalNetwork)
+        switch words.tone {
         case "active": backgroundColor = UIColor(hex: 0x2BA36B)
         case "trouble": backgroundColor = UIColor(hex: 0xD9822B)
         case "pending": backgroundColor = UIColor(hex: 0x3B6FB6)
         default: backgroundColor = UIColor(hex: 0x6B7280)
         }
-        let plain: [NSAttributedString.Key: Any] = [.font: UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular), .foregroundColor: UIColor.white]
-        let strong: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 14, weight: .semibold), .foregroundColor: UIColor.white]
-        let faint: [NSAttributedString.Key: Any] = [.font: UIFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular), .foregroundColor: UIColor(white: 1, alpha: 0.85)]
-        let line = NSMutableAttributedString()
-        if let symbol = UIImage(systemName: call.video ? "video.fill" : "phone.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold))?.withTintColor(.white, renderingMode: .alwaysOriginal) {
-            let picture = NSTextAttachment()
-            picture.image = symbol
-            line.append(NSAttributedString(attachment: picture))
-            line.append(NSAttributedString(string: "  ", attributes: plain))
-        }
-        line.append(NSAttributedString(string: call.peer.displayName, attributes: strong))
-        line.append(NSAttributedString(string: " · ", attributes: faint))
-        line.append(NSAttributedString(string: status.text, attributes: plain))
-        if let clock = status.clock { line.append(NSAttributedString(string: " " + clock, attributes: faint)) }
-        words.attributedText = line
-        words.accessibilityLabel = call.peer.displayName + ", " + status.text + (status.clock.map { " " + $0 } ?? "")
+        icon.image = IonIcon.image(call.video ? "videocam" : "call", size: 14)
+        name.text = call.peer.displayName
+        status.text = words.text
+        clock.text = words.clock
+        clock.isHidden = words.clock == nil
+        line.accessibilityLabel = call.peer.displayName + ", " + words.text + (words.clock.map { " " + $0 } ?? "")
         end.isHidden = call.isOver
+        setNeedsLayout()
     }
 
     @objc private func opened() { Calls.shared.restore() }
@@ -153,8 +179,8 @@ final class CallOverlay {
     private func setBarRoom(_ on: Bool) {
         let room: CGFloat = on ? CallBarView.room : 0
         guard let root = appWindow?.rootViewController, root.additionalSafeAreaInsets.top != room else { return }
+        // At once, as the reference's padding: no slide of its own.
         root.additionalSafeAreaInsets.top = room
-        UIView.animate(withDuration: 0.25) { root.view.layoutIfNeeded() }
     }
 
     @objc private func refresh() {
@@ -163,6 +189,7 @@ final class CallOverlay {
             clock = nil
             setBarRoom(false)
             host.bar.isHidden = true
+            host.strip.isHidden = true
             dismissScreen { [weak self] in
                 // Nothing left to show: the window goes, so it is in nobody's way.
                 guard let self, Calls.shared.call == nil else { return }
@@ -177,6 +204,8 @@ final class CallOverlay {
             dismissScreen(nil)
             host.bar.show(call)
             host.bar.isHidden = false
+            host.strip.isHidden = false
+            host.strip.backgroundColor = Theme.bg
             setBarRoom(true)
             // The bar's clock and status follow the call by themselves.
             if clock == nil {
@@ -190,6 +219,7 @@ final class CallOverlay {
         clock?.invalidate()
         clock = nil
         host.bar.isHidden = true
+        host.strip.isHidden = true
         setBarRoom(false)
         presentScreen().update(call)
     }

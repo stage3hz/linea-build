@@ -7,7 +7,9 @@ import UIKit
 func chatGlass() -> UIVisualEffect { TabGlass.effect(clear: false, interactive: false, dark: Theme.dark) }
 
 func chatSymbol(_ name: String, _ size: CGFloat, _ weight: UIImage.SymbolWeight = .regular) -> UIImage? {
-    UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))
+    // "ion:<name>": the reference's own Ionicons glyph, `size` points square (Design/IonIcon.swift).
+    if name.hasPrefix("ion:") { return IonIcon.image(String(name.dropFirst(4)), size: size) }
+    return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))
 }
 
 /// The field a message is written in: several lines, growing with the text up to a height and scrolling past it
@@ -145,7 +147,7 @@ final class PinnedBar: UIVisualEffectView {
         layer.cornerRadius = 26
         layer.cornerCurve = .continuous
         stripe.backgroundColor = Theme.text.withAlphaComponent(0.9)
-        stripe.layer.cornerRadius = 1.25
+        stripe.layer.cornerRadius = 1.25 // borderRadius 2 on a 2.5-point line: a capsule
         contentView.addSubview(stripe)
         headingLabel.text = "Закреплённое сообщение"
         headingLabel.font = .systemFont(ofSize: 15, weight: .medium)
@@ -157,7 +159,7 @@ final class PinnedBar: UIVisualEffectView {
         openButton.accessibilityLabel = "Перейти к закреплённому сообщению"
         openButton.addTarget(self, action: #selector(openNow), for: .touchUpInside)
         contentView.addSubview(openButton)
-        unpinButton.setImage(chatSymbol("xmark", 16, .medium), for: .normal)
+        unpinButton.setImage(chatSymbol("ion:close", 22), for: .normal) // <Icon name="close" size={22} color={t.muted}>
         unpinButton.tintColor = Theme.muted
         unpinButton.accessibilityLabel = "Открепить"
         unpinButton.addTarget(self, action: #selector(unpinNow), for: .touchUpInside)
@@ -177,9 +179,12 @@ final class PinnedBar: UIVisualEffectView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width
-        stripe.frame = CGRect(x: 16, y: 11, width: 2.5, height: 34)
-        headingLabel.frame = CGRect(x: 30, y: 9, width: max(0, width - 30 - 50), height: 19)
-        wordsLabel.frame = CGRect(x: 30, y: 28, width: max(0, width - 30 - 50), height: 19)
+        // ChatScreen.tsx: padding 16, the 2.5 × 34 line, 12 to the words; two 15-point lines 1 apart, centred.
+        stripe.frame = CGRect(x: 16, y: (bounds.height - 34) / 2, width: 2.5, height: 34)
+        let line = ceil(UIFont.systemFont(ofSize: 15).lineHeight)
+        let top = (bounds.height - 2 * line - 1) / 2
+        headingLabel.frame = CGRect(x: 30.5, y: top, width: max(0, width - 30.5 - 50), height: line)
+        wordsLabel.frame = CGRect(x: 30.5, y: top + line + 1, width: max(0, width - 30.5 - 50), height: line)
         openButton.frame = CGRect(x: 0, y: 0, width: max(0, width - 50), height: bounds.height)
         unpinButton.frame = CGRect(x: width - 50, y: 6, width: 44, height: 44)
     }
@@ -200,7 +205,8 @@ final class DownButton: UIView {
         glass.clipsToBounds = true
         glass.layer.cornerRadius = DownButton.side / 2
         addSubview(glass)
-        arrow.image = chatSymbol("chevron.down", 18, .semibold)
+        // ChatScreen.tsx: <Icon name="chevron-down" size={26} color={t.text}> on a 40-point glass circle; no count.
+        arrow.image = chatSymbol("ion:chevron-down", 26)
         arrow.tintColor = Theme.text
         arrow.contentMode = .center
         addSubview(arrow)
@@ -222,7 +228,8 @@ final class DownButton: UIView {
     /// `count`: how many new messages wait below; 0 hides the number.
     func show(count: Int) {
         if glass.effect == nil { glass.effect = chatGlass() }
-        badge.isHidden = count <= 0
+        // The reference's button shows no number of new messages.
+        badge.isHidden = true
         badge.text = count > 99 ? "99+" : String(count)
         touch.accessibilityValue = count > 0 ? "новых: \(count)" : nil
         setNeedsLayout()

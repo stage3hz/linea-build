@@ -75,7 +75,7 @@ final class DataViewController: SettingsPage {
     }
 
     private func line(symbol: String, label: String, value: String) -> UIView {
-        let icon = UIImageView(image: SettingsLook.symbol(symbol, size: 18, weight: .regular))
+        let icon = UIImageView(image: SettingsLook.symbol(symbol, size: 22, weight: .regular)) // Ionicons 22 in the accent
         icon.tintColor = Theme.accent
         icon.setContentHuggingPriority(.required, for: .horizontal)
         let name = SettingsLook.words(label, size: 15, color: Theme.text)
@@ -117,7 +117,7 @@ final class DataViewController: SettingsPage {
             filled.bottomAnchor.constraint(equalTo: track.bottomAnchor),
             filled.widthAnchor.constraint(equalTo: track.widthAnchor, multiplier: max(0.001, share)),
         ])
-        let server = UIStackView(arrangedSubviews: [line(symbol: "cloud", label: "Использовано", value: usedWords), track])
+        let server = UIStackView(arrangedSubviews: [line(symbol: "ion:cloud-outline", label: "Использовано", value: usedWords), track])
         server.axis = .vertical
         server.spacing = 10
         if let limits {
@@ -134,7 +134,7 @@ final class DataViewController: SettingsPage {
         clean.setBusy(clearing)
         clean.onPress = { [weak self] in self?.clearCache() }
         let device = UIStackView(arrangedSubviews: [
-            line(symbol: "externaldrive", label: "Временные файлы", value: cacheWords),
+            line(symbol: "ion:server-outline", label: "Временные файлы", value: cacheWords),
             SettingsLook.words("Расшифрованные для просмотра вложения. Всё это можно скачать и расшифровать заново.", size: 12, color: Theme.muted),
             clean,
         ])

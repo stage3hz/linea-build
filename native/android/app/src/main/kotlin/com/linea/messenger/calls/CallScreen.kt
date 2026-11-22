@@ -23,7 +23,10 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.linea.messenger.chats.AvatarStore
+import com.linea.messenger.design.IonIcon
 import com.linea.messenger.design.Theme
+import com.linea.messenger.effects.MusicAmbientView
+import com.linea.messenger.settings.ThemeStore
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.words
 import com.linea.messenger.people.PersonAvatarView
@@ -58,7 +61,7 @@ class CallRoundButton(context: Context, private val symbol: String, val words: S
     val cx = width / 2f
     canvas.drawCircle(cx, 31f * d, 31f * d, circle)
     val ink = if (color != null) 0xFFFFFFFF.toInt() else if (active) 0xFF1B2440.toInt() else 0xFFFFFFFF.toInt()
-    CallIcons.draw(canvas, symbol, cx, 31f * d, 27f * d, ink, circle.color or 0xFF000000.toInt())
+    IonIcon.draw(canvas, symbol, cx, 31f * d, 27f * d, ink) // the reference's Ionicons at 27
     // The word shrinks to fit its place (down to 0.8 of its size).
     val size = 12f * resources.displayMetrics.scaledDensity
     caption.textSize = size
@@ -73,12 +76,16 @@ class CallRoundButton(context: Context, private val symbol: String, val words: S
  *  the status in the middle (in a video call the other side's camera fills the screen and this phone's own sits in
  *  a small frame that can be dragged); the buttons at the bottom. Pulled down, the call is minimised. */
 class CallScreenView(context: Context) : Screen(context) {
+  /** The music screen's still ambient under everything (the reference's `<MusicAmbient still>`). */
+  private val ambient = MusicAmbientView(context, if (Theme.dark && ThemeStore.look.black) "black" else "dark", still = true)
   private val backdrop = Backdrop(context)
+  /** «Звук», opened over the call. */
+  private var audioPanel: CallAudioPanel? = null
   private val remoteVideo = CallVideoView(context)
   private val localBox = FrameLayout(context)
   private val localVideo = CallVideoView(context).apply { onTop = true }
   private val minimizeButton = object : View(context) {
-    override fun onDraw(canvas: Canvas) = CallIcons.draw(canvas, "chevron.down", width / 2f, height / 2f, 22f * d, 0xFFFFFFFF.toInt())
+    override fun onDraw(canvas: Canvas) = IonIcon.draw(canvas, "chevron-down", width / 2f, height / 2f, 24f * d, 0xFFFFFFFF.toInt())
     override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
   }
   private val keyLabel = TextView(context)
@@ -102,6 +109,7 @@ class CallScreenView(context: Context) : Screen(context) {
   init {
     setBackgroundColor(0xFF000000.toInt())
     clipChildren = true
+    addView(ambient)
     addView(backdrop)
     remoteVideo.visibility = GONE
     addView(remoteVideo)
@@ -161,27 +169,25 @@ class CallScreenView(context: Context) : Screen(context) {
       val call = shown ?: return
       val w = width.toFloat(); val h = height.toFloat()
       val color = call.peer.avatarColor and 0x00FFFFFF
-      paint.shader = LinearGradient(0f, 0f, 0f, h, intArrayOf(color or (0xCC shl 24), color or (0x54 shl 24), color), null, Shader.TileMode.CLAMP)
-      canvas.drawRect(0f, 0f, w, h, paint)
-      paint.shader = null
       val address = Calls.pictureAddress(call.peer)
       // The store draws this view again when the picture has come.
       val face = if (call.peer.avatarId.isNotEmpty() && address.isNotEmpty()) AvatarStore.get(context, call.peer.avatarId, address, this) else null
-      if (face != null) {
+      if (face == null) {
+        // Without a photo: their colour over the ambient, fading down to nothing (CC → 55 → clear).
+        paint.shader = LinearGradient(0f, 0f, 0f, h, intArrayOf(color or (0xCC shl 24), color or (0x55 shl 24), color), null, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = null
+      } else {
         if (blurredOf !== face) {
-          // A few dozen points stretched over the screen: the picture as a soft blur of its colours.
-          blurred = try { Bitmap.createScaledBitmap(face, 20, maxOf(1, 20 * face.height / maxOf(1, face.width)), true) } catch (_: Exception) { null }
+          // The reference's `blurRadius={60}`: a Gaussian of 60 of the picture's own pixels.
+          blurred = try { gaussian(face, 60f) } catch (_: Throwable) { null }
           blurredOf = face
         }
         blurred?.let { soft ->
-          // A little larger than the screen, filling it.
-          val scale = maxOf(w * 1.25f / soft.width, h * 1.25f / soft.height)
+          // 1.25 times the screen (`scale: 1.25` over a cover fit).
+          val scale = maxOf(w / soft.width, h / soft.height) * 1.25f
           place.set((w - soft.width * scale) / 2, (h - soft.height * scale) / 2, (w + soft.width * scale) / 2, (h + soft.height * scale) / 2)
-          paint.color = 0xFF000000.toInt()
-          canvas.drawRect(0f, 0f, w, h, paint)
           canvas.drawBitmap(soft, null, place, paint)
-          paint.color = 0x73000000
-          canvas.drawRect(0f, 0f, w, h, paint)
         }
       }
       paint.color = 0x52000000
@@ -192,6 +198,44 @@ class CallScreenView(context: Context) : Screen(context) {
         paint.shader = null
       }
       paint.color = 0xFF000000.toInt()
+    }
+  }
+
+  /** A Gaussian blur of `sigma` px of `source`: the picture made 4 times smaller, then three box passes each way
+   *  (the usual stand-in for a Gaussian, as the image libraries do), drawn back at its size. */
+  private fun gaussian(source: Bitmap, sigma: Float): Bitmap {
+    val step = 4
+    val w = maxOf(1, source.width / step); val h = maxOf(1, source.height / step)
+    val small = Bitmap.createScaledBitmap(source, w, h, true).copy(Bitmap.Config.ARGB_8888, true)
+    val s = sigma / step
+    // Three boxes whose sum of variances is s²: the box width from the standard formula.
+    val box = maxOf(1, Math.round(Math.sqrt(12.0 * s * s / 3 + 1)).toInt()) or 1
+    val radius = box / 2
+    val pixels = IntArray(w * h)
+    small.getPixels(pixels, 0, w, 0, 0, w, h)
+    val spare = IntArray(w * h)
+    repeat(3) {
+      boxPass(pixels, spare, w, h, radius, true)
+      boxPass(spare, pixels, w, h, radius, false)
+    }
+    small.setPixels(pixels, 0, w, 0, 0, w, h)
+    return small
+  }
+
+  private fun boxPass(from: IntArray, to: IntArray, w: Int, h: Int, radius: Int, across: Boolean) {
+    val lines = if (across) h else w; val length = if (across) w else h
+    val span = radius * 2 + 1
+    for (line in 0 until lines) {
+      var a = 0; var r = 0; var g = 0; var b = 0
+      fun at(i: Int): Int { val k = i.coerceIn(0, length - 1); return if (across) from[line * w + k] else from[k * w + line] }
+      for (i in -radius..radius) { val p = at(i); a += p ushr 24; r += (p shr 16) and 255; g += (p shr 8) and 255; b += p and 255 }
+      for (i in 0 until length) {
+        val index = if (across) line * w + i else i * w + line
+        to[index] = ((a / span) shl 24) or ((r / span) shl 16) or ((g / span) shl 8) or (b / span)
+        val out = at(i - radius); val inn = at(i + radius + 1)
+        a += (inn ushr 24) - (out ushr 24); r += ((inn shr 16) and 255) - ((out shr 16) and 255)
+        g += ((inn shr 8) and 255) - ((out shr 8) and 255); b += (inn and 255) - (out and 255)
+      }
     }
   }
 
@@ -208,8 +252,23 @@ class CallScreenView(context: Context) : Screen(context) {
     super.onDetachedFromWindow()
   }
 
+  private fun openAudio() {
+    if (audioPanel != null) return
+    val panel = CallAudioPanel(context) { closeAudio() }
+    audioPanel = panel
+    addView(panel)
+    requestLayout()
+  }
+
+  private fun closeAudio() {
+    val panel = audioPanel ?: return
+    audioPanel = null
+    removeView(panel)
+  }
+
   /** The screen leaves: its pictures are let go, its clock stops. */
   fun retire() {
+    closeAudio()
     removeCallbacks(clock)
     clockRuns = false
     setPulse(false)
@@ -232,14 +291,19 @@ class CallScreenView(context: Context) : Screen(context) {
     // The key of the call, or — before it is known — what protects it.
     val key = call.key
     if (key != null) {
-      keyLabel.text = "🔒 " + key.joinToString(" ")
+      keyLabel.text = key.joinToString(" ")
+      keyLabel.setCompoundDrawables(IonIcon.drawable(context, "lock-closed", dp(13f), 0xFFFFFFFF.toInt()).apply { setBounds(0, 0, dp(13f), dp(13f)) }, null, null, null)
+      keyLabel.compoundDrawablePadding = dp(6f)
+      keyLabel.setPadding(dp(12f), dp(6f), dp(12f), dp(6f))
       keyLabel.textSize = 15f
-      keyLabel.letterSpacing = 0.12f
+      keyLabel.letterSpacing = 2f / 15f
       keyLabel.setTextColor(0xFFFFFFFF.toInt())
       keyLabel.background = context.plate(0x2E000000, 16f)
       keyLabel.contentDescription = "Ключ звонка: " + key.joinToString(" ")
     } else {
       keyLabel.text = "🔒 Звонок защищён сквозным шифрованием"
+      keyLabel.setCompoundDrawables(null, null, null, null)
+      keyLabel.setPadding(0, 0, 0, 0)
       keyLabel.textSize = 12f
       keyLabel.letterSpacing = 0f
       keyLabel.setTextColor(0xCCFFFFFF.toInt())
@@ -248,6 +312,7 @@ class CallScreenView(context: Context) : Screen(context) {
     }
 
     minimizeButton.visibility = if (call.status != "incoming" && !call.isOver) VISIBLE else GONE
+    if (call.status == "incoming" || call.isOver) closeAudio()
 
     // In the debug build's samples the pictures are drawn in the person's colours: nothing is filmed.
     if (Calls.isDemo) {
@@ -308,26 +373,27 @@ class CallScreenView(context: Context) : Screen(context) {
     buttonsKey = key
     for (old in buttons) removeView(old)
     val red = 0xFFFF3B30.toInt(); val green = 0xFF34C759.toInt()
-    val callSymbol = if (call.video) "video.fill" else "phone.fill"
+    val callSymbol = if (call.video) "videocam" else "call"
     val made = ArrayList<CallRoundButton>()
     fun add(symbol: String, words: String, active: Boolean = false, color: Int? = null, press: () -> Unit) {
       made.add(CallRoundButton(context, symbol, words, active, color).also { it.onPress = press })
     }
     if (call.status == "incoming") {
-      add("xmark", "Отклонить", color = red) { Calls.hangup() }
+      add("close", "Отклонить", color = red) { Calls.hangup() }
       add(callSymbol, "Ответить", color = green) { Calls.accept() }
     } else if (call.isOver) {
       if (call.retry) {
-        add("xmark", "Закрыть") { Calls.close() }
+        add("close", "Закрыть") { Calls.close() }
         add(callSymbol, "Повторить", color = green) { Calls.retry() }
       }
     } else {
       val cameraOn = call.video && !call.cameraOff
-      add("speaker.fill", "Динамик", active = call.speaker) { Calls.toggleSpeaker() }
-      add(if (cameraOn) "video.fill" else "video.slash.fill", "Видео", active = cameraOn) { Calls.toggleCamera() }
-      if (cameraOn) add("flip", "Повернуть") { Calls.flipCamera() }
-      add(if (call.muted) "mic.slash.fill" else "mic.fill", if (call.muted) "Звук выкл" else "Убрать звук", active = call.muted) { Calls.toggleMute() }
-      add("xmark", "Завершить", color = red) { Calls.hangup() }
+      // «Звук»: the device of this call (CallAudioPanel.kt), as the reference on Android.
+      add("volume-high", "Звук", active = call.speaker) { openAudio() }
+      add(if (cameraOn) "videocam" else "videocam-off", "Видео", active = cameraOn) { Calls.toggleCamera() }
+      if (cameraOn) add("camera-reverse", "Повернуть") { Calls.flipCamera() }
+      add(if (call.muted) "mic-off" else "mic", if (call.muted) "Звук выкл" else "Убрать звук", active = call.muted) { Calls.toggleMute() }
+      add("close", "Завершить", color = red) { Calls.hangup() }
     }
     buttons = made
     for (button in made) addView(button)
@@ -362,8 +428,12 @@ class CallScreenView(context: Context) : Screen(context) {
     put(minimizeButton, dp(16f), edges.top + dp(6f), dp(40f), dp(40f))
 
     keyLabel.measure(MeasureSpec.makeMeasureSpec(width - dp(140f), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    val pillWidth = minOf(width - dp(140f), keyLabel.measuredWidth + dp(24f))
-    put(keyLabel, (width - pillWidth) / 2, top, pillWidth, dp(34f))
+    // With the key: its own padding (12 × 6) around the lock and the emoji; before it — the words, centred in 34.
+    val keyed = shown?.key != null
+    val pillWidth = minOf(width - dp(140f), keyLabel.measuredWidth + if (keyed) 0 else dp(24f))
+    put(keyLabel, (width - pillWidth) / 2, top, pillWidth, if (keyed) keyLabel.measuredHeight else dp(34f))
+    put(ambient, 0, 0, width, height)
+    audioPanel?.let { it.bottomInset = edges.bottom; put(it, 0, 0, width, height) }
 
     val buttonsTop = height - bottom - dp(88f)
     if (buttons.isNotEmpty()) {
@@ -485,19 +555,54 @@ class CallScreenView(context: Context) : Screen(context) {
     if (event.actionMasked == MotionEvent.ACTION_DOWN) { pullX = event.rawX; pullY = event.rawY; pulling = mayPull(); if (pulling) speed = VelocityTracker.obtain() }
     if (!pulling) return true
     speed?.addMovement(event)
-    val down = maxOf(0f, event.rawY - pullY)
+    // The reference's useSwipeDismiss (swipeDismissModel.ts), in dp: down 1:1, up only 14 with resistance.
+    val travel = (event.rawY - pullY) / d
+    val offset = if (travel >= 0f) travel else -14f * (1f - Math.exp(travel / (14.0 * 3)).toFloat())
     when (event.actionMasked) {
-      MotionEvent.ACTION_MOVE -> translationY = down
+      MotionEvent.ACTION_MOVE -> translationY = offset * d
       MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
         speed?.computeCurrentVelocity(1000)
-        val fast = (speed?.yVelocity ?: 0f) > 900f * d
+        val velocity = (speed?.yVelocity ?: 0f) / d
         speed?.recycle(); speed = null
         pulling = false
-        if (event.actionMasked == MotionEvent.ACTION_UP && (down > 140f * d || fast)) Calls.minimize()
-        else animate().translationY(0f).setDuration(250).setInterpolator(DecelerateInterpolator()).start()
+        val tall = if (height > 0) height / d else 400f
+        val distance = minOf(240f, maxOf(56f, tall * 0.25f))
+        val close = event.actionMasked == MotionEvent.ACTION_UP && offset > 0f && velocity > -400f && ((velocity >= 1000f && offset >= 8f) || offset >= distance)
+        if (close) {
+          // Out of sight below (out-quad, 120…280 ms by the speed), then minimised.
+          val target = maxOf(tall, ((parent as? View)?.height ?: 0) / d) + 24f
+          val left = maxOf(0f, target - maxOf(0f, offset))
+          val duration = Math.round(maxOf(120f, minOf(280f, left / maxOf(1200f, velocity) * 1000f))).toLong()
+          animate().translationY(target * d).setDuration(duration).setInterpolator(DecelerateInterpolator()).withEndAction { Calls.minimize() }.start()
+        } else {
+          springBack(velocity)
+        }
       }
     }
     return true
+  }
+
+  /** Back in place on the reference's spring (damping 22, stiffness 260, mass 0.8), from the finger's speed. */
+  private fun springBack(velocity: Float) {
+    val mass = 0.8; val stiffness = 260.0; val damping = 22.0
+    var x = (translationY / d).toDouble(); var v = velocity.toDouble()
+    val run = ValueAnimator.ofFloat(0f, 1f).setDuration(1200)
+    var last = 0L
+    run.addUpdateListener { step ->
+      val now = step.currentPlayTime
+      var left = (now - last).coerceIn(0L, 64L) / 1000.0
+      last = now
+      // Small steps of the spring's own equation (semi-implicit Euler at 1 ms).
+      while (left > 0) {
+        val dt = minOf(0.001, left)
+        v += (-stiffness * x - damping * v) / mass * dt
+        x += v * dt
+        left -= dt
+      }
+      translationY = (x * d).toFloat()
+      if (Math.abs(x) < 0.01 && Math.abs(v) < 2) { translationY = 0f; step.cancel() }
+    }
+    run.start()
   }
 
   companion object {

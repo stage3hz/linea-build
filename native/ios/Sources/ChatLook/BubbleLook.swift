@@ -101,6 +101,7 @@ enum ChatBubbleLook {
     /// `borderLeftWidth: 2, borderLeftColor: tint`).
     static func drawPeerLine(_ context: CGContext, box: CGRect, fallback: UIColor) {
         context.setFillColor((peerLine ?? fallback).cgColor)
-        context.fill(CGRect(x: box.minX, y: box.minY + 2, width: 2, height: max(0, box.height - 4)))
+        // MessageRow.tsx: `borderLeftWidth: 2` — the whole height of the message.
+        context.fill(CGRect(x: box.minX, y: box.minY, width: 2, height: box.height))
     }
 }

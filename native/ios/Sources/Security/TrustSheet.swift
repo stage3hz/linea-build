@@ -39,7 +39,7 @@ final class TrustSheet: SettingsPage {
     static func attach(to line: UIStackView, words: UILabel, from screen: UIViewController, messenger: Messenger?, peerId: String) {
         guard let messenger, !peerId.isEmpty, peerId != messenger.userId else { return }
         words.text = (words.text ?? "") + " · проверить устройства"
-        let arrow = UIImageView(image: UIImage(systemName: "chevron.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)))
+        let arrow = UIImageView(image: IonIcon.image("chevron-forward", size: 14)) // UserProfile.tsx: «chevron-forward» 14
         arrow.tintColor = Theme.muted
         arrow.setContentHuggingPriority(.required, for: .horizontal)
         line.addArrangedSubview(arrow)
@@ -122,7 +122,7 @@ final class TrustSheet: SettingsPage {
         for device in devices {
             let trusted = device["trusted"] as? Bool ?? false
             let own = device["self"] as? Bool ?? false
-            let icon = UIImageView(image: SettingsLook.symbol(trusted ? "checkmark.shield" : "shield", size: 19, weight: .medium))
+            let icon = UIImageView(image: SettingsLook.symbol(trusted ? "ion:shield-checkmark-outline" : "ion:shield-outline", size: 22))
             icon.tintColor = trusted ? Theme.accent : Theme.danger
             icon.setContentHuggingPriority(.required, for: .horizontal)
             let name = SettingsLook.words(own ? "Твоё другое устройство" : "Устройство собеседника", size: 15, color: Theme.text, weight: .bold)
@@ -149,7 +149,7 @@ final class TrustSheet: SettingsPage {
         }
         let pending = devices.contains { (device: [String: Any]) -> Bool in !(device["trusted"] as? Bool ?? false) }
         if pending {
-            let mark = UIImageView(image: SettingsLook.symbol(checked ? "checkmark.square.fill" : "square", size: 20, weight: .regular))
+            let mark = UIImageView(image: SettingsLook.symbol(checked ? "ion:checkbox" : "ion:square-outline", size: 22))
             mark.tintColor = Theme.accent
             mark.setContentHuggingPriority(.required, for: .horizontal)
             let words = SettingsLook.words("Я сверил все новые коды с собеседником и своими устройствами.", size: 13, color: Theme.text)
@@ -176,7 +176,7 @@ final class TrustSheet: SettingsPage {
                 self.fill()
             }, for: .touchUpInside)
             add(row, gap: 12)
-            let confirm = SettingsButton(label: "Подтвердить проверенные ключи")
+            let confirm = SettingsButton(label: "Подтвердить проверенные ключи", icon: "shield-checkmark-outline")
             confirm.isEnabled = checked && !loading
             confirm.alpha = confirm.isEnabled ? 1 : 0.5
             if busy { confirm.setBusy(true) }

@@ -62,10 +62,10 @@ final class PowerSettingsViewController: SettingsPage {
         caption.attributedText = NSAttributedString(string: "РЕСУРСОЁМКИЕ ПРОЦЕССЫ", attributes: [.kern: 1.2, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         rows.append(SettingsLook.inset(caption, top: 14, side: 14, bottom: 0))
         let items: [(String, String, String, String)] = [
-            ("autoplayVideo", "video", "Автозапуск видео", "Кружки и видео в чатах сами играют без звука, видео-аватары двигаются."),
-            ("autoplayGif", "photo.on.rectangle", "Автозапуск GIF", "GIF в чатах, на аватарах и баннерах проигрываются сами."),
-            ("animatedStickers", "face.smiling", "Анимированные стикеры", "Большие эмодзи в сообщениях двигаются."),
-            ("animatedEmoji", "sparkles", "Анимированные эмодзи", "Эмодзи-статусы рядом с именем двигаются."),
+            ("autoplayVideo", "ion:videocam", "Автозапуск видео", "Кружки и видео в чатах сами играют без звука, видео-аватары двигаются."),
+            ("autoplayGif", "ion:images", "Автозапуск GIF", "GIF в чатах, на аватарах и баннерах проигрываются сами."),
+            ("animatedStickers", "ion:happy", "Анимированные стикеры", "Большие эмодзи в сообщениях двигаются."),
+            ("animatedEmoji", "ion:sparkles", "Анимированные эмодзи", "Эмодзи-статусы рядом с именем двигаются."),
         ]
         for item in items {
             let key = item.0
@@ -73,7 +73,7 @@ final class PowerSettingsViewController: SettingsPage {
             row.onChange = { (on: Bool) -> Void in DevicePreferences.set([key: on]) }
             rows.append(row)
         }
-        let animations = PowerRow(symbol: "wand.and.stars", title: "Анимации интерфейса", text: "Плавные переходы, рамки и эффекты профиля.", value: Motion.mode != "off")
+        let animations = PowerRow(symbol: "ion:color-wand", title: "Анимации интерфейса", text: "Плавные переходы, рамки и эффекты профиля.", value: Motion.mode != "off")
         animations.onChange = { (on: Bool) -> Void in DevicePreferences.set(["animations": on ? "auto" : "off"]) }
         rows.append(animations)
         let reason = SettingsLook.words("", size: 12, color: Theme.muted)
@@ -206,10 +206,10 @@ final class PowerRow: UIView {
     init(symbol: String, title: String, text: String, value: Bool) {
         super.init(frame: .zero)
         let chip = UIView()
-        chip.backgroundColor = SettingsLook.chip
+        chip.backgroundColor = Theme.veil(Theme.dark ? 0.07 : 0.05) // the reference's PowerRow: 0.07 white / 0.05 black
         chip.layer.cornerRadius = 17
         chip.translatesAutoresizingMaskIntoConstraints = false
-        let icon = UIImageView(image: SettingsLook.symbol(symbol, size: 16, weight: .medium))
+        let icon = UIImageView(image: SettingsLook.symbol(symbol, size: symbol.hasPrefix("ion:") ? 18 : 16, weight: .medium))
         icon.tintColor = Theme.text
         icon.contentMode = .center
         icon.translatesAutoresizingMaskIntoConstraints = false

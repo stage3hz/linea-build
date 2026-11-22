@@ -82,7 +82,7 @@ final class MessageMenuController: UIViewController {
             pill.contentView.addSubview(button)
             reactionButtons.append(button)
         }
-        moreButton.setImage(chatSymbol("chevron.down", 14, .semibold), for: .normal)
+        moreButton.setImage(chatSymbol("ion:chevron-down", 18), for: .normal) // ContextMenu.tsx «Все реакции»
         moreButton.tintColor = Theme.muted
         moreButton.accessibilityLabel = "Все реакции"
         moreButton.addTarget(self, action: #selector(showAll), for: .touchUpInside)
@@ -102,15 +102,27 @@ final class MessageMenuController: UIViewController {
 
         panel.effect = chatGlass()
         panel.clipsToBounds = true
-        panel.layer.cornerRadius = 22
+        panel.layer.cornerRadius = 26 // ContextMenu.tsx: the menu's radius
         panel.layer.cornerCurve = .continuous
         view.addSubview(panel)
         buildRows()
     }
 
+    /// The bands above «separated» items, by the item's index.
+    private var separatorBands: [Int: UIView] = [:]
+
     private func buildRows() {
         for row in rowViews { row.removeFromSuperview() }
         rowViews = []
+        for band in separatorBands.values { band.removeFromSuperview() }
+        separatorBands = [:]
+        for (index, item) in items.enumerated() where item.separated && index > 0 {
+            let band = UIView()
+            band.backgroundColor = UIColor(white: 0, alpha: Theme.dark ? 0.22 : 0.05)
+            band.isUserInteractionEnabled = false
+            panel.contentView.addSubview(band)
+            separatorBands[index] = band
+        }
         for (index, item) in items.enumerated() {
             let row = MessageMenuRow(symbol: item.symbol, label: item.label, danger: item.danger)
             row.tag = index
@@ -193,9 +205,14 @@ final class MessageMenuController: UIViewController {
         }
         var panelHeight: CGFloat = 0
         for (index, row) in rowViews.enumerated() {
-            if index < items.count, items[index].separated, index > 0 { panelHeight += 8 }
-            row.frame = CGRect(x: 0, y: panelHeight, width: panelWidth, height: 46)
-            panelHeight += 46
+            // ContextMenu.tsx MenuItem: 44 tall; «separated» is a 6-point band (black 0.22 on dark, 0.05 on light).
+            if index < items.count, items[index].separated, index > 0 {
+                let band = separatorBands.count > index ? separatorBands[index] : nil
+                band?.frame = CGRect(x: 0, y: panelHeight, width: panelWidth, height: 6)
+                panelHeight += 6
+            }
+            row.frame = CGRect(x: 0, y: panelHeight, width: panelWidth, height: 44)
+            panelHeight += 44
         }
 
         var total = panelHeight
@@ -224,18 +241,26 @@ final class MessageMenuController: UIViewController {
 
 /// One line of the message menu.
 private final class MessageMenuRow: UIControl {
+    /// The reference's Ionicons for the menu's items (ChatScreen.tsx MenuItem icons), by the names the items carry.
+    static let ion: [String: String] = [
+        "arrowshape.turn.up.left": "arrow-undo-outline", "doc.on.doc": "copy-outline", "square.and.arrow.down": "download-outline",
+        "pin": "pin-outline", "pin.slash": "pin", "arrowshape.turn.up.right": "arrow-redo-outline", "square.and.pencil": "create-outline",
+        "arrow.clockwise": "refresh-outline", "trash": "trash-outline", "checkmark.circle": "checkmark-circle-outline",
+        "eye.slash": "eye-off-outline", "bookmark": "bookmark-outline",
+    ]
+
     private let mark = UIImageView()
     private let nameLabel = UILabel()
 
     init(symbol: String, label: String, danger: Bool) {
         super.init(frame: .zero)
         let ink = danger ? Theme.danger : Theme.text
-        mark.image = chatSymbol(symbol, 17)
+        mark.image = chatSymbol(MessageMenuRow.ion[symbol].map { "ion:" + $0 } ?? symbol, 19) // <Icon size={19}>
         mark.tintColor = ink
         mark.contentMode = .center
         addSubview(mark)
         nameLabel.text = label
-        nameLabel.font = .systemFont(ofSize: 16)
+        nameLabel.font = .systemFont(ofSize: 15.5)
         nameLabel.textColor = ink
         nameLabel.adjustsFontSizeToFitWidth = true
         nameLabel.minimumScaleFactor = 0.75
@@ -248,12 +273,13 @@ private final class MessageMenuRow: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? Theme.veil(0.1) : .clear }
+        didSet { backgroundColor = isHighlighted ? (Theme.dark ? UIColor(white: 1, alpha: 0.08) : UIColor(white: 0, alpha: 0.05)) : .clear }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        mark.frame = CGRect(x: 8, y: 0, width: 36, height: bounds.height)
-        nameLabel.frame = CGRect(x: 48, y: 0, width: max(0, bounds.width - 60), height: bounds.height)
+        // ContextMenu.tsx: padding 16, the 19-point icon, 13 to the words.
+        mark.frame = CGRect(x: 16, y: 0, width: 19, height: bounds.height)
+        nameLabel.frame = CGRect(x: 48, y: 0, width: max(0, bounds.width - 48 - 16), height: bounds.height)
     }
 }

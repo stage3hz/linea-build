@@ -86,6 +86,9 @@ class ThemeLook {
   var danger = 0xFFFF9CB0.toInt(); private set
   var bubble = 0xF51F2023.toInt(); private set
   var incoming = 0xF5161718.toInt(); private set
+  /** The reference's `glass` and `glassBorder` (theme.tsx). */
+  var glass = 0x9E0F1011.toInt(); private set
+  var glassBorder = 0x14FFFFFF; private set
   /** What the look was made from: two looks with the same words here are the same look. */
   var source = "black|"; private set
 
@@ -107,6 +110,8 @@ class ThemeLook {
     danger = color(fields["danger"] as? String) ?: danger
     bubble = color(fields["bubble"] as? String) ?: bubble
     incoming = color(fields["incoming"] as? String) ?: incoming
+    glass = color(fields["glass"] as? String) ?: glass
+    glassBorder = color(fields["glassBorder"] as? String) ?: glassBorder
     source = id + "|" + (fields["accent"] as? String ?: "")
   }
 

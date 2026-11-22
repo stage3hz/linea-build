@@ -100,16 +100,74 @@ enum MediaRowArt {
         context.strokePath()
     }
 
-    /// The plate of a video or a round video whose small picture did not come with the message.
+    /// The plate of a video or a round video whose small picture did not come with the message. A circle: the
+    /// reference's placeholder — surface2 with the muted «videocam» glyph, 14 % of the circle (VideoNote.tsx).
     static func plate(_ context: CGContext, round: Bool, palette: MsgPalette, box: CGRect) {
-        context.setFillColor(palette.theirs.cgColor)
+        context.setFillColor((round ? Theme.surface2 : palette.theirs).cgColor)
         context.addPath(UIBezierPath(roundedRect: box, cornerRadius: round ? min(box.width, box.height) / 2 : 12).cgPath)
         context.fillPath()
+        if round {
+            let size = (min(box.width, box.height) * 0.14).rounded()
+            IonIcon.image("videocam", size: size).withTintColor(Theme.muted, renderingMode: .alwaysOriginal)
+                .draw(in: CGRect(x: box.midX - size / 2, y: box.midY - size / 2, width: size, height: size))
+        }
+    }
+
+    /// An Ionicons glyph drawn white (or in `color`), `size` points square, centred on `center`.
+    private static func glyph(_ name: String, size: CGFloat, center: CGPoint, color: UIColor = .white) {
+        IonIcon.image(name, size: size).withTintColor(color, renderingMode: .alwaysOriginal)
+            .draw(in: CGRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size))
+    }
+
+    /// MediaBubble.tsx `ProgressRing`: a 3 pt ring on a 25 % white track, from 12 o'clock, at least 3 %.
+    private static func progressRing(_ context: CGContext, center: CGPoint, size: CGFloat, progress: CGFloat) {
+        let radius = (size - 3) / 2
+        context.setLineWidth(3)
+        context.setStrokeColor(UIColor(white: 1, alpha: 0.25).cgColor)
+        context.strokeEllipse(in: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+        let value = max(0.03, min(1, progress))
+        context.setStrokeColor(UIColor.white.cgColor)
+        context.setLineCap(.round)
+        context.addArc(center: center, radius: radius, startAngle: -CGFloat.pi / 2, endAngle: -CGFloat.pi / 2 + 2 * CGFloat.pi * value, clockwise: false)
+        context.strokePath()
+    }
+
+    /// A round video at rest (VideoNote.tsx `VideoNoteBubble`): no play mark over a circle that is there; one not
+    /// brought yet carries the 44 pt download mark (while it comes: its progress ring and a cross); at the lower
+    /// left of its square the length in a pill, with the speaker-off mark once the circle is brought.
+    static func noteMarks(_ context: CGContext, key: String, length: String, state: MsgMediaState?, box: CGRect) {
+        let center = CGPoint(x: box.midX, y: box.midY)
+        let live = state?.key == key ? state : nil
+        let ready = NotePlayback.readyKeys.contains(key)
+        if live?.loading ?? false {
+            context.setFillColor(UIColor(red: 10 / 255, green: 20 / 255, blue: 35 / 255, alpha: 0.55).cgColor)
+            context.fillEllipse(in: CGRect(x: center.x - 22, y: center.y - 22, width: 44, height: 44))
+            progressRing(context, center: center, size: 44, progress: live?.progress ?? 0)
+            glyph("close", size: 20, center: center)
+        } else if !ready {
+            context.setFillColor(UIColor(red: 10 / 255, green: 20 / 255, blue: 35 / 255, alpha: 0.55).cgColor)
+            context.fillEllipse(in: CGRect(x: center.x - 22, y: center.y - 22, width: 44, height: 44))
+            glyph("arrow-down", size: 22, center: center)
+        }
+        let words = NSAttributedString(string: length.isEmpty ? "0:00" : length, attributes: [.font: UIFont.systemFont(ofSize: 11), .foregroundColor: UIColor.white])
+        let size = words.size()
+        let tall = ceil(UIFont.systemFont(ofSize: 11).lineHeight) + 4
+        let pill = CGRect(x: box.minX + 6, y: box.maxY - 6 - tall, width: 7 + ceil(size.width) + (ready ? 4 + 11 : 0) + 7, height: tall)
+        context.setFillColor(UIColor(white: 0, alpha: 0.42).cgColor)
+        context.addPath(UIBezierPath(roundedRect: pill, cornerRadius: 9).cgPath)
+        context.fillPath()
+        words.draw(at: CGPoint(x: pill.minX + 7, y: pill.midY - size.height / 2))
+        if ready { glyph("volume-mute", size: 11, center: CGPoint(x: pill.minX + 7 + ceil(size.width) + 4 + 5.5, y: pill.midY)) }
     }
 
     /// Over the picture of a video or a round video: the play mark in the middle and the length in a pill at the
     /// lower left; for a round video listened to in place, the ring of its progress.
-    static func marks(_ context: CGContext, row: MsgRow, state: MsgMediaState?, palette: MsgPalette, box: CGRect) {
+    static func marks(_ context: CGContext, row: MsgRow, state: MsgMediaState?, palette: MsgPalette, box: CGRect, hosted: Bool = false) {
+        // A round video: the reference's resting look; while its player stands over it, the player draws it all.
+        if row.media == "note" {
+            if !hosted { noteMarks(context, key: row.key, length: row.mediaTime, state: state, box: box) }
+            return
+        }
         let center = CGPoint(x: box.midX, y: box.midY)
         let live = state?.key == row.key ? state : nil
         let inPlace = live?.inPlace ?? false
@@ -145,25 +203,33 @@ enum MediaRowArt {
         text.draw(at: CGPoint(x: pill.minX + 6, y: pill.midY - size.height / 2))
     }
 
-    /// A voice message: the round button, the waveform with its played part in full light, the time under it and
-    /// the speed while it is the active one. Gives back where the parts stand.
+    /// VoiceMessage.tsx `VoiceBubbleView`: 262 pt wide, 4 pt above and below; the right column is the 30 pt wave,
+    /// 3 pt, then a 16 pt line with the time (and the speed while it is the active one): 49 pt.
+    static let voiceWidth: CGFloat = 262
+    static let voiceHeight: CGFloat = 57
+    private static let monoFont = UIFont(name: "Menlo", size: 11) ?? UIFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+
+    /// A voice message: the round button (the text colour, the page colour's play/pause glyph), the waveform with
+    /// its played part in full light, the time under it and the speed while it is the active one. Gives back where
+    /// the parts stand.
     static func voice(_ context: CGContext, row: MsgRow, state: MsgMediaState?, palette: MsgPalette, box: CGRect) -> MsgMediaBoxes {
         var boxes = MsgMediaBoxes()
         let live = state?.key == row.key ? state : nil
-        let button = CGRect(x: box.minX, y: box.minY + 3, width: 44, height: 44)
+        let column = CGRect(x: box.minX + 44 + 12, y: box.minY + 4, width: max(20, box.width - 56), height: 49)
+        let button = CGRect(x: box.minX, y: column.midY - 22, width: 44, height: 44)
         boxes.play = button
         context.setFillColor(palette.text.cgColor)
         context.fillEllipse(in: button)
         let middle = CGPoint(x: button.midX, y: button.midY)
         if live?.loading ?? false {
-            loadingArc(context, center: middle, radius: 11, color: palette.onAccent)
+            loadingArc(context, center: middle, radius: 8, color: Theme.bg)
         } else if live?.playing ?? false {
-            pauseMark(context, center: middle, size: 16, color: palette.onAccent)
+            glyph("pause", size: 20, center: middle, color: Theme.bg)
         } else {
-            triangle(context, center: CGPoint(x: middle.x + 1, y: middle.y), size: 17, color: palette.onAccent)
+            glyph("play", size: 20, center: CGPoint(x: middle.x + 1, y: middle.y), color: Theme.bg)
         }
 
-        let strip = CGRect(x: button.maxX + 12, y: box.minY, width: max(20, box.width - 56), height: waveHeight)
+        let strip = CGRect(x: column.minX, y: column.minY, width: column.width, height: waveHeight)
         boxes.wave = strip
         let count = max(12, Int(strip.width / barStep))
         let values = bars(row.wave, count: count)
@@ -187,27 +253,29 @@ enum MediaRowArt {
             context.restoreGState()
         }
 
+        let line = CGRect(x: column.minX, y: strip.maxY + 3, width: column.width, height: 16)
         var words = row.mediaTime
         if let live, !live.time.isEmpty { words = live.time }
-        NSAttributedString(string: words, attributes: [.font: timeFont, .foregroundColor: palette.muted, .kern: 0.3])
-            .draw(at: CGPoint(x: strip.minX, y: strip.maxY + 3))
+        let time = NSAttributedString(string: words, attributes: [.font: monoFont, .foregroundColor: palette.muted, .kern: 0.3])
+        time.draw(at: CGPoint(x: line.minX, y: line.midY - time.size().height / 2))
         if let live, !live.rate.isEmpty {
             let fast = live.rate != "1×"
-            let label = NSAttributedString(string: live.rate, attributes: [.font: rateFont, .foregroundColor: fast ? palette.onAccent : palette.text])
+            let label = NSAttributedString(string: live.rate, attributes: [.font: rateFont, .foregroundColor: fast ? Theme.bg : palette.text])
             let size = label.size()
-            let chip = CGRect(x: strip.maxX - ceil(size.width) - 14, y: strip.maxY + 1, width: ceil(size.width) + 14, height: 17)
+            // paddingHorizontal 7, paddingVertical 1, a 1 pt border, radius 8.
+            let chipSize = CGSize(width: ceil(size.width) + 16, height: ceil(rateFont.lineHeight) + 4)
+            let chip = CGRect(x: line.maxX - chipSize.width, y: line.midY - chipSize.height / 2, width: chipSize.width, height: chipSize.height)
             boxes.rate = chip
-            let shape = UIBezierPath(roundedRect: chip, cornerRadius: 8)
+            let shape = UIBezierPath(roundedRect: chip.insetBy(dx: 0.5, dy: 0.5), cornerRadius: 7.5)
+            context.setLineWidth(1)
+            context.setStrokeColor((fast ? palette.text : ThemeStore.look.border).cgColor)
             if fast {
                 context.setFillColor(palette.text.cgColor)
                 context.addPath(shape.cgPath)
                 context.fillPath()
-            } else {
-                context.setStrokeColor(palette.muted.cgColor)
-                context.setLineWidth(1)
-                context.addPath(shape.cgPath)
-                context.strokePath()
             }
+            context.addPath(shape.cgPath)
+            context.strokePath()
             label.draw(at: CGPoint(x: chip.midX - size.width / 2, y: chip.midY - size.height / 2))
         }
         return boxes

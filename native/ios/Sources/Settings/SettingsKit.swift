@@ -64,7 +64,7 @@ enum SettingsLook {
     /// The quiet name above a group.
     static func caption(_ text: String) -> UIView {
         let label = UILabel()
-        label.attributedText = NSAttributedString(string: text.uppercased(), attributes: [.kern: 1.2, .font: UIFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: Theme.muted])
+        label.attributedText = NSAttributedString(string: text.uppercased(), attributes: [.kern: 1.2, .font: UIFont.systemFont(ofSize: 11, weight: ThemeStore.look.black ? .medium : .bold), .foregroundColor: Theme.muted])
         label.numberOfLines = 0
         label.accessibilityTraits = .header
         return inset(label, top: 8, side: 8, bottom: 0)
@@ -164,10 +164,11 @@ class SettingsPage: UIViewController {
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             top,
-            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -28),
-            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 16),
-            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -16),
-            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -32),
+            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -30),
+            // The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14.
+            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: large ? 16 : 14),
+            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: large ? -16 : -14),
+            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: large ? -32 : -28),
         ]
         if large {
             if showsHeading {
@@ -230,11 +231,11 @@ class SettingsPage: UIViewController {
     func setSide(symbol: String, label: String, action: @escaping () -> Void) {
         sideAction = action
         if let sideButton {
-            sideButton.setSymbol(symbol, size: 17, weight: .medium)
+            sideButton.setSymbol(symbol, size: symbol.hasPrefix("ion:") ? 19 : 17, weight: .medium)
             sideButton.accessibilityLabel = label
             return
         }
-        sideButton = header?.addTool(symbol: symbol, label: label, iconSize: 17) { [weak self] () -> Void in
+        sideButton = header?.addTool(symbol: symbol, label: label, iconSize: symbol.hasPrefix("ion:") ? 19 : 17) { [weak self] () -> Void in
             self?.sideAction?()
         }
     }
@@ -264,7 +265,9 @@ class SettingsPage: UIViewController {
         if label.isEmpty {
             add(group, gap: 16)
         } else {
-            add(SettingsLook.caption(label), gap: 14)
+            // The reference's `Group`: 16 between the parts of a page, 7 between the name and its card (the caption
+            // has 8 of its own above).
+            add(SettingsLook.caption(label), gap: 8)
             add(group, gap: 7)
         }
         return group
@@ -300,29 +303,65 @@ class SettingsPage: UIViewController {
     }
 }
 
-/// Rows on one card, a hairline between them.
+/// Rows on one card (the reference's `Group`, SettingsScreen.tsx). «Чёрная» (`black` themes): a flat card of the
+/// theme's `glassOpaque`, radius 12, a hairline `border` around it and between the rows from 57 in. Every other
+/// theme: a glass surface, radius 20, 2 above and below the rows, no lines between them.
 final class SettingsGroup: UIView {
     private let stack = UIStackView()
 
     init(rows: [UIView]) {
         super.init(frame: .zero)
-        backgroundColor = SettingsLook.card
-        layer.cornerRadius = 12
+        let flat = ThemeStore.look.black
+        let hairline = 1 / UIScreen.main.scale
         layer.cornerCurve = .continuous
         layer.masksToBounds = true
-        layer.borderWidth = 0.5
-        layer.borderColor = SettingsLook.line.cgColor
+        if flat {
+            backgroundColor = ThemeStore.look.glassOpaque
+            layer.cornerRadius = 12
+            layer.borderWidth = hairline
+            layer.borderColor = ThemeStore.look.border.cgColor
+        } else {
+            layer.cornerRadius = 20
+            let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
+            glass.isUserInteractionEnabled = false
+            glass.translatesAutoresizingMaskIntoConstraints = false
+            glass.layer.cornerRadius = 20
+            glass.layer.cornerCurve = .continuous
+            glass.clipsToBounds = true
+            addSubview(glass)
+            NSLayoutConstraint.activate([
+                glass.topAnchor.constraint(equalTo: topAnchor),
+                glass.bottomAnchor.constraint(equalTo: bottomAnchor),
+                glass.leadingAnchor.constraint(equalTo: leadingAnchor),
+                glass.trailingAnchor.constraint(equalTo: trailingAnchor),
+            ])
+        }
         stack.axis = .vertical
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
+        let pad: CGFloat = flat ? 0 : 2
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: pad),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -pad),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
         for (index, row) in rows.enumerated() {
-            if index > 0 { stack.addArrangedSubview(SettingsLook.rule()) }
+            if index > 0 && flat {
+                let rule = UIView()
+                rule.backgroundColor = ThemeStore.look.border
+                rule.translatesAutoresizingMaskIntoConstraints = false
+                let holder = UIView()
+                holder.addSubview(rule)
+                NSLayoutConstraint.activate([
+                    holder.heightAnchor.constraint(equalToConstant: hairline),
+                    rule.topAnchor.constraint(equalTo: holder.topAnchor),
+                    rule.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
+                    rule.leadingAnchor.constraint(equalTo: holder.leadingAnchor, constant: 57),
+                    rule.trailingAnchor.constraint(equalTo: holder.trailingAnchor),
+                ])
+                stack.addArrangedSubview(holder)
+            }
             stack.addArrangedSubview(row)
         }
     }
@@ -336,6 +375,7 @@ final class SettingsRow: UIControl {
     private let nameLabel = UILabel()
     private let valueLabel = UILabel()
     private let rowName: String
+    private var iconChip: UIView?
 
     init(symbol: String = "", label: String, value: String = "", danger: Bool = false, arrow: Bool = true, swatch: UIColor? = nil, checked: Bool? = nil) {
         rowName = label
@@ -356,10 +396,13 @@ final class SettingsRow: UIControl {
         ])
         if !symbol.isEmpty {
             let chip = UIView()
-            chip.backgroundColor = danger ? SettingsLook.dangerChip : SettingsLook.chip
+            // The reference's `Item`: a 34 circle of rgba(255,255,255,0.07) (dark) / rgba(0,0,0,0.05) (light), `dangerBg`
+            // for «Выйти»; the Ionicons glyph 18 square in it.
+            chip.backgroundColor = danger ? ThemeStore.look.dangerBg : Theme.veil(Theme.dark ? 0.07 : 0.05)
             chip.layer.cornerRadius = 17
             chip.translatesAutoresizingMaskIntoConstraints = false
-            let icon = UIImageView(image: SettingsLook.symbol(symbol, size: 15, weight: .medium))
+            iconChip = chip
+            let icon = UIImageView(image: SettingsLook.symbol(symbol, size: symbol.hasPrefix("ion:") ? 18 : 15, weight: .medium))
             icon.tintColor = danger ? Theme.danger : Theme.text
             icon.contentMode = .center
             icon.translatesAutoresizingMaskIntoConstraints = false
@@ -398,15 +441,19 @@ final class SettingsRow: UIControl {
         }
         if let checked {
             // One of several: the chosen one has a mark, the others an empty place of the same size.
-            let mark = UIImageView(image: SettingsLook.symbol("checkmark", size: 16, weight: .semibold))
-            mark.tintColor = Theme.text
+            // The reference: `<View style={{ width: 22 }}>` holding Ionicons «checkmark» 20 in the accent.
+            let mark = UIImageView(image: IonIcon.image("checkmark", size: 20))
+            mark.tintColor = Theme.accent
             mark.contentMode = .center
             mark.alpha = checked ? 1 : 0
+            mark.translatesAutoresizingMaskIntoConstraints = false
+            mark.widthAnchor.constraint(equalToConstant: 22).isActive = true
             mark.setContentHuggingPriority(.required, for: .horizontal)
             content.addArrangedSubview(mark)
             if checked { accessibilityTraits.insert(.selected) }
         } else if arrow && !danger {
-            let chevron = UIImageView(image: SettingsLook.symbol("chevron.right", size: 13, weight: .semibold))
+            // Ionicons «chevron-forward» 17 in `subtle`.
+            let chevron = UIImageView(image: IonIcon.image("chevron-forward", size: 17))
             chevron.tintColor = Theme.subtle
             chevron.contentMode = .center
             chevron.setContentHuggingPriority(.required, for: .horizontal)
@@ -427,7 +474,18 @@ final class SettingsRow: UIControl {
     }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? SettingsLook.pressed : .clear }
+        didSet {
+            // The reference's `Item`: rgba(127,127,127,0.12) under the finger; the icon squishes to 0.82 (spring damping
+            // 14, stiffness 420) and springs back (damping 9, stiffness 260).
+            backgroundColor = isHighlighted ? UIColor(red: 127 / 255, green: 127 / 255, blue: 127 / 255, alpha: 0.12) : .clear
+            guard isHighlighted != oldValue, let chip = iconChip else { return }
+            let spring = isHighlighted ? UISpringTimingParameters(mass: 1, stiffness: 420, damping: 14, initialVelocity: .zero)
+                : UISpringTimingParameters(mass: 1, stiffness: 260, damping: 9, initialVelocity: .zero)
+            let animator = UIViewPropertyAnimator(duration: 0.5, timingParameters: spring)
+            let target: CGAffineTransform = isHighlighted ? CGAffineTransform(scaleX: 0.82, y: 0.82) : .identity
+            animator.addAnimations { () -> Void in chip.transform = target }
+            animator.startAnimation()
+        }
     }
 
     override var isEnabled: Bool {
@@ -562,33 +620,63 @@ final class SettingsSegments: UIView {
 final class SettingsNotice: UIView {
     private var retry: (() -> Void)?
 
+    /// The reference's `Notice` (components.tsx): glass, radius 18, 14 inside; Ionicons «alert-circle-outline» (an
+    /// error, in `danger` over `dangerBg`) or «information-circle-outline» (in the accent) 19, 10 to the words (13,
+    /// line 19); «Повторить» on the right (12 Bold, the accent).
     init(_ text: String, error: Bool = false, onRetry: (() -> Void)? = nil) {
         super.init(frame: .zero)
         retry = onRetry
-        backgroundColor = error ? SettingsLook.dangerChip : SettingsLook.chip
-        layer.cornerRadius = 12
+        layer.cornerRadius = 18
         layer.cornerCurve = .continuous
-        let label = SettingsLook.words(text, size: 13, color: error ? Theme.danger : Theme.text)
-        let content = UIStackView(arrangedSubviews: [label])
-        content.axis = .vertical
-        content.alignment = .leading
-        content.spacing = 6
+        clipsToBounds = true
+        let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
+        glass.isUserInteractionEnabled = false
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glass)
+        let tint = UIView()
+        tint.backgroundColor = error ? ThemeStore.look.dangerBg : .clear
+        tint.isUserInteractionEnabled = false
+        tint.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(tint)
+        let icon = UIImageView(image: IonIcon.image(error ? "alert-circle-outline" : "information-circle-outline", size: 19))
+        icon.tintColor = error ? Theme.danger : Theme.accent
+        icon.setContentHuggingPriority(.required, for: .horizontal)
+        icon.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let label = UILabel()
+        label.numberOfLines = 0
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 19
+        style.maximumLineHeight = 19
+        label.attributedText = NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: 13), .foregroundColor: error ? Theme.danger : Theme.text, .paragraphStyle: style])
+        let content = UIStackView(arrangedSubviews: [icon, label])
+        content.axis = .horizontal
+        content.alignment = .top
+        content.spacing = 10
         content.translatesAutoresizingMaskIntoConstraints = false
         addSubview(content)
         NSLayoutConstraint.activate([
-            content.topAnchor.constraint(equalTo: topAnchor, constant: 11),
-            content.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -11),
-            content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 13),
-            content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -13),
+            glass.topAnchor.constraint(equalTo: topAnchor), glass.bottomAnchor.constraint(equalTo: bottomAnchor),
+            glass.leadingAnchor.constraint(equalTo: leadingAnchor), glass.trailingAnchor.constraint(equalTo: trailingAnchor),
+            tint.topAnchor.constraint(equalTo: topAnchor), tint.bottomAnchor.constraint(equalTo: bottomAnchor),
+            tint.leadingAnchor.constraint(equalTo: leadingAnchor), tint.trailingAnchor.constraint(equalTo: trailingAnchor),
+            content.topAnchor.constraint(equalTo: topAnchor, constant: 14),
+            content.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
+            content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
         ])
         if onRetry != nil {
             let again = UIButton(type: .system)
             again.setTitle("Повторить", for: .normal)
-            again.tintColor = Theme.text
-            again.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            again.setTitleColor(Theme.accent, for: .normal)
+            again.titleLabel?.font = .systemFont(ofSize: 12, weight: .bold)
+            again.setContentHuggingPriority(.required, for: .horizontal)
+            again.setContentCompressionResistancePriority(.required, for: .horizontal)
+            again.heightAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
             again.addTarget(self, action: #selector(retryPressed), for: .touchUpInside)
             content.addArrangedSubview(again)
         }
+        isAccessibilityElement = onRetry == nil
+        accessibilityLabel = text
         if error { accessibilityTraits.insert(.staticText) }
     }
 
@@ -603,38 +691,85 @@ final class SettingsNotice: UIView {
 final class SettingsButton: UIButton {
     enum Kind { case primary, secondary, danger }
     var onPress: (() -> Void)?
+    private let kind: Kind
+    private let gradient = CAGradientLayer()
+    private let shine = CAGradientLayer()
+    private let glass = UIVisualEffectView(effect: nil)
 
-    init(label: String, kind: Kind = .primary) {
+    /// The reference's `Button` (components.tsx): 54 tall, radius 21; the main one is the theme's `accentGradient`
+    /// (0 0 → 0.9 1, opacity 0.96) with a white shine (0.22 → clear, 0 0 → 0.4 0.65) and a 1 border; the quiet one
+    /// regular glass; the dangerous one `dangerBg`. The label 16 Bold, letter spacing −0.15; an Ionicons `icon` 20,
+    /// 10 before it. Pressed it springs to 0.96; disabled it fades to 0.45.
+    init(label: String, kind: Kind = .primary, icon: String = "") {
+        self.kind = kind
         super.init(frame: .zero)
-        var look = UIButton.Configuration.filled()
+        layer.cornerRadius = 21
+        layer.cornerCurve = .continuous
+        clipsToBounds = true
+        let ink: UIColor
         switch kind {
         case .primary:
-            look.baseBackgroundColor = Theme.accent
-            look.baseForegroundColor = Theme.onAccent
+            ink = Theme.onAccent
+            let colors = ThemeStore.look.accentGradient.isEmpty ? [Theme.accent, Theme.accent] : ThemeStore.look.accentGradient
+            gradient.colors = colors.map { (color: UIColor) -> CGColor in color.cgColor }
+            gradient.startPoint = CGPoint(x: 0, y: 0)
+            gradient.endPoint = CGPoint(x: 0.9, y: 1)
+            gradient.opacity = 0.96
+            layer.insertSublayer(gradient, at: 0)
+            shine.colors = [UIColor(white: 1, alpha: 0.22).cgColor, UIColor(white: 1, alpha: 0).cgColor]
+            shine.startPoint = CGPoint(x: 0, y: 0)
+            shine.endPoint = CGPoint(x: 0.4, y: 0.65)
+            layer.insertSublayer(shine, above: gradient)
+            layer.borderWidth = 1
+            layer.borderColor = (Theme.dark ? UIColor(red: 235 / 255, green: 245 / 255, blue: 1, alpha: 0.58) : UIColor(white: 1, alpha: 0.35)).cgColor
         case .secondary:
-            look.baseBackgroundColor = SettingsLook.chip
-            look.baseForegroundColor = Theme.text
+            ink = Theme.text
+            glass.effect = TabGlass.effect(clear: false, interactive: true, dark: Theme.dark)
+            glass.isUserInteractionEnabled = false
+            glass.frame = bounds
+            glass.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            insertSubview(glass, at: 0)
         case .danger:
-            look.baseBackgroundColor = SettingsLook.dangerChip
-            look.baseForegroundColor = Theme.danger
+            ink = Theme.danger
+            backgroundColor = ThemeStore.look.dangerBg
         }
+        var look = UIButton.Configuration.plain()
         look.title = label
-        look.cornerStyle = .large
-        look.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 18, bottom: 14, trailing: 18)
+        look.baseForegroundColor = ink
+        if !icon.isEmpty {
+            look.image = SettingsLook.symbol(icon.hasPrefix("ion:") ? icon : "ion:" + icon, size: 20)
+            look.imagePadding = 10
+        }
+        look.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 21, bottom: 0, trailing: 21)
         look.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { (incoming: AttributeContainer) -> AttributeContainer in
             var outgoing = incoming
-            outgoing.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+            outgoing.font = UIFont.systemFont(ofSize: 16, weight: .bold)
+            outgoing.kern = -0.15
             return outgoing
         }
         configuration = look
+        heightAnchor.constraint(equalToConstant: 54).isActive = true
         addTarget(self, action: #selector(pressed), for: .touchUpInside)
+        Bouncy.attach(self, scale: 0.96)
     }
 
     required init?(coder: NSCoder) { return nil }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradient.frame = bounds
+        shine.frame = bounds
+        if let back = glass.superview, back === self { sendSubviewToBack(glass) }
+    }
+
+    override var isEnabled: Bool {
+        didSet { alpha = isEnabled ? 1 : 0.45 }
+    }
+
     func setBusy(_ busy: Bool) {
         configuration?.showsActivityIndicator = busy
         isEnabled = !busy
+        if busy { alpha = 1 }
     }
 
     @objc private func pressed() {
@@ -685,7 +820,7 @@ final class SettingsField: UIView, UITextFieldDelegate {
         input.addTarget(self, action: #selector(edited), for: .editingChanged)
         input.translatesAutoresizingMaskIntoConstraints = false
         plate.addSubview(input)
-        eye.setImage(SettingsLook.symbol("eye", size: 15), for: .normal)
+        eye.setImage(SettingsLook.symbol("ion:eye-outline", size: 20), for: .normal)
         eye.tintColor = Theme.muted
         eye.accessibilityLabel = "Показать"
         eye.isHidden = !secret
@@ -738,7 +873,7 @@ final class SettingsField: UIView, UITextFieldDelegate {
         input.isSecureTextEntry.toggle()
         input.text = kept
         input.textContentType = input.isSecureTextEntry ? UITextContentType.oneTimeCode : nil
-        eye.setImage(SettingsLook.symbol(input.isSecureTextEntry ? "eye" : "eye.slash", size: 15), for: .normal)
+        eye.setImage(SettingsLook.symbol(input.isSecureTextEntry ? "ion:eye-outline" : "ion:eye-off-outline", size: 20), for: .normal)
         eye.accessibilityLabel = input.isSecureTextEntry ? "Показать" : "Скрыть"
     }
 
@@ -914,5 +1049,30 @@ final class SettingsAvatar: UIView {
             text.draw(at: CGPoint(x: box.midX - size.width / 2, y: box.midY - size.height / 2))
         }
         context.restoreGState()
+    }
+}
+
+/// The reference's back chevron (components.tsx `BackChevron`, drawn instead of the Ionicons glyph): taller and
+/// thinner, round caps, its point nudged 5% to the left — h 0.78, w 0.39, stroke max(1.6, 0.095) of the size.
+enum BackChevronGlyph {
+    private static var cache: [CGFloat: UIImage] = [:]
+
+    static func image(size: CGFloat) -> UIImage {
+        if let made = cache[size] { return made }
+        let height = size * 0.78, width = size * 0.39, stroke = max(1.6, size * 0.095)
+        let cx = size / 2 - size * 0.05, cy = size / 2
+        let made = UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { (_: UIGraphicsImageRendererContext) -> Void in
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: cx + width / 2, y: cy - height / 2))
+            path.addLine(to: CGPoint(x: cx - width / 2, y: cy))
+            path.addLine(to: CGPoint(x: cx + width / 2, y: cy + height / 2))
+            path.lineWidth = stroke
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            UIColor.black.setStroke()
+            path.stroke()
+        }.withRenderingMode(.alwaysTemplate)
+        cache[size] = made
+        return made
     }
 }

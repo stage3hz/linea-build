@@ -8,6 +8,7 @@ import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.SurfaceTexture
+import android.text.TextPaint
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -23,6 +24,8 @@ import android.widget.FrameLayout
 import com.linea.messenger.attachments.AttachmentStore
 import com.linea.messenger.attachments.FileCore
 import com.linea.messenger.chat.MsgListView
+import com.linea.messenger.core.Core
+import com.linea.messenger.design.IonIcon
 import com.linea.messenger.design.Theme
 import com.linea.messenger.music.MusicPlayer
 import com.linea.messenger.net.Server
@@ -33,31 +36,53 @@ import com.linea.messenger.voice.VoicePlayer
 import java.io.File
 
 /** The picture of a round video playing inside its row: the player's picture cut to a circle, the ring of a
- *  listen around it and a play mark while it is paused. It takes no touches — a tap goes to the row under it. */
+ *  listen around it, a play mark while it is paused, and the pill at the lower left of its square (the length and
+ *  the speaker-off mark while it loops silently, the seconds played while it is listened to). It takes no touches
+ *  — a tap goes to the row under it. Reference: mobile/src/videonote/VideoNote.tsx (`VideoNoteBubble`), NoteRing.tsx. */
 @SuppressLint("ViewConstructor")
 class NotePlayerView(context: Context) : FrameLayout(context) {
   private val d = resources.displayMetrics.density
   val picture = TextureView(context)
+  private val round = FrameLayout(context)
   private var progress = 0f
   private var paused = false
   private var videoWidth = 0
   private var videoHeight = 0
+  private var pillWords = ""
+  private var pillMuted = true
   private val marks = object : View(context) {
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     override fun onDraw(canvas: Canvas) {
       val cx = width / 2f; val cy = height / 2f
-      if (progress > 0f) {
+      // NoteRing: r = (size − stroke) / 2, from 12 o'clock clockwise, invisible until something has played.
+      if (progress > 0.001f) {
         stroke.color = Theme.accent
         stroke.strokeWidth = 3f * d
-        val radius = maxOf(1f, minOf(width, height) / 2f - 1.5f * d)
+        val radius = maxOf(1f, (minOf(width, height) - 3f * d) / 2f)
         canvas.drawArc(cx - radius, cy - radius, cx + radius, cy + radius, -90f, 360f * progress, false, stroke)
       }
       if (paused) {
-        fill.color = 0x73000000
+        fill.color = 0x730A1423
         canvas.drawCircle(cx, cy, 26f * d, fill)
-        MediaIcons.draw(canvas, "play.fill", cx + 1f * d, cy, 30f * d, 0xFFFFFFFF.toInt())
+        IonIcon.draw(canvas, "play", cx, cy, 26f * d, 0xFFFFFFFF.toInt())
       }
+    }
+  }
+  private val pill = object : View(context) {
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x6B000000 }
+    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
+    override fun onDraw(canvas: Canvas) {
+      if (pillWords.isEmpty()) return
+      text.textSize = (if (pillMuted) 11f else 12f) * d
+      text.fontFeatureSettings = if (pillMuted) null else "tnum"
+      val words = Math.ceil(text.measureText(pillWords).toDouble()).toFloat()
+      val tall = Math.ceil((text.descent() - text.ascent()).toDouble()).toFloat() + 4f * d
+      val wide = 7f * d + words + (if (pillMuted) 4f * d + 11f * d else 0f) + 7f * d
+      val top = height - 6f * d - tall
+      canvas.drawRoundRect(6f * d, top, 6f * d + wide, top + tall, 9f * d, 9f * d, fill)
+      canvas.drawText(pillWords, 13f * d, top + tall / 2 - (text.ascent() + text.descent()) / 2, text)
+      if (pillMuted) IonIcon.draw(canvas, "volume-mute", 13f * d + words + 4f * d + 5.5f * d, top + tall / 2, 11f * d, 0xFFFFFFFF.toInt())
     }
   }
 
@@ -65,18 +90,21 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
     isClickable = false
     isFocusable = false
     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-    clipToOutline = true
-    outlineProvider = object : ViewOutlineProvider() {
+    round.clipToOutline = true
+    round.outlineProvider = object : ViewOutlineProvider() {
       override fun getOutline(view: View, outline: Outline) = outline.setOval(0, 0, view.width, view.height)
     }
+    round.setBackgroundColor(Theme.surface2)
     picture.isOpaque = false
-    addView(picture, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    round.addView(picture, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    addView(round, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     addView(marks, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    addView(pill, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
   }
 
   override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
     super.onSizeChanged(width, height, oldWidth, oldHeight)
-    invalidateOutline()
+    round.invalidateOutline()
     fit()
   }
 
@@ -96,6 +124,14 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
     picture.setTransform(matrix)
   }
 
+  /** The pill at the lower left: `muted` — the silent loop (11 dp with the speaker-off mark), else the seconds
+   *  played (12 dp, tabular figures). Empty words hide it. */
+  fun showPill(words: String, muted: Boolean) {
+    if (words == pillWords && muted == pillMuted) return
+    pillWords = words; pillMuted = muted
+    pill.invalidate()
+  }
+
   /** Shows or hides the play mark without touching the ring. */
   fun showPause(value: Boolean) {
     if (paused == value) return
@@ -109,6 +145,16 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
     this.progress = next
     this.paused = paused
     marks.invalidate()
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    (parent as? View)?.invalidate()
+  }
+
+  override fun onDetachedFromWindow() {
+    (parent as? View)?.invalidate()
+    super.onDetachedFromWindow()
   }
 
   companion object {
@@ -128,7 +174,20 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
  *  voice messages, with a ring of its progress; another tap pauses; when it ends it goes back to the silent
  *  loop. One circle sounds at a time, and a voice message goes quiet for it. Here one circle at a time is shown
  *  moving (the reference moves every circle on screen), and only circles of at most 8 MiB are brought unasked. */
-class NotePlayback(private val context: Context, private val server: Server?, private val list: MsgListView) : TextureView.SurfaceTextureListener {
+class NotePlayback(
+  private val context: Context,
+  private val server: Server?,
+  /** The view the circle is put into (the chat's list, or the frame of «Избранное»'s list). */
+  private val list: FrameLayout,
+  /** Where a row's circle stands in `list` while the row is on screen. */
+  private val hostOf: (String) -> RectF?,
+  /** The rows on screen. */
+  private val keysOnScreen: () -> List<String>,
+) : TextureView.SurfaceTextureListener {
+  constructor(context: Context, server: Server?, list: MsgListView) : this(context, server, list, { key -> list.mediaHost(key) }, { list.visibleKeys() })
+
+  /** A circle of this row was brought (or its copy dropped): the row is drawn again. */
+  var onReadyChanged: ((String) -> Unit)? = null
   private val main = Handler(Looper.getMainLooper())
   private val files = LinkedHashMap<String, MediaFetch.Brought>()
   private val isNote = HashMap<String, Boolean>()
@@ -175,6 +234,9 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
         val total = try { player.duration } catch (_: IllegalStateException) { 0 }
         val position = try { player.currentPosition } catch (_: IllegalStateException) { 0 }
         screen.show(if (total > 0) position.toFloat() / total else 0f, pausedByTap)
+        // VideoNote.tsx `playedSeconds`: whole seconds, never past the length.
+        val played = (minOf(position, if (total > 0) total else position) / 1000).coerceAtLeast(0)
+        screen.showPill(FileCore.call("voiceTime", listOf(played * 1000.0)) as? String ?: "0:00", muted = false)
       }
       main.postDelayed(this, 100)
     }
@@ -201,6 +263,7 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     (screen.parent as? ViewGroup)?.removeView(screen)
     screen.translationX = 0f
     screen.translationY = 0f
+    if (key.isNotEmpty() && hostedKeys.remove(key)) onReadyChanged?.invoke(key)
     key = ""
     sound = false
     pausedByTap = false
@@ -230,7 +293,7 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
   /** Starts the circle of `rowKey` in its row: silently looping, or from the start with sound. */
   private fun start(rowKey: String, file: File, withSound: Boolean) {
     drop()
-    val frame = list.mediaHost(rowKey) ?: return
+    val frame = hostOf(rowKey) ?: return
     val made = MediaPlayer()
     try {
       made.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build())
@@ -245,9 +308,13 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     }
     player = made
     key = rowKey
+    hostedKeys.add(rowKey)
+    onReadyChanged?.invoke(rowKey)
     sound = withSound
     pausedByTap = false
     screen.show(0f, false)
+    // VideoNote.tsx: the seconds played while it is listened to, the length and the speaker-off mark while it loops.
+    screen.showPill(if (withSound) "0:00" else length(AttachmentStore.attachment(rowKey)), muted = !withSound)
     place(frame)
     made.setOnVideoSizeChangedListener { _, width, height -> if (made === player) screen.setVideoSize(width, height) }
     made.setOnCompletionListener { if (made === player) reachedEnd() }
@@ -318,6 +385,7 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     tick(false)
     quietFocus()
     screen.show(0f, false)
+    screen.showPill(length(AttachmentStore.attachment(key)), muted = true)
     try {
       player.setVolume(0f, 0f)
       player.isLooping = true
@@ -351,7 +419,17 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     }
     files[rowKey]?.let { return start(rowKey, it.file, withSound = true) }
     if (fetchKey == rowKey && fetch != null) {
-      fetchForSound = true
+      // VideoNote.tsx: a tap while it loads asks to play when ready; a second tap cancels the download.
+      if (fetchForSound) {
+        fetch?.cancel()
+        fetch = null
+        fetchKey = ""
+        fetchForSound = false
+        onState?.invoke(null)
+      } else {
+        fetchForSound = true
+        publish(rowKey, 0)
+      }
       return
     }
     failed.remove(rowKey)
@@ -383,20 +461,26 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
         if (wanted) onProblem?.invoke(FileCore.words(result))
         return@start
       }
-      if (files.size >= 6) files.keys.firstOrNull { it != rowKey && it != key }?.let { old -> files.remove(old)?.folder?.deleteRecursively() }
+      if (files.size >= 6) files.keys.firstOrNull { it != rowKey && it != key }?.let { old ->
+        files.remove(old)?.folder?.deleteRecursively()
+        readyKeys.remove(old)
+        onReadyChanged?.invoke(old)
+      }
       files[rowKey] = brought
+      readyKeys.add(rowKey)
+      onReadyChanged?.invoke(rowKey)
       if (wanted) start(rowKey, brought.file, withSound = true) else refresh()
     })
   }
 
   private fun publish(rowKey: String, percent: Int) {
-    onState?.invoke(MsgMediaState(key = rowKey, loading = true, time = "$percent %"))
+    onState?.invoke(MsgMediaState(key = rowKey, loading = true, progress = percent / 100f, time = "$percent %"))
   }
 
   /** The rows moved: the playing circle follows its row (nothing else is decided here). */
   fun follow() {
     if (key.isEmpty()) return
-    list.mediaHost(key)?.let { place(it) }
+    hostOf(key)?.let { place(it) }
   }
 
   /** The rows on screen changed or moved: the playing circle follows its row or stops when the row is gone,
@@ -404,7 +488,7 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
   fun refresh() {
     if (server == null) return
     if (key.isNotEmpty()) {
-      val frame = list.mediaHost(key)
+      val frame = hostOf(key)
       if (frame != null) {
         place(frame)
         return
@@ -413,9 +497,9 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     }
     if (fetchForSound && fetch != null) return
     if (holdsSilence?.invoke() == true || MusicPlayer.shared.current != null) return
-    for (rowKey in list.visibleKeys()) {
+    for (rowKey in keysOnScreen()) {
       val attachment = note(rowKey) ?: continue
-      if (list.mediaHost(rowKey) == null) continue
+      if (hostOf(rowKey) == null) continue
       files[rowKey]?.let { return start(rowKey, it.file, withSound = false) }
       if (fetch == null && !failed.contains(rowKey) && ((attachment["size"] as? Number)?.toLong() ?: Long.MAX_VALUE) <= unasked) {
         bring(rowKey, attachment, forSound = false)
@@ -440,7 +524,7 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     fetchKey = ""
     drop()
     onState?.invoke(null)
-    for (file in files.values) file.folder.deleteRecursively()
+    for ((rowKey, file) in files) { file.folder.deleteRecursively(); readyKeys.remove(rowKey) }
     files.clear()
   }
 
@@ -463,7 +547,18 @@ class NotePlayback(private val context: Context, private val server: Server?, pr
     try { (context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager)?.abandonAudioFocusRequest(request) } catch (_: Exception) {}
   }
 
-  private companion object {
-    const val unasked = 8L * 1024 * 1024
+  /** The length of a circle as its pill shows it at rest. */
+  private fun length(attachment: Map<String, Any?>?): String {
+    val ms = (Core.map(attachment?.get("media"))?.get("durationMs") as? Number)?.toDouble() ?: 0.0
+    return FileCore.call("voiceTime", listOf(ms)) as? String ?: "0:00"
+  }
+
+  companion object {
+    private const val unasked = 8L * 1024 * 1024
+    /** Rows whose circle is brought and decrypted (any list): drawn without the download mark, with the
+     *  speaker-off mark in their pill (VideoNote.tsx `ready`). Main thread only. */
+    val readyKeys = HashSet<String>()
+    /** Rows a player stands over right now: the row draws no resting marks under it. */
+    val hostedKeys = HashSet<String>()
   }
 }

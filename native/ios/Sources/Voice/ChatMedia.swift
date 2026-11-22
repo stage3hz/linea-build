@@ -159,6 +159,8 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         voice.onWillPlay = { [weak self] in self?.notes?.quiet() }
         notes?.onState = { [weak self] (state: MsgMediaState?) -> Void in self?.list?.setMediaState(state) }
         notes?.onProblem = { [weak self] (words: String) -> Void in self?.say(words) }
+        // A circle brought or dropped: its row is drawn again (the download mark, the speaker-off mark).
+        notes?.onReadyChanged = { (key: String) -> Void in NotificationCenter.default.post(name: InlineMedia.changed, object: key) }
         notes?.onWillPlay = { [weak self] in self?.voice.pause() }
         notes?.holdsSilence = { [weak self] () -> Bool in
             guard let self else { return true }
@@ -621,7 +623,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
             say(voice.cycleRate())
             return
         }
-        if part == "wave", voice.seek(key: key, fraction: fraction) { return }
+        // The owner: a tap on a voice message only starts or pauses it — a tap on the waveform never seeks.
         _ = pressed(key)
     }
 

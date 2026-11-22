@@ -1,3 +1,4 @@
+import CoreImage
 import UIKit
 
 /// One round button of the call screen with its word under it (the reference's `CallButton`).
@@ -215,6 +216,8 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
 
     /// The screen leaves: its pictures are let go, its clock stops.
     func retire() {
+        closeAudio()
+        CallAudioChoice.reset()
         clock?.invalidate()
         clock = nil
         remoteVideo.showRemote(of: nil)
@@ -261,6 +264,9 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
             keyLock.isHidden = true
         }
         if call.isOver || call.status == "incoming" { closeAudio() }
+        audioPanel?.speakerOn = call.speaker
+        // The call has ended: the next one starts on the system's own microphone and output again.
+        if call.isOver { CallAudioChoice.reset() }
 
         let canMinimize = call.status != "incoming" && !call.isOver
         minimizeButton.isHidden = !canMinimize
@@ -397,17 +403,21 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         pulse.layer.removeAllAnimations()
         pulse.alpha = 0
         guard on else { return }
-        let grow = CABasicAnimation(keyPath: "transform.scale")
-        grow.fromValue = 1
-        grow.toValue = 1.35
-        let fade = CABasicAnimation(keyPath: "opacity")
-        fade.fromValue = 0.45
-        fade.toValue = 0
+        // Easing.out(Easing.quad) over 1.4 s, as keyframes: 1 → 1.35 in size, 0.45 → 0 in opacity.
+        var sizes: [NSNumber] = [], fades: [NSNumber] = []
+        for step in 0...40 {
+            let t = Double(step) / 40, v = 1 - (1 - t) * (1 - t)
+            sizes.append(NSNumber(value: 1 + v * 0.35))
+            fades.append(NSNumber(value: 0.45 * (1 - v)))
+        }
+        let grow = CAKeyframeAnimation(keyPath: "transform.scale")
+        grow.values = sizes
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = fades
         let both = CAAnimationGroup()
         both.animations = [grow, fade]
         both.duration = 1.4
         both.repeatCount = .infinity
-        both.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 0.46, 0.45, 0.94) // Easing.out(Easing.quad)
         both.isRemovedOnCompletion = false
         pulse.layer.add(both, forKey: "pulse")
     }
@@ -417,9 +427,31 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         var image: UIImage? = nil
         let address = Calls.shared.pictureAddress(call.peer)
         if !call.peer.avatarId.isEmpty && !address.isEmpty { image = ChatAvatarStore.shared.image(key: call.peer.avatarId, url: address) }
-        picture.image = image
         picture.isHidden = image == nil
-        blur.isHidden = image == nil
+        blur.isHidden = true
+        guard let source = image else { picture.image = nil; return }
+        // The reference's `blurRadius={60}` (expo-image: a Gaussian of 60 × the image's scale, in its own pixels),
+        // not a frosted material: the picture keeps its colours, the dim above does the darkening.
+        let key = call.peer.avatarId
+        DispatchQueue.global(qos: .userInitiated).async {
+            let blurred = CallScreenView.blurred(source, radius: 60)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.shown?.peer.avatarId == key else { return }
+                self.picture.image = blurred ?? source
+            }
+        }
+    }
+
+    private static let blurContext = CIContext(options: nil)
+
+    private static func blurred(_ image: UIImage, radius: CGFloat) -> UIImage? {
+        guard let cg = image.cgImage else { return nil }
+        let input = CIImage(cgImage: cg)
+        guard let filter = CIFilter(name: "CIGaussianBlur") else { return nil }
+        filter.setValue(input.clampedToExtent(), forKey: kCIInputImageKey)
+        filter.setValue(radius * image.scale, forKey: kCIInputRadiusKey)
+        guard let output = filter.outputImage?.cropped(to: input.extent), let made = blurContext.createCGImage(output, from: input.extent) else { return nil }
+        return UIImage(cgImage: made, scale: image.scale, orientation: image.imageOrientation)
     }
 
     @objc private func pictureReady(_ note: Notification) {
@@ -517,6 +549,27 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         return CGPoint(x: min(max(centre.x, left), max(left, right)), y: min(max(centre.y, high), max(high, low)))
     }
 
+    // MARK: «Звук»
+
+    private func openAudio() {
+        guard audioPanel == nil, let call = shown else { return }
+        let panel = CallAudioPanelView(frame: bounds)
+        panel.speakerOn = call.speaker
+        panel.onSpeaker = { Calls.shared.toggleSpeaker() }
+        panel.onClose = { [weak self] in self?.closeAudio() }
+        addSubview(panel)
+        audioPanel = panel
+        UIAccessibility.post(notification: .screenChanged, argument: panel)
+    }
+
+    private func closeAudio() {
+        guard let panel = audioPanel else { return }
+        audioPanel = nil
+        panel.stop()
+        panel.removeFromSuperview()
+        UIAccessibility.post(notification: .screenChanged, argument: nil)
+    }
+
     // MARK: Touches
 
     @objc private func minimizeTapped() { Calls.shared.minimize() }
@@ -550,18 +603,39 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         return speed.y > 0 && abs(speed.y) > abs(speed.x)
     }
 
-    /// Pulled down far or fast enough, the call is minimised (the same as the chevron).
+    /// Pulled down far or fast enough, the call is minimised (the same as the chevron) — the reference's
+    /// useSwipeDismiss (swipeDismissModel.ts): it follows the finger down 1:1 and up only 14 pt with resistance;
+    /// let go past a quarter of its height (56…240 pt) or flicked down at 1000 pt/s, it slides out (out-quad,
+    /// 120…280 ms) and minimises; a flick back up at 400 pt/s keeps it; else it springs back (damping 22,
+    /// stiffness 260, mass 0.8).
     @objc private func pulled(_ pan: UIPanGestureRecognizer) {
-        let down = max(0, pan.translation(in: superview).y)
+        let travel = pan.translation(in: superview).y
+        let offset: CGFloat = travel >= 0 ? travel : -14 * (1 - exp(travel / (14 * 3)))
         switch pan.state {
         case .changed:
-            transform = CGAffineTransform(translationX: 0, y: down)
+            transform = CGAffineTransform(translationX: 0, y: offset)
         case .ended, .cancelled:
-            let fast = pan.velocity(in: superview).y > 900
-            if pan.state == .ended && (down > 140 || fast) {
-                Calls.shared.minimize()
+            let speed = pan.velocity(in: superview).y
+            let height = bounds.height > 0 ? bounds.height : 400
+            let distance = min(240, max(56, height * 0.25))
+            var close = false
+            if pan.state == .ended && offset > 0 && speed > -400 {
+                close = (speed >= 1000 && offset >= 8) || offset >= distance
+            }
+            if close {
+                let target = max(height, superview?.bounds.height ?? 0) + 24
+                let left = max(0, target - max(0, offset))
+                let duration = max(120, min(280, (left / max(1200, speed)) * 1000)).rounded() / 1000
+                let curve = UICubicTimingParameters(controlPoint1: CGPoint(x: 0.25, y: 0.46), controlPoint2: CGPoint(x: 0.45, y: 0.94)) // Easing.out(Easing.quad)
+                let away = UIViewPropertyAnimator(duration: duration, timingParameters: curve)
+                away.addAnimations { self.transform = CGAffineTransform(translationX: 0, y: target) }
+                away.addCompletion { (_: UIViewAnimatingPosition) -> Void in Calls.shared.minimize() }
+                away.startAnimation()
             } else {
-                UIView.animate(withDuration: 0.25, delay: 0, options: [.beginFromCurrentState, .curveEaseOut], animations: { self.transform = .identity }, completion: nil)
+                let spring = UISpringTimingParameters(mass: 0.8, stiffness: 260, damping: 22, initialVelocity: CGVector(dx: 0, dy: offset != 0 ? speed / -offset : 0))
+                let back = UIViewPropertyAnimator(duration: 0, timingParameters: spring)
+                back.addAnimations { self.transform = .identity }
+                back.startAnimation()
             }
         default:
             break

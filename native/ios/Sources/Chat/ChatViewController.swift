@@ -121,7 +121,7 @@ final class ChatViewController: UIViewController {
         pills.install(in: composer.contentView)
         composer.contentView.addSubview(field)
         // Composer: an accent circle of 40 pt with the arrow (ChatScreen.tsx «Отправить сообщение»).
-        send.setImage(UIImage(systemName: "arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
+        send.setImage(IonIcon.image("arrow-up", size: 25), for: .normal) // <Icon name="arrow-up" size={25}>
         send.tintColor = Theme.onAccent
         send.backgroundColor = Theme.accent
         send.layer.cornerRadius = ComposerPills.side / 2

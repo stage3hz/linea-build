@@ -488,7 +488,7 @@ class MsgRowView(context: Context) : View(context) {
     if (item.media == "photo" && thumbH > 0f) { com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, x, y, thumbW, thumbH, palette, image, 12f * d, false, d); y += thumbH + 6f * d }
     if (image != null && item.media != "photo" && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
     // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
-    if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d)
+    if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d, hosted = com.linea.messenger.video.NotePlayback.hostedKeys.contains(item.key))
     // Media: the album's mosaic.
     albumLayout?.let { albumX = x; albumY = y; it.draw(canvas, item.album ?: return@let, albumPictures, x, y, palette); y += it.height + 6f * d }
     if (voiceH > 0f) { MediaRowArt.voice(canvas, item, mediaState, palette, x, y, voiceW, d, mediaBoxes); y += voiceH + 4f * d }

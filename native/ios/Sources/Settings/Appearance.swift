@@ -60,7 +60,7 @@ final class ThemeCard: UIControl {
             rules.append(ball.bottomAnchor.constraint(equalTo: preview.bottomAnchor, constant: -6))
         }
         if locked {
-            let lock = UIImageView(image: SettingsLook.symbol("lock.fill", size: 10, weight: .semibold))
+            let lock = UIImageView(image: SettingsLook.symbol("ion:lock-closed", size: 10))
             lock.tintColor = UIColor(hex: 0xE8ECF4)
             lock.contentMode = .center
             lock.backgroundColor = UIColor(white: 0, alpha: 0.55)
@@ -80,7 +80,7 @@ final class ThemeCard: UIControl {
         name.textColor = chosen ? Theme.text : Theme.muted
         name.adjustsFontSizeToFitWidth = true
         name.minimumScaleFactor = 0.75
-        let mark = UIImageView(image: SettingsLook.symbol("checkmark.circle.fill", size: 12, weight: .semibold))
+        let mark = UIImageView(image: SettingsLook.symbol("ion:checkmark-circle", size: 14))
         mark.tintColor = Theme.accent
         mark.isHidden = !chosen
         mark.setContentHuggingPriority(.required, for: .horizontal)
@@ -273,7 +273,7 @@ final class AppearanceViewController: SettingsPage {
         }
         let kind = state["kind"] as? String ?? "off"
         let kindName = (ThemeStore.rules["nightLabels"] as? [String: Any])?[kind] as? String ?? ""
-        let nightRule = SettingsRow(symbol: "moon", label: "Ночная тема", value: kindName)
+        let nightRule = SettingsRow(symbol: "ion:moon", label: "Ночная тема", value: kindName)
         nightRule.onPress = { [weak self] in
             guard let self else { return }
             self.open(NightThemeViewController())
@@ -411,9 +411,9 @@ final class NightThemeViewController: SettingsPage {
         if kind == "schedule" {
             let from = DevicePreferences.word("nightFrom") ?? "22:00"
             let until = DevicePreferences.word("nightTo") ?? "07:00"
-            let start = SettingsRow(symbol: "moon", label: "Начало", value: from)
+            let start = SettingsRow(symbol: "ion:moon", label: "Начало", value: from)
             start.onPress = { [weak self] in self?.askClock(heading: "Начало", name: "nightFrom", value: from) }
-            let end = SettingsRow(symbol: "sun.max", label: "Конец", value: until)
+            let end = SettingsRow(symbol: "ion:sunny", label: "Конец", value: until)
             end.onPress = { [weak self] in self?.askClock(heading: "Конец", name: "nightTo", value: until) }
             addGroup("Время использования", rows: [start, end])
         }
@@ -575,19 +575,19 @@ final class AccentColorViewController: SettingsPage {
             let on = current == color
             let ball = UIButton(type: .custom)
             ball.backgroundColor = ThemeLook.color(color) ?? UIColor.gray
-            ball.layer.cornerRadius = 20
+            ball.layer.cornerRadius = 22 // the reference's ColorSettings: 44 round, a 3 border on the chosen one
             ball.layer.borderWidth = on ? 3 : 0
             ball.layer.borderColor = Theme.text.cgColor
             if on {
-                ball.setImage(SettingsLook.symbol("checkmark", size: 15, weight: .bold), for: .normal)
+                ball.setImage(SettingsLook.symbol("ion:checkmark", size: 20), for: .normal)
                 ball.tintColor = UIColor.white
                 ball.accessibilityTraits.insert(.selected)
             }
             ball.tag = index
             ball.accessibilityLabel = "Цвет " + color
             ball.translatesAutoresizingMaskIntoConstraints = false
-            ball.widthAnchor.constraint(equalToConstant: 40).isActive = true
-            ball.heightAnchor.constraint(equalToConstant: 40).isActive = true
+            ball.widthAnchor.constraint(equalToConstant: 44).isActive = true
+            ball.heightAnchor.constraint(equalToConstant: 44).isActive = true
             ball.addTarget(self, action: #selector(picked(_:)), for: .touchUpInside)
             line.addArrangedSubview(ball)
         }

@@ -16,14 +16,14 @@ final class ProfileEditViewController: SettingsPage {
     private let bannerArt = ProfileBannerView()
     private let photoWords = UIButton(type: .system)
     private var pattern: String?
-    private let patternRow = SettingsRow(symbol: "sparkles", label: "Узор фона")
+    private let patternRow = SettingsRow(symbol: "ion:sparkles", label: "Узор фона")
     private lazy var media = ProfilePhotoChange(messenger: messenger, host: self)
     private let noticeBox = UIStackView()
     private let nameField = SettingsField(caption: "", placeholder: "Имя")
     private let bioArea = SettingsTextArea(placeholder: "О себе")
-    private let handleRow = SettingsRow(symbol: "at", label: "Имя пользователя")
-    private let birthdayRow = SettingsRow(symbol: "gift", label: "День рождения")
-    private let genderRow = SettingsRow(symbol: "person", label: "Пол")
+    private let handleRow = SettingsRow(symbol: "ion:at", label: "Имя пользователя")
+    private let birthdayRow = SettingsRow(symbol: "ion:gift", label: "День рождения")
+    private let genderRow = SettingsRow(symbol: "ion:person", label: "Пол")
     private let saveButton = SettingsButton(label: "Сохранить")
     private var swatches: [UIButton] = []
 
@@ -183,11 +183,14 @@ final class ProfileEditViewController: SettingsPage {
 
     private func chooseGender() {
         guard !busy else { return }
-        let sheet = UIAlertController(title: "Пол", message: "Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: "Мужской", style: .default, handler: { [weak self] _ in self?.setGender("male") }))
-        sheet.addAction(UIAlertAction(title: "Женский", style: .default, handler: { [weak self] _ in self?.setGender("female") }))
-        sheet.addAction(UIAlertAction(title: "Не указан", style: .default, handler: { [weak self] _ in self?.setGender(nil) }))
-        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
+        // The reference's Sheet «Пол»: SheetActions with «checkmark-circle» on the chosen one, «ellipse-outline» on the others.
+        let options: [(String?, String)] = [("male", "Мужской"), ("female", "Женский"), (nil, "Не указан")]
+        let choices = options.map { (option: (String?, String)) -> ChoiceSheet.Choice in
+            ChoiceSheet.Choice(symbol: gender == option.0 ? "ion:checkmark-circle" : "ion:ellipse-outline", label: option.1, run: { [weak self] in
+                self?.setGender(option.0)
+            })
+        }
+        let sheet = ChoiceSheet(heading: "Пол", note: "Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", choices: choices)
         present(sheet, animated: true)
     }
 
@@ -434,7 +437,7 @@ final class UsernameViewController: SettingsPage {
     private var busy = false
     private var request = 0
     private let field = SettingsField(caption: "Публичное имя пользователя", placeholder: "@username")
-    private let change = SettingsButton(label: "Изменить публичное имя", kind: .secondary)
+    private let change = SettingsButton(label: "Изменить публичное имя", kind: .secondary, icon: "at-outline")
 
     init(messenger: Messenger) {
         self.messenger = messenger

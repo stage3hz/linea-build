@@ -497,7 +497,7 @@ final class ChatHistory {
             }
             if today != day, !today.isEmpty {
                 day = today
-                rows.append(["key": "d" + key, "kind": 1, "text": today])
+                rows.append(["key": "d" + key, "kind": 1, "text": today, "label": "day"]) // MessageRow.tsx DayChip
                 missingRow = -1
             }
             // The reference's chat (ChatScreen.tsx) draws no «Непрочитанные сообщения» line: none here either.
@@ -516,8 +516,16 @@ final class ChatHistory {
             if let action = meta?["action"] as? [String: Any], action["type"] as? String == "call" {
                 // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
                 let words = Core.view("callServiceText", [action, sender, input.userId]) as? String ?? Core.view("chatListText", [message]) as? String ?? (message["text"] as? String ?? "")
-                rows.append(["key": key, "kind": 1, "text": clock.isEmpty ? words : words + " · " + clock])
-                if action["step"] as? String == "end" { out.calls[key] = action } // ChatsPlus
+                if action["step"] as? String == "end" {
+                    out.calls[key] = action // ChatsPlus
+                    // MessageRow.tsx CallServiceRow: a pill with the round icon, the words and the time under them;
+                    // red for a missed or declined call. "call", then "!" when red and "v" for a video call.
+                    let red = words.hasPrefix("Пропущенный") || words.hasPrefix("Отклонённый")
+                    let video = action["video"] as? Bool == true
+                    rows.append(["key": key, "kind": 1, "text": words, "time": clock, "label": "call" + (red ? "!" : "") + (video ? "v" : "")])
+                } else {
+                    rows.append(["key": key, "kind": 1, "text": clock.isEmpty ? words : words + " · " + clock])
+                }
                 continue
             }
             let next: [String: Any]? = index + 1 < messages.count ? messages[index + 1] : nil

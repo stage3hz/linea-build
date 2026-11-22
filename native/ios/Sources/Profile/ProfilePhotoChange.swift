@@ -299,12 +299,12 @@ final class BannerPreviewViewController: UIViewController {
         var person = Person(id: "", username: "", displayName: "", bio: "", birthday: "", avatarColor: 0x5E7BFF, avatarId: "")
         if let messenger, let own = Person(messenger.ownProfile) { person = own }
         hero.show(person, look: person.look, base: messenger?.server.endpoint ?? "", localPicture: picture)
-        let set = SettingsButton(label: "Установить баннер")
+        let set = SettingsButton(label: "Установить баннер", icon: "checkmark")
         set.onPress = { [weak self] in
             let done = self?.onSet
             self?.dismiss(animated: true) { done?() }
         }
-        let again = SettingsButton(label: "Выбрать другое", kind: .secondary)
+        let again = SettingsButton(label: "Выбрать другое", kind: .secondary, icon: "image-outline")
         again.onPress = { [weak self] in
             let next = self?.onAgain
             self?.dismiss(animated: true) { next?() }

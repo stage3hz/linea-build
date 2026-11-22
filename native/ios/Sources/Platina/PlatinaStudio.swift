@@ -168,12 +168,12 @@ final class PlatinaStudioView: UIView {
             row.axis = .horizontal
             row.spacing = 10
             row.distribution = .fillEqually
-            let pick = SettingsButton(label: look.avatarVideoId.isEmpty ? "Выбрать видео" : "Заменить видео", kind: .secondary)
+            let pick = SettingsButton(label: look.avatarVideoId.isEmpty ? "Выбрать видео" : "Заменить видео", kind: .secondary, icon: "videocam-outline")
             pick.isEnabled = active
             pick.onPress = { [weak self] in self?.onMedia?("avatarVideo") }
             row.addArrangedSubview(pick)
             if !look.avatarVideoId.isEmpty {
-                let off = SettingsButton(label: "Убрать", kind: .secondary)
+                let off = SettingsButton(label: "Убрать", kind: .secondary, icon: "trash-outline")
                 off.isEnabled = active
                 off.onPress = { [weak self] in self?.apply(["avatarVideoId": NSNull()], ok: "Видео убрано.") }
                 row.addArrangedSubview(off)
@@ -199,7 +199,7 @@ final class PlatinaStudioView: UIView {
         bannerBox.axis = .vertical
         bannerBox.spacing = 10
         if !compact {
-            let own = SettingsButton(label: look.bannerId.isEmpty ? "Своё фото или видео" : "Заменить своё фото или видео", kind: .secondary)
+            let own = SettingsButton(label: look.bannerId.isEmpty ? "Своё фото или видео" : "Заменить своё фото или видео", kind: .secondary, icon: "image-outline")
             own.isEnabled = active
             own.onPress = { [weak self] in self?.onMedia?("banner") }
             bannerBox.addArrangedSubview(own)

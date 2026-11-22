@@ -133,17 +133,17 @@ enum ProfileChatExtras {
         var choices: [ChoiceSheet.Choice] = []
         for span in spans {
             let preview = Date().addingTimeInterval(span.1)
-            choices.append(ChoiceSheet.Choice(symbol: "clock", label: span.0, note: "Без звука до " + endLabel(preview) + ".", run: {
+            choices.append(ChoiceSheet.Choice(symbol: "ion:time-outline", label: span.0, note: "Без звука до " + endLabel(preview) + ".", run: {
                 Haptic.light()
                 // Counted from the moment of the choice, not from the moment the sheet was opened.
                 pick(stamp.string(from: Date().addingTimeInterval(span.1)))
             }))
         }
-        choices.append(ChoiceSheet.Choice(symbol: "bell.slash", label: "Навсегда", note: "Пока не включишь снова. Звонки продолжат звонить.", run: {
+        choices.append(ChoiceSheet.Choice(symbol: "ion:notifications-off-outline", label: "Навсегда", note: "Пока не включишь снова. Звонки продолжат звонить.", run: {
             Haptic.light()
             pick(nil)
         }))
-        choices.append(ChoiceSheet.Choice(symbol: "slider.horizontal.3", label: "Настроить…", note: "Своё время: дни, часы и минуты.", run: { [weak host] in
+        choices.append(ChoiceSheet.Choice(symbol: "ion:options-outline", label: "Настроить…", note: "Своё время: дни, часы и минуты.", run: { [weak host] in
             Haptic.light()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 guard let host, host.presentedViewController == nil else { return }
@@ -209,7 +209,7 @@ enum ProfileChatExtras {
     /// «Автоудаление»: `pick` gets a new value only (the sheet closes either way).
     static func autoDeleteSheet(current: Int, over host: UIViewController, pick: @escaping (Int) -> Void) {
         let choices = autoDelete.map { (ttl: Int) -> ChoiceSheet.Choice in
-            ChoiceSheet.Choice(symbol: ttl == current ? "checkmark.circle.fill" : "circle", label: ttl != 0 ? autoDeleteLabel(ttl) : "Выключено", run: {
+            ChoiceSheet.Choice(symbol: ttl == current ? "ion:checkmark-circle" : "ion:ellipse-outline", label: ttl != 0 ? autoDeleteLabel(ttl) : "Выключено", run: {
                 if ttl != current {
                     Haptic.light()
                     pick(ttl)
@@ -221,7 +221,7 @@ enum ProfileChatExtras {
 
     /// «Очистить историю?» → «Удалить у обоих».
     static func clearSheet(name: String, over host: UIViewController, confirm: @escaping () -> Void) {
-        let choice = ChoiceSheet.Choice(symbol: "trash", label: "Удалить у обоих", note: "Все сообщения исчезнут у тебя и у \(name). Вернуть не получится.", danger: true, run: confirm)
+        let choice = ChoiceSheet.Choice(symbol: "ion:trash-outline", label: "Удалить у обоих", note: "Все сообщения исчезнут у тебя и у \(name). Вернуть не получится.", danger: true, run: confirm)
         host.present(ChoiceSheet(heading: "Очистить историю?", choices: [choice]), animated: true)
     }
 

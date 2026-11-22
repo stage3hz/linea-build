@@ -47,7 +47,9 @@ final class EmptyStateView: UIView {
 
     /// `symbol`: an SF Symbol; `button`: the words of the button (empty: none) and what it does.
     func show(symbol: String, title: String, words: String, button words2: String = "", buttonSymbol: String = "plus", action: (() -> Void)? = nil) {
-        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 33, weight: .regular))
+        // "ion:<name>": the reference's own Ionicons glyph (Design/IonIcon.swift).
+        icon.image = symbol.hasPrefix("ion:") ? IonIcon.image(String(symbol.dropFirst(4)), size: 33).withRenderingMode(.alwaysTemplate)
+            : UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 33, weight: .regular))
         titleLabel.attributedText = NSAttributedString(string: title, attributes: [.kern: AppFont.titleKern, .font: AppFont.title(21)])
         let style = NSMutableParagraphStyle()
         style.lineSpacing = 4

@@ -220,12 +220,12 @@ final class NoticeCards: UIView {
             old.removeFromSuperview()
         }
         if !recovery.isEmpty {
-            let line = NoticeLine(symbol: "shield", title: "Запрошено восстановление аккаунта", words: "Если это не ты — открой запрос и отмени смену пароля.")
+            let line = NoticeLine(symbol: "ion:shield-outline", title: "Запрошено восстановление аккаунта", words: "Если это не ты — открой запрос и отмени смену пароля.")
             line.accessibilityLabel = "Запрошено восстановление аккаунта. Проверить запрос"
             line.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.onOpen?("recovery") }, for: .touchUpInside)
             stack.addArrangedSubview(line)
         } else if !error.isEmpty {
-            let line = NoticeLine(symbol: "exclamationmark.triangle", title: "Не удалось проверить запросы на восстановление аккаунта.", words: "Коснись, чтобы повторить.")
+            let line = NoticeLine(symbol: "ion:alert-circle-outline", title: "Не удалось проверить запросы на восстановление аккаунта.", words: "Коснись, чтобы повторить.")
             line.addAction(UIAction { (_: UIAction) -> Void in AccountNotices.shared.refreshRecovery() }, for: .touchUpInside)
             stack.addArrangedSubview(line)
         }
@@ -251,7 +251,7 @@ final class NoticeLine: UIControl {
         glass.isUserInteractionEnabled = false
         glass.translatesAutoresizingMaskIntoConstraints = false
         addSubview(glass)
-        let icon = UIImageView(image: SettingsLook.symbol(symbol, size: 18, weight: .medium))
+        let icon = UIImageView(image: SettingsLook.symbol(symbol, size: symbol.hasPrefix("ion:") ? 22 : 18, weight: .medium)) // Ionicons, 22
         icon.tintColor = Theme.danger
         icon.contentMode = .center
         icon.setContentHuggingPriority(.required, for: .horizontal)
@@ -261,7 +261,7 @@ final class NoticeLine: UIControl {
         let texts = UIStackView(arrangedSubviews: [name, about])
         texts.axis = .vertical
         texts.spacing = 3
-        let arrow = UIImageView(image: SettingsLook.symbol("chevron.right", size: 13, weight: .semibold))
+        let arrow = UIImageView(image: IonIcon.image("chevron-forward", size: 18))
         arrow.tintColor = Theme.muted
         arrow.setContentHuggingPriority(.required, for: .horizontal)
         let content = UIStackView(arrangedSubviews: [icon, texts, arrow])
@@ -299,7 +299,7 @@ final class NewLoginSheet: SettingsPage {
     private let login: AccountNotices.NewLogin
     private var ended = false
     private var failure = ""
-    private let endButton = SettingsButton(label: "Это был не я — завершить сеанс", kind: .danger)
+    private let endButton = SettingsButton(label: "Это был не я — завершить сеанс", kind: .danger, icon: "log-out-outline")
 
     init(login: AccountNotices.NewLogin) {
         self.login = login
@@ -312,11 +312,12 @@ final class NewLoginSheet: SettingsPage {
         let platform = session["platform"] as? String ?? ""
         let model = (session["deviceModel"] as? String ?? "").lowercased()
         let device = (session["deviceName"] as? String ?? "").lowercased()
-        if platform == "ios" || platform == "android" { return model.contains("ipad") || model.contains("tablet") ? "ipad" : "iphone" }
-        if platform == "web" { return "globe" }
-        if platform == "windows" { return "desktopcomputer" }
-        for word in ["android", "iphone", "ipad", "ios", "pixel", "galaxy"] where device.contains(word) { return "iphone" }
-        return "desktopcomputer"
+        // The reference's `deviceIcon` (SecurityScreen.tsx): Ionicons names.
+        if platform == "ios" || platform == "android" { return model.contains("ipad") || model.contains("tablet") ? "ion:tablet-portrait-outline" : "ion:phone-portrait-outline" }
+        if platform == "web" { return "ion:globe-outline" }
+        if platform == "windows" { return "ion:desktop-outline" }
+        for word in ["android", "iphone", "ipad", "ios", "pixel", "galaxy"] where device.contains(word) { return "ion:phone-portrait-outline" }
+        return "ion:desktop-outline"
     }
 
     private func value(_ name: String) -> String {
@@ -369,7 +370,7 @@ final class NewLoginSheet: SettingsPage {
         }
         endButton.onPress = { [weak self] in self?.notMe() }
         add(endButton, gap: 16)
-        let me = SettingsButton(label: "Это был я", kind: .secondary)
+        let me = SettingsButton(label: "Это был я", kind: .secondary, icon: "checkmark-outline")
         me.onPress = { [weak self] in
             guard let self else { return }
             AccountNotices.shared.dismissLogin(self.login.id)
@@ -450,7 +451,7 @@ final class RecoverySheet: SettingsPage {
             if let at = Messenger.date(request["readyAt"] as? String) { ready = RecoverySheet.clock.string(from: at) }
             let name = SettingsLook.words(device, size: 16, color: Theme.text, weight: .bold)
             let when = SettingsLook.words("Запрошено: " + asked + "\nСмена пароля разрешится после: " + ready, size: 13, color: Theme.muted)
-            let cancel = SettingsButton(label: "Это не я — отменить", kind: .danger)
+            let cancel = SettingsButton(label: "Это не я — отменить", kind: .danger, icon: "close-circle-outline")
             cancel.onPress = { [weak self] in self?.cancel(id) }
             let card = UIStackView(arrangedSubviews: [name, when, cancel])
             card.axis = .vertical

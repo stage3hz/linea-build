@@ -82,7 +82,14 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     /// Puts the paperclip into the composer.
     func install(host: UIViewController, composer: UIView) {
         self.host = host
-        button.setImage(UIImage(systemName: "paperclip", withConfiguration: UIImage.SymbolConfiguration(pointSize: 21, weight: .regular)), for: .normal)
+        // ChatScreen.tsx: <Icon name="attach" size={26} color={t.text}> turned 45°.
+        let clip = IonIcon.image("attach", size: 26)
+        let turned = UIGraphicsImageRenderer(size: clip.size).image { (context: UIGraphicsImageRendererContext) -> Void in
+            context.cgContext.translateBy(x: clip.size.width / 2, y: clip.size.height / 2)
+            context.cgContext.rotate(by: .pi / 4)
+            clip.draw(at: CGPoint(x: -clip.size.width / 2, y: -clip.size.height / 2))
+        }.withRenderingMode(.alwaysTemplate)
+        button.setImage(turned, for: .normal)
         button.tintColor = Theme.text
         button.accessibilityLabel = "Вложения: галерея, файлы, опрос"
         button.addTarget(self, action: #selector(choose), for: .touchUpInside)

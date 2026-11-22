@@ -194,7 +194,7 @@ final class Messenger {
             let mine = message["senderId"] as? String == userId
             let date = Self.date(message["createdAt"] as? String)
             let today = date.map { Self.dayWords($0) } ?? ""
-            if today != day, !today.isEmpty { day = today; rows.append(["key": "day-\(index)", "kind": 1, "text": today]) }
+            if today != day, !today.isEmpty { day = today; rows.append(["key": "day-\(index)", "kind": 1, "text": today, "label": "day"]) }
             let next = index + 1 < messages.count ? messages[index + 1] : nil
             let id = (message["id"] as? NSNumber)?.intValue ?? 0
             // Bold, links, spoilers and the rest: the text and its runs as the core lays them out.

@@ -331,7 +331,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             top = searchBar.frame.maxY + 8
         }
         if !pinnedBar.isHidden {
-            pinnedBar.frame = CGRect(x: 12, y: headerBottom + 4, width: width - 24, height: PinnedBar.height)
+            pinnedBar.frame = CGRect(x: 12, y: headerBottom + 6, width: width - 24, height: PinnedBar.height) // marginTop 6
             top = pinnedBar.frame.maxY + 8
         }
         var noticeY = top
@@ -354,7 +354,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         above = links.place(composerFrame: composerFrame, above: above, hidden: chosen)
         // Composer: the formatting bar over a selection, the emoji button and panel, the scheduled pill.
         above = extras.place(in: view, composerFrame: composerFrame, above: above, top: top, hidden: chosen)
-        downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 12 - DownButton.side, width: DownButton.side, height: DownButton.side)
+        downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 10 - DownButton.side, width: DownButton.side, height: DownButton.side) // right 14, bottom 10
         return (top, view.bounds.height - above + 8)
     }
 
@@ -745,8 +745,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func showSend() {
         guard let sendButton else { return }
         // Composer: the arrow (a tick while editing) on the button's accent circle (ChatScreen.tsx).
-        let symbol = editing != nil ? "checkmark" : "arrow.up"
-        sendButton.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
+        // <Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={25}>
+        sendButton.setImage(IonIcon.image(editing != nil ? "checkmark" : "arrow-up", size: 25), for: .normal)
         let empty = (field?.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let off = editing != nil && empty
         sendButton.isEnabled = !off

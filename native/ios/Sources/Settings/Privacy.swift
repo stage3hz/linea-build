@@ -147,7 +147,7 @@ final class PrivacyViewController: SettingsPage {
             }
         }
         // Security: the device lock sits first on the privacy screen (Settings/PasscodeSettings.swift).
-        let passcode = SettingsRow(symbol: "circle.grid.3x3", label: "Код-пароль", value: LockStore.shared.current.record != nil ? "Вкл." : "Выкл.")
+        let passcode = SettingsRow(symbol: "ion:keypad", label: "Код-пароль", value: LockStore.shared.current.record != nil ? "Вкл." : "Выкл.")
         passcode.onPress = { [weak self] in self?.open(PasscodeViewController()) }
         addGroup("Безопасность", rows: [passcode])
         guard model.privacy != nil else {
@@ -157,7 +157,7 @@ final class PrivacyViewController: SettingsPage {
         let saving = model.saving
         let platina = model.platina
 
-        let lastSeen = SettingsRow(symbol: "clock", label: "Время захода", value: model.lastSeenSummary)
+        let lastSeen = SettingsRow(symbol: "ion:time", label: "Время захода", value: model.lastSeenSummary)
         lastSeen.onPress = { [weak self] in self?.open(LastSeenViewController(model: model)) }
         let newChats = SettingsSwitchRow(label: "Новые разговоры", words: "Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть.",
                                          value: model.flag("allowNewChats", otherwise: true), enabled: !saving)
@@ -190,7 +190,7 @@ final class PrivacyViewController: SettingsPage {
             model.change(["calls": PrivacyViewController.callModes[index].value])
         }
         // Security: the lists «Разрешить» and «Никогда» (Settings/PrivacyLists.swift).
-        let callLists = SettingsRow(symbol: "person.crop.circle.badge.checkmark", label: calls == "everyone" ? "Никогда" : "Разрешить и никогда")
+        let callLists = SettingsRow(symbol: "ion:people-outline", label: calls == "everyone" ? "Никогда" : "Разрешить и никогда")
         callLists.onPress = { [weak self] in self?.open(CallRulesViewController(messenger: model.messenger)) }
         addGroup("Звонки", rows: [callBox, callLists])
 
@@ -276,12 +276,12 @@ final class LastSeenViewController: SettingsPage {
         var lists: [UIView] = []
         let count = { (people: Int) -> String in people < 0 ? "" : (people > 0 ? String(people) : "Добавить") }
         if mode != "everyone" {
-            let allow = SettingsRow(symbol: "checkmark.circle", label: "Всегда показывать", value: count(model.allowCount))
+            let allow = SettingsRow(symbol: "ion:checkmark-circle", label: "Всегда показывать", value: count(model.allowCount))
             allow.onPress = { [weak self] in self?.open(LastSeenExceptionsViewController(messenger: model.messenger, model: model, rule: "allow")) }
             lists.append(allow)
         }
         if mode != "nobody" {
-            let deny = SettingsRow(symbol: "minus.circle", label: "Никогда не показывать", value: count(model.denyCount))
+            let deny = SettingsRow(symbol: "ion:remove-circle", label: "Никогда не показывать", value: count(model.denyCount))
             deny.onPress = { [weak self] in self?.open(LastSeenExceptionsViewController(messenger: model.messenger, model: model, rule: "deny")) }
             lists.append(deny)
         }

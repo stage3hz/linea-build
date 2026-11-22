@@ -534,7 +534,7 @@ final class FoldersSettingsPage: SettingsPage {
             }
         }
         addGroup("Мои папки", rows: rows)
-        let create = SettingsRow(symbol: "plus", label: "Создать папку", arrow: false)
+        let create = SettingsRow(symbol: "ion:add", label: "Создать папку")
         create.onPress = { [weak self] in self?.edit(nil) }
         addGroup(rows: [create])
         add(SettingsLook.caption("Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты."), gap: 8)

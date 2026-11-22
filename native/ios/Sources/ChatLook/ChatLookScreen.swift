@@ -276,22 +276,25 @@ final class ChatLookScreen: NSObject {
         badge.isHidden = unread == 0
         badge.text = count
         let badgeWidth = unread == 0 ? 0 : max(18, ceil(badge.intrinsicContentSize.width) + 10)
-        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: unread == 0 ? 20 : 17, weight: .semibold)), for: .normal)
+        // ChatScreen.tsx: <Icon name="chevron-back" size={otherUnread ? 22 : 26}>.
+        back.setImage(IonIcon.image("chevron-back", size: unread == 0 ? 26 : 22), for: .normal)
         back.accessibilityLabel = unread == 0 ? "Назад к чатам" : "Назад к чатам, непрочитанных \(unread)"
         let backWidth = unread == 0 ? side : 9 + 22 - 4 + badgeWidth + 11
         backPill.frame = CGRect(x: 12, y: y, width: backWidth, height: side)
         backPill.shape(radius: side / 2)
         back.frame = backPill.bounds
         back.contentHorizontalAlignment = unread == 0 ? .center : .left
-        back.contentEdgeInsets = UIEdgeInsets(top: 0, left: unread == 0 ? 0 : 7, bottom: 0, right: 0)
+        back.contentEdgeInsets = UIEdgeInsets(top: 0, left: unread == 0 ? 0 : 9, bottom: 0, right: 0)
         badge.frame = CGRect(x: 9 + 22 - 4, y: (side - 18) / 2, width: badgeWidth, height: 18)
 
-        // The right column: «Позвонить», then the avatar at the edge.
+        // The right column: the avatar at the edge. The reference's phone header has no call button (calls are in
+        // the profile), so the glass «Позвонить» is not shown.
         avatarControl.frame = CGRect(x: width - 12 - side, y: y, width: side, height: side)
         avatar.frame = avatarControl.bounds
         callPill.frame = CGRect(x: avatarControl.frame.minX - 8 - side, y: y, width: side, height: side)
         callPill.shape(radius: side / 2)
         call.frame = callPill.bounds
+        callPill.isHidden = true
 
         // The name: in the very middle of the screen; when it is too long for that, in the middle of the room
         // between «назад» and the right column.
@@ -305,9 +308,9 @@ final class ChatLookScreen: NSObject {
         let nameWidth = ceil(nameWords.size().width) + emojiWidth
         let statusWidth = hasStatus ? ceil(status.intrinsicContentSize.width) : 0
         let wanted = max(nameWidth, statusWidth) + 36
-        let rightColumn = width - callPill.frame.minX
+        let rightColumn = width - avatarControl.frame.minX
         let symmetric = width - 2 * (rightColumn + 8)
-        let between = callPill.frame.minX - 8 - (backPill.frame.maxX + 8)
+        let between = avatarControl.frame.minX - 8 - (backPill.frame.maxX + 8)
         let pillWidth = max(60, min(wanted, width * 0.62, wanted <= symmetric ? symmetric : between))
         var pillX = (width - pillWidth) / 2
         if pillWidth > symmetric { pillX = backPill.frame.maxX + 8 + (between - pillWidth) / 2 }
