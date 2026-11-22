@@ -211,7 +211,7 @@ export async function runBackup(deps: HistoryDeps): Promise<number> {
       throw error;
     }
     written++;
-    for (const [chatId, mark] of Object.entries(batch.marks)) if (!marks[chatId] || marks[chatId] < mark) marks[chatId] = mark;
+    Object.assign(marks, batch.marks); // places only move forward within a run
     await saveState(deps.crypto, { marks });
     if (!batch.next) break;
     cursor = batch.next;

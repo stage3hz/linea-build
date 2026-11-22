@@ -250,7 +250,7 @@ impl crate::e2ee::history_sync::HistoryServer for HistoryHost {
 }
 
 /// `history.<step>` of `invizent_crypto_call` (docs/HISTORY-TRANSFER.md, `e2ee::history_sync`): `state []` → the
-/// vault's `history:v1` · `ask []` → the request made, or null · `serve []` → the time of the next request still
+/// vault's `history:v1` · `status []` → `{enabled, canRestore, restoreAt, updatedAt, held}` · `ask []` → the request made, or null · `serve []` → the time of the next request still
 /// waiting, or null · `receive []` → the messages imported, or null · `outgoing []` → `{transfers}` ·
 /// `cancel [transferId]` · `enable []` → the new backup secret · `disable []` · `secret []` → the secret, or null ·
 /// `backup []` → pages written · `restore [typed]` → the messages imported. A refusal also carries `code` (the
@@ -279,6 +279,14 @@ fn history_step(service: &mut Crypto<Host, Host, Host, Host>, host: Host, step: 
     let device = || history_device(&args);
     let result: Result<Value, SyncError> = match step {
         "state" => Ok(history.state()),
+        // The settings screen: the server's backup state (salt and notes left out) and whether this device holds the secret.
+        "status" => history.crypto.initialize().map_err(SyncError::from).and_then(|_| {
+            let id = history.crypto.device_id().unwrap_or_default();
+            let backup = history.server.call("backupState", vec![Value::str(&id)]).map_err(SyncError::from)?;
+            let held = history.secret(Some(&backup)).unwrap_or(None).is_some();
+            let pick = |key: &str| backup.get(key).cloned().unwrap_or(Value::Null);
+            Ok(json::object(vec![("enabled", pick("enabled")), ("canRestore", pick("canRestore")), ("restoreAt", pick("restoreAt")), ("updatedAt", pick("updatedAt")), ("held", Value::Bool(held))]))
+        }),
         "ask" => history.ask(),
         "serve" => history.serve(),
         "receive" => history.receive(|_, _| {}),

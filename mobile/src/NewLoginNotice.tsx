@@ -64,7 +64,7 @@ export function NewLoginNotice({ api, onOpenSecurity }: { api: Api; onOpenSecuri
     </GlassSurface> : null}
     <Sheet visible={open !== null} title="Новый вход в аккаунт" onClose={close}>
       {session ? <View style={{ gap: 16, paddingBottom: 8 }}>
-        {ended ? <Notice text="Сеанс завершён. На том устройстве понадобится снова ввести логин, пароль и слово подтверждения. Если пароль мог утечь — смени его в разделе «Безопасность»." /> : <Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>В твой аккаунт вошли с другого устройства. Данные об устройстве сообщает само приложение; адрес — такой, каким его увидел сервер.</Text>}
+        {ended ? <Notice text="Сеанс завершён. На том устройстве понадобится снова ввести логин, пароль и слово подтверждения. Если пароль мог утечь — смени его в разделе «Безопасность»." /> : <Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>В твой аккаунт вошли с другого устройства. Данные об устройстве сообщает само приложение; адрес — такой, каким его увидел сервер. Через 10 минут после входа это устройство получит копию твоих переписок (зашифрованную только для него). Если это был не ты — заверши сеанс сейчас, и перенос не состоится.</Text>}
         <View style={{ gap: 8, padding: 14, borderWidth: 1, borderColor: t.border, borderRadius: 18 }}>
           <Text style={{ color: t.text, fontWeight: '700', fontSize: 16 }}>{open?.label}</Text>
           <Row label="Устройство" value={session.deviceModel || session.deviceName || '—'} />

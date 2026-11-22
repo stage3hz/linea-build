@@ -49,6 +49,8 @@ final class Messenger {
         live.start()
         // Security: «Новый вход», «Запрос восстановления», the number on the icon, links (Security/AccountNotices.swift).
         DispatchQueue.main.async { [weak self] in if let self { AccountNotices.shared.start(self) } }
+        // Old chats on a new device: a copy from or to the account's other devices, the backup (Security/HistoryTransfer.swift).
+        DispatchQueue.main.async { [weak self] in if let self { HistoryTransfer.shared.start(self) } }
     }
 
     /// Tells the server the chat was read up to a message.

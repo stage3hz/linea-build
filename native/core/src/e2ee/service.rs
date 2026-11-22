@@ -914,7 +914,12 @@ const HISTORY_IMPORT_MAX: usize = 5000;
 const BAD_COPY: &str = "Некорректная копия переписок.";
 
 fn utf16_cmp(a: &str, b: &str) -> std::cmp::Ordering { a.encode_utf16().cmp(b.encode_utf16()) }
-fn history_mark(entry: &Value) -> String { format!("{}|{}|{}", text_of(entry.get("sentAt")), text_of(entry.get("senderId")), text_of(entry.get("clientId"))) }
+/// `page:offset` (digits, at most 15 each) as a place in a chat's history index.
+fn position(text: &str) -> Option<(f64, f64)> {
+    let (page, offset) = text.split_once(':')?;
+    let digits = |part: &str| (!part.is_empty() && part.len() <= 15 && part.bytes().all(|byte| byte.is_ascii_digit())).then(|| part.parse::<f64>().ok()).flatten();
+    Some((digits(page)?, digits(offset)?))
+}
 fn is_string(value: Option<&Value>) -> bool { matches!(value, Some(Value::String(_))) }
 fn valid_history_entry(value: &Value, preview_ok: &dyn Fn(Option<&Value>) -> bool) -> bool {
     const KEYS: [&str; 8] = ["chatId", "senderId", "clientId", "fingerprint", "text", "attachment", "sentAt", "meta"];
@@ -977,8 +982,8 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
     }
 
     /// The decrypted messages kept here, for a copy to a new own device or the backup: chat by chat, oldest kept
-    /// first, about `max_chars` of JSON a batch (at least one message). `after`: per chat, the mark of the newest
-    /// message already copied. Gives `{items, next, marks}`; go on with `next` (null: done).
+    /// first, about `max_chars` of JSON a batch (at least one message). `after`: per chat, the place (`page:offset`
+    /// in its history index, from `marks`) a previous copy reached. Gives `{items, next, marks}`; go on with `next`.
     pub fn history_export(&self, after: &Value, cursor: &Value, max_chars: f64) -> Result<Value, CryptoError> {
         let chats = self.history_chats();
         let (mut items, mut marks, mut size): (Vec<Value>, Vec<(String, String)>, f64) = (Vec::new(), Vec::new(), 0.0);
@@ -989,41 +994,27 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
         while chat >= 0.0 && chat < chats.len() as f64 {
             let chat_id = chats[chat as usize].clone();
             let Some((first, last)) = self.history_range(&chat_id)? else { chat += 1.0; page = -1.0; offset = 0.0; continue };
-            let since = if truthy(Some(after)) { match after.get(&chat_id) { Some(Value::String(text)) => Some(text.to_string_lossy()), _ => None } } else { None };
             if page < 0.0 {
-                // Start at the newest page that still holds something already copied (pages are in arrival order).
-                let mut start = first;
-                if let Some(since) = &since {
-                    let mut at = last;
-                    while at >= first {
-                        let old = self.history_names(&chat_id, at).iter().any(|(sender, client)| self.history_entry(&chat_id, sender, client).is_some_and(|entry| utf16_cmp(&history_mark(&entry), since) != std::cmp::Ordering::Greater));
-                        if old { start = at; break }
-                        at -= 1.0;
-                    }
-                }
-                page = start; offset = 0.0;
+                // Go on after the place this device's copy reached last time (`page:offset` in the chat's history index).
+                let since = if truthy(Some(after)) { match after.get(&chat_id) { Some(Value::String(text)) => position(&text.to_string_lossy()), _ => None } } else { None };
+                (page, offset) = since.unwrap_or((first, 0.0));
             }
-            if page < first { page = first; offset = 0.0 }
+            if page < first || offset < 0.0 { page = page.max(first); offset = 0.0 }
             if page > last { chat += 1.0; page = -1.0; offset = 0.0; continue }
             let names = self.history_names(&chat_id, page);
             let mut index = offset;
             while index < names.len() as f64 {
                 let (sender, client) = &names[index as usize];
                 if let Some(entry) = self.history_entry(&chat_id, sender, client) {
-                    let mark = history_mark(&entry);
-                    if !since.as_ref().is_some_and(|since| utf16_cmp(&mark, since) != std::cmp::Ordering::Greater) {
-                        let chars = json::stringify(&entry).encode_utf16().count() as f64;
-                        if !items.is_empty() && size + chars > max_chars {
-                            return Ok(json::object(vec![("items", Value::Array(items)), ("next", cursor_value(chat, page, index)), ("marks", marks_value(&marks))]));
-                        }
-                        items.push(entry);
-                        size += chars;
-                        match marks.iter_mut().find(|(name, _)| *name == chat_id) {
-                            Some(held) => if utf16_cmp(&held.1, &mark) == std::cmp::Ordering::Less { held.1 = mark },
-                            None => marks.push((chat_id.clone(), mark)),
-                        }
+                    let chars = json::stringify(&entry).encode_utf16().count() as f64;
+                    if !items.is_empty() && size + chars > max_chars {
+                        return Ok(json::object(vec![("items", Value::Array(items)), ("next", cursor_value(chat, page, index)), ("marks", marks_value(&marks))]));
                     }
+                    items.push(entry);
+                    size += chars;
                 }
+                let mark = format!("{}:{}", json::number_text(page), json::number_text(index + 1.0));
+                match marks.iter_mut().find(|(name, _)| *name == chat_id) { Some(held) => held.1 = mark, None => marks.push((chat_id.clone(), mark)) }
                 index += 1.0;
             }
             page += 1.0; offset = 0.0;

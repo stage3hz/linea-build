@@ -94,12 +94,11 @@ export type HistoryPage = { items: HistoryItem[]; page: number; previous: number
 export type HistoryEntry = HistoryItem & { fingerprint: string };
 /** Where historyExport goes on: the chat's place in `history:chats`, the history page and the place in it (`page` -1: not started). */
 export type HistoryCursor = { chat: number; page: number; offset: number };
-/** `marks`: per chat, the mark of the newest message in this batch (kept by the backup after a successful upload). */
+/** `marks`: per chat, the place in its history index this batch reached (kept by the backup after a successful upload). */
 export type HistoryBatch = { items: HistoryEntry[]; next: HistoryCursor | null; marks: Record<string, string> };
 /** About this many UTF-16 units of JSON per batch: even all in 3-byte UTF-8 it stays under a 512 KiB page. */
 export const HISTORY_EXPORT_CHARS = 150_000;
 const HISTORY_IMPORT_MAX = 5000;
-export const historyMark = (entry: Pick<HistoryEntry,'sentAt'|'senderId'|'clientId'>) => `${entry.sentAt}|${entry.senderId}|${entry.clientId}`;
 /** '1' for a normal session; for a lane session the ISO time it was started (see LANE_SESSION_MAX_AGE_MS). */
 const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>, lane?: Lane | NoteLane) => `session:${device.userId}:${device.id}${lane ? `:${lane}` : ''}`;
 /** Last device list seen from the server, so messages can still be encrypted without internet (Mesh). */
@@ -363,7 +362,6 @@ export class CryptoService {
     const chats=await this.historyChats();if(chats.includes(chatId))changes[HISTORY_CHATS]=chats.length>1?JSON.stringify(chats.filter(id=>id!==chatId)):null;
     return changes;
   }
-  /** `sentAt|senderId|clientId`: the order of a cached message for an incremental copy (backup marks). */
   private async historyNames(chatId:string,page:number):Promise<[string,string][]> {
     let list:unknown[]=[];try{const raw=parse<unknown>(await this.vault.get(historyPageKey(chatId,page)));if(Array.isArray(raw))list=raw;}catch{list=[];}
     return list.filter((item):item is [string,string]=>Array.isArray(item)&&typeof item[0]==='string'&&typeof item[1]==='string').map(item=>[item[0],item[1]]);
@@ -377,7 +375,8 @@ export class CryptoService {
   /**
    * The decrypted messages cached on this device, for a copy to a new own device or the backup (HISTORY-TRANSFER.md):
    * chat by chat, oldest kept first, up to about `maxChars` of JSON per batch (at least one message). `after`: per
-   * chat, the mark of the newest message already copied (only newer ones are given). Continue with `next`.
+   * chat, the place (`page:offset` in its history index, from `marks`) a previous copy reached: only what came
+   * after it is given — in arrival order, whatever the senders' clocks say. Continue with `next`.
    * Nothing leaves the device here: the caller encrypts the batch (history.ts) before it is uploaded.
    */
   async historyExport(after:Record<string,string>|null,cursor:HistoryCursor|null,maxChars=HISTORY_EXPORT_CHARS):Promise<HistoryBatch> {
@@ -387,29 +386,22 @@ export class CryptoService {
       while(at.chat>=0&&at.chat<chats.length){
         const chatId=chats[at.chat];const meta=parse<HistoryMeta>(await this.vault.get(historyMetaKey(chatId)));
         if(!meta||!Number.isSafeInteger(meta.first)||!Number.isSafeInteger(meta.last)||meta.first>meta.last){at={chat:at.chat+1,page:-1,offset:0};continue;}
-        const since=after&&typeof after[chatId]==='string'?after[chatId]:null;
         if(at.page<0){
-          // Start at the newest page that still holds something already copied (pages are in arrival order).
-          let start=meta.first;
-          if(since!==null)for(let page=meta.last;page>=meta.first;page--){
-            let old=false;
-            for(const [senderId,clientId] of await this.historyNames(chatId,page)){const entry=await this.historyEntry(chatId,senderId,clientId);if(entry&&historyMark(entry)<=since){old=true;break;}}
-            if(old){start=page;break;}
-          }
-          at={chat:at.chat,page:start,offset:0};
+          // Go on after the place this device's copy reached last time (`page:offset` in the chat's history index).
+          const since=after&&typeof after[chatId]==='string'?/^(\d{1,15}):(\d{1,15})$/.exec(after[chatId]):null;
+          at=since?{chat:at.chat,page:Number(since[1]),offset:Number(since[2])}:{chat:at.chat,page:meta.first,offset:0};
         }
-        if(at.page<meta.first)at={chat:at.chat,page:meta.first,offset:0};
+        if(at.page<meta.first||at.offset<0)at={chat:at.chat,page:Math.max(at.page,meta.first),offset:0};
         if(at.page>meta.last){at={chat:at.chat+1,page:-1,offset:0};continue;}
         const names=await this.historyNames(chatId,at.page);
         for(let index=at.offset;index<names.length;index++){
           const entry=await this.historyEntry(chatId,names[index][0],names[index][1]);
-          if(!entry)continue;
-          const mark=historyMark(entry);
-          if(since!==null&&mark<=since)continue;
-          const chars=JSON.stringify(entry).length;
-          if(items.length&&size+chars>maxChars)return {items,next:{chat:at.chat,page:at.page,offset:index},marks};
-          items.push(entry);size+=chars;
-          if(!(chatId in marks)||marks[chatId]<mark)marks[chatId]=mark;
+          if(entry){
+            const chars=JSON.stringify(entry).length;
+            if(items.length&&size+chars>maxChars)return {items,next:{chat:at.chat,page:at.page,offset:index},marks};
+            items.push(entry);size+=chars;
+          }
+          marks[chatId]=`${at.page}:${index+1}`;
         }
         at={chat:at.chat,page:at.page+1,offset:0};
       }

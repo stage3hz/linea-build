@@ -363,7 +363,7 @@ await scenario('history export and import', { autoTrust: true }, async s => {
   await s.encrypt(M(4), 'моё'); await s.encrypt(M(5), 'в другой чат', { chat: CHAT2, peer: OTHER });
   const all = await s.historyExport(); await s.historyExport(null, null, 10);
   const first = await s.historyExport(null, null, 400); await s.historyExport(null, first.ok?.next, 400); await s.historyExport(null, { chat: 1, page: 0, offset: 0 });
-  await s.historyExport(all.ok?.marks); await s.historyExport({ [CHAT]: '2026-11-21T07:00:01.000Z|z|z' }); await s.historyExport({ [CHAT]: 5 }); await s.historyExport(null, { chat: 'x' });
+  await s.historyExport(all.ok?.marks); await s.historyExport({ [CHAT]: '0:1' }); await s.historyExport({ [CHAT]: '0:99', [CHAT2]: '7:0' }); await s.historyExport({ [CHAT]: 5 }); await s.historyExport({ [CHAT]: '1:x' }); await s.historyExport(null, { chat: 'x' }); await s.historyExport(null, { chat: 0, page: 0, offset: -3 });
   const items = all.ok.items;
   const U = n => `e1000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
   const fresh = (n, text, extra = {}) => ({ chatId: CHAT, senderId: PEER, clientId: U(n), fingerprint: 'a'.repeat(64), text, attachment: null, sentAt: `2026-11-0${n % 9 + 1}T10:00:00.000Z`, ...extra });

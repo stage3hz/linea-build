@@ -245,13 +245,8 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> History<'_, S, V, T,
                 Err(refusal) => return Err(refusal.into()),
             }
             written += 1.0;
-            if let Some(Value::Object(new_marks)) = batch.get("marks") {
-                for (chat, mark) in new_marks {
-                    let held = marks.get(&chat.to_string_lossy()).and_then(Value::as_str);
-                    let mark_text = mark.as_str().unwrap_or_default();
-                    if held.as_ref().is_none_or(|held| held.encode_utf16().cmp(mark_text.encode_utf16()) == std::cmp::Ordering::Less) { put(&mut marks, &chat.to_string_lossy(), Some(Value::str(&mark_text))) }
-                }
-            }
+            // Places only move forward within a run.
+            if let Some(Value::Object(new_marks)) = batch.get("marks") { for (chat, mark) in new_marks { put(&mut marks, &chat.to_string_lossy(), Some(mark.clone())) } }
             self.save(vec![("marks", Some(marks.clone()))]);
             let next = batch.get("next").cloned().unwrap_or(Value::Null);
             if matches!(next, Value::Null) { break }

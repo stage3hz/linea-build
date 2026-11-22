@@ -180,6 +180,8 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         if type == "ready" || type == "scheduled" { NotificationCenter.default.post(name: Live.scheduledEvent, object: nil, userInfo: ["event": data]) }
         // Security: a sign-in from another device, a recovery request (Security/AccountNotices.swift).
         if type == "session.new" || type.hasPrefix("recovery.") { NotificationCenter.default.post(name: Live.securityEvent, object: nil, userInfo: ["event": data]) }
+        // Old chats on a new device: a request, a copy ready, the backup changed (Security/HistoryTransfer.swift).
+        if type.hasPrefix("history.") { NotificationCenter.default.post(name: HistoryTransfer.event, object: nil, userInfo: ["event": data]) }
         switch type {
         case "ready":
             attempts = 0

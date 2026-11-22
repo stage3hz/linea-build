@@ -188,7 +188,8 @@ fn variant_b_backup_with_a_secret_made_on_a_device_restored_by_the_typed_secret(
     assert_eq!(history::parse_secret(&secret).as_deref(), Some(secret.as_str()));
     assert!(History { crypto: &mut old, server: &mut server, cipher: &Cipher }.backup().unwrap() >= 1.0);
     assert_eq!(History { crypto: &mut old, server: &mut server, cipher: &Cipher }.backup().unwrap(), 0.0, "nothing new");
-    old.history_import(&Value::Array(vec![entry(41, "новое")])).unwrap();
+    // Arrives last (an import puts an older message in its place by time; a new one is appended).
+    old.history_import(&Value::Array(vec![entry(55, "новое")])).unwrap();
     assert_eq!(History { crypto: &mut old, server: &mut server, cipher: &Cipher }.backup().unwrap(), 1.0, "only what is new");
     for value in &server.seen { assert!(!value.contains("сообщение") && !value.contains(&secret), "neither messages nor the secret reach the server") }
 

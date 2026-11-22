@@ -50,7 +50,11 @@ final class CryptoService {
             let answer: [String: Any]
             switch service.server.opAndWait(name == "cryptoInbox" ? "inboxPage" : name, list) {
             case .success(let body): answer = ["ok": body]
-            case .failure(.refused(let message, _, _, _)): answer = ["refused": message]
+            // The status and the server's code ride along: the core's history steps decide by them (`e2ee::history_sync`).
+            case .failure(.refused(let message, let status, let code, _)):
+                var refused: [String: Any] = ["refused": message, "status": status]
+                if let code { refused["code"] = code }
+                answer = refused
             case .failure(let error): answer = ["network": error.words]
             }
             return Core.text(answer).flatMap { strdup($0) }

@@ -7,6 +7,7 @@ import { Button, Icon, IconButton, Notice, SectionLabel, Sheet } from './compone
 import { GlassSurface } from './glass';
 import { useTheme } from './theme';
 import { AccountZone } from './AccountZone';
+import { HistorySection } from './HistorySection';
 import { SecretInput, newPasswordError, normalizeRecoveryWord, recoveryWordError } from './AuthScreen';
 import type { SecurityStatus } from './types';
 import { useTabInset } from './tabInset';
@@ -173,6 +174,7 @@ export function SecurityScreen({api,onBack,onCredentialsChanged,onSensitiveActio
           {loading&&status?<ActivityIndicator color={t.accent}/>:null}
           <Text style={{color:t.subtle,fontSize:11,lineHeight:16}}>Если ты видишь вход, которого не делал, заверши его и смени пароль. IP-адрес показан как есть, местоположение по нему не определяется.</Text>
         </GlassSurface>
+        <HistorySection api={api}/>
         <AccountZone api={api} confirmationConfigured={status.confirmationConfigured} onDeleted={()=>changedCallback.current('Аккаунт удалён.')}/>
       </>:null}
       <Text style={{color:t.subtle,fontSize:11,lineHeight:17,textAlign:'center',paddingHorizontal:10}}>Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, логина и пароля. Все значения здесь вводятся вручную.</Text>
