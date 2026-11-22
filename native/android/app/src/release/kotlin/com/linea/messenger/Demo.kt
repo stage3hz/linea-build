@@ -20,6 +20,8 @@ object Demo {
   /** A release build's sign-in screen always opens at its first step, and has no made-up recovery request. */
   val authMode: String? get() = null
   const val authLogin = ""
+  /** A release build gives the keyboard only as the screen itself does. */
+  val authFocus: Int get() = 0
 
   /** Security: a release build always reads the real lock. */
   val lockDemo: Boolean get() = false

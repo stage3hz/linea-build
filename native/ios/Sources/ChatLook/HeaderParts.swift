@@ -1,58 +1,22 @@
 import UIKit
 
-/// The soft edge under the chat's header (the reference's tabInset.tsx `ScrollEdgeEffect` with ChatScreen.tsx's
-/// numbers: cover .78, blur right behind the pills, a 16-point fade past them): the messages that pass under the
-/// header are blurred and covered by the page's colour so they cannot be read through the glass, and dissolve
-/// just below it.
-final class HeaderEdgeView: UIView {
-    static let fade: CGFloat = 16
-    private let blur = UIVisualEffectView(effect: nil)
-    private let blurMask = CAGradientLayer()
-    private let cover = CAGradientLayer()
-    /// The page's colour at the top and how strongly it covers (the reference: the theme's background at .96,
-    /// a gradient wallpaper's top colour at .9, a picture's black at .5).
-    var color: UIColor = .black
-    var alphaOfEdge: CGFloat = 0.96
-    private var blurDark = true
+/// The soft edge under the chat's header and above its composer (the reference's tabInset.tsx `ScrollEdgeEffect`
+/// with ChatScreen.tsx's numbers, drawn as the progressive edge of Shell/EdgeFade.swift): the messages that pass
+/// under the glass are blurred hardest at the screen's edge and covered by the page's colour (the wallpaper's own
+/// colour at that edge), so they cannot be read through the glass, and dissolve 24 pt past it.
+final class HeaderEdgeView: ProgressiveEdgeView {
+    /// How strongly the colour covers right at the edge (the reference: the theme's background at .96, a gradient
+    /// wallpaper's colour at .9, a picture's black at .5); capped at .85 as on iPhone.
+    var alphaOfEdge: CGFloat = 0.96 {
+        didSet { peak = min(0.85, alphaOfEdge) }
+    }
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isUserInteractionEnabled = false
-        addSubview(blur)
-        blur.layer.mask = blurMask
-        layer.addSublayer(cover)
+    override init(edge: ProgressiveEdgeView.Edge = .top) {
+        super.init(edge: edge)
+        peak = min(0.85, alphaOfEdge)
     }
 
     required init?(coder: NSCoder) { return nil }
-
-    /// `size`: the header's height (the status bar included).
-    func place(width: CGFloat, size: CGFloat) {
-        let total = size + HeaderEdgeView.fade
-        frame = CGRect(x: 0, y: 0, width: width, height: total)
-        // Fully covered up to 14 points short of the header's lower edge, then a soft ramp.
-        let solid = max(0, min(1, (size - 14) / total))
-        let peak = UIAccessibility.isReduceTransparencyEnabled ? 1 : min(1, min(0.85, alphaOfEdge) * 0.78)
-        var white: CGFloat = 0
-        var alpha: CGFloat = 0
-        color.getWhite(&white, alpha: &alpha)
-        let darkEdge = white < 0.5
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        blur.frame = bounds
-        blurMask.frame = bounds
-        blurMask.colors = [UIColor.black.cgColor, UIColor.black.cgColor, UIColor.clear.cgColor]
-        blurMask.locations = [0, NSNumber(value: Double(solid)), NSNumber(value: Double(min(1, solid + (1 - solid) * 0.8)))]
-        cover.frame = bounds
-        cover.colors = [color.withAlphaComponent(peak).cgColor, color.withAlphaComponent(peak * 0.9).cgColor,
-                        color.withAlphaComponent(peak * 0.45).cgColor, color.withAlphaComponent(0).cgColor]
-        cover.locations = [0, NSNumber(value: Double(solid)), NSNumber(value: Double(solid + (1 - solid) * 0.45)), 1]
-        CATransaction.commit()
-        if blur.effect == nil || blurDark != darkEdge {
-            blurDark = darkEdge
-            blur.effect = UIBlurEffect(style: darkEdge ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight)
-        }
-        blur.isHidden = UIAccessibility.isReduceTransparencyEnabled
-    }
 }
 
 /// A name in platinum (the reference's platina/PlatinaMark.tsx `PlatinaName`): the letters are a window onto

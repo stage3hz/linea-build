@@ -49,7 +49,7 @@ final class AuthViewController: UIViewController {
     private var sample = false
     private var ticker: Timer?
 
-    private let scroll = UIScrollView()
+    // Nothing scrolls: the column stands still between the top and the keyboard (AuthFit, `arrange`).
     private let column = UIStackView()
     // L: the reference's sign-in (AuthScreen.tsx, App.tsx `ThemeAccess`): the steps live on a glass card (GlassSurface
     // «regular», radius 32, 22 inside), and a glass pill at the top right names the theme on screen and opens the choice.
@@ -90,6 +90,24 @@ final class AuthViewController: UIViewController {
     private let proceed = ActionButton(label: "Продолжить") // Effects: the button with states (ActionButton)
     private let forgot = UIButton(type: .system)
     private let back = UIButton(type: .system)
+    /// While the keyboard is up, the room between the card's parts and «Продолжить», so the button stands at the
+    /// card's bottom right above the keyboard.
+    private let spacer = UIView()
+
+    // The two arrangements (AuthFit): without the keyboard and with it.
+    private var columnTop: NSLayoutConstraint?
+    private var cardFill: NSLayoutConstraint?
+    private var cardPadTop: NSLayoutConstraint?
+    private var cardPadBottom: NSLayoutConstraint?
+    /// Which of the parts that may leave for want of room the step has (the rest show by their own `isHidden`).
+    private var wanted: [ObjectIdentifier: Bool] = [:]
+    /// How much of the screen the keyboard covers now, and the height of the last keyboard that was up.
+    private var keyboardOverlap: CGFloat = 0
+    private var keyboardHeight: CGFloat = 0
+    /// The compact arrangement stays while a request is under way (the field is closed then and the keyboard leaves
+    /// for a moment): nothing moves before the answer.
+    private var held = false
+    private var arrangedFor = ""
 
     private static let wordHelp = "От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются."
 
@@ -115,6 +133,7 @@ final class AuthViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
         build()
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardChanging(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
         restore()
         #if targetEnvironment(simulator)
         simulatorMode()
@@ -134,6 +153,24 @@ final class AuthViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         focus()
+        #if targetEnvironment(simulator)
+        // `-authfocus 2`: the keyboard goes to the second field of the step (the shots with the keyboard up).
+        let place = UserDefaults.standard.integer(forKey: "authfocus")
+        if place > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                self?.focusField(place)
+            }
+        }
+        #endif
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let key = "\(view.bounds.width)x\(view.bounds.height)/\(view.safeAreaInsets.top)/\(view.safeAreaInsets.bottom)"
+        if key != arrangedFor {
+            arrangedFor = key
+            arrange()
+        }
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -143,6 +180,7 @@ final class AuthViewController: UIViewController {
         ticker = nil
         generation += 1
         statusGeneration += 1
+        held = false
         pending = false
         statusPending = false
         checking = false
@@ -204,6 +242,7 @@ final class AuthViewController: UIViewController {
             guard let self else { return }
             if self.mode == .recover { _ = self.recoveryEntry.field.becomeFirstResponder() } else { self.submit() }
         }
+        // Return: to the next field of the step (the fields of a step stand still), on the last field — «Продолжить».
         displayEntry.onReturn = { [weak self] in
             _ = self?.handleEntry.field.becomeFirstResponder()
         }
@@ -240,15 +279,23 @@ final class AuthViewController: UIViewController {
         cardColumn.axis = .vertical
         cardColumn.spacing = 12
         cardColumn.translatesAutoresizingMaskIntoConstraints = false
+        spacer.isHidden = true
+        spacer.isUserInteractionEnabled = false
+        spacer.setContentHuggingPriority(UILayoutPriority(1), for: .vertical)
+        spacer.setContentCompressionResistancePriority(UILayoutPriority(1), for: .vertical)
         let parts: [UIView] = [switcher, progress, nameEntry, loginWarning, displayEntry, handleEntry, profileHelp,
                                passwordEntry, confirmationEntry, confirmationHelp, recoveryEntry, recoveryHelp, recoveryExtra, waitingBox, resetValidity,
-                               recoveryLock, attemptsNote, manualNote, notice, failure, loginLock, proceed, forgot, back]
+                               recoveryLock, attemptsNote, manualNote, notice, failure, loginLock, spacer, proceed, forgot, back]
         for part in parts { cardColumn.addArrangedSubview(part) }
         card.shape(radius: 32)
         card.contentView.addSubview(cardColumn)
+        let padTop = cardColumn.topAnchor.constraint(equalTo: card.contentView.topAnchor, constant: AuthFit.pad)
+        let padBottom = cardColumn.bottomAnchor.constraint(equalTo: card.contentView.bottomAnchor, constant: -AuthFit.pad)
+        cardPadTop = padTop
+        cardPadBottom = padBottom
         NSLayoutConstraint.activate([
-            cardColumn.topAnchor.constraint(equalTo: card.contentView.topAnchor, constant: 22),
-            cardColumn.bottomAnchor.constraint(equalTo: card.contentView.bottomAnchor, constant: -22),
+            padTop,
+            padBottom,
             cardColumn.leadingAnchor.constraint(equalTo: card.contentView.leadingAnchor, constant: 22),
             cardColumn.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -22),
         ])
@@ -259,7 +306,8 @@ final class AuthViewController: UIViewController {
         column.setCustomSpacing(24, after: hint)
         cardColumn.setCustomSpacing(18, after: switcher)
         cardColumn.setCustomSpacing(18, after: progress)
-        cardColumn.setCustomSpacing(4, after: proceed)
+        cardColumn.setCustomSpacing(0, after: spacer)
+        cardColumn.setCustomSpacing(AuthFit.linkGap, after: proceed)
         cardColumn.setCustomSpacing(0, after: forgot)
 
         // L: the theme pill (GlassSurface «clear», radius 24, 44 tall, 14 inside): the moon / sun / half circle (17),
@@ -275,12 +323,19 @@ final class AuthViewController: UIViewController {
         themePill.contentView.addSubview(themeButton)
         paintThemePill()
 
-        scroll.keyboardDismissMode = .interactive
-        scroll.alwaysBounceVertical = true
-        scroll.showsVerticalScrollIndicator = false
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scroll)
-        scroll.addSubview(column)
+        view.addSubview(column)
+        // Without the keyboard the page starts under the theme pill's row (58) with room above it (`arrange`); with
+        // the keyboard the title stands at the top and the card reaches down to the keyboard.
+        let top = column.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AuthFit.pillRow + AuthFit.topGap)
+        let fill = card.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -AuthFit.compactEdge)
+        fill.priority = .defaultHigh
+        columnTop = top
+        cardFill = fill
+        // A touch beside the card puts the keyboard away (there is nothing to scroll it away with).
+        let away = UITapGestureRecognizer(target: self, action: #selector(putKeyboardAway))
+        away.cancelsTouchesInView = false
+        away.delegate = self
+        view.addGestureRecognizer(away)
         NSLayoutConstraint.activate([
             // L: the row of the theme pill (at least 58 tall) stands above the page; the page starts 64 under it.
             themePill.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 7),
@@ -292,15 +347,9 @@ final class AuthViewController: UIViewController {
             themeButton.bottomAnchor.constraint(equalTo: themePill.contentView.bottomAnchor),
             themeButton.leadingAnchor.constraint(equalTo: themePill.contentView.leadingAnchor),
             themeButton.trailingAnchor.constraint(equalTo: themePill.contentView.trailingAnchor),
-            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 58),
-            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
-            column.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 64),
-            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -28),
-            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 22),
-            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -22),
-            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -44),
+            top,
+            column.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 22),
+            column.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -22),
         ])
         view.bringSubviewToFront(themePill)
     }
@@ -382,15 +431,22 @@ final class AuthViewController: UIViewController {
     }
 
     #if targetEnvironment(simulator)
-    /// `-authmode register` / `recover` open the first step of that flow; `waiting` / `reset` show those two
-    /// screens with a made-up request (no server is asked, nothing is kept).
+    /// `-authmode register` / `recover` open the first step of that flow, `profile` the second step of creating an
+    /// account (two fields); `waiting` / `reset` show those two screens with a made-up request (no server is asked,
+    /// nothing is kept).
     private func simulatorMode() {
         guard let wanted = UserDefaults.standard.string(forKey: "authmode") else { return }
-        if wanted == "register" || wanted == "recover" {
+        if wanted == "register" || wanted == "recover" || wanted == "profile" {
             grant = nil
             noticeText = ""
             nameEntry.value = ""
-            mode = wanted == "register" ? .registerName : .recover
+            if wanted == "register" {
+                mode = .registerName
+            } else if wanted == "profile" {
+                mode = .registerProfile
+            } else {
+                mode = .recover
+            }
             return
         }
         guard wanted == "waiting" || wanted == "reset" else { return }
@@ -408,7 +464,185 @@ final class AuthViewController: UIViewController {
         noticeText = wanted == "reset" ? "Сервер разрешил сменить пароль. Оба секретных слова останутся прежними." : ""
         mode = wanted == "waiting" ? .waiting : .reset
     }
+
+    /// `-authfocus N`: the keyboard goes to the N-th field of the step (1 — the first).
+    private func focusField(_ place: Int) {
+        guard view.window != nil, !pending, !entered else { return }
+        let fields: [AuthEntry] = [nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry, recoveryEntry].filter { (entry: AuthEntry) -> Bool in
+            return !entry.isHidden && entry.isEnabled
+        }
+        guard place >= 1, place <= fields.count else { return }
+        _ = fields[place - 1].field.becomeFirstResponder()
+    }
     #endif
+
+    // MARK: Nothing scrolls: the two arrangements
+
+    private func want(_ part: UIView, _ shown: Bool) {
+        wanted[ObjectIdentifier(part)] = shown
+    }
+
+    private func wants(_ part: UIView) -> Bool {
+        if let shown = wanted[ObjectIdentifier(part)] { return shown }
+        return !part.isHidden
+    }
+
+    private var compactWanted: Bool {
+        return keyboardOverlap > AuthFit.keyboard || (held && keyboardHeight > 0)
+    }
+
+    private var editing: Bool {
+        let fields: [AuthEntry] = [nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry, recoveryEntry]
+        return fields.contains(where: { (entry: AuthEntry) -> Bool in entry.field.isFirstResponder })
+    }
+
+    private static func measure(_ part: UIView, _ width: CGFloat) -> CGFloat {
+        let size = part.systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+                                                withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
+        return ceil(size.height)
+    }
+
+    private static func key(_ part: UIView) -> Int {
+        return ObjectIdentifier(part).hashValue
+    }
+
+    private func showPart(_ part: UIView, _ shown: Bool) {
+        if part.isHidden == shown { part.isHidden = !shown }
+        part.alpha = shown ? 1 : 0
+    }
+
+    /// Puts the screen in the arrangement it is in now (AuthFit): without the keyboard — the wordmark, the motto, the
+    /// title and the description, the card; with it — the title at the top and the card down to the keyboard with
+    /// «Продолжить» at its bottom. Called inside the keyboard's own animation, it moves the screen together with it.
+    private func arrange() {
+        guard isViewLoaded, view.bounds.width > 0 else { return }
+        let compact = compactWanted
+        let safe = view.safeAreaInsets
+        let columnWidth = view.bounds.width - 44
+        let inner = columnWidth - 44
+        let helps: [UIView] = [confirmationHelp, recoveryHelp, profileHelp, resetValidity, loginWarning]
+        let chrome: [UIView] = [progress, switcher]
+        let extras: [UIView] = [recoveryExtra, back, forgot, manualNote]
+        let links: [UIView] = [forgot, back]
+        let messages: [UIView] = [recoveryLock, attemptsNote, notice, failure, loginLock]
+        let optional: [UIView] = helps + chrome + extras
+        func isIn(_ list: [UIView], _ part: UIView) -> Bool {
+            return list.contains(where: { (other: UIView) -> Bool in other === part })
+        }
+        var heights: [ObjectIdentifier: CGFloat] = [:]
+        for part in cardColumn.arrangedSubviews where part !== spacer && wants(part) {
+            heights[ObjectIdentifier(part)] = AuthViewController.measure(part, inner)
+        }
+        func height(_ part: UIView) -> CGFloat {
+            return heights[ObjectIdentifier(part)] ?? 0
+        }
+        func cost(_ part: UIView, _ tight: Bool) -> CGFloat {
+            if isIn(links, part) { return height(part) + AuthFit.linkGap }
+            if isIn(chrome, part) { return height(part) + (tight ? AuthFit.compactChromeGap : AuthFit.chromeGap) }
+            return height(part) + AuthFit.gap
+        }
+        func parts(_ list: [UIView], _ tight: Bool) -> [AuthFit.Part] {
+            var made: [AuthFit.Part] = []
+            for part in list where wants(part) {
+                made.append(AuthFit.Part(id: AuthViewController.key(part), cost: cost(part, tight)))
+            }
+            return made
+        }
+        var core = height(proceed)
+        var messageCost: CGFloat = 0
+        for part in cardColumn.arrangedSubviews {
+            if part === spacer || part === proceed || !wants(part) || isIn(optional, part) { continue }
+            if isIn(messages, part) { messageCost += cost(part, false) } else { core += cost(part, false) }
+        }
+        let brandHeight = AuthViewController.measure(brand, columnWidth)
+        let mottoHeight = AuthViewController.measure(motto, columnWidth)
+        let headingHeight = AuthViewController.measure(heading, columnWidth)
+        let hintHeight = AuthViewController.measure(hint, columnWidth)
+
+        // Without the keyboard: from under the theme pill's row to above the bottom edge.
+        let small: CGFloat = keyboardOverlap > AuthFit.keyboard ? 0 : keyboardOverlap
+        let fullRoom = view.bounds.height - max(small, safe.bottom) - AuthFit.edge - (safe.top + AuthFit.pillRow)
+        let plan = AuthFit.full(room: fullRoom, brand: brandHeight, motto: mottoHeight, heading: headingHeight, hint: hintHeight,
+                                card: 2 * AuthFit.pad + core + messageCost,
+                                helps: parts(helps, false), chrome: parts(chrome, false), extras: parts(extras, false))
+        // With the keyboard: the card's inside from under the title to above the keyboard.
+        let plateTop = safe.top + AuthFit.compactTop + headingHeight + AuthFit.compactHeadingGap
+        let plateBottom = view.bounds.height - keyboardHeight - AuthFit.compactEdge
+        let kept = AuthFit.compact(room: plateBottom - plateTop - 2 * AuthFit.compactPad, core: core, messages: messageCost,
+                                   helps: parts(helps, true), chrome: parts(chrome, true), extras: parts(extras, true))
+
+        let keep: Set<Int> = compact ? kept : plan.kept
+        for part in optional {
+            showPart(part, wants(part) && keep.contains(AuthViewController.key(part)))
+        }
+        showPart(brand, !compact && plan.brand)
+        showPart(motto, !compact && plan.motto)
+        showPart(hint, !compact && plan.hint)
+        if spacer.isHidden == compact { spacer.isHidden = !compact }
+        themePill.alpha = compact ? 0 : 1
+        themePill.isUserInteractionEnabled = !compact
+        column.setCustomSpacing(AuthFit.afterBrand(plan.motto), after: brand)
+        column.setCustomSpacing(AuthFit.afterMotto, after: motto)
+        column.setCustomSpacing(compact ? AuthFit.compactHeadingGap : AuthFit.afterHeading(plan.hint), after: heading)
+        column.setCustomSpacing(AuthFit.afterHint, after: hint)
+        let chromeGap: CGFloat = compact ? AuthFit.compactChromeGap : AuthFit.chromeGap
+        cardColumn.setCustomSpacing(chromeGap, after: switcher)
+        cardColumn.setCustomSpacing(chromeGap, after: progress)
+        let pad: CGFloat = compact ? AuthFit.compactPad : AuthFit.pad
+        cardPadTop?.constant = pad
+        cardPadBottom?.constant = -pad
+        columnTop?.constant = compact ? AuthFit.compactTop : AuthFit.pillRow + plan.gap
+        cardFill?.constant = -(keyboardHeight + AuthFit.compactEdge)
+        cardFill?.isActive = compact
+    }
+
+    /// The keyboard comes, goes or changes: the screen moves once, in the keyboard's own time and curve.
+    @objc private func keyboardChanging(_ note: Notification) {
+        guard isViewLoaded, let info = note.userInfo, let value = info[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
+        let end = view.convert(value.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - end.minY)
+        keyboardOverlap = overlap
+        if overlap > AuthFit.keyboard {
+            keyboardHeight = overlap
+            held = false
+        }
+        let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
+        let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue ?? 7
+        relayout(duration: duration, options: UIView.AnimationOptions(rawValue: curve << 16))
+    }
+
+    private func relayout(duration: TimeInterval, options: UIView.AnimationOptions) {
+        guard view.window != nil, duration > 0 else {
+            arrange()
+            return
+        }
+        view.layoutIfNeeded()
+        UIView.animate(withDuration: duration, delay: 0, options: options.union([.beginFromCurrentState, .allowUserInteraction]), animations: { [weak self] () -> Void in
+            guard let screen = self else { return }
+            screen.arrange()
+            screen.view.layoutIfNeeded()
+        }, completion: nil)
+    }
+
+    /// Lets the compact arrangement go once a request has ended: right away when no field has the keyboard (the
+    /// waiting period), or when the keyboard does not come back to the field.
+    private func releaseHold() {
+        guard held else { return }
+        if !editing {
+            held = false
+            relayout(duration: 0.3, options: .curveEaseInOut)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let screen = self, screen.held, !screen.pending, !screen.entered else { return }
+            screen.held = false
+            screen.relayout(duration: 0.3, options: .curveEaseInOut)
+        }
+    }
+
+    @objc private func putKeyboardAway() {
+        view.endEditing(true)
+    }
 
     // MARK: What is on the screen
 
@@ -486,7 +720,7 @@ final class AuthViewController: UIViewController {
         heading.show(headingWords(mode), font: .systemFont(ofSize: 22, weight: .semibold), color: Theme.text) // Effects
         hint.text = hintWords(mode)
 
-        switcher.isHidden = !(isLogin || isRegister)
+        want(switcher, isLogin || isRegister)
         switcher.selectedSegmentIndex = isRegister ? 1 : 0
         switcher.isEnabled = !busy
 
@@ -499,7 +733,7 @@ final class AuthViewController: UIViewController {
             step = at + 1
             stepCount = AuthViewController.loginSteps.count
         }
-        progress.isHidden = step == 0
+        want(progress, step != 0)
         for (index, bar) in bars.enumerated() {
             bar.isHidden = index >= stepCount
             bar.backgroundColor = index < step ? Theme.accent : Theme.veil(0.12)
@@ -508,14 +742,14 @@ final class AuthViewController: UIViewController {
         progress.accessibilityLabel = "Шаг \(step) из \(stepCount)"
 
         nameEntry.isHidden = !(mode == .loginName || mode == .registerName || mode == .recover)
-        loginWarning.isHidden = mode != .registerName
+        want(loginWarning, mode == .registerName)
         displayEntry.isHidden = mode != .registerProfile
         handleEntry.isHidden = mode != .registerProfile
-        profileHelp.isHidden = mode != .registerProfile
+        want(profileHelp, mode == .registerProfile)
         passwordEntry.isHidden = !(mode == .loginPassword || mode == .registerPassword || mode == .reset)
         let asksConfirmation = mode == .loginWord || mode == .registerConfirmation
         confirmationEntry.isHidden = !asksConfirmation
-        confirmationHelp.isHidden = !asksConfirmation
+        want(confirmationHelp, asksConfirmation)
         if mode == .registerConfirmation {
             confirmationHelp.text = AuthViewController.wordHelp
         } else {
@@ -523,8 +757,8 @@ final class AuthViewController: UIViewController {
         }
         let asksRecovery = mode == .registerRecovery || mode == .recover
         recoveryEntry.isHidden = !asksRecovery
-        recoveryHelp.isHidden = !asksRecovery
-        recoveryExtra.isHidden = !asksRecovery
+        want(recoveryHelp, asksRecovery)
+        want(recoveryExtra, asksRecovery)
         if mode == .registerRecovery {
             recoveryExtra.text = "Запомни оба слова и храни их отдельно. В приложении их нельзя будет посмотреть повторно."
         } else {
@@ -532,17 +766,23 @@ final class AuthViewController: UIViewController {
         }
         waitingBox.isHidden = !(mode == .waiting && grant != nil)
         clockOwner.text = "Запрос для логина \(login)"
-        manualNote.isHidden = mode == .waiting
+        want(manualNote, mode != .waiting)
         notice.words = noticeText
         failure.words = errorText
 
-        forgot.isHidden = !isLogin
+        want(forgot, isLogin)
         forgot.isEnabled = !busy
-        back.isHidden = mode == .loginName || mode == .registerName
+        want(back, !(mode == .loginName || mode == .registerName))
         back.isEnabled = !busy
         let leavesRecovery = mode == .recover || mode == .waiting || mode == .reset
         back.setTitle(leavesRecovery ? "‹ Вернуться ко входу" : "‹ Назад", for: .normal)
         for entry in [nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry] { entry.isEnabled = !busy }
+        // The key of the keyboard: «далее» from the login to the recovery word, «готово» everywhere else.
+        let nameReturn: UIReturnKeyType = mode == .recover ? .next : .go
+        if nameEntry.field.returnKeyType != nameReturn {
+            nameEntry.field.returnKeyType = nameReturn
+            if nameEntry.field.isFirstResponder { nameEntry.field.reloadInputViews() }
+        }
 
         if changed {
             passwordEntry.set(caption: mode == .reset ? "Новый пароль" : "Пароль", placeholder: mode == .loginPassword ? "Твой пароль" : "От 10 символов — можно фразу")
@@ -553,12 +793,12 @@ final class AuthViewController: UIViewController {
         }
         renderTime()
         if changed {
-            scroll.setContentOffset(.zero, animated: false)
             focus()
             UIAccessibility.post(notification: .screenChanged, argument: heading)
         } else if freed {
             focus()
         }
+        if !busy { releaseHold() }
     }
 
     private func setShown(_ entry: AuthEntry, _ shown: Bool) {
@@ -577,9 +817,9 @@ final class AuthViewController: UIViewController {
         if let held = grant, mode == .reset {
             let left = AuthRules.countdown(until: held.expiresMs, now: nowMs + serverOffset)
             resetValidity.text = "Подтверждение действительно ещё \(left)."
-            resetValidity.isHidden = false
+            want(resetValidity, true)
         } else {
-            resetValidity.isHidden = true
+            want(resetValidity, false)
         }
 
         var recoveryClosed = false
@@ -612,6 +852,7 @@ final class AuthViewController: UIViewController {
         if proceed.loading != loading { proceed.loading = loading }
         if proceed.success != entered { proceed.success = entered }
         proceed.isEnabled = !(recoveryClosed || closed)
+        arrange()
     }
 
     /// The keyboard goes to the first field of the step; the waiting period has none.
@@ -655,6 +896,8 @@ final class AuthViewController: UIViewController {
     private func begin() -> Int? {
         if pending || entered { return nil }
         pending = true
+        // The field is closed for the time of the request and the keyboard may leave: the arrangement stays.
+        held = compactWanted
         errorText = ""
         noticeText = ""
         generation += 1
@@ -1083,5 +1326,14 @@ final class AuthViewController: UIViewController {
         grant = nil
         nameEntry.value = ""
         go(.loginName)
+    }
+}
+
+extension AuthViewController: UIGestureRecognizerDelegate {
+    /// Only a touch beside the card and the theme pill puts the keyboard away.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        let inCard = card.bounds.contains(touch.location(in: card))
+        let inPill = themePill.alpha > 0.01 && themePill.bounds.contains(touch.location(in: themePill))
+        return !inCard && !inPill
     }
 }

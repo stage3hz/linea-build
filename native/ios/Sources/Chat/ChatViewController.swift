@@ -213,6 +213,7 @@ final class ChatViewController: UIViewController {
         let stripRoom = playerStrip.place(in: view, headerBottom: header.frame.maxY, hidden: actions.history.selection != nil)
         let room = actions.place(in: view, headerBottom: header.frame.maxY + stripRoom, safeTop: top, composerFrame: composer.frame)
         look.place(in: view, safeTop: top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
+        look.placeFloor(in: view, composerTop: composer.frame.minY) // EdgeFade: the progressive edge above the composer
         list.setPad(top: Double(room.top), bottom: Double(room.bottom))
     }
 

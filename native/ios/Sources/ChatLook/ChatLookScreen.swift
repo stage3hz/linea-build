@@ -25,6 +25,8 @@ final class ChatLookScreen: NSObject {
     private let wallpaper = WallpaperView()
     private let light = PeerLightView()
     private let edge = HeaderEdgeView()
+    /// The same progressive edge above the composer: messages passing behind it blur and dissolve.
+    private let floorEdge = HeaderEdgeView(edge: .bottom)
     private let backPill = GlassPill()
     private let namePill = GlassPill()
     private let callPill = GlassPill()
@@ -73,6 +75,7 @@ final class ChatLookScreen: NSObject {
 
         header.backgroundColor = .clear
         host.view.insertSubview(edge, belowSubview: header)
+        host.view.insertSubview(floorEdge, aboveSubview: list) // under the composer and everything placed after the list
 
         // «назад»: a glass pill; with unread messages in other chats, their number after the arrow.
         header.addSubview(backPill)
@@ -226,17 +229,29 @@ final class ChatLookScreen: NSObject {
         if let colors = choice.colors, let first = colors.first {
             edge.color = LookColor.color(first)
             edge.alphaOfEdge = 0.9
+            floorEdge.color = LookColor.color(colors.last ?? first)
+            floorEdge.alphaOfEdge = 0.9
         } else if choice.isImage {
             edge.color = .black
             edge.alphaOfEdge = 0.5
+            floorEdge.color = .black
+            floorEdge.alphaOfEdge = 0.5
         } else {
             edge.color = Theme.bg
             edge.alphaOfEdge = 0.96
+            floorEdge.color = Theme.bg
+            floorEdge.alphaOfEdge = 0.96
         }
         host.view.setNeedsLayout()
     }
 
     // MARK: Layout
+
+    /// The edge above the composer, from the composer's top edge (or whatever stands highest at the bottom) down.
+    func placeFloor(in view: UIView, composerTop: CGFloat) {
+        let height = view.bounds.height
+        floorEdge.place(width: view.bounds.width, size: max(0, height - composerTop), height: height)
+    }
 
     /// Places the header after the screen and ChatActions placed theirs (`safeTop`: the status bar).
     func place(in view: UIView, safeTop: CGFloat) {

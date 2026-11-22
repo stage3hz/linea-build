@@ -77,12 +77,16 @@ object Demo {
 
   private val local = Regex("^https://(10\\.0\\.2\\.2|localhost):[0-9]{1,5}$")
 
-  /** `--es authmode register|recover|waiting|reset` (with `--ez auth true`): the step the sign-in screen opens
+  /** `--es authmode register|recover|waiting|reset|profile` (with `--ez auth true`): the step the sign-in screen opens
    *  at. `waiting` and `reset` show those two steps with a made-up request: no server is asked, nothing is kept. */
   var authMode: String? = null
     private set
   /** The login of that made-up request. */
   const val authLogin = "nativetester"
+  /** `--es authfocus 1|2…` (with `--ez auth true`): the keyboard goes to that field of the step (1 — the first), for
+   *  the shots of a step with the keyboard up. 0 — as usual. */
+  var authFocus = 0
+    private set
 
   /** The person «Настройки» shows when there is no account behind the shell (`--ez demo true`). */
   fun settingsPerson(): Map<String, Any?> =
@@ -100,7 +104,8 @@ object Demo {
    *  them decided the start.
    *    --es server https://10.0.2.2:8443           the local test server (kept for this launch only)
    *    --ez auth true                              the sign-in screen
-   *    --es authmode register|recover|waiting|reset    with auth: that step of the sign-in screen
+   *    --es authmode register|recover|waiting|reset|profile    with auth: that step of the sign-in screen
+   *    --es authfocus 1|2                          with auth: the keyboard on that field of the step
    *    --es settings root|profile|username|birthday|privacy|lastseen|security|password|confirmation|recovery|sessions|session|blocked|delete|about
    *                                                «Настройки» and one of its pages, with an account (root and about: also with demo)
    *    --es settings appearance|night|accent|notifications|data    «Оформление» and its pages (also with demo), «Уведомления и звуки», «Данные и память»
@@ -134,6 +139,7 @@ object Demo {
     com.linea.messenger.chatsplus.ChatsPlusDemo.read(intent)
     com.linea.messenger.shell.ShellDemo.read(intent)
     authMode = intent.getStringExtra("authmode")
+    authFocus = intent.getStringExtra("authfocus")?.toIntOrNull()?.coerceIn(0, 9) ?: 0
     // Effects / Security / Language / Links / ScreenShare: `effects`, `snowheat`, `setlanguage`, `lockdemo`, `noticedemo`,
     // `trustdemo`, `screendemo` (ParityDemo.kt).
     if (ParityDemo.start(intent, launcher)) return true

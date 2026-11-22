@@ -281,6 +281,10 @@ jobs:
           shot 441-chat-composer -demo 1 -chat 1
           shot 442-chat-search -demo 1 -chatsearch Ма
           shot 443-chat-search-people -demo 1 -chatsearch Мар -chatsearchscope people
+          shot 450-edges-chatlist -demo 1 -effects 1
+          shot 451-edges-chat -demo 1 -chat 1
+          shot 452-edges-light -demo 1 -chat 1 -settheme light
+          shot 452b-reset -demo 1 -settheme black
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

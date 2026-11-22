@@ -1,6 +1,8 @@
 package com.linea.messenger.auth
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.content.Context
 import android.os.Build
 import android.os.Handler
@@ -9,10 +11,13 @@ import android.os.SystemClock
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsAnimation
+import android.view.animation.PathInterpolator
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import com.linea.messenger.Demo
 import com.linea.messenger.core.Core
@@ -80,11 +85,11 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private val main = Handler(Looper.getMainLooper())
   private val ticker = object : Runnable { override fun run() { tick(); main.postDelayed(this, 1000) } }
 
-  private val scroll = ScrollView(context)
-  private val column = LinearLayout(context)
   // L: the reference's sign-in (AuthScreen.tsx, App.tsx `ThemeAccess`): the steps live on a glass card (GlassSurface
   // «regular», radius 32, 22 inside), and a glass pill at the top right names the theme on screen and opens the choice.
-  private val card = LinearLayout(context)
+  // Nothing scrolls: the parts are put in place by `place` (AuthFit), and the card is drawn by `plate` under them.
+  private val plate = View(context)
+  private val brandBox = FrameLayout(context)
   private val themePill = AuthThemePill(context)
   private val brand = com.linea.messenger.effects.WordmarkView(context, 60f) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (effects/AppearingText.kt)
   private val motto = context.words("Твоя линия связи.", 17f, Theme.muted)
@@ -123,6 +128,36 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   private fun note(words: String, size: Float = 12f, color: Int = Theme.muted): TextView = context.words(words, size, color)
 
+  /** The parts of the card from the top, «Продолжить» and the links under it. */
+  private val cardParts: List<View> = listOf(
+    switcher, progress, nameEntry, loginWarning, displayEntry, handleEntry, profileHelp, passwordEntry, confirmationEntry,
+    confirmationHelp, recoveryEntry, recoveryHelp, recoveryExtra, waitingBox, resetValidity, recoveryLock, attemptsNote, manualNote,
+    notice, failure, loginLock)
+  private val links: List<View> = listOf(forgot, back)
+  /** What may leave when there is no room, in the order AuthFit keeps them (the first stays longest). */
+  private val helpParts: List<View> = listOf(confirmationHelp, recoveryHelp, profileHelp, resetValidity, loginWarning)
+  private val chromeParts: List<View> = listOf(progress, switcher)
+  private val extraParts: List<View> = listOf(recoveryExtra, back, forgot, manualNote)
+  private val messageParts: List<View> = listOf(recoveryLock, attemptsNote, notice, failure, loginLock)
+
+  /** How far the screen is in the keyboard's arrangement: 0 — none, 1 — all the way. */
+  private var compactness = 0f
+  /** Where it is going. */
+  private var compactGoal = 0f
+  private var compactFrom = 0f
+  /** The keyboard's own motion is under way (Android 11 and later): its fraction moves the screen. */
+  private var keyboardMoving = false
+  private var keyboardFraction = 1f
+  /** The height of the keyboard the compact arrangement stands on (the last one that was up), and while it changes. */
+  private var keyboardHeight = 0
+  private var keyboardFrom = 0f
+  private var keyboardTo = 0f
+  /** The compact arrangement stays while a request is under way (the field is closed then and the keyboard leaves
+   *  for a moment): nothing moves before the answer. */
+  private var held = false
+  private var placed = false
+  private var settle: ValueAnimator? = null
+
   init {
     setBackgroundColor(Theme.bg)
     build()
@@ -141,7 +176,10 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       started = true
       if (mode == Mode.WAITING) checkRecovery()
     }
+    if (Build.VERSION.SDK_INT >= 30) KeyboardMotion.follow(this)
     focus()
+    // The emulator check: `--es authfocus 2` gives the keyboard to the second field of the step (debug builds).
+    if (Demo.authFocus > 0) main.postDelayed({ focusField(Demo.authFocus) }, 400)
   }
 
   override fun onDetachedFromWindow() {
@@ -153,26 +191,250 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     statusPending = false
     checking = false
     entered = false
+    held = false
+    settle?.cancel()
     clearSecrets()
     keyboard()?.hideSoftInputFromWindow(windowToken, 0)
     super.onDetachedFromWindow()
   }
 
-  /** The column scrolls between the status bar and the keyboard (or the navigation bar). */
+  // Nothing scrolls. Two arrangements (AuthFit): without the keyboard — the wordmark, the motto, the step's title and
+  // description, the card; with it — the title at the top and the card right under it down to the keyboard, «Продолжить»
+  // at the card's bottom. The screen moves from one to the other once, frame by frame with the keyboard's own motion
+  // (`KeyboardMotion`, Android 11 and later; a short animation of the same length before that).
+
+  private fun lerp(from: Float, to: Float, at: Float): Float = from + (to - from) * at
+
+  private val keyboardUp: Boolean get() = edges.keyboard > AuthFit.KEYBOARD * d
+
+  private val compactWanted: Boolean get() = keyboardUp || (held && keyboardHeight > 0)
+
+  override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
+    val result = super.onApplyWindowInsets(insets)
+    if (keyboardUp) {
+      keyboardHeight = edges.keyboard
+      held = false
+    }
+    return result
+  }
+
+  /** The keyboard's motion begins (Android 11 and later): the screen follows it from where it is now. */
+  internal fun keyboardStarts() {
+    settle?.cancel()
+    keyboardMoving = true
+    keyboardFraction = 0f
+    compactFrom = compactness
+    keyboardFrom = keyboardHeight.toFloat()
+  }
+
+  /** The keyboard's end is known (its insets came before this): where the screen goes. */
+  internal fun keyboardAims() {
+    compactGoal = if (compactWanted) 1f else 0f
+    keyboardTo = keyboardHeight.toFloat()
+    // From the full arrangement the card goes straight to the keyboard's end; between two keyboards it follows.
+    if (compactFrom < 1f || keyboardFrom <= 0f) keyboardFrom = keyboardTo
+  }
+
+  internal fun keyboardMoves(fraction: Float) {
+    keyboardFraction = fraction
+    compactness = lerp(compactFrom, compactGoal, fraction)
+    placeNow()
+  }
+
+  internal fun keyboardStops() {
+    keyboardMoving = false
+    keyboardFraction = 1f
+    compactGoal = if (compactWanted) 1f else 0f
+    compactness = compactGoal
+    placeNow()
+  }
+
+  private fun placeNow() {
+    if (width > 0 && height > 0) place(width, height)
+  }
+
+  /** Without the keyboard's own motion (before Android 11, a hardware keyboard, the end of a request): the same move
+   *  in a short animation. */
+  private fun moveTo(goal: Float) {
+    settle?.cancel()
+    compactGoal = goal
+    val motion = ValueAnimator.ofFloat(compactness, goal)
+    motion.duration = 250
+    motion.interpolator = PathInterpolator(0.2f, 0f, 0f, 1f)
+    motion.addUpdateListener { compactness = it.animatedValue as Float; placeNow() }
+    settle = motion
+    motion.start()
+  }
+
+  /** Lets the compact arrangement go once a request has ended: right away when no field has the keyboard (the waiting
+   *  period), or when the keyboard does not come back to the field. */
+  private fun releaseHold() {
+    if (!held) return
+    if (findFocus() == null) {
+      held = false
+      requestLayout()
+      return
+    }
+    main.postDelayed({
+      if (held && !pending && !entered) {
+        held = false
+        requestLayout()
+      }
+    }, 600)
+  }
+
+  private fun wanted(view: View): Boolean = view.visibility != View.GONE
+  private fun id(view: View): String = System.identityHashCode(view).toString()
+  private fun optional(view: View): Boolean = view in helpParts || view in chromeParts || view in extraParts
+
+  /** One arrangement: where each part stands and which of them show. */
+  private class Frame {
+    val top = HashMap<View, Float>()
+    val shown = HashSet<View>()
+    var plateTop = 0f
+    var plateBottom = 0f
+  }
+
   override fun place(width: Int, height: Int) {
-    // L: the row of the theme pill (at least 58 tall) stands above the page: the pill 20 from the right, 7 under the
-    // status bar; the page starts 58 under the status bar.
+    val goal = if (compactWanted) 1f else 0f
+    if (!placed) {
+      placed = true
+      compactness = goal
+      compactGoal = goal
+    } else if (!keyboardMoving && goal != compactGoal) {
+      moveTo(goal)
+    }
+    // L: the theme pill: 20 from the right, 7 under the status bar; it steps aside while the keyboard is up.
     themePill.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
     put(themePill, width - dp(20f) - themePill.measuredWidth, edges.top + dp(7f), themePill.measuredWidth, dp(44f))
-    val top = edges.top + dp(58f)
-    put(scroll, 0, top, width, height - top - maxOf(edges.keyboard, edges.bottom))
+    themePill.alpha = 1f - compactness
+    themePill.visibility = if (compactness < 0.99f) View.VISIBLE else View.INVISIBLE
+
+    val unit = d
+    val left = dp(22f)
+    val columnWidth = width - dp(44f)
+    val innerLeft = left + dp(22f)
+    val innerWidth = columnWidth - dp(44f)
+    val heights = HashMap<View, Float>()
+    fun measured(view: View, wide: Int): Float {
+      view.measure(MeasureSpec.makeMeasureSpec(wide.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+      return view.measuredHeight.toFloat()
+    }
+    for (view in listOf(brandBox, motto, heading, hint)) heights[view] = measured(view, columnWidth)
+    for (view in cardParts + links + listOf(proceed)) if (wanted(view)) heights[view] = measured(view, innerWidth)
+    fun h(view: View): Float = heights[view] ?: 0f
+    fun gapAfter(view: View, compact: Boolean): Float =
+      (if (view in chromeParts) (if (compact) AuthFit.COMPACT_CHROME_GAP else AuthFit.CHROME_GAP) else AuthFit.GAP) * unit
+    fun cost(view: View, compact: Boolean): Float = if (view in links) h(view) + AuthFit.LINK_GAP * unit else h(view) + gapAfter(view, compact)
+    fun parts(from: List<View>, compact: Boolean): List<AuthFit.Part> = from.filter { wanted(it) }.map { AuthFit.Part(id(it), cost(it, compact)) }
+    var core = h(proceed)
+    var messages = 0f
+    for (view in cardParts) {
+      if (!wanted(view) || optional(view)) continue
+      if (view in messageParts) messages += cost(view, false) else core += cost(view, false)
+    }
+
+    // Without the keyboard.
+    val small = if (keyboardUp) 0 else edges.keyboard
+    val fullTop = edges.top + AuthFit.PILL_ROW * unit
+    val fullBottom = height - maxOf(small, edges.bottom) - AuthFit.EDGE * unit
+    val plan = AuthFit.full(fullBottom - fullTop, h(brandBox), h(motto), h(heading), h(hint), 2 * AuthFit.PAD * unit + core + messages,
+      parts(helpParts, false), parts(chromeParts, false), parts(extraParts, false), unit)
+    val full = Frame()
+    var y = fullTop + plan.gap
+    full.top[brandBox] = y
+    if (plan.brand) { full.shown.add(brandBox); y += h(brandBox) + AuthFit.afterBrand(plan.motto) * unit }
+    full.top[motto] = y
+    if (plan.motto) { full.shown.add(motto); y += h(motto) + AuthFit.AFTER_MOTTO * unit }
+    full.top[heading] = y
+    y += h(heading) + AuthFit.afterHeading(plan.hint) * unit
+    full.top[hint] = y
+    if (plan.hint) { full.shown.add(hint); y += h(hint) + AuthFit.AFTER_HINT * unit }
+    full.plateTop = y
+    y += AuthFit.PAD * unit
+    for (view in cardParts) {
+      if (!wanted(view)) continue
+      full.top[view] = y
+      if (!optional(view) || id(view) in plan.kept) { full.shown.add(view); y += h(view) + gapAfter(view, false) }
+    }
+    full.top[proceed] = y
+    y += h(proceed)
+    var first = true
+    for (view in links) {
+      if (!wanted(view)) continue
+      if (id(view) in plan.kept) {
+        if (first) y += AuthFit.LINK_GAP * unit
+        first = false
+        full.shown.add(view)
+        full.top[view] = y
+        y += h(view)
+      } else {
+        full.top[view] = y
+      }
+    }
+    full.plateBottom = y + AuthFit.PAD * unit
+
+    // With the keyboard: the title at the top, the card down to the keyboard (the parts that stay are chosen for the
+    // keyboard's end, so they do not change while it moves).
+    val compact = Frame()
+    val headingTop = edges.top + AuthFit.COMPACT_TOP * unit
+    val shift = headingTop - (full.top[heading] ?: 0f)
+    for (view in listOf(brandBox, motto, heading, hint)) compact.top[view] = (full.top[view] ?: 0f) + shift
+    compact.plateTop = headingTop + h(heading) + AuthFit.COMPACT_HEADING_GAP * unit
+    val keyboardNow = if (keyboardMoving) lerp(keyboardFrom, keyboardTo, keyboardFraction) else keyboardHeight.toFloat()
+    val keyboardEnd = if (keyboardMoving) keyboardTo else keyboardHeight.toFloat()
+    val room = height - keyboardEnd - AuthFit.COMPACT_EDGE * unit - compact.plateTop - 2 * AuthFit.COMPACT_PAD * unit
+    var compactCore = h(proceed)
+    for (view in cardParts) if (wanted(view) && !optional(view) && view !in messageParts) compactCore += cost(view, true)
+    val kept = AuthFit.compact(room, compactCore, messages, parts(helpParts, true), parts(chromeParts, true), parts(extraParts, true))
+    y = compact.plateTop + AuthFit.COMPACT_PAD * unit
+    for (view in cardParts) {
+      if (!wanted(view)) continue
+      compact.top[view] = y
+      if (!optional(view) || id(view) in kept) { compact.shown.add(view); y += h(view) + gapAfter(view, true) }
+    }
+    compact.plateBottom = height - keyboardNow - AuthFit.COMPACT_EDGE * unit
+    var bottom = compact.plateBottom - AuthFit.COMPACT_PAD * unit
+    val shownLinks = links.filter { wanted(it) && id(it) in kept }
+    for (index in shownLinks.indices.reversed()) {
+      val view = shownLinks[index]
+      bottom -= h(view)
+      compact.top[view] = bottom
+      compact.shown.add(view)
+      if (index == 0) bottom -= AuthFit.LINK_GAP * unit
+    }
+    compact.top[proceed] = bottom - h(proceed)
+    val buttonShift = (compact.top[proceed] ?: 0f) - (full.top[proceed] ?: 0f)
+    for (view in links) if (wanted(view) && view !in compact.shown) compact.top[view] = (full.top[view] ?: 0f) + buttonShift
+
+    // Between the two, as far as the keyboard has come.
+    val at = compactness
+    fun at(view: View): Int = Math.round(lerp(full.top[view] ?: 0f, compact.top[view] ?: 0f, at))
+    fun fade(view: View, from: Boolean, to: Boolean) {
+      val alpha = lerp(if (from) 1f else 0f, if (to) 1f else 0f, at)
+      view.alpha = alpha
+      view.visibility = if (alpha > 0.01f) View.VISIBLE else View.INVISIBLE
+    }
+    for (view in listOf(brandBox, motto, hint)) {
+      put(view, left, at(view), columnWidth, Math.round(h(view)))
+      fade(view, view in full.shown, false)
+    }
+    put(heading, left, at(heading), columnWidth, Math.round(h(heading)))
+    val plateTop = Math.round(lerp(full.plateTop, compact.plateTop, at))
+    val plateBottom = Math.round(lerp(full.plateBottom, compact.plateBottom, at))
+    put(plate, left, plateTop, columnWidth, plateBottom - plateTop)
+    for (view in cardParts + listOf(proceed) + links) {
+      if (!wanted(view)) continue
+      put(view, innerLeft, at(view), innerWidth, Math.round(h(view)))
+      if (optional(view)) fade(view, view in full.shown, view in compact.shown)
+    }
   }
 
   private fun keyboard(): InputMethodManager? = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
 
-  /** Adds a part to the column; `after` is the room under it (a hidden part takes none). */
-  private fun part(view: View, after: Float = 12f, into: LinearLayout = card) {
-    into.addView(view, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(after) })
+  /** Adds a part of the card to the screen (put in place by `place`). */
+  private fun part(view: View) {
+    addView(view)
   }
 
   private fun build() {
@@ -210,6 +472,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     displayEntry.field.imeOptions = EditorInfo.IME_ACTION_NEXT or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
     handleEntry.limit = 25
     handleEntry.noSpaces = true
+    // Return: to the next field of the step (fields of a step stand still), on the last field — «Продолжить».
     for (entry in listOf(nameEntry, handleEntry, passwordEntry, confirmationEntry, recoveryEntry)) entry.onReturn = { submit() }
     nameEntry.onReturn = { if (mode == Mode.RECOVER) recoveryEntry.field.requestFocus() else submit() }
     displayEntry.onReturn = { handleEntry.field.requestFocus() }
@@ -235,23 +498,22 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     forgot.setOnClickListener { forgotPassword() }
     back.setOnClickListener { goBack() }
 
-    column.orientation = LinearLayout.VERTICAL
-    column.setPadding(context.px(22f), context.px(64f), context.px(22f), context.px(28f))
-    part(brand, 4f, column); part(motto, 28f, column); part(heading, 8f, column); part(hint, 24f, column)
-    // L: everything from the switch down is on the glass card (22 inside).
-    card.orientation = LinearLayout.VERTICAL
-    card.setPadding(context.px(22f), context.px(22f), context.px(22f), context.px(22f))
-    card.background = com.linea.messenger.design.GlassDrawable(card, context.px(32f).toFloat(), clear = false)
-    column.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
-    part(switcher, 18f); part(progress, 18f)
-    for (item in listOf(nameEntry, loginWarning, displayEntry, handleEntry, profileHelp, passwordEntry, confirmationEntry, confirmationHelp, recoveryEntry, recoveryHelp,
-      recoveryExtra, waitingBox, resetValidity, recoveryLock, attemptsNote, manualNote, notice, failure, loginLock)) part(item)
-    part(proceed, 4f); part(forgot, 0f); part(back, 0f)
-
-    scroll.isVerticalScrollBarEnabled = false
-    scroll.isFillViewport = true
-    scroll.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-    addView(scroll)
+    // In the order a screen reader reads them; the card's glass under its parts.
+    brandBox.addView(brand, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+    addView(brandBox); addView(motto); addView(heading); addView(hint)
+    plate.background = com.linea.messenger.design.GlassDrawable(plate, context.px(32f).toFloat(), clear = false)
+    // A touch on the card itself does not put the keyboard away (a touch beside it does).
+    plate.isClickable = true
+    plate.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    addView(plate)
+    for (item in cardParts) part(item)
+    part(proceed); part(forgot); part(back)
+    // A touch beside the card puts the keyboard away (there is nothing to scroll it away with).
+    setOnClickListener {
+      findFocus()?.clearFocus()
+      keyboard()?.hideSoftInputFromWindow(windowToken, 0)
+    }
+    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     // The sign-in screen is not part of the app's shell: it is made again in the new colours.
     themePill.onChanged = {
       val fresh = AuthScreen(context, server)
@@ -276,13 +538,14 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   }
 
   /** The emulator check (debug builds; see `Demo.authMode`): `register` / `recover` open the first step of that
-   *  flow; `waiting` / `reset` show those two screens with a made-up request (no server is asked, nothing is kept). */
+   *  flow, `profile` the second step of creating an account (two fields); `waiting` / `reset` show those two screens
+   *  with a made-up request (no server is asked, nothing is kept). */
   private fun simulate(wanted: String) {
-    if (wanted == "register" || wanted == "recover") {
+    if (wanted == "register" || wanted == "recover" || wanted == "profile") {
       grant = null
       noticeText = ""
       nameEntry.value = ""
-      mode = if (wanted == "register") Mode.REGISTER_NAME else Mode.RECOVER
+      mode = if (wanted == "register") Mode.REGISTER_NAME else if (wanted == "profile") Mode.REGISTER_PROFILE else Mode.RECOVER
       return
     }
     if (wanted != "waiting" && wanted != "reset") return
@@ -358,7 +621,11 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     else -> "Продолжить"
   }
 
-  private fun show(view: View, shown: Boolean) { view.visibility = if (shown) View.VISIBLE else View.GONE }
+  /** A part the step has or has not. One it has may still be left out for want of room (`place` makes it invisible
+   *  then): that is not undone here. */
+  private fun show(view: View, shown: Boolean) {
+    if (!shown) view.visibility = View.GONE else if (view.visibility == View.GONE) view.visibility = View.VISIBLE
+  }
 
   /** Puts everything the screen knows on it. */
   private fun render() {
@@ -435,7 +702,6 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     }
     renderTime()
     if (changed) {
-      scroll.scrollTo(0, 0)
       focus()
       // A screen reader says where the person is now, and what went wrong if something did.
       announceForAccessibility(if (errorText.isEmpty()) heading.text else "$errorText ${heading.text}")
@@ -443,6 +709,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       if (freed) focus()
       if (errorText.isNotEmpty()) announceForAccessibility(errorText)
     }
+    if (!busy) releaseHold()
   }
 
   private fun setShown(entry: AuthEntry, shown: Boolean) {
@@ -502,7 +769,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private fun focus() {
     if (!isAttachedToWindow || pending || entered) return
     for (entry in listOf(nameEntry, displayEntry, passwordEntry, confirmationEntry, recoveryEntry)) {
-      if (entry.visibility == View.VISIBLE && entry.isEnabled) {
+      if (wanted(entry) && entry.isEnabled) {
         entry.field.requestFocus()
         entry.field.post { if (entry.field.isFocused) keyboard()?.showSoftInput(entry.field, InputMethodManager.SHOW_IMPLICIT) }
         return
@@ -510,6 +777,16 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     }
     findFocus()?.clearFocus()
     keyboard()?.hideSoftInputFromWindow(windowToken, 0)
+  }
+
+  /** The emulator check: the keyboard goes to the `place`-th field of the step (1 — the first). */
+  private fun focusField(place: Int) {
+    if (!isAttachedToWindow || pending || entered) return
+    val fields = listOf(nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry, recoveryEntry).filter { wanted(it) && it.isEnabled }
+    val entry = fields.getOrNull(place - 1) ?: return
+    entry.field.requestFocus()
+    if (Build.VERSION.SDK_INT >= 30) entry.field.windowInsetsController?.show(WindowInsets.Type.ime())
+    else keyboard()?.showSoftInput(entry.field, InputMethodManager.SHOW_IMPLICIT)
   }
 
   private fun tick() {
@@ -542,6 +819,8 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private fun begin(): Int? {
     if (pending || entered) return null
     pending = true
+    // The field is closed for the time of the request and the keyboard may leave: the arrangement stays.
+    held = compactGoal >= 1f
     errorText = ""
     noticeText = ""
     generation += 1
@@ -893,6 +1172,39 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     grant = null
     nameEntry.value = ""
     go(Mode.LOGIN_NAME)
+  }
+
+  /** The keyboard's own motion, frame by frame (Android 11 and later): the screen moves with it, once. */
+  @TargetApi(30)
+  private object KeyboardMotion {
+    fun follow(screen: AuthScreen) {
+      screen.setWindowInsetsAnimationCallback(object : WindowInsetsAnimation.Callback(DISPATCH_MODE_STOP) {
+        private var moving: WindowInsetsAnimation? = null
+
+        override fun onPrepare(animation: WindowInsetsAnimation) {
+          if (animation.typeMask and WindowInsets.Type.ime() == 0) return
+          moving = animation
+          screen.keyboardStarts()
+        }
+
+        override fun onStart(animation: WindowInsetsAnimation, bounds: WindowInsetsAnimation.Bounds): WindowInsetsAnimation.Bounds {
+          if (animation === moving) screen.keyboardAims()
+          return bounds
+        }
+
+        override fun onProgress(insets: WindowInsets, running: MutableList<WindowInsetsAnimation>): WindowInsets {
+          val animation = moving
+          if (animation != null && running.contains(animation)) screen.keyboardMoves(animation.interpolatedFraction)
+          return insets
+        }
+
+        override fun onEnd(animation: WindowInsetsAnimation) {
+          if (animation !== moving) return
+          moving = null
+          screen.keyboardStops()
+        }
+      })
+    }
   }
 
   companion object {
