@@ -82,7 +82,8 @@ class Glass(private val owner: View) {
     private set
 
   /** Draws the plate into the rectangle (owner's coordinates) with corners of `radius`. */
-  fun draw(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float, radius: Float) {
+  /** `inside`: drawn in the glass, over its fill and under its rim (the tab bar's lights). */
+  fun draw(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float, radius: Float, inside: ((Canvas) -> Unit)? = null) {
     drawn.set(left, top, right, bottom); drawnRadius = radius; plates[this] = Unit // Effects
     var blurred = false
     val page = source
@@ -93,6 +94,7 @@ class Glass(private val owner: View) {
     }
     fill.color = if (blurred) tint else plain
     canvas.drawRoundRect(left, top, right, bottom, radius, radius, fill)
+    inside?.invoke(canvas)
     val half = maxOf(1f, d) / 2
     line.strokeWidth = half * 2; line.color = rim
     canvas.drawRoundRect(left + half, top + half, right - half, bottom - half, radius - half, radius - half, line)

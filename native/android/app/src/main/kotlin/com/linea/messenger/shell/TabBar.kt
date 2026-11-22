@@ -95,46 +95,213 @@ private fun tabKick(view: View, id: String) {
 private const val BADGE_RED = 0xFFFF4D5E.toInt()
 private const val WHITE = 0xFFFFFFFF.toInt()
 
-/** Look 9's numbers (the same in iOS Shell/TabBar.swift `TabFlow`): look 0's three lights — one at each side, a
- *  brighter one under the chosen tab — whose colours keep turning round the hue circle, a third apart, and which rise,
- *  brighten and sway as a wave while the music plays. */
+/** Look 9's numbers (the same in iOS Shell/TabBar.swift `TabFlow`): the sketch «2. Сияние» — three lights rising from
+ *  the bar's lower edge (`.aur`: radial-gradient(46% 70% at 50% 100%, #ff5fb0cc, transparent 70%), the same 40% 60% at
+ *  34% #7a2cffaa and at 68% #35d6ffaa, blur 14px over a box 150 tall for a bar 96 tall), and a white 54×3 line on the
+ *  top edge above the chosen tab with a glow of the centre light's colour. The hues then drift for good; the music
+ *  and the phone's movement move the lights. */
 internal object TabFlow {
   /** The look's number (the default). */
   const val LOOK = 9
-  /** One full turn of the hue circle, seconds. */
-  const val HUE_PERIOD = 14.0
-  /** Where the turn starts (the still gradient): cyan-blue at the left, magenta under the chosen tab, lime at the right. */
-  const val HUE_BASE = 0.55
-  /** Each light's place on the circle: left, centre (the chosen tab), right — a third apart. */
-  val HUE_PHASE = doubleArrayOf(0.0, 1.0 / 3, 2.0 / 3)
-  /** One run of the music's wave along the three lights, seconds. */
-  const val WAVE_PERIOD = 2.0
-  /** Strongest colour at the lights' hearts (centre, sides), dark and light theme. */
-  const val SPOT_DARK = 0.7f
-  const val SIDE_DARK = 0.5f
-  const val SPOT_LIGHT = 0.5f
-  const val SIDE_LIGHT = 0.38f
-  const val SATURATION_DARK = 0.62f
-  const val SATURATION_LIGHT = 0.55f
-  const val BRIGHTNESS_DARK = 1f
-  const val BRIGHTNESS_LIGHT = 0.92f
-  const val GRAIN = 0.08f
-  /** The most a light's heart gets with the wave. */
+  /** The sketch's colours as hue, saturation, brightness — left (violet #7a2cff), centre (pink #ff5fb0, under the
+   *  chosen tab), right (cyan #35d6ff): the very first state; from there the hues drift on (`hues`). */
+  val HUE0 = doubleArrayOf(0.7283, 0.9156, 0.5338)
+  val SATURATION = floatArrayOf(0.827f, 0.627f, 0.792f)
+  const val BRIGHTNESS = 1f
+  /** The sketch's alphas (cc, aa, aa), before the music. */
+  val ALPHA = floatArrayOf(0.667f, 0.8f, 0.667f)
+  /** The most a light's heart gets. */
   const val ALPHA_MAX = 0.95f
+  /** Where the side lights stand (× the bar's width); the centre one stands under the chosen tab (the middle without one). */
+  val SIDE_AT = floatArrayOf(0.34f, 0.68f)
+  /** Visible half-width (× the bar's width) and height (× the bar's height) of each light: 0.7 of the sketch's radii
+   *  (the gradient is clear at 70 %), the box 150/96 of the bar. */
+  val REACH_X = floatArrayOf(0.28f, 0.322f, 0.28f)
+  val REACH_Y = floatArrayOf(0.656f, 0.766f, 0.656f)
+  /** The sketch's 14 px blur, as extra reach (× the bar's height) and a soft fall: alpha × `FALL` at `STOPS`. */
+  const val BLUR_REACH = 0.22f
+  val STOPS = floatArrayOf(0f, 0.3f, 0.55f, 0.8f, 1f)
+  val FALL = floatArrayOf(1f, 0.85f, 0.55f, 0.2f, 0f)
+  /** The line on the top edge: 54×3, white; its glow (box-shadow 0 0 18px 5px) the centre's colour, lightened, at 0.8. */
+  const val LINE_WIDTH = 54f
+  const val LINE_HEIGHT = 3f
+  const val LINE_GLOW = 0.8f
+  const val LINE_BLUR = 18f
+  const val LINE_SPREAD = 5f
+  /** How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6). */
+  const val LINE_WHITE = 0.3f
+  const val GRAIN = 0.08f
 
-  /** Hue (0…1) of light `light` (0 left, 1 centre, 2 right) at `time` seconds of the loop. */
-  fun hue(time: Double, light: Int): Double { val turn = HUE_BASE + HUE_PHASE[light] + time / HUE_PERIOD; return turn - floor(turn) }
+  // The colours' drift: all three hues turn together at an uneven pace — one turn of the circle in about 3 minutes, the
+  // pace swinging ±40 % by three slow sines of incommensurate periods (so it never repeats) — and each light wanders
+  // ±0.07 of the circle around its place by two slow sines of its own; the lights stay at least 60° apart. The clock
+  // and the turn are kept on the device: the next launch goes on from them.
+  const val TURN_RATE = 1.0 / 180
+  const val PACE_SWING = 0.4
+  /** (period s, weight, phase in turns). */
+  val PACE = arrayOf(doubleArrayOf(71.0, 1.0, 0.0), doubleArrayOf(113.0, 0.6, 1.3), doubleArrayOf(29.0, 0.35, 0.4))
+  const val WANDER_AMOUNT = 0.07
+  val WANDER = arrayOf(
+    arrayOf(doubleArrayOf(53.0, 1.0, 0.0), doubleArrayOf(89.0, 0.5, 0.0)),
+    arrayOf(doubleArrayOf(67.0, 1.0, 0.0), doubleArrayOf(131.0, 0.5, 0.0)),
+    arrayOf(doubleArrayOf(47.0, 1.0, 0.0), doubleArrayOf(101.0, 0.5, 0.0)),
+  )
+  const val APART = 1.0 / 6
+  const val STORE_KEY = "linea.tabflow.v1"
 
-  /** The wave's height at a light (0…1): a sine running from the left light to the right one. */
-  fun wave(phase: Double, light: Int): Double = 0.5 + 0.5 * sin(2 * PI * (phase - light / 3.0))
-
-  /** A level without a meter: a soft kick on every beat at 120 a minute from the playback's position, over a slow swell. */
-  fun synthetic(position: Double): Double {
-    val beat = position * 2
-    val kick = exp(-(beat - floor(beat)) * 6)
-    val swell = 0.5 + 0.5 * sin(2 * PI * position * 0.23)
-    return min(1.0, 0.25 + 0.5 * kick * (0.6 + 0.4 * swell) + 0.15 * swell)
+  /** A smooth value in −1…1: the weighted sum of sines. */
+  fun noise(time: Double, parts: Array<DoubleArray>): Double {
+    var sum = 0.0; var total = 0.0
+    for (part in parts) { sum += part[1] * sin(2 * PI * (time / part[0] + part[2])); total += part[1] }
+    return if (total > 0) sum / total else 0.0
   }
+
+  /** How fast the common turn goes at `time` (turns a second). */
+  fun turnSpeed(time: Double): Double = TURN_RATE * (1 + PACE_SWING * noise(time, PACE))
+
+  /** The three hues (0…1: left, centre, right) at `time` seconds of the clock with the common turn at `turn`. */
+  fun hues(time: Double, turn: Double, out: DoubleArray) {
+    for (light in 0 until 3) out[light] = HUE0[light] + turn + WANDER_AMOUNT * noise(time, WANDER[light])
+    // Never closer than 60°: two that come nearer are pushed apart, each half of the way.
+    repeat(3) {
+      for (pair in PAIRS) {
+        val a = pair[0]; val b = pair[1]
+        var gap = out[b] - out[a]
+        gap -= floor(gap + 0.5)
+        if (abs(gap) < APART) {
+          val push = (APART - abs(gap)) / 2 * (if (gap < 0) -1 else 1)
+          out[a] -= push; out[b] += push
+        }
+      }
+    }
+    for (light in 0 until 3) out[light] -= floor(out[light])
+  }
+  private val PAIRS = arrayOf(intArrayOf(0, 1), intArrayOf(1, 2), intArrayOf(0, 2))
+
+  // The music, by bands: the left light follows the mids, the centre one the bass, the right one the highs. (The
+  // platform's MediaPlayer gives no sound to measure without the microphone permission: here each band is a beat
+  // of its own from the playback's position — `synthetic`.) What a full level does to each light: brighter, taller,
+  // wider; how far (× the bar's width) and how fast (Hz) it sways — the mids slowly, the highs as a quick shimmer.
+  val PUNCH_ALPHA = floatArrayOf(0.45f, 0.6f, 0.45f)
+  val PUNCH_TALL = floatArrayOf(0.3f, 0.4f, 0.2f)
+  val PUNCH_WIDE = floatArrayOf(0.12f, 0.2f, 0.1f)
+  val SWAY_WIDTH = floatArrayOf(0.04f, 0f, 0.015f)
+  val SWAY_RATE = doubleArrayOf(0.5, 0.0, 6.0)
+
+
+  /** A level for light `light` from the playback's position: the bass a kick on every beat (120 a minute), the mids a
+   *  hit on the off-beats over a slow swell, the highs a quick tick on every eighth, shimmering. */
+  fun synthetic(position: Double, light: Int): Double = when (light) {
+    1 -> { val beat = position * 2; 0.2 + 0.75 * exp(-(beat - floor(beat)) * 6) }
+    0 -> {
+      val beat = position + 0.5
+      val swell = 0.5 + 0.5 * sin(2 * PI * position * 0.23)
+      min(1.0, 0.2 + 0.5 * exp(-(beat - floor(beat)) * 4) + 0.25 * swell)
+    }
+    else -> {
+      val beat = position * 4
+      val shimmer = 0.5 + 0.5 * sin(2 * PI * position * 0.37)
+      min(1.0, 0.15 + 0.45 * exp(-(beat - floor(beat)) * 10) * (0.5 + 0.5 * shimmer) + 0.2 * shimmer)
+    }
+  }
+}
+
+/** Look 9's lights as a liquid sealed in the glass capsule (the same numbers in iOS Shell/TabBar.swift `TabLiquid`): each
+ *  light is a blob along the bar with inertia — a spring to its place (0.9 Hz, damping ratio 0.25: it settles in a
+ *  second or two), pushed by the phone's acceleration along the bar (the tilt's gravity and the hand's movement, in g,
+ *  at most ±2.5 g), kept off its neighbours by a soft push, bouncing off the capsule's ends with half its speed left,
+ *  squashing (taller and narrower for a moment, a 3 Hz spring) and brightening at the wall. Fixed steps of 1/120 s.
+ *  Positions are × the bar's width, from each blob's place. Shape and brightness only: never the colour. */
+internal class TabLiquid {
+  companion object {
+    const val FREQUENCY = 0.9
+    const val ZETA = 0.25
+    /** The bar's widths a second² for 1 g along the bar: a tilt of half the gravity leans a blob 12 % of the width. */
+    const val GAIN = 7.7
+    const val INPUT_MOST = 2.5
+    /** How far a blob's middle may go (× the bar's width) before it meets the capsule's end. */
+    const val WALL_LEFT = 0.12
+    const val WALL_RIGHT = 0.88
+    /** The speed left after a wall (the rest is lost). */
+    const val BOUNCE = 0.55
+    /** The closest two blobs' middles come (× the bar's width) before they push each other, and how hard. */
+    const val GAP = 0.14
+    const val PUSH = 400.0
+    const val SPEED_MOST = 3.0
+    const val SQUASH_FREQUENCY = 3.0
+    const val SQUASH_ZETA = 0.35
+    /** A wall turns this much of the blob's speed into squash (taller by SQUASH_TALL, narrower by SQUASH_WIDE at 1). */
+    const val SQUASH_KICK = 1.6
+    const val SQUASH_WIDE = 0.35
+    const val SQUASH_TALL = 0.5
+    /** A moving blob stands a little taller (the slosh), fully at this speed. */
+    const val SLOSH_TALL = 0.12
+    const val SLOSH_SPEED = 0.6
+    /** A wall's flash: brighter by this much at its strongest, fading in FLASH_FADE s; full at an impact of 0.8. */
+    const val FLASH = 0.5
+    const val FLASH_FADE = 0.25
+    const val STEP = 1.0 / 120
+  }
+
+  val offset = DoubleArray(3)
+  private val speed = DoubleArray(3)
+  private val squash = DoubleArray(3)
+  private val squashSpeed = DoubleArray(3)
+  private val glow = DoubleArray(3)
+  private val accel = DoubleArray(3)
+  private val order = intArrayOf(0, 1, 2)
+  private var left = 0.0
+
+  /** Nothing is moving. */
+  val quiet: Boolean get() = (0 until 3).none { abs(offset[it]) > 0.002 || abs(speed[it]) > 0.002 || abs(squash[it]) > 0.01 || glow[it] > 0.01 }
+
+  fun reset() { offset.fill(0.0); speed.fill(0.0); squash.fill(0.0); squashSpeed.fill(0.0); glow.fill(0.0); left = 0.0 }
+
+  /** Runs the liquid on by `dt` seconds under `force` (g along the bar, + to the right) with the blobs' places `rest`. */
+  fun advance(dt: Double, force: Double, rest: DoubleArray) {
+    val pushed = force.coerceIn(-INPUT_MOST, INPUT_MOST)
+    val omega = 2 * PI * FREQUENCY; val stiff = omega * omega; val damp = 2 * ZETA * omega
+    val squashOmega = 2 * PI * SQUASH_FREQUENCY; val squashStiff = squashOmega * squashOmega; val squashDamp = 2 * SQUASH_ZETA * squashOmega
+    // The blobs from left to right by their places (three: a tiny sort).
+    order[0] = 0; order[1] = 1; order[2] = 2
+    for (i in 0 until 2) for (j in 0 until 2 - i) if (rest[order[j]] > rest[order[j + 1]]) { val t = order[j]; order[j] = order[j + 1]; order[j + 1] = t }
+    val fade = exp(-STEP / FLASH_FADE)
+    left += dt
+    var steps = 0
+    while (left >= STEP && steps < 24) {
+      left -= STEP
+      steps += 1
+      for (index in 0 until 3) accel[index] = GAIN * pushed - stiff * offset[index] - damp * speed[index]
+      for (pair in 0 until 2) {
+        val a = order[pair]; val b = order[pair + 1]
+        val apart = (rest[b] + offset[b]) - (rest[a] + offset[a])
+        if (apart < GAP) { val shove = PUSH * (GAP - apart); accel[a] -= shove; accel[b] += shove }
+      }
+      for (index in 0 until 3) {
+        speed[index] = (speed[index] + accel[index] * STEP).coerceIn(-SPEED_MOST, SPEED_MOST)
+        offset[index] += speed[index] * STEP
+        val place = rest[index] + offset[index]
+        if (place < WALL_LEFT && speed[index] < 0) hit(index, WALL_LEFT - rest[index])
+        else if (place > WALL_RIGHT && speed[index] > 0) hit(index, WALL_RIGHT - rest[index])
+        squashSpeed[index] += (-squashStiff * squash[index] - squashDamp * squashSpeed[index]) * STEP
+        squash[index] += squashSpeed[index] * STEP
+        glow[index] *= fade
+      }
+    }
+    if (steps >= 24) left = 0.0
+  }
+
+  private fun hit(index: Int, place: Double) {
+    val impact = abs(speed[index])
+    offset[index] = place
+    speed[index] = -speed[index] * BOUNCE
+    squashSpeed[index] += impact * SQUASH_KICK
+    glow[index] = max(glow[index], min(1.0, impact / 0.8))
+  }
+
+  fun wide(index: Int): Float = (1 - SQUASH_WIDE * squash[index].coerceIn(-1.0, 1.0)).toFloat()
+  fun tall(index: Int): Float = (1 + SQUASH_TALL * squash[index].coerceIn(-1.0, 1.0) + SLOSH_TALL * min(1.0, abs(speed[index]) / SLOSH_SPEED)).toFloat()
+  fun bright(index: Int): Float = (1 + FLASH * glow[index]).toFloat()
 }
 
 /** A small tile of random grey, made once, for the grain over the glow (a gradient reads as material, without bands). */
@@ -313,12 +480,16 @@ private class TabListOverlay(context: Context, entries: List<TabEntry>, behind: 
  *    theme, light with dark icons on a light one.
  *  - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
  *    faint second capsule follows a little late and fades — the trail.
- *  - A light lives in the bar (look 9, the default, `TabFlow`): three lights — one at each side, a brighter one under
- *    the chosen tab (the bar's middle in a section without an icon) — whose colours keep turning round the hue circle;
- *    while the player plays they rise, brighten and sway as a wave. The platform's MediaPlayer gives no sound to
- *    measure (only the Visualizer would, and it asks for the microphone), so the wave is a smooth one on the beat of
- *    the playback's position. One frame clock (DecorTicker), only while the bar is shown and animations are on;
- *    otherwise the gradient holds still. Looks 0 (the first three lights, still) and 6 (a small halo behind the
+ *  - A light lives in the glass (look 9, the default, `TabFlow`; the sketch «2. Сияние»): violet at the left, pink
+ *    under the chosen tab (the bar's middle in a section without an icon), cyan at the right, rising from the lower
+ *    edge over the glass's fill and under its rim, and a white line on the top edge above the chosen tab glowing in
+ *    the centre's colour. The hues drift on slowly and never repeat (kept across launches). With music the lights
+ *    punch and sway by bands (bass the centre, mids the left, highs the right); the platform's MediaPlayer gives no
+ *    sound to measure (only the Visualizer would, and it asks for the microphone), so each band is a beat of its own
+ *    from the playback's position. The lights are a liquid sealed in the capsule (`TabLiquid`): the tilt leans them to
+ *    the low side, a shake sloshes them from end to end, bouncing off the capsule's ends (the accelerometer, no
+ *    permission). One frame clock (DecorTicker) and the sensor only while the bar is shown and animations are on (the
+ *    sensor also rests in power saving); otherwise the gradient holds still. Looks 0 (the first three lights, still) and 6 (a small halo behind the
  *    chosen icon) stay for comparison: `--es barlook N` in the debug build.
  *  - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
  *    above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
@@ -357,18 +528,41 @@ class TabBarView(context: Context) : ViewGroup(context) {
   private val clock = DecorTicker.Link(this)
   /** Which glow look is on: 9 (`TabFlow`), the owner's choice; 0 and 6 stay for comparison (any other number draws 9). */
   var look: Int = normalLook(demoLook ?: TabFlow.LOOK)
-    set(value) { field = normalLook(value); flowKeys.fill(-1); paintGlow(); clock.want(field == TabFlow.LOOK) }
-  // Look 9's state: seconds of the hue loop (still while the clock is off), the music's wave (level 0…1 smoothed, how
-  // much of it shows, where it runs), the wave's own copy of the playback's position.
+    set(value) { field = normalLook(value); flowKeys.fill(-1); paintGlow(); clock.want(field == TabFlow.LOOK); refreshSensors() }
+  // Look 9's state: the drift's clock (seconds) and the common turn (kept across launches); the music's bands (left =
+  // mids, centre = bass, right = highs: levels 0…1 smoothed) and how much of the music shows; the wave's own copy of
+  // the playback's position; the lights as a liquid moved by the phone, and the push along the bar (g, + right).
   private var flowTime = 0.0
+  private var flowTurn = 0.0
   private var flowLast = 0L
-  private var waveLevel = 0.0
+  private val waveLevel = DoubleArray(3)
   private var waveAmount = 0.0
-  private var wavePhase = 0.0
   private var waveClock = 0.0
   private var waveSeen = -1.0
-  /** The colour (hue in 2° steps, theme) each light's gradient was made for: made again only when it changes. */
-  private val flowKeys = IntArray(3) { -1 }
+  private val liquid = TabLiquid()
+  private val liquidRest = DoubleArray(3)
+  private var liquidForce = 0.0
+  private val hues = DoubleArray(3)
+  /** The colour (hue in 1° steps) each light's gradient was made for (3: the line's glow): made again only when it changes. */
+  private val flowKeys = IntArray(4) { -1 }
+  private val lineGlow = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val lineFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = WHITE }
+  private val stopColors = IntArray(5)
+  private var attachedNow = false
+  private var shownNow = true
+  private var sensing = false
+  private var frames = 0
+  private val sensorListener = object : android.hardware.SensorEventListener {
+    override fun onSensorChanged(event: android.hardware.SensorEvent) {
+      // The push on the liquid along the bar (g, + to the right): this sensor reads the hand's movement less the
+      // gravity, so the tilt's gravity and the lag behind the hand both come out with the sign turned.
+      val along = -event.values[0] / android.hardware.SensorManager.GRAVITY_EARTH
+      liquidForce += (along - liquidForce) * 0.5
+    }
+    override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+  }
+  /** Look 9 draws the lights inside the glass (over its fill, under its rim). */
+  private val insideGlass: (Canvas) -> Unit = { canvas -> drawLights(canvas, width.toFloat(), height.toFloat()) }
   private val clip = Path()
   private var icons: List<TabIconView> = emptyList()
 
@@ -424,6 +618,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
     clipChildren = false
     paintGlow()
     clock.want(look == TabFlow.LOOK)
+    restoreFlow()
   }
 
   companion object {
@@ -523,19 +718,26 @@ class TabBarView(context: Context) : ViewGroup(context) {
   }
 
   /** Look 9: moves its clock on by the time since the last frame (nothing while the clock is off: the colours stay
-   *  where they stood and the wave lies down). */
+   *  where they stood, the music and the hand let go). */
   private fun stepFlow() {
-    if (!(DecorTicker.allowed && DecorTicker.ticking(this))) { flowLast = 0L; waveLevel = 0.0; waveAmount = 0.0; return }
+    if (!(DecorTicker.allowed && DecorTicker.ticking(this))) {
+      if (flowLast != 0L) storeFlow()
+      flowLast = 0L; waveLevel.fill(0.0); waveAmount = 0.0
+      if (sensing) refreshSensors()
+      return
+    }
     val now = SystemClock.uptimeMillis()
     val dt = if (flowLast == 0L) 1.0 / 60 else ((now - flowLast) / 1000.0).coerceIn(0.0, 0.1)
     flowLast = now
     if (dt <= 0.0) return
+    frames += 1
+    if (frames % 30 == 1) refreshSensors()
     flowTime += dt
-    wavePhase += dt / TabFlow.WAVE_PERIOD
-    if (wavePhase > 1000) wavePhase -= floor(wavePhase)
+    flowTurn += TabFlow.turnSpeed(flowTime) * dt
+    flowTurn -= floor(flowTurn)
+    if (flowTime > 1_000_000) flowTime = 0.0
     val player = com.linea.messenger.music.MusicPlayer.shared
     val playing = player.playing
-    var target = 0.0
     if (playing) {
       // The wave's own clock follows the playback: set again when the player's position moves somewhere else (a seek,
       // a new track), runs on by itself between the player's updates and where its position stands still.
@@ -545,51 +747,93 @@ class TabBarView(context: Context) : ViewGroup(context) {
         if (abs(position - waveClock) > 0.6) waveClock = position
         waveSeen = position
       }
-      target = TabFlow.synthetic(waveClock)
     }
-    // Rises quickly, falls slowly; the whole wave fades in and out with playback.
-    val rate = if (target > waveLevel) 0.05 else 0.22
-    waveLevel += (target - waveLevel) * (1 - exp(-dt / rate))
+    // Each band rises quickly and falls slowly; the whole music fades in and out with playback.
+    for (index in 0 until 3) {
+      val target = if (playing) TabFlow.synthetic(waveClock, index) else 0.0
+      val rate = if (target > waveLevel[index]) 0.05 else 0.22
+      waveLevel[index] += (target - waveLevel[index]) * (1 - exp(-dt / rate))
+    }
     waveAmount += ((if (playing) 1.0 else 0.0) - waveAmount) * (1 - exp(-dt / 0.6))
+    // The liquid: pushed along the bar by the tilt's gravity and against the hand's movement.
+    val w = width.toFloat()
+    liquidRest[0] = TabFlow.SIDE_AT[0].toDouble(); liquidRest[2] = TabFlow.SIDE_AT[1].toDouble()
+    liquidRest[1] = if (w > 0f) (spotX / w).toDouble() else 0.5
+    liquid.advance(dt, if (sensing) liquidForce else 0.0, liquidRest)
   }
 
-  /** Light `index`'s gradient in its colour of this moment, at the strongest alpha (the paint's alpha lowers it). */
-  private fun flowShader(index: Int, dark: Boolean) {
-    val step = (TabFlow.hue(flowTime, index) * 180).toInt() % 180
-    val key = step + if (dark) 1000 else 0
-    if (flowKeys[index] == key) return
-    flowKeys[index] = key
-    val color = Color.HSVToColor(floatArrayOf(step * 2f, if (dark) TabFlow.SATURATION_DARK else TabFlow.SATURATION_LIGHT, if (dark) TabFlow.BRIGHTNESS_DARK else TabFlow.BRIGHTNESS_LIGHT))
-    lights[index].shader = RadialGradient(0f, 0f, 1f, Theme.alpha(color, TabFlow.ALPHA_MAX), Theme.alpha(color, 0f), Shader.TileMode.CLAMP)
+  /** The accelerometer runs only while look 9 moves on the screen and power is not being saved. */
+  private fun refreshSensors() {
+    val want = look == TabFlow.LOOK && attachedNow && shownNow && DecorTicker.allowed && !com.linea.messenger.effects.Motion.saving
+    if (want == sensing) return
+    val manager = context.getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+    if (want) {
+      val sensor = manager?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) ?: return
+      liquidForce = 0.0
+      // GAME (about 50 a second): a shake is quick; UI's 16 a second would miss most of it.
+      sensing = manager.registerListener(sensorListener, sensor, android.hardware.SensorManager.SENSOR_DELAY_GAME, Handler(Looper.getMainLooper()))
+    } else {
+      manager?.unregisterListener(sensorListener)
+      sensing = false
+      liquidForce = 0.0; liquid.reset()
+    }
   }
 
-  /** Look 9: look 0's lights (left, the chosen tab's, right) in the colours of this moment, raised by the wave. */
+  /** The drift's clock and turn, kept for the next launch. */
+  private fun storeFlow() {
+    try { context.getSharedPreferences("linea.shell", Context.MODE_PRIVATE).edit().putString(TabFlow.STORE_KEY, "$flowTime,$flowTurn").apply() } catch (_: Exception) {}
+  }
+
+  private fun restoreFlow() {
+    val kept = try { context.getSharedPreferences("linea.shell", Context.MODE_PRIVATE).getString(TabFlow.STORE_KEY, null) } catch (_: Exception) { null } ?: return
+    val parts = kept.split(",").mapNotNull { it.toDoubleOrNull()?.takeIf { value -> value.isFinite() } }
+    if (parts.size != 2) return
+    flowTime = max(0.0, parts[0])
+    flowTurn = parts[1] - floor(parts[1])
+  }
+
+  /** Light `index`'s gradient in its colour of this moment, at the strongest alpha (the paint's alpha lowers it); 3:
+   *  the line's glow in the centre's colour, lightened. */
+  private fun flowShader(index: Int, hue: Double) {
+    val step = (hue * 360).toInt() % 360
+    if (flowKeys[index] == step) return
+    flowKeys[index] = step
+    val light = if (index == 3) 1 else index
+    val color = Color.HSVToColor(floatArrayOf(step.toFloat(), TabFlow.SATURATION[light], TabFlow.BRIGHTNESS))
+    if (index == 3) {
+      val white = TabFlow.LINE_WHITE
+      val r = Color.red(color); val g = Color.green(color); val b = Color.blue(color)
+      val glow = Color.rgb((r + (255 - r) * white).toInt(), (g + (255 - g) * white).toInt(), (b + (255 - b) * white).toInt())
+      lineGlow.shader = RadialGradient(0f, 0f, 1f, intArrayOf(Theme.alpha(glow, TabFlow.LINE_GLOW), Theme.alpha(glow, TabFlow.LINE_GLOW * 0.75f), Theme.alpha(glow, 0f)), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+      return
+    }
+    for (stop in 0 until 5) stopColors[stop] = Theme.alpha(color, TabFlow.ALPHA_MAX * TabFlow.FALL[stop])
+    lights[index].shader = RadialGradient(0f, 0f, 1f, stopColors.copyOf(), TabFlow.STOPS, Shader.TileMode.CLAMP)
+  }
+
+  /** Look 9: the sketch's three lights (violet left, pink under the chosen tab, cyan right) rising from the lower edge
+   *  in the colours of this moment, raised by the music's bands, moved as a liquid by the phone. */
   private fun drawFlow(canvas: Canvas, w: Float, h: Float) {
     stepFlow()
-    val dark = Theme.dark
-    val pulse = waveLevel * waveAmount
-    val spot = max(110f * d, w * 0.7f)
+    TabFlow.hues(flowTime, flowTurn, hues)
+    val blur = TabFlow.BLUR_REACH * h
     for (index in 0 until 3) {
-      flowShader(index, dark)
-      val shape = TabFlow.wave(wavePhase, index)
-      val push = (pulse * (0.6 + 0.4 * shape)).toFloat()
-      val strongest = if (index == 1) (if (dark) TabFlow.SPOT_DARK else TabFlow.SPOT_LIGHT) else (if (dark) TabFlow.SIDE_DARK else TabFlow.SIDE_LIGHT)
-      val alpha = min(TabFlow.ALPHA_MAX, strongest * (1 + 0.5f * push))
+      flowShader(index, hues[index])
+      val push = (waveLevel[index] * waveAmount).toFloat()
+      val alpha = min(TabFlow.ALPHA_MAX, TabFlow.ALPHA[index] * (1 + TabFlow.PUNCH_ALPHA[index] * push) * liquid.bright(index))
       lights[index].alpha = (255 * alpha / TabFlow.ALPHA_MAX).toInt().coerceIn(0, 255)
-      // The wave lifts the light, widens it a little and sways it along the bar.
-      val mid = when (index) { 0 -> w * 0.2f; 1 -> spotX; else -> w * 0.82f }
-      val wide = (if (index == 1) spot else w * 0.72f) * (1 + 0.18f * push)
-      val sway = ((shape - 0.5) * 0.08 * w * pulse).toFloat()
-      shine(canvas, mid - wide / 2 + sway, wide, lights[index], h * (1 + 0.35f * push))
+      val mid = when (index) { 0 -> w * TabFlow.SIDE_AT[0]; 1 -> spotX; else -> w * TabFlow.SIDE_AT[1] }
+      val halfWide = (TabFlow.REACH_X[index] * w + blur) * (1 + TabFlow.PUNCH_WIDE[index] * push) * liquid.wide(index)
+      val tall = (TabFlow.REACH_Y[index] * h + blur) * (1 + TabFlow.PUNCH_TALL[index] * push) * liquid.tall(index)
+      val sway = (sin(2 * PI * flowTime * TabFlow.SWAY_RATE[index]) * TabFlow.SWAY_WIDTH[index] * w * push).toFloat()
+      val flow = (liquid.offset[index] * w).toFloat()
+      shine(canvas, mid - halfWide + sway + flow, halfWide * 2, lights[index], tall)
     }
     canvas.drawRect(0f, 0f, w, h, grain)
   }
 
-  override fun onDraw(canvas: Canvas) {
-    val w = width.toFloat(); val h = height.toFloat()
-    if (w <= 0f || h <= 0f) return
-    glass.draw(canvas, 0f, 0f, w, h, h / 2)
-
+  /** The lights, clipped to the bar's capsule. */
+  private fun drawLights(canvas: Canvas, w: Float, h: Float) {
     clip.reset(); clip.addRoundRect(0f, 0f, w, h, h / 2, h / 2, Path.Direction.CW)
     canvas.save(); canvas.clipPath(clip)
     when (look) {
@@ -614,6 +858,29 @@ class TabBarView(context: Context) : ViewGroup(context) {
       }
     }
     canvas.restore()
+  }
+
+  /** Look 9: the white line on the top edge above the chosen tab, its glow in the centre light's colour. */
+  private fun drawLine(canvas: Canvas) {
+    if (capsuleAlpha <= 0f) return
+    flowShader(3, hues[1])
+    val half = TabFlow.LINE_WIDTH / 2 * d; val tall = TabFlow.LINE_HEIGHT * d
+    val reachX = (TabFlow.LINE_WIDTH / 2 + TabFlow.LINE_SPREAD + TabFlow.LINE_BLUR) * d
+    val reachY = (TabFlow.LINE_HEIGHT / 2 + TabFlow.LINE_SPREAD + TabFlow.LINE_BLUR) * d
+    lineGlow.alpha = (255 * capsuleAlpha).toInt().coerceIn(0, 255)
+    canvas.save(); canvas.translate(spotX, tall / 2); canvas.scale(reachX, reachY)
+    canvas.drawRect(-1f, -1f, 1f, 1f, lineGlow)
+    canvas.restore()
+    lineFill.alpha = (255 * capsuleAlpha).toInt().coerceIn(0, 255)
+    canvas.drawRoundRect(spotX - half, 0f, spotX + half, tall, tall, tall, lineFill)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    val w = width.toFloat(); val h = height.toFloat()
+    if (w <= 0f || h <= 0f) return
+    // The lights live in the glass: over its fill, under its rim.
+    glass.draw(canvas, 0f, 0f, w, h, h / 2, insideGlass)
+    if (look == TabFlow.LOOK) drawLine(canvas)
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2
     if (trailAlpha > 0f) {
@@ -827,17 +1094,24 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
+    attachedNow = true
     clock.attached(true)
+    refreshSensors()
   }
 
   override fun onVisibilityAggregated(isVisible: Boolean) {
     super.onVisibilityAggregated(isVisible)
+    shownNow = isVisible
     clock.shown(isVisible)
-    if (isVisible) invalidate()
+    refreshSensors()
+    if (isVisible) invalidate() else storeFlow()
   }
 
   override fun onDetachedFromWindow() {
+    attachedNow = false
     clock.attached(false)
+    refreshSensors()
+    storeFlow()
     timers.removeCallbacks(holdTimer)
     dismissList(now = true)
     super.onDetachedFromWindow()

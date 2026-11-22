@@ -12,7 +12,8 @@ import UIKit
 ///   white line on the top edge above the chosen tab glowing in the centre's colour. The hues drift on slowly and
 ///   never repeat (kept across launches); with music the lights punch and sway by bands (bass the centre, mids the
 ///   left, highs the right: the equalizer's audio tap meters them; a beat from the playback's position when no level
-///   comes); the phone's tilt slides them, a shake ripples them (`TabFlow`). Animations off or power saving: the
+///   comes); they are a liquid sealed in the capsule: the phone's tilt leans them to the low side, a shake sloshes them
+///   from end to end, bouncing off the capsule's ends (`TabFlow`, `TabLiquid`). Animations off or power saving: the
 ///   gradient holds still and the sensor rests. Looks 0…8 stay for comparison.
 /// - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
 ///   above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
@@ -174,14 +175,6 @@ enum TabFlow {
   static let swayWidth: [CGFloat] = [0.04, 0, 0.015]
   static let swayRate: [Double] = [0.5, 0, 6]
 
-  // The phone's movement: the lights slide against the tilt (at most 8 % of the bar's width, reached at a tilt of
-  // half the gravity), spring-smoothed; a shake (over 0.6 g) runs a brief ripple of light across them.
-  static let tiltMost: CGFloat = 0.08
-  static let tiltGain: CGFloat = 2
-  static let tiltSpring: Double = 9
-  static let shake: Double = 0.6
-  static let rippleFade: Double = 0.35
-  static let rippleAlpha: CGFloat = 0.4
 
   /// The music's loudness heard by the tap, as 0…1 (−40 dBFS … −6 dBFS).
   static func loudness(_ rms: Float) -> CGFloat {
@@ -207,6 +200,114 @@ enum TabFlow {
       let shimmer = 0.5 + 0.5 * sin(2 * Double.pi * position * 0.37)
       return CGFloat(min(1, 0.15 + 0.45 * tick * (0.5 + 0.5 * shimmer) + 0.2 * shimmer))
     }
+  }
+}
+
+/// Look 9's lights as a liquid sealed in the glass capsule (the same numbers in Android's shell/TabBar.kt `TabLiquid`):
+/// each light is a blob along the bar with inertia — a spring to its place (0.9 Hz, damping ratio 0.25: it settles in
+/// a second or two), pushed by the phone's acceleration along the bar (the tilt's gravity and the hand's movement, in
+/// g, at most ±2.5 g), kept off its neighbours by a soft push, bouncing off the capsule's ends with half its speed
+/// left, squashing (taller and narrower for a moment, a 3 Hz spring) and brightening at the wall. Fixed steps of
+/// 1/120 s. Positions are × the bar's width, from each blob's place. Shape and brightness only: never the colour.
+final class TabLiquid {
+  static let frequency: Double = 0.9
+  static let zeta: Double = 0.25
+  /// The bar's widths a second² for 1 g along the bar: a tilt of half the gravity leans a blob 12 % of the width.
+  static let gain: Double = 7.7
+  static let inputMost: Double = 2.5
+  /// How far a blob's middle may go (× the bar's width) before it meets the capsule's end.
+  static let wallLeft: Double = 0.12
+  static let wallRight: Double = 0.88
+  /// The speed left after a wall (the rest is lost).
+  static let bounce: Double = 0.55
+  /// The closest two blobs' middles come (× the bar's width) before they push each other, and how hard.
+  static let gap: Double = 0.14
+  static let push: Double = 400
+  static let speedMost: Double = 3
+  static let squashFrequency: Double = 3
+  static let squashZeta: Double = 0.35
+  /// A wall turns this much of the blob's speed into squash (taller by `squashTall`, narrower by `squashWide` at 1).
+  static let squashKick: Double = 1.6
+  static let squashWide: Double = 0.35
+  static let squashTall: Double = 0.5
+  /// A moving blob stands a little taller (the slosh), fully at this speed.
+  static let sloshTall: Double = 0.12
+  static let sloshSpeed: Double = 0.6
+  /// A wall's flash: brighter by this much at its strongest, fading in `flashFade` s; full at an impact of 0.8.
+  static let flash: Double = 0.5
+  static let flashFade: Double = 0.25
+  static let step: Double = 1.0 / 120
+
+  private(set) var offset: [Double] = [0, 0, 0]
+  private var speed: [Double] = [0, 0, 0]
+  private var squash: [Double] = [0, 0, 0]
+  private var squashSpeed: [Double] = [0, 0, 0]
+  private var glow: [Double] = [0, 0, 0]
+  private var left: Double = 0
+
+  /// Nothing is moving (the frame rate may drop).
+  var quiet: Bool {
+    for index in 0..<3 where abs(offset[index]) > 0.002 || abs(speed[index]) > 0.002 || abs(squash[index]) > 0.01 || glow[index] > 0.01 {
+      return false
+    }
+    return true
+  }
+
+  func reset() {
+    offset = [0, 0, 0]; speed = [0, 0, 0]; squash = [0, 0, 0]; squashSpeed = [0, 0, 0]; glow = [0, 0, 0]; left = 0
+  }
+
+  /// Runs the liquid on by `dt` seconds under `force` (g along the bar, + to the right) with the blobs' places `rest`.
+  func advance(_ dt: Double, force raw: Double, rest: [Double]) {
+    let force = min(TabLiquid.inputMost, max(-TabLiquid.inputMost, raw))
+    let omega = 2 * Double.pi * TabLiquid.frequency
+    let stiff = omega * omega, damp = 2 * TabLiquid.zeta * omega
+    let squashOmega = 2 * Double.pi * TabLiquid.squashFrequency
+    let squashStiff = squashOmega * squashOmega, squashDamp = 2 * TabLiquid.squashZeta * squashOmega
+    let order = [0, 1, 2].sorted { (a: Int, b: Int) -> Bool in rest[a] < rest[b] }
+    let fade = exp(-TabLiquid.step / TabLiquid.flashFade)
+    left += dt
+    var steps = 0
+    while left >= TabLiquid.step && steps < 24 {
+      left -= TabLiquid.step
+      steps += 1
+      var accel = [0, 1, 2].map { (index: Int) -> Double in TabLiquid.gain * force - stiff * offset[index] - damp * speed[index] }
+      for pair in 0..<2 {
+        let a = order[pair], b = order[pair + 1]
+        let apart = (rest[b] + offset[b]) - (rest[a] + offset[a])
+        if apart < TabLiquid.gap {
+          let shove = TabLiquid.push * (TabLiquid.gap - apart)
+          accel[a] -= shove
+          accel[b] += shove
+        }
+      }
+      for index in 0..<3 {
+        speed[index] = min(TabLiquid.speedMost, max(-TabLiquid.speedMost, speed[index] + accel[index] * TabLiquid.step))
+        offset[index] += speed[index] * TabLiquid.step
+        let place = rest[index] + offset[index]
+        if place < TabLiquid.wallLeft && speed[index] < 0 { hit(index, at: TabLiquid.wallLeft - rest[index]) }
+        else if place > TabLiquid.wallRight && speed[index] > 0 { hit(index, at: TabLiquid.wallRight - rest[index]) }
+        squashSpeed[index] += (-squashStiff * squash[index] - squashDamp * squashSpeed[index]) * TabLiquid.step
+        squash[index] += squashSpeed[index] * TabLiquid.step
+        glow[index] *= fade
+      }
+    }
+    if steps >= 24 { left = 0 }
+  }
+
+  private func hit(_ index: Int, at place: Double) {
+    let impact = abs(speed[index])
+    offset[index] = place
+    speed[index] = -speed[index] * TabLiquid.bounce
+    squashSpeed[index] += impact * TabLiquid.squashKick
+    glow[index] = max(glow[index], min(1, impact / 0.8))
+  }
+
+  /// Blob `index`'s shape now: its width and height factors and its brightness factor.
+  func shape(_ index: Int) -> (wide: CGFloat, tall: CGFloat, bright: CGFloat) {
+    let squeeze = min(1, max(-1, squash[index]))
+    let slosh = min(1, abs(speed[index]) / TabLiquid.sloshSpeed)
+    return (CGFloat(1 - TabLiquid.squashWide * squeeze), CGFloat(1 + TabLiquid.squashTall * squeeze + TabLiquid.sloshTall * slosh), CGFloat(1 + TabLiquid.flash * glow[index]))
   }
 }
 
@@ -456,10 +557,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   /// The playback's position as the wave keeps it (runs on by itself where the player's position stands still).
   private var waveClock: Double = 0
   private var waveSeen: Double = -1
-  /// The phone's movement: the lights' slide (× the bar's width) and its speed, and the shake's ripple (1 → 0).
-  private var tiltShift: Double = 0
-  private var tiltSpeed: Double = 0
-  private var ripple: CGFloat = 0
+  /// The lights as a liquid moved by the phone (`TabLiquid`).
+  private let liquid = TabLiquid()
   private var sensing = false
   private static let motionSensor = CMMotionManager()
 
@@ -777,11 +876,11 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     if sense != sensing {
       sensing = sense
       if sense {
-        TabBarView.motionSensor.deviceMotionUpdateInterval = 1.0 / 30
+        TabBarView.motionSensor.deviceMotionUpdateInterval = 1.0 / 60
         TabBarView.motionSensor.startDeviceMotionUpdates()
       } else {
         TabBarView.motionSensor.stopDeviceMotionUpdates()
-        tiltShift = 0; tiltSpeed = 0; ripple = 0
+        liquid.reset()
       }
     }
     if run {
@@ -854,21 +953,16 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     }
     let shown: CGFloat = playing ? 1 : 0
     waveAmount += (shown - waveAmount) * CGFloat(1 - exp(-dt / 0.6))
-    // The phone's tilt slides the lights against it (a damped spring); a shake starts a ripple.
-    var tiltTarget = 0.0
+    // The liquid: pushed along the bar by the tilt's gravity and against the hand's movement (in g).
+    var force = 0.0
     if sensing, let device = TabBarView.motionSensor.deviceMotion {
-      let most = Double(TabFlow.tiltMost)
-      tiltTarget = min(most, max(-most, -device.gravity.x * Double(TabFlow.tiltGain) * most))
-      let push = device.userAcceleration
-      if (push.x * push.x + push.y * push.y + push.z * push.z).squareRoot() > TabFlow.shake { ripple = 1 }
+      force = device.gravity.x - device.userAcceleration.x
     }
-    let spring = TabFlow.tiltSpring
-    tiltSpeed += ((tiltTarget - tiltShift) * spring * spring - 2 * spring * tiltSpeed) * dt
-    tiltShift += tiltSpeed * dt
-    ripple *= CGFloat(exp(-dt / TabFlow.rippleFade))
-    if ripple < 0.01 { ripple = 0 }
+    let width = bounds.width
+    let rest: [Double] = width > 0 ? [Double(TabFlow.sideAt[0]), Double(spotView.center.x / width), Double(TabFlow.sideAt[1])] : [0.34, 0.5, 0.68]
+    liquid.advance(dt, force: force, rest: rest)
     // 30 frames a second for the slow colours alone, 60 while the music or the hand moves the lights.
-    let fast = waveAmount > 0.02 || ripple > 0 || abs(tiltSpeed) > 0.002
+    let fast = waveAmount > 0.02 || !liquid.quiet
     if fast != flowFast {
       flowFast = fast
       link.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: 60, preferred: fast ? 60 : 30)
@@ -877,14 +971,13 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   }
 
   /// Look 9: the sketch's three lights (violet left, pink under the chosen tab, cyan right) rising from the lower
-  /// edge under the glass in the colours of this moment, raised by the music's bands and slid by the tilt; the line
+  /// edge under the glass in the colours of this moment, raised by the music's bands, moved as a liquid by the phone; the line
   /// on the top edge glows in the centre's colour.
   private func paintFlow() {
     let width = bounds.width, height = bounds.height
     guard width > 0, height > 0 else { return }
     let blur = TabFlow.blurReach * height
     let hues = TabFlow.hues(flowTime, turn: flowTurn)
-    let slide = CGFloat(tiltShift) * width
     // Where each light's middle stands: the side ones in the bar's coordinates, the centre one in its view's.
     let mids: [CGFloat] = [width * TabFlow.sideAt[0], spotView.bounds.midX, width * TabFlow.sideAt[1]]
     let lows: [CGFloat] = [height, spotView.bounds.height, height]
@@ -898,15 +991,15 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       let push = waveLevel[index] * waveAmount
       let color = UIColor(hue: CGFloat(hues[index]), saturation: TabFlow.saturation[index], brightness: TabFlow.brightness, alpha: 1)
       if index == 1 { centreColor = color }
-      let wave = CGFloat(0.5 + 0.5 * sin(2 * Double.pi * (flowTime * 3 - Double(index) / 3)))
-      let lift = 1 + TabFlow.punchAlpha[index] * push + TabFlow.rippleAlpha * ripple * wave
-      let strength = min(TabFlow.alphaMost, TabFlow.alpha[index] * lift)
+      let blob = liquid.shape(index)
+      let strength = min(TabFlow.alphaMost, TabFlow.alpha[index] * (1 + TabFlow.punchAlpha[index] * push) * blob.bright)
       layer.colors = TabFlow.fall.map { (part: CGFloat) -> CGColor in color.withAlphaComponent(strength * part).cgColor }
       layer.locations = locations
-      let halfWide = (TabFlow.reachX[index] * width + blur) * (1 + TabFlow.punchWide[index] * push)
-      let tall = (TabFlow.reachY[index] * height + blur) * (1 + TabFlow.punchTall[index] * push)
+      let halfWide = (TabFlow.reachX[index] * width + blur) * (1 + TabFlow.punchWide[index] * push) * blob.wide
+      let tall = (TabFlow.reachY[index] * height + blur) * (1 + TabFlow.punchTall[index] * push) * blob.tall
       let sway = CGFloat(sin(2 * Double.pi * flowTime * TabFlow.swayRate[index])) * TabFlow.swayWidth[index] * width * push
-      layer.frame = CGRect(x: mids[index] - halfWide + sway + slide, y: lows[index] - tall, width: halfWide * 2, height: tall)
+      let flow = CGFloat(liquid.offset[index]) * width
+      layer.frame = CGRect(x: mids[index] - halfWide + sway + flow, y: lows[index] - tall, width: halfWide * 2, height: tall)
     }
     sheen.colors = [UIColor.white.withAlphaComponent(0).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
     gloss.colors = [UIColor.white.withAlphaComponent(0).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
