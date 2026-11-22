@@ -111,11 +111,38 @@ class MessageMenu(
 
   /** ChatScreen.tsx `peek`: the message's own row as it stands in the chat, shown full width above the menu. */
   private var peek: android.widget.ImageView? = null
-  fun showPeek(picture: android.graphics.Bitmap?) {
+  /** ContextMenu.tsx `peekTouch`: a hold on the copy selects its words — they lie over the picture, invisible, exactly
+   *  where the row drew them (`words`: the laid-out text and its place). */
+  private var peekWords: TextView? = null
+  private var peekWordsAt: Pair<Float, Float> = Pair(0f, 0f)
+  private var peekWordsSize: Pair<Int, Int> = Pair(0, 0)
+  fun showPeek(picture: android.graphics.Bitmap?, words: Triple<android.text.StaticLayout, Float, Float>? = null) {
     if (picture == null) return
+    if (words != null) {
+      val laid = words.first
+      val field = TextView(context).apply {
+        // The row's own spans (line height, styles) stay; its colours go, so only the selection shows.
+        val copy = android.text.SpannableString(laid.text)
+        for (span in copy.getSpans(0, copy.length, android.text.style.ForegroundColorSpan::class.java)) copy.removeSpan(span)
+        for (span in copy.getSpans(0, copy.length, android.text.style.BackgroundColorSpan::class.java)) copy.removeSpan(span)
+        for (span in copy.getSpans(0, copy.length, android.text.style.LineBackgroundSpan::class.java)) copy.removeSpan(span)
+        text = copy
+        setTextColor(Color.TRANSPARENT)
+        textSize = laid.paint.textSize / d
+        typeface = laid.paint.typeface
+        includeFontPadding = false
+        setPadding(0, 0, 0, 0)
+        setTextIsSelectable(true)
+        highlightColor = Theme.alpha(Theme.accent, 0.35f)
+      }
+      peekWords = field
+      peekWordsAt = Pair(words.second, words.third)
+      peekWordsSize = Pair(laid.width, laid.height)
+    }
     val view = android.widget.ImageView(context).apply { setImageBitmap(picture); scaleType = android.widget.ImageView.ScaleType.FIT_XY; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
     peek = view
     page.addView(view)
+    peekWords?.let { page.addView(it) }
     bubble.visibility = View.GONE
     page.requestLayout()
   }
@@ -153,13 +180,20 @@ class MessageMenu(
     }
   }
 
-  private val pill = Plate(24f)
-  private val panel = Plate(26f) // ContextMenu.tsx: the menu's radius 26
+  // ContextMenu.tsx `shadow`: elevation 8 on Android; the plates' outlines carry it.
+  private val pill = Plate(24f).apply { elevation = 8f * d }
+  private val panel = Plate(26f).apply { elevation = 8f * d } // ContextMenu.tsx: the menu's radius 26
   private val reactionButtons = ArrayList<TextView>()
   private val moreButton = ChatIconView(context, "ion:chevron-down", 18f, Theme.muted).apply { isClickable = true; isFocusable = true; contentDescription = "Все реакции" }
   private val bubble = TextView(context).apply {
     text = preview
-    textSize = 17f
+    // ContextMenu.tsx: the chat's own text size and line (chatPreferences.ts TEXT_SIZES).
+    textSize = com.linea.messenger.settings.ThemeStore.textSize
+    setLineSpacing(0f, 1f)
+    val lineDp = when (com.linea.messenger.settings.ThemeStore.textSize) { 15f -> 20f; 17f -> 22f; 19f -> 25f; 22f -> 28f; else -> Math.round(com.linea.messenger.settings.ThemeStore.textSize * 1.3f).toFloat() }
+    if (Build.VERSION.SDK_INT >= 28) lineHeight = Math.round(lineDp * d)
+    // ContextMenu.tsx `shadow` (elevation 8 on Android).
+    elevation = 8f * d
     setTextColor(Theme.text)
     maxLines = 6
     ellipsize = TextUtils.TruncateAt.END
@@ -259,7 +293,11 @@ class MessageMenu(
         put(view, x, y, w, h)
       }
       if (pillH > 0) { placed(pill, pillW, pillH); y += pillH + dp(8f) }
-      if (peekView != null && peekH > 0) { put(peekView, 0, y, width, peekH); y += peekH + dp(8f) }
+      if (peekView != null && peekH > 0) {
+        put(peekView, 0, y, width, peekH)
+        peekWords?.let { put(it, Math.round(peekWordsAt.first), y + Math.round(peekWordsAt.second), peekWordsSize.first, peekWordsSize.second) }
+        y += peekH + dp(8f)
+      }
       if (bubbleH > 0) { placed(bubble, bubbleW, bubbleH); y += bubbleH + dp(8f) }
       placed(panel, panelWidth, panelHeight)
     }

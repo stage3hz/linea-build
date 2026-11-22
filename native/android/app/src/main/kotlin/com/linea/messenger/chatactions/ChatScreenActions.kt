@@ -612,7 +612,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     val menu = MessageMenu(context, y, message["senderId"] as? String == history.userId, Messenger.previewText(message), reactions, items)
     menu.onReact = { emoji -> react(message, emoji) }
     // ChatScreen.tsx: the menu shows the message's own row (peekRow), not only its words.
-    menu.showPeek(list?.rowPicture(key))
+    menu.showPeek(list?.rowPicture(key), list?.rowWords(key))
     // ContextMenu.tsx ReadDateRow: an own message the peer has read, younger than seven days.
     val messageId = (message["id"] as? Number)?.toLong() ?: 0L
     val sentAt = Messenger.date(message["createdAt"] as? String)

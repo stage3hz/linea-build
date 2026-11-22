@@ -571,7 +571,7 @@ final class MsgRowCanvas: UIView {
   /// The spoilers of this message have been tapped open.
   var revealed = false
   /// Where the body text was drawn last (for taps on links and spoilers).
-  private var bodyBox = CGRect.zero
+  private(set) var bodyBox = CGRect.zero
   /// Avatars: a big emoji's glyphs are left out while their pop plays over them (Sources/Avatars/BigEmojiPop.swift).
   var hideBody = false
   /// Avatars: where the body was drawn last, for the pop of big emoji.
@@ -1261,9 +1261,30 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   /// ChatScreen.tsx `peek`: a picture of the row of `key` as it stands now (the whole width), for the message menu.
   func rowSnapshot(_ key: String) -> UIView? {
     guard let index = rows.firstIndex(where: { $0.key == key }), let cell = table.cellForRow(at: IndexPath(row: index, section: 0)) as? MsgRowCell else { return nil }
-    let picture = cell.canvas.snapshotView(afterScreenUpdates: false)
-    picture?.bounds = CGRect(origin: .zero, size: cell.canvas.bounds.size)
-    return picture
+    guard let picture = cell.canvas.snapshotView(afterScreenUpdates: false) else { return nil }
+    let size = cell.canvas.bounds.size
+    let holder = UIView(frame: CGRect(origin: .zero, size: size))
+    picture.frame = holder.bounds
+    holder.addSubview(picture)
+    // ContextMenu.tsx `peekTouch`: a hold on the copy selects its words (FormattedText `selectable` in the peek). The
+    // words are laid over the picture exactly where the row drew them, invisible, so only the selection shows.
+    let canvas = cell.canvas
+    if let row = canvas.row, row.kind == 0, !row.text.isEmpty, canvas.bodyBox != .zero {
+      let words = NSMutableAttributedString(attributedString: msgLaidBody(row, fontSize: canvas.fontSize, text: .clear, link: .clear, quote: .clear, revealed: canvas.revealed))
+      words.addAttribute(.foregroundColor, value: UIColor.clear, range: NSRange(location: 0, length: words.length))
+      words.removeAttribute(.backgroundColor, range: NSRange(location: 0, length: words.length))
+      let field = UITextView(frame: CGRect(x: canvas.bodyBox.minX, y: canvas.bodyBox.minY, width: canvas.bodyBox.width, height: canvas.bodyBox.height))
+      field.backgroundColor = .clear
+      field.isEditable = false
+      field.isSelectable = true
+      field.isScrollEnabled = false
+      field.textContainerInset = .zero
+      field.textContainer.lineFragmentPadding = 0
+      field.attributedText = words
+      field.tintColor = Theme.accent
+      holder.addSubview(field)
+    }
+    return holder
   }
 
   func visibleKeys() -> [String] {

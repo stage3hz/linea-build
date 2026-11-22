@@ -290,6 +290,10 @@ class MsgListView(context: Context) : FrameLayout(context) {
 
   /** The rows on screen, by key. */
   /** ChatScreen.tsx `peek`: a picture of the row of `key` as it stands now (the whole width), for the message menu. */
+  /** The words of the row of `key` as laid out, with their place in its picture (see `rowPicture`). */
+  fun rowWords(key: String): Triple<android.text.StaticLayout, Float, Float>? =
+    (0 until list.childCount).mapNotNull { list.getChildAt(it) as? MsgRowView }.firstOrNull { it.rowKey == key }?.bodyCopy()
+
   fun rowPicture(key: String): android.graphics.Bitmap? {
     val row = (0 until list.childCount).mapNotNull { list.getChildAt(it) as? MsgRowView }.firstOrNull { it.rowKey == key } ?: return null
     if (row.width <= 0 || row.height <= 0) return null

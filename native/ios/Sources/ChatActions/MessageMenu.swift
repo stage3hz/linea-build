@@ -40,6 +40,26 @@ final class MessageMenuController: UIViewController {
     private let readSkeleton = UIView()
     private let readBand = UIView()
     private var readShown = false
+    /// ContextMenu.tsx `shadow`: black 0.28, radius 18, 8 down — drawn by plain views under the glass (the glass clips
+    /// to its corners, so it cannot carry a shadow itself).
+    private let pillShadow = MessageMenuController.shadowView()
+    private let bubbleShadow = MessageMenuController.shadowView()
+    private let panelShadow = MessageMenuController.shadowView()
+    private static func shadowView() -> UIView {
+        let shade = UIView()
+        shade.isUserInteractionEnabled = false
+        shade.backgroundColor = .clear
+        shade.layer.shadowColor = UIColor.black.cgColor
+        shade.layer.shadowOpacity = 0.28
+        shade.layer.shadowRadius = 18
+        shade.layer.shadowOffset = CGSize(width: 0, height: 8)
+        return shade
+    }
+    private func shade(_ shadow: UIView, like glass: UIView, radius: CGFloat) {
+        shadow.isHidden = glass.isHidden
+        shadow.frame = glass.frame
+        shadow.layer.shadowPath = UIBezierPath(roundedRect: shadow.bounds, cornerRadius: radius).cgPath
+    }
 
     private let backdrop = UIVisualEffectView(effect: Theme.thinBlur)
     private let dim = UIButton(type: .custom)
@@ -82,6 +102,7 @@ final class MessageMenuController: UIViewController {
         pill.layer.cornerCurve = .continuous
         pill.isHidden = reactions.isEmpty
         MessageMenuController.tint(pill)
+        view.addSubview(pillShadow)
         view.addSubview(pill)
         for (index, reaction) in reactions.enumerated() {
             let button = UIButton(type: .custom)
@@ -108,6 +129,7 @@ final class MessageMenuController: UIViewController {
         bubble.layer.cornerCurve = .continuous
         bubble.isHidden = previewWords.isEmpty
         bubble.isUserInteractionEnabled = false
+        view.addSubview(bubbleShadow)
         view.addSubview(bubble)
         bubbleLabel.text = previewWords
         bubbleLabel.font = .systemFont(ofSize: ThemeStore.textSize)
@@ -120,10 +142,11 @@ final class MessageMenuController: UIViewController {
         panel.layer.cornerRadius = 26 // ContextMenu.tsx: the menu's radius
         panel.layer.cornerCurve = .continuous
         MessageMenuController.tint(panel)
+        view.addSubview(panelShadow)
         view.addSubview(panel)
         if let peek = peekView {
             bubble.isHidden = true
-            peek.isUserInteractionEnabled = false
+            peek.isUserInteractionEnabled = true // ContextMenu.tsx `peekTouch`: a hold on the copy selects its words
             view.addSubview(peek)
         }
         if let ask = readDate {
@@ -325,6 +348,9 @@ final class MessageMenuController: UIViewController {
             y += bubbleSize.height + 8
         }
         panel.frame = placed(CGSize(width: panelWidth, height: panelHeight))
+        shade(pillShadow, like: pill, radius: pill.layer.cornerRadius)
+        shade(bubbleShadow, like: bubble, radius: bubble.layer.cornerRadius)
+        shade(panelShadow, like: panel, radius: 26)
     }
 }
 

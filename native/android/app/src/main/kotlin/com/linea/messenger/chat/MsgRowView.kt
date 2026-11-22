@@ -215,14 +215,16 @@ class MsgRowView(context: Context) : View(context) {
 
   private fun layoutChips(item: MsgRow, width: Float) {
     val out = ArrayList<Chip>(); var x = 0f; var y = 0f; var widest = 0f; var i = 0
+    // MessageRow.tsx: reactions outside a bubble (a round video, big emoji) carry a 1-point border: 2 taller and wider.
+    val border = if (item.media == "note" || item.bigEmoji > 0) 2f * d else 0f
     while (i + 2 < item.chips.size) {
       val emoji = item.chips[i]; val count = item.chips[i + 1].toIntOrNull() ?: 1; val mine = item.chips[i + 2] == "1"; i += 3
-      var w = chipEmoji.measureText(emoji) + 16f * d
+      var w = chipEmoji.measureText(emoji) + 16f * d + border
       if (count > 1) w += 4f * d + chipCount.measureText(count.toString())
-      if (x > 0f && x + w > width) { x = 0f; y += 29f * d }
+      if (x > 0f && x + w > width) { x = 0f; y += 29f * d + border }
       out.add(Chip(emoji, count, mine, x, y, w)); x += w + 5f * d; widest = maxOf(widest, x - 5f * d)
     }
-    chips = out; chipsW = widest; chipsH = if (out.isEmpty()) 0f else y + 24f * d
+    chips = out; chipsW = widest; chipsH = if (out.isEmpty()) 0f else y + 24f * d + border
   }
 
   /** The reaction chip under a point of this view. */
@@ -311,6 +313,9 @@ class MsgRowView(context: Context) : View(context) {
     if (relayout) requestLayout()
     invalidate()
   }
+
+  /** The laid-out words of the row and where they were drawn (for a selectable copy in the message menu). */
+  fun bodyCopy(): Triple<StaticLayout, Float, Float>? = textLayout?.let { Triple(it, bodyX, bodyY) }
 
   /** One tap shows every spoiler of the message. */
   fun reveal() { if (revealed) return; revealed = true; builtFor = null; requestLayout(); invalidate() }
@@ -712,13 +717,15 @@ class MsgRowView(context: Context) : View(context) {
       // Under a round video or big emoji (reactions outside a bubble): white 0.07 on dark / white 0.7 on light, a border.
       val outside = item.media == "note" || item.bigEmoji > 0
       fill.color = if (chip.mine) palette.accent else if (outside) (if (Theme.dark) 0x12FFFFFF else 0xB3FFFFFF.toInt()) else if (Theme.dark) 0x1AFFFFFF else 0x0F000000
-      canvas.drawRoundRect(cx, cy, cx + chip.w, cy + 24f * d, 12f * d, 12f * d, fill)
-      if (outside) { stroke.color = com.linea.messenger.settings.ThemeStore.look.border; stroke.strokeWidth = 1f * d; canvas.drawRoundRect(cx + 0.5f * d, cy + 0.5f * d, cx + chip.w - 0.5f * d, cy + 23.5f * d, 11.5f * d, 11.5f * d, stroke) }
+      val chipH = if (outside) 26f * d else 24f * d
+      canvas.drawRoundRect(cx, cy, cx + chip.w, cy + chipH, chipH / 2, chipH / 2, fill)
+      if (outside) { stroke.color = com.linea.messenger.settings.ThemeStore.look.border; stroke.strokeWidth = 1f * d; canvas.drawRoundRect(cx + 0.5f * d, cy + 0.5f * d, cx + chip.w - 0.5f * d, cy + chipH - 0.5f * d, chipH / 2 - 0.5f * d, chipH / 2 - 0.5f * d, stroke) }
+      val pad = if (outside) 1f * d else 0f
       chipEmoji.color = palette.text
-      canvas.drawText(chip.emoji, cx + 8f * d, cy + 12f * d - (chipEmoji.ascent() + chipEmoji.descent()) / 2, chipEmoji)
+      canvas.drawText(chip.emoji, cx + 8f * d + pad, cy + chipH / 2 - (chipEmoji.ascent() + chipEmoji.descent()) / 2, chipEmoji)
       if (chip.count > 1) {
         chipCount.color = if (chip.mine) palette.onAccent else palette.text
-        canvas.drawText(chip.count.toString(), cx + 8f * d + chipEmoji.measureText(chip.emoji) + 4f * d, cy + 12f * d - (chipCount.ascent() + chipCount.descent()) / 2, chipCount)
+        canvas.drawText(chip.count.toString(), cx + 8f * d + pad + chipEmoji.measureText(chip.emoji) + 4f * d, cy + chipH / 2 - (chipCount.ascent() + chipCount.descent()) / 2, chipCount)
       }
     }
 
