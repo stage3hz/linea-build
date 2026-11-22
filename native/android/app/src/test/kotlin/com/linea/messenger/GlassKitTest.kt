@@ -107,10 +107,15 @@ class GlassKitTest {
     assertNotNull(pill)
     assertTrue(pill!!.contentDescription.toString().startsWith("Оформление: "))
     val proceed = views.filterIsInstance<TextView>().first { it.text.toString() == "Войти" }
-    // «Войти» (the switch) is on the card: a parent of it draws glass.
-    var above = proceed.parent as? View
-    var onGlass = false
-    while (above != null) { if (above.background is com.linea.messenger.design.GlassDrawable) onGlass = true; above = above.parent as? View }
+    // «Войти» (the switch) is on the card: it stands inside the glass plate drawn under the card's parts
+    // (auth/AuthScreen.kt puts the parts in place itself, nothing scrolls).
+    fun box(view: View): android.graphics.Rect {
+      val at = IntArray(2)
+      view.getLocationInWindow(at)
+      return android.graphics.Rect(at[0], at[1], at[0] + view.width, at[1] + view.height)
+    }
+    val word = box(proceed)
+    val onGlass = views.any { it !== pill && it.background is com.linea.messenger.design.GlassDrawable && box(it).contains(word) }
     assertTrue(onGlass)
   }
 }

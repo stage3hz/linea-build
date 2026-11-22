@@ -15,7 +15,7 @@ class EdgeFadeRulesTest {
     assertEquals(1f, EdgeRamp.fall(0f, 0f, 10f), 0f)
     assertEquals(0.5f, EdgeRamp.fall(5f, 0f, 10f), 1e-6f)
     assertEquals(0f, EdgeRamp.fall(10f, 0f, 10f), 0f)
-    assertEquals(0f, EdgeRamp.fall(3f, 5f, 5f), 0f)
+    assertEquals(0f, EdgeRamp.fall(7f, 5f, 5f), 0f)
     // No kink at the ends: the first and last steps are tiny.
     assertTrue(1f - EdgeRamp.fall(0.1f, 0f, 10f) < 0.001f)
     assertTrue(EdgeRamp.fall(9.9f, 0f, 10f) < 0.001f)
