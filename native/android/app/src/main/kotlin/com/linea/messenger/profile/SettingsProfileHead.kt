@@ -34,7 +34,7 @@ class SettingsProfileChrome(private val context: Context) {
   private val banner = ProfileBannerView(context)
   private val light = ProfileLightView(context)
   private val effect = ProfileEffectView(context)
-  private val edit = context.words("Изменить", 16f, Theme.text, 600)
+  private val edit = context.words("Изм.", 16f, Theme.text, 600)
   private var page: ViewGroup? = null
   private var scroll: ScrollView? = null
   private var messenger: Messenger? = null

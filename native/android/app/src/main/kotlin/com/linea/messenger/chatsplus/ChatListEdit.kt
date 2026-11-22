@@ -139,6 +139,8 @@ class ChatListEdit(private val context: Context, private val messenger: Messenge
   private fun refresh() {
     buttonWords.text = if (selecting) "Готово" else "Выбрать"
     button.contentDescription = buttonWords.text
+    // Owner: no «Выбрать» on the main screen; choosing starts from a chat's long-press menu, only «Готово» shows.
+    button.visibility = if (selecting) android.view.View.VISIBLE else android.view.View.GONE
     val marked = count
     val archive = actions?.showingArchive ?: false
     readButton.text = if (marked > 0) "Прочитать" else "Прочитать все"

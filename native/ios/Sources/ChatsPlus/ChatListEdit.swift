@@ -130,6 +130,8 @@ final class ChatListEdit: NSObject {
     private func refresh() {
         buttonWords.text = selecting ? "Готово" : "Выбрать"
         button.accessibilityLabel = buttonWords.text
+        // Owner: no «Выбрать» on the main screen; choosing starts from a chat's long-press menu, only «Готово» shows.
+        button.isHidden = !selecting
         let marked = count
         let archive = actions?.showingArchive ?? false
         readButton.setTitle(marked > 0 ? "Прочитать" : "Прочитать все", for: .normal)

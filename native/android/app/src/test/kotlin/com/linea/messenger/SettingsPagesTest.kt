@@ -204,9 +204,9 @@ class SettingsPagesTest {
   @Test fun theProfileIsSentOnlyWhenSaved() {
     launch()
     press("Мой профиль")
-    // Profile: «Мой профиль» is the read-only profile; «Изменить» there opens the editor.
+    // Profile: «Мой профиль» is the read-only profile; «Изм.» there opens the editor.
     assertEquals("OwnProfileScreen", topName)
-    press("Изменить")
+    press("Изм.")
     assertEquals("ProfileEditScreen", topName)
     has("Мой профиль", "Имя пользователя", "@maria", "День рождения", "2 мар 1999", "Пол", "Женский", "ПЕРСОНАЛЬНЫЙ ЦВЕТ", "Сохранить",
       "Несколько слов о себе — например, чем занимаешься. Видно в профиле.", "Этим цветом тебя видят в чатах у других, пока нет фото.")
