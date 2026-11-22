@@ -59,10 +59,23 @@ class AvatarFaceView(context: Context) : View(context) {
   override fun onAttachedToWindow() { super.onAttachedToWindow(); AvatarMedia.ready.watch(arrived) }
   override fun onDetachedFromWindow() { AvatarMedia.ready.unwatch(arrived); (moving as? Animatable)?.stop(); super.onDetachedFromWindow() }
 
+  // The picture's shader and the orb's gradient, kept while the picture and the size stay (a parent redrawing
+  // every frame — a turning ring in a software-drawn window — then makes nothing new).
+  private var faceShader: Shader? = null
+  private var faceShaderBitmap: Bitmap? = null
+  private var faceShaderW = 0f; private var faceShaderH = 0f
+  private var orbShader: Shader? = null
+  private var orbShaderW = 0f; private var orbShaderH = 0f
+  private var orbShaderColors: IntArray? = null
+
   private fun drawBitmap(canvas: Canvas, face: Bitmap, w: Float, h: Float) {
-    val scale = maxOf(w / face.width, h / face.height)
-    matrix.setScale(scale, scale); matrix.postTranslate((w - face.width * scale) / 2, (h - face.height * scale) / 2)
-    picture.shader = BitmapShader(face, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(matrix) }
+    if (faceShader == null || faceShaderBitmap !== face || faceShaderW != w || faceShaderH != h) {
+      val scale = maxOf(w / face.width, h / face.height)
+      matrix.setScale(scale, scale); matrix.postTranslate((w - face.width * scale) / 2, (h - face.height * scale) / 2)
+      faceShader = BitmapShader(face, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(matrix) }
+      faceShaderBitmap = face; faceShaderW = w; faceShaderH = h
+    }
+    picture.shader = faceShader
     canvas.drawCircle(w / 2, h / 2, minOf(w, h) / 2, picture)
     picture.shader = null
   }
@@ -94,7 +107,11 @@ class AvatarFaceView(context: Context) : View(context) {
         }
       }
     }
-    orb.shader = LinearGradient(w * 0.9f, h, w * 0.1f, 0f, colors, null, Shader.TileMode.CLAMP)
+    if (orbShader == null || orbShaderW != w || orbShaderH != h || orbShaderColors !== colors) {
+      orbShader = LinearGradient(w * 0.9f, h, w * 0.1f, 0f, colors, null, Shader.TileMode.CLAMP)
+      orbShaderW = w; orbShaderH = h; orbShaderColors = colors
+    }
+    orb.shader = orbShader
     canvas.drawCircle(w / 2, h / 2, minOf(w, h) / 2, orb)
     orb.shader = null
     letters.textSize = maxOf(8f * resources.displayMetrics.density, w * 0.36f)
@@ -122,6 +139,11 @@ class DecoratedAvatarView(context: Context) : ViewGroup(context) {
   private val holePaint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val born = SystemClock.uptimeMillis()
   private var ringColors: List<String>? = null
+  // The turning ring's gradient, made once per size and colours (each frame only turns the canvas under it).
+  private var ringShader: Shader? = null
+  private var ringShaderFor = 0f
+  private var ringShaderColors: List<String>? = null
+  private val clock = DecorTicker.Link(this)
   private var cakeShown = false
 
   var person = Person("", "", "", "", "", 0x5E7BFF, "")
@@ -191,8 +213,10 @@ class DecoratedAvatarView(context: Context) : ViewGroup(context) {
     cake.visibility = if (cakeShown) VISIBLE else GONE
     cake.bringToFront()
     face.show(person, base, animated)
-    codeFrame?.live = live
-    art?.live = live
+    // `live` of the frame and the art also follows the app's animations by itself (DecorTicker).
+    codeFrame?.live = animated
+    art?.live = animated
+    clock.want(animated && ringColors != null)
     refreshVideo()
     requestLayout()
     invalidate()
@@ -206,8 +230,10 @@ class DecoratedAvatarView(context: Context) : ViewGroup(context) {
     video.visibility = if (file == null) GONE else VISIBLE
   }
 
-  override fun onAttachedToWindow() { super.onAttachedToWindow(); AvatarMedia.ready.watch(arrived) }
-  override fun onDetachedFromWindow() { AvatarMedia.ready.unwatch(arrived); super.onDetachedFromWindow() }
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); AvatarMedia.ready.watch(arrived); clock.attached(true) }
+  override fun onDetachedFromWindow() { AvatarMedia.ready.unwatch(arrived); clock.attached(false); super.onDetachedFromWindow() }
+
+  override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); clock.shown(isVisible) }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     setMeasuredDimension(getDefaultSize(Math.round(54 * d), widthMeasureSpec), getDefaultSize(Math.round(54 * d), heightMeasureSpec))
@@ -261,17 +287,20 @@ class DecoratedAvatarView(context: Context) : ViewGroup(context) {
     val colors = ringColors ?: return
     if (ringOuter <= 0f) return
     val cx = width / 2f; val cy = height / 2f
-    val argb = colors.map { lookColor(it) }.toIntArray()
-    // A square gradient 1.5× the ring, turning once in 5.2 s, seen through the round window (Decor.tsx `Spin`).
-    val spinning = live
+    // A square gradient 1.5× the ring, turning once in 5.2 s, seen through the round window (Decor.tsx `Spin`): the
+    // gradient is made once; turning the canvas under the round ring turns only the gradient.
+    if (ringShader == null || ringShaderFor != ringOuter || ringShaderColors != colors) {
+      val big = ringOuter * 1.5f
+      ringShader = LinearGradient(cx - big / 2, cy - big / 2, cx + big / 2, cy + big / 2, IntArray(colors.size) { lookColor(colors[it]) }, null, Shader.TileMode.CLAMP)
+      ringShaderFor = ringOuter; ringShaderColors = colors
+    }
+    val spinning = animated && DecorTicker.allowed
     val angle = if (spinning) ((SystemClock.uptimeMillis() - born) % 5200L) / 5200f * 360f else 0f
-    val big = ringOuter * 1.5f
-    val shader = LinearGradient(cx - big / 2, cy - big / 2, cx + big / 2, cy + big / 2, argb, null, Shader.TileMode.CLAMP)
-    shader.setLocalMatrix(Matrix().apply { setRotate(angle, cx, cy) })
-    ringPaint.shader = shader
+    ringPaint.shader = ringShader
+    canvas.save(); canvas.rotate(angle, cx, cy)
     canvas.drawCircle(cx, cy, ringOuter / 2, ringPaint)
+    canvas.restore()
     holePaint.color = ringBackground
     canvas.drawCircle(cx, cy, holeSide / 2, holePaint)
-    if (spinning && isShown) postInvalidateOnAnimation()
   }
 }

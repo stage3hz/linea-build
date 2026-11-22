@@ -40,11 +40,28 @@ object PlatinaMetal {
   }
 }
 
-/** The small platinum diamond (SF's diamond.fill, as a rhombus). */
+private val gemPath = Path()
+
+/** The small platinum diamond (SF's diamond.fill, as a rhombus). Main thread only (one path, reused). */
 fun drawGem(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
-  val path = Path()
+  val path = gemPath
+  path.rewind()
   path.moveTo(cx, cy - size / 2); path.lineTo(cx + size * 0.42f, cy); path.lineTo(cx, cy + size / 2); path.lineTo(cx - size * 0.42f, cy); path.close()
   canvas.drawPath(path, paint)
+}
+
+/** A metal gradient kept while its box and colours stay (the views' shaders are made once, not on every frame). */
+internal class MetalShader {
+  var shader: Shader? = null
+  var w = -1f; var h = -1f
+  var colors: List<String>? = null
+
+  inline fun get(w: Float, h: Float, colors: List<String>, make: () -> Shader): Shader {
+    shader?.let { if (this.w == w && this.h == h && this.colors === colors) return it }
+    val made = make()
+    shader = made; this.w = w; this.h = h; this.colors = colors
+    return made
+  }
 }
 
 /** A name, in platinum when the person has Platina (PlatinaMark.tsx `PlatinaName`); otherwise ordinary text in
@@ -56,6 +73,9 @@ class PlatinaNameView(context: Context) : TextView(context) {
   private var animated = true
   private val born = SystemClock.uptimeMillis()
   private val shift = Matrix()
+  private val metal = MetalShader()
+  private val clock = DecorTicker.Link(this)
+  private var lastShift = Float.NaN
   var onDark = false
     set(value) { field = value; refresh() }
   var plainColor: Int = Theme.text
@@ -75,26 +95,31 @@ class PlatinaNameView(context: Context) : TextView(context) {
     refresh()
   }
 
-  private val moving: Boolean get() = platina && animated && AvatarMotion.enabled(context)
+  private val moving: Boolean get() = platina && animated && DecorTicker.allowed
 
   private fun refresh() {
     setTextColor(if (platina) 0xFFFFFFFF.toInt() else plainColor)
     paint.shader = null
+    clock.want(platina && animated)
     requestLayout()
     invalidate()
   }
 
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); clock.attached(true) }
+  override fun onDetachedFromWindow() { clock.attached(false); super.onDetachedFromWindow() }
+  override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); clock.shown(isVisible) }
+
   override fun onDraw(canvas: Canvas) {
     if (platina && width > 0) {
       val colors = if (onDark || Theme.dark) PlatinaMetal.name else PlatinaMetal.nameLight
-      val wide = width * 2.5f
-      val shader = LinearGradient(0f, height * 0.3f, wide, height * 0.7f, colors.map { lookColor(it) }.toIntArray(), null, Shader.TileMode.CLAMP)
-      shift.setTranslate(if (moving) PlatinaMetal.sheen((SystemClock.uptimeMillis() - born) / 1000.0, 3.6, width.toFloat()) else 0f, 0f)
-      shader.setLocalMatrix(shift)
+      val w = width.toFloat(); val h = height.toFloat()
+      val shader = metal.get(w, h, colors) { LinearGradient(0f, h * 0.3f, w * 2.5f, h * 0.7f, IntArray(colors.size) { lookColor(colors[it]) }, null, Shader.TileMode.CLAMP) }
+      val offset = if (moving) PlatinaMetal.sheen((SystemClock.uptimeMillis() - born) / 1000.0, 3.6, w) else 0f
+      // The letters are the window: the metal slides under them (its matrix changes only when the light moved).
+      if (offset != lastShift || paint.shader !== shader) { shift.setTranslate(offset, 0f); shader.setLocalMatrix(shift); lastShift = offset }
       paint.shader = shader
     } else paint.shader = null
     super.onDraw(canvas)
-    if (moving && isShown) postInvalidateOnAnimation()
   }
 }
 
@@ -111,7 +136,8 @@ class PlatinaSealView(context: Context, private val small: Boolean = false) : Vi
     textSize = (if (small) 8.5f else 10.5f) * resources.displayMetrics.density
     letterSpacing = if (small) 0.12f else 0.13f
   }
-  private val shift = Matrix()
+  private val shader = MetalShader()
+  private val clock = DecorTicker.Link(this)
   /** Instead of the showcase. */
   var onPress: (() -> Unit)? = null
   /** Whose seal it is (the showcase says «У … — Platina»). */
@@ -140,18 +166,24 @@ class PlatinaSealView(context: Context, private val small: Boolean = false) : Vi
     scaleX = if (pressed) 0.96f else 1f; scaleY = scaleX
   }
 
+  init { clock.want(true) }
+
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); clock.attached(true) }
+  override fun onDetachedFromWindow() { clock.attached(false); super.onDetachedFromWindow() }
+  override fun onVisibilityAggregated(isVisible: Boolean) { super.onVisibilityAggregated(isVisible); clock.shown(isVisible) }
+
   override fun onDraw(canvas: Canvas) {
     val w = width.toFloat(); val h = height.toFloat()
-    val moving = AvatarMotion.enabled(context)
-    val shader = LinearGradient(0f, h * 0.3f, w * 2.5f, h * 0.7f, PlatinaMetal.platinum.map { lookColor(it) }.toIntArray(), null, Shader.TileMode.CLAMP)
-    shift.setTranslate(if (moving) PlatinaMetal.sheen((SystemClock.uptimeMillis() - born) / 1000.0, 4.2, w) else 0f, 0f)
-    shader.setLocalMatrix(shift)
-    metal.shader = shader
+    val moving = DecorTicker.allowed
+    metal.shader = shader.get(w, h, PlatinaMetal.platinum) { LinearGradient(0f, h * 0.3f, w * 2.5f, h * 0.7f, PlatinaMetal.argb(PlatinaMetal.platinum).toIntArray(), null, Shader.TileMode.CLAMP) }
+    val offset = if (moving) PlatinaMetal.sheen((SystemClock.uptimeMillis() - born) / 1000.0, 4.2, w) else 0f
     val r = (if (small) 6f else 7f) * d
-    canvas.drawRoundRect(0f, 0f, w, h, r, r, metal)
+    // The metal slides under the still plate: the canvas moves by the offset and the plate is drawn back where it is.
+    canvas.translate(offset, 0f)
+    canvas.drawRoundRect(-offset, 0f, w - offset, h, r, r, metal)
+    canvas.translate(-offset, 0f)
     drawGem(canvas, left + icon / 2, h / 2, icon * 0.9f, ink)
     canvas.drawText("PLATINA", left + icon + gap, h / 2 - (word.ascent() + word.descent()) / 2, word)
-    if (moving && isShown) postInvalidateOnAnimation()
   }
 }
 
@@ -159,6 +191,7 @@ class PlatinaSealView(context: Context, private val small: Boolean = false) : Vi
 class PlatinaGemView(context: Context, val size: Float = 13f) : View(context) {
   private val d = resources.displayMetrics.density
   private val metal = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val shader = MetalShader()
   private val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF1A1F2A.toInt() }
 
   init { contentDescription = "Platina" }
@@ -170,7 +203,7 @@ class PlatinaGemView(context: Context, val size: Float = 13f) : View(context) {
 
   override fun onDraw(canvas: Canvas) {
     val w = width.toFloat(); val h = height.toFloat()
-    metal.shader = LinearGradient(0f, 0f, w, h, PlatinaMetal.platinum.map { lookColor(it) }.toIntArray(), null, Shader.TileMode.CLAMP)
+    metal.shader = shader.get(w, h, PlatinaMetal.platinum) { LinearGradient(0f, 0f, w, h, PlatinaMetal.argb(PlatinaMetal.platinum).toIntArray(), null, Shader.TileMode.CLAMP) }
     canvas.drawCircle(w / 2, h / 2, minOf(w, h) / 2, metal)
     drawGem(canvas, w / 2, h / 2, size * 0.55f * d * 1.2f, ink)
   }

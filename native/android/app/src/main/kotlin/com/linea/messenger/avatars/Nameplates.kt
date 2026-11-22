@@ -202,6 +202,9 @@ class NameplateView(context: Context) : View(context) {
   private val fade = Paint(Paint.ANTI_ALIAS_FLAG)
   private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0x29FFFFFF }
   private val matrix = Matrix()
+  // The art's shader and the fade, kept while the plate and the size stay (rows redraw often while scrolling).
+  private var madeFor: Bitmap? = null
+  private var madeW = 0f; private var madeH = 0f
 
   init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
@@ -217,15 +220,16 @@ class NameplateView(context: Context) : View(context) {
     val image = art ?: return
     val w = width.toFloat(); val h = height.toFloat()
     if (w <= 0 || h <= 0) return
-    val scale = maxOf(w / image.width, h / image.height)
-    matrix.setScale(scale, scale)
-    matrix.postTranslate(w - image.width * scale, (h - image.height * scale) / 2)
-    picture.shader = BitmapShader(image, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(matrix) }
-    canvas.drawRoundRect(0f, 0f, w, h, radius, radius, picture)
-    if (!compact) {
+    if (madeFor !== image || madeW != w || madeH != h) {
+      val scale = maxOf(w / image.width, h / image.height)
+      matrix.setScale(scale, scale)
+      matrix.postTranslate(w - image.width * scale, (h - image.height * scale) / 2)
+      picture.shader = BitmapShader(image, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(matrix) }
       fade.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(0x9E000000.toInt(), 0x52000000, 0x0D000000), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP)
-      canvas.drawRoundRect(0f, 0f, w, h, radius, radius, fade)
+      madeFor = image; madeW = w; madeH = h
     }
+    canvas.drawRoundRect(0f, 0f, w, h, radius, radius, picture)
+    if (!compact) canvas.drawRoundRect(0f, 0f, w, h, radius, radius, fade)
     border.strokeWidth = maxOf(1f, resources.displayMetrics.density / 3f)
     canvas.drawRoundRect(0.5f, 0.5f, w - 0.5f, h - 0.5f, radius, radius, border)
   }

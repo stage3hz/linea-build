@@ -3,6 +3,8 @@ package com.linea.messenger.avatars
 import android.content.Context
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.Choreographer
+import android.view.View
 import com.linea.messenger.offline.NetPool
 import kotlin.math.cos
 import kotlin.math.floor
@@ -44,6 +46,75 @@ object AvatarMotion {
   val fastNet: Boolean get() = try { NetPool.tier == "fast" } catch (_: Throwable) { true }
 }
 
+/** The one clock of every moving decoration (code frames, art, turning rings, Platina's metal, the profile's
+ *  ambience): a single Choreographer callback that redraws the views now on screen, at most 60 times a second (a
+ *  90/120 Hz phone does not draw decorations twice as often), and stops by itself when nothing moves, when the views
+ *  leave the window or hide, and while the app's animations are off («Энергосбережение и анимации», the system's
+ *  battery saver or «Удалить анимации»). The views never ask for their own next frame from onDraw. */
+object DecorTicker : Choreographer.FrameCallback {
+  /** At least this long between two redraws (ns): a little under 1/60 s, so a 60 Hz screen keeps every frame. */
+  private const val GAP = 15_000_000L
+  private val views = ArrayList<View>()
+  private var posted = false
+  private var last = 0L
+  private var frames = 0
+  private var watching = false
+  private val motionChanged: (Unit) -> Unit = { refresh() }
+
+  /** The app's animations are on (kept here, read again when they change and about once a second while ticking). */
+  var allowed = true
+    private set
+
+  /** How many views are moving now (tests). */
+  val count: Int get() = views.size
+
+  fun start(view: View) {
+    if (!watching) { watching = true; try { com.linea.messenger.effects.Motion.changed.watch(motionChanged) } catch (_: Throwable) {} }
+    AvatarMotion.attach(view.context)
+    if (!views.contains(view)) views.add(view)
+    refresh()
+  }
+
+  fun stop(view: View) { views.remove(view) }
+
+  /** Reads the animations' switch again; when it flips, the moving views redraw once (still or moving). */
+  fun refresh() {
+    val now = AvatarMotion.enabled()
+    if (now != allowed) { allowed = now; for (index in views.indices.reversed()) views[index].invalidate() }
+    schedule()
+  }
+
+  private fun schedule() {
+    if (posted || !allowed || views.isEmpty()) return
+    posted = true
+    Choreographer.getInstance().postFrameCallback(this)
+  }
+
+  override fun doFrame(frameTimeNanos: Long) {
+    posted = false
+    if (views.isEmpty()) return
+    frames += 1
+    if (frames % 60 == 0) { refresh(); if (!allowed) return }
+    if (frameTimeNanos - last >= GAP) {
+      last = frameTimeNanos
+      for (index in views.indices.reversed()) views[index].invalidate()
+    }
+    schedule()
+  }
+
+  /** A view's place on the clock: it ticks while it wants to, is in a window and is shown. */
+  class Link(private val view: View) {
+    private var wanted = false
+    private var attached = false
+    private var shown = true
+
+    fun want(value: Boolean) { wanted = value; apply() }
+    fun attached(value: Boolean) { attached = value; if (value) shown = view.isShown; apply() }
+    fun shown(value: Boolean) { shown = value; apply() }
+    private fun apply() { if (wanted && attached && shown) start(view) else stop(view) }
+  }
+}
+
 /** The reference's deterministic pseudo-random: the same frame looks the same on every phone. */
 fun decorRand(seed: Double): Double {
   val x = sin(seed * 9301 + 49297) * 233280
@@ -63,6 +134,15 @@ object DecorEase {
     val t = time - delay
     if (t < 0) return ease(0.0)
     return ease((t % duration) / duration)
+  }
+
+  /** The same loop not eased (0…1): for the frames' own easing applied after, without a function value — what the
+   *  moving decorations use on every frame (no boxing of the numbers through a lambda). */
+  fun phase(time: Double, duration: Double, delay: Double = 0.0): Double {
+    if (duration <= 0) return 0.0
+    val t = time - delay
+    if (t < 0) return 0.0
+    return (t % duration) / duration
   }
 }
 

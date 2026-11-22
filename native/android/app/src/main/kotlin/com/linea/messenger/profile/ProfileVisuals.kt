@@ -20,6 +20,7 @@ import android.widget.FrameLayout
 import com.linea.messenger.avatars.AvatarCatalog
 import com.linea.messenger.avatars.AvatarMedia
 import com.linea.messenger.avatars.AvatarMotion
+import com.linea.messenger.avatars.DecorTicker
 import com.linea.messenger.avatars.LiveCanvasView
 import com.linea.messenger.avatars.LoopVideoView
 import com.linea.messenger.avatars.PersonLook
@@ -72,11 +73,18 @@ class ProfileAmbientView(context: Context) : LiveCanvasView(context) {
   private var tone = "deep"
   private var still = false
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  // Made once per palette and size, not on every frame: each colour's soft patch at radius 1 about (0, 0) (scaled,
+  // moved and faded by the paint where it is drawn), and the patches' plan.
+  private var glows: Array<Shader>? = null
+  private var glowsFor = ""
+  private var plan: Array<FloatArray>? = null
+  private var planW = 0f; private var planH = 0f
+  private val points = FloatArray(5)
 
   fun show(tone: String, still: Boolean) {
     this.tone = if (palettes.containsKey(tone)) tone else "deep"
     this.still = still
-    live = !still && AvatarMotion.enabled(context)
+    live = !still
     invalidate()
   }
 
@@ -85,35 +93,48 @@ class ProfileAmbientView(context: Context) : LiveCanvasView(context) {
     canvas.drawColor(0xFF000000.toInt() or palette.base)
     val w = width; val h = height
     if (w <= 0 || h <= 0) return
-    val t = if (live) seconds else 0.0
-    // x, y, size, offset, drift, strength
-    val plan = listOf(
-      floatArrayOf(w * 0.25f, h * 0.35f, w * 1.3f, 0f, 50f, 0.55f), floatArrayOf(w * 0.85f, h * 0.55f, w * 1.2f, 1.7f, 45f, 0.45f),
-      floatArrayOf(w * 0.5f, h * 0.85f, w * 1.3f, 3.1f, 40f, 0.5f), floatArrayOf(w * 0.55f, h * 0.3f, w * 0.8f, 4.2f, 55f, 0.3f),
-    )
+    val moving = live
+    val t = if (moving) seconds else 0.0
+    if (glowsFor != tone || glows == null) {
+      glows = Array(palette.colors.size) { val c = palette.colors[it] and 0xFFFFFF; RadialGradient(0f, 0f, 1f, intArrayOf(c or (0xFF shl 24), c), null, Shader.TileMode.CLAMP) }
+      glowsFor = tone
+    }
+    if (plan == null || planW != w || planH != h) {
+      // x, y, size, offset, drift, strength
+      plan = arrayOf(
+        floatArrayOf(w * 0.25f, h * 0.35f, w * 1.3f, 0f, 50f, 0.55f), floatArrayOf(w * 0.85f, h * 0.55f, w * 1.2f, 1.7f, 45f, 0.45f),
+        floatArrayOf(w * 0.5f, h * 0.85f, w * 1.3f, 3.1f, 40f, 0.5f), floatArrayOf(w * 0.55f, h * 0.3f, w * 0.8f, 4.2f, 55f, 0.3f),
+      )
+      planW = w; planH = h
+    }
+    val shaders = glows ?: return
     val d = resources.displayMetrics.density
-    for (item in plan) {
+    for (item in plan ?: return) {
       val offset = item[3].toDouble(); val drift = item[4] * d; val strength = item[5]
-      fun sway(amount: Float, leg: Double): Float {
-        if (!live) return 0f
-        val k = (t % (leg * 4)) / leg
-        val seg = k.toInt(); val f = k - seg
-        val e = (-(cos(Math.PI * f) - 1) / 2).toFloat()
-        val points = floatArrayOf(0f, amount, -amount, amount, 0f)
-        return points[seg] + (points[seg + 1] - points[seg]) * e
-      }
-      val x = item[0] + sway(drift, 9 + offset * 0.9); val y = item[1] + sway(-drift * 0.7f, 11 + offset * 0.7)
+      val x = item[0] + sway(moving, t, drift, 9 + offset * 0.9); val y = item[1] + sway(moving, t, -drift * 0.7f, 11 + offset * 0.7)
       val radius = item[2] / 2
-      val phase = offset + (if (live) t / 6.0 else 0.0)
-      palette.colors.forEachIndexed { index, hex ->
+      val phase = offset + (if (moving) t / 6.0 else 0.0)
+      for (index in palette.colors.indices) {
         val opacity = (if (index == palette.accent) strength * 0.35f else if (index == palette.green) strength * 0.7f else strength) * layerOpacity(phase, index, palette.colors.size).toFloat()
-        if (opacity <= 0.005f) return@forEachIndexed
-        val color = 0xFF000000.toInt() or hex
-        paint.shader = RadialGradient(x, y, radius, intArrayOf((color and 0xFFFFFF) or (Math.round(opacity * 255) shl 24), color and 0xFFFFFF), null, Shader.TileMode.CLAMP)
-        canvas.drawCircle(x, y, radius, paint)
+        if (opacity <= 0.005f) continue
+        paint.shader = shaders[index]
+        paint.alpha = Math.round(opacity * 255)
+        canvas.save(); canvas.translate(x, y); canvas.scale(radius, radius)
+        canvas.drawCircle(0f, 0f, 1f, paint)
+        canvas.restore()
       }
     }
     paint.shader = null
+    paint.alpha = 255
+  }
+
+  private fun sway(moving: Boolean, t: Double, amount: Float, leg: Double): Float {
+    if (!moving) return 0f
+    val k = (t % (leg * 4)) / leg
+    val seg = k.toInt(); val f = k - seg
+    val e = (-(cos(Math.PI * f) - 1) / 2).toFloat()
+    points[0] = 0f; points[1] = amount; points[2] = -amount; points[3] = amount; points[4] = 0f
+    return points[seg] + (points[seg + 1] - points[seg]) * e
   }
 }
 
@@ -265,27 +286,38 @@ class ProfileEffectView(context: Context) : LiveCanvasView(context) {
   private var preview = false
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val path = Path()
+  private val petalBox = RectF()
+  private val petalRadii = FloatArray(8)
+  // Each colour's soft glow at radius 1 about (0, 0), made once per effect (scaled and faded where it is drawn).
+  private var glows: Array<Shader>? = null
+  private var glowsFor = ""
 
   init { isClickable = false }
 
   fun show(effect: String, preview: Boolean = false) {
     this.effect = effect
     this.preview = preview
-    live = AvatarMotion.enabled(context) && kinds.containsKey(effect)
+    live = kinds.containsKey(effect)
     invalidate()
   }
 
   override fun paint(canvas: Canvas, width: Float, height: Float) {
     val kind = kinds[effect] ?: return
-    val enabled = AvatarMotion.enabled(context)
+    val enabled = DecorTicker.allowed
     if (!enabled && !preview) return
+    if (glowsFor != effect || glows == null) {
+      glows = Array(kind.colors.size) { val c = kind.colors[it] and 0xFFFFFF; RadialGradient(0f, 0f, 1f, intArrayOf(c or (0xFF shl 24), c), null, Shader.TileMode.CLAMP) }
+      glowsFor = effect
+    }
+    val shaders = glows ?: return
     val d = resources.displayMetrics.density
     for (index in 0 until kind.count) {
       fun r(n: Double) = decorRand(index * 7.0 + n)
       val size = (kind.size.first + r(1.0).toFloat() * (kind.size.second - kind.size.first)) * d
       val x = r(2.0).toFloat() * (width - size); val sway = (8 + r(3.0) * 18).toFloat() * d
       val duration = (kind.duration.first + r(4.0) * (kind.duration.second - kind.duration.first)) / 1000
-      val color = kind.colors[minOf(kind.colors.size - 1, (r(5.0) * kind.colors.size).toInt())]
+      val colorIndex = minOf(kind.colors.size - 1, (r(5.0) * kind.colors.size).toInt())
+      val color = kind.colors[colorIndex]
       val phase = r(6.0)
       val tall = if (kind.shape == "petal") size * 0.7f else size
       // Every particle is already on its way, each at its own point of the loop: full at once.
@@ -298,15 +330,21 @@ class ProfileEffectView(context: Context) : LiveCanvasView(context) {
       if (kind.shape == "petal") canvas.rotate((p * 360).toFloat(), size / 2, tall / 2)
       // A soft glow of its own colour.
       paint.style = Paint.Style.FILL
-      paint.shader = RadialGradient(size / 2, tall / 2, size, intArrayOf((color and 0xFFFFFF) or ((alpha * (if (kind.shape == "dot") 0.35 else 0.5)).toInt() shl 24), color and 0xFFFFFF), null, Shader.TileMode.CLAMP)
-      canvas.drawCircle(size / 2, tall / 2, size, paint)
+      paint.shader = shaders[colorIndex]
+      paint.alpha = (alpha * (if (kind.shape == "dot") 0.35 else 0.5)).toInt()
+      canvas.save(); canvas.translate(size / 2, tall / 2); canvas.scale(size, size)
+      canvas.drawCircle(0f, 0f, 1f, paint)
+      canvas.restore()
       paint.shader = null
       paint.color = (color and 0xFFFFFF) or (alpha shl 24)
       when (kind.shape) {
         "ring" -> { paint.style = Paint.Style.STROKE; paint.strokeWidth = 1.2f * d; canvas.drawCircle(size / 2, size / 2, size / 2, paint) }
         "petal" -> {
           val big = minOf(size, tall) / 2
-          path.reset(); path.addRoundRect(RectF(0f, 0f, size, tall), floatArrayOf(big, big, 2 * d, 2 * d, big, big, 2 * d, 2 * d), Path.Direction.CW)
+          petalBox.set(0f, 0f, size, tall)
+          petalRadii[0] = big; petalRadii[1] = big; petalRadii[2] = 2 * d; petalRadii[3] = 2 * d
+          petalRadii[4] = big; petalRadii[5] = big; petalRadii[6] = 2 * d; petalRadii[7] = 2 * d
+          path.reset(); path.addRoundRect(petalBox, petalRadii, Path.Direction.CW)
           canvas.drawPath(path, paint)
         }
         "star" -> { canvas.rotate(45f, size / 2, tall / 2); canvas.drawRoundRect(0f, 0f, size, tall, 1.5f * d, 1.5f * d, paint) }
