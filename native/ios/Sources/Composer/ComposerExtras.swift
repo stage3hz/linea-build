@@ -26,6 +26,8 @@ final class ComposerExtras: NSObject {
     var onSay: ((String) -> Void)?
 
     private let emojiButton = UIButton(type: .system)
+    /// Record: the emoji button fades away with the field's text while a voice take or its preview is shown.
+    var emojiView: UIView? { emojiButton }
     private var panel: EmojiPanel?
     private var keyboardHeight: CGFloat = 0
     private var keyboardShown = false

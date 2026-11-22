@@ -121,24 +121,24 @@ class MediaRulesTest {
   }
 
   @Test fun theRecordButtonsGesture() {
-    // The reference's numbers (mobile/src/videonote/recordGesture.ts).
+    // The owner's spec: hold 0.19 s; 150 / 110 dp while holding, 100 / 60 dp or 400 dp/s on release.
     assertEquals(listOf(190L, 150f, 110f, 100f, 60f, 400f), listOf(RecordGesture.holdMs, RecordGesture.cancelDistance, RecordGesture.lockDistance, RecordGesture.cancelOnRelease, RecordGesture.lockOnRelease, RecordGesture.flick))
-    // One axis at a time: the larger of left and up; right and down count as nothing.
+    // On release one axis decides: the larger of left and up; right and down count as nothing.
     assertEquals(Pair(-80f, 0f), RecordGesture.axis(-80f, -30f))
     assertEquals(Pair(0f, -90f), RecordGesture.axis(-80f, -90f))
     assertEquals(Pair(0f, 0f), RecordGesture.axis(50f, 70f))
-    // While holding.
-    assertNull(RecordGesture.move(-149f, 0f))
-    assertEquals("cancel", RecordGesture.move(-150f, 0f))
-    assertNull(RecordGesture.move(0f, -109f))
-    assertEquals("lock", RecordGesture.move(0f, -110f))
-    // On release: a shorter slide or a fast flick does the same; anything else sends.
-    assertEquals("send", RecordGesture.release(-99f, -59f, 0f, 0f))
-    assertEquals("cancel", RecordGesture.release(-100f, 0f, 0f, 0f))
+    // While holding: past the distance (both directions count at once).
+    assertNull(RecordGesture.move(-150f, 0f))
+    assertEquals("cancel", RecordGesture.move(-150.5f, 0f))
+    assertNull(RecordGesture.move(0f, -110f))
+    assertEquals("lock", RecordGesture.move(0f, -110.5f))
+    // On release: past the shorter distance, or a fast flick; anything else sends.
+    assertEquals("send", RecordGesture.release(-100f, -60f, 0f, 0f))
+    assertEquals("cancel", RecordGesture.release(-101f, 0f, 0f, 0f))
     assertEquals("cancel", RecordGesture.release(-10f, 0f, -401f, 0f))
-    assertEquals("lock", RecordGesture.release(0f, -60f, 0f, 0f))
+    assertEquals("lock", RecordGesture.release(0f, -61f, 0f, 0f))
     assertEquals("lock", RecordGesture.release(0f, -5f, 0f, -401f))
-    assertEquals("cancel", RecordGesture.release(-100f, -200f, 0f, 0f))
+    assertEquals("lock", RecordGesture.release(-100f, -200f, 0f, 0f))
     assertEquals("send", RecordGesture.release(300f, 300f, 900f, 900f))
   }
 

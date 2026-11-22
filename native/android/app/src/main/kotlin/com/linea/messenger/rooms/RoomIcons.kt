@@ -22,6 +22,8 @@ object RoomIcons {
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). `ink`: what the picture lies on (under a
    *  crossing line). An unknown name draws nothing. */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int, ink: Int = 0) {
+    // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     when (name) {
       "mic.fill", "mic.slash.fill", "xmark", "phone.fill" -> return CallIcons.draw(canvas, name, cx, cy, size, color, ink)
       "speaker.wave.2.fill" -> return CallIcons.draw(canvas, "speaker.fill", cx, cy, size, color, ink)

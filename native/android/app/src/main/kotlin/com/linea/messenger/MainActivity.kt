@@ -38,6 +38,14 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   private var said: android.app.Dialog? = null
   /** Calls: Back is the app's own while the call screen is open (it minimises the call). */
   private val callWatch: (Unit) -> Unit = { syncBack() }
+  /** Push: the app shows over the lock screen while a call is on the screen, and stops the moment it is left. */
+  private var overLock = false
+  private val overLockWatch: (Unit) -> Unit = {
+    val call = com.linea.messenger.calls.Calls.call
+    val onScreen = call != null && !call.minimized
+    if (onScreen) { overLock = true; com.linea.messenger.push.IncomingCall.overLock(this, true) }
+    else if (overLock) { overLock = false; com.linea.messenger.push.IncomingCall.overLock(this, false) }
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -54,6 +62,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     }
     stack.onDepthChange = { syncBack() }
     com.linea.messenger.calls.Calls.changed.watch(callWatch)
+    com.linea.messenger.calls.Calls.changed.watch(overLockWatch) // Push
     start()
     // Effects / Security: the snow, the trail, the rime, the palette's page; the code lock (effects/EffectsHost.kt, security/LockGate.kt).
     com.linea.messenger.effects.EffectsHost.attach(this)
@@ -64,6 +73,8 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
   override fun onStart() {
     super.onStart()
     front = true
+    com.linea.messenger.push.Push.front = true // Push: nothing is shown while the window is on the screen
+    com.linea.messenger.push.Push.cameBack(this) // Push: opening the app clears what is already on screen
     com.linea.messenger.settings.ThemeStore.cameBack() // Settings: the night theme may have come by itself
     messenger?.wake()
     com.linea.messenger.shell.UpdateGate.cameBack() // Shell: the update window comes back after five minutes away
@@ -73,6 +84,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
 
   override fun onStop() {
     front = false
+    com.linea.messenger.push.Push.front = false
     com.linea.messenger.shell.UpdateGate.wentAway() // Shell
     com.linea.messenger.security.LockGate.wentAway() // Security: «Сразу» locks now; the time away is kept
     com.linea.messenger.security.AccountNotices.front = false // Security
@@ -82,6 +94,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
 
   override fun onDestroy() {
     com.linea.messenger.calls.Calls.changed.unwatch(callWatch)
+    com.linea.messenger.calls.Calls.changed.unwatch(overLockWatch) // Push
     com.linea.messenger.security.LockGate.changed.unwatch(callWatch) // Security
     said?.dismiss()
     messenger?.close()
@@ -108,11 +121,14 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     super.onNewIntent(intent)
     com.linea.messenger.profile.BirthdayReminders.tapped(intent)
     com.linea.messenger.links.DeepLinks.open(this, intent) // Links: an invitation opened while the app runs
+    com.linea.messenger.push.IncomingCall.opened(this, intent) // Push: the ringing notification of a call
+    com.linea.messenger.push.Push.tapped(intent) // Push: a tapped notification opens its chat
   }
 
   /** Voice/Video: the system's answer about the microphone or the camera, asked at the moment of the first
    *  recording (voice/VoiceRecorder.kt, `Permits`). */
   override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    if (com.linea.messenger.push.Push.permissionResult(requestCode, grantResults)) return // Push: the notification permission
     if (!com.linea.messenger.voice.Permits.result(requestCode, grantResults)) super.onRequestPermissionsResult(requestCode, permissions, grantResults)
   }
 
@@ -122,6 +138,8 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     if (Demo.start(intent, this)) return
     com.linea.messenger.profile.BirthdayReminders.tapped(intent) // Profile: opened by a birthday reminder
     com.linea.messenger.links.DeepLinks.open(this, intent) // Links: opened by an invitation (it waits for the account)
+    com.linea.messenger.push.IncomingCall.opened(this, intent) // Push: opened by the ringing notification of a call
+    com.linea.messenger.push.Push.tapped(intent) // Push: opened by a tapped notification (it waits for the account)
     val token = Account.token ?: return showAuth()
     Account.cachedUser?.let { return open(token, it) }
     // Signed in by the previous app: the token is there, the profile is asked from the server once.
@@ -151,6 +169,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
       Account.token = token
       Account.cachedUser = user
       showShell(RootScreen(this, made) { target -> openChat(target, animated = true) })
+      com.linea.messenger.push.Push.start(this, made) // Push: the channels, the permission, this device's token (push/Push.kt)
     } catch (_: Exception) {
       // The storage did not open: nothing is replaced, nothing is deleted — the person is told.
       showWaiting("Не удалось открыть зашифрованное хранилище. Ключи и сообщения сохранены без изменений.\nКоснись, чтобы повторить.")
@@ -208,6 +227,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
    *  its storage and keys stay — and signing in is shown, with a few words why. */
   override fun closeAccount(notice: String) {
     com.linea.messenger.video.KeptMedia.wipe(this) // Media: films kept for watching without the network go with the account
+    com.linea.messenger.push.Push.forget() // Push
     messenger?.close()
     messenger = null
     showAuth()
@@ -240,6 +260,13 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     fresh.show("profile")
     val settings = fresh.settingsPage() ?: return
     for (name in pages) settings.page(name)?.let { stack.push(it, animated = false) }
+  }
+
+  /** Push: a tapped notification's chat, over the shell (whatever lay over it goes). */
+  fun openChatOver(target: ChatTarget) {
+    if (root == null) return
+    while (stack.depth > 1) stack.pop(animated = false)
+    openChat(target, animated = true)
   }
 
   override fun openChat(target: ChatTarget, animated: Boolean) {

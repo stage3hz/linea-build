@@ -29,12 +29,12 @@ class RealDataRulesTest {
     fun at(text: String?) = Messenger.listTime(text, now, moscow)
     assertEquals("09:05", at("2026-11-21T06:05:00.000Z"))
     assertEquals("00:00", at("2026-11-20T21:00:00Z"))            // midnight in Moscow is already today
-    assertEquals("Вчера", at("2026-11-20T20:59:59.999Z"))
-    assertEquals("Вчера", at("2026-11-19T21:00:00.000Z"))
-    assertEquals("Чт", at("2026-11-19T10:00:00.000Z"))
-    assertEquals("Вс", at("2026-11-15T10:00:00.000Z"))            // six days ago: still the weekday
-    assertEquals("14.11", at("2026-11-14T10:00:00.000Z"))         // a week ago: the date
-    assertEquals("03.01", at("2025-01-03T10:00:00+03:00"))
+    // theme.ts formatListTime: «вчера» in lower case, else the day and the short month (no weekdays).
+    assertEquals("вчера", at("2026-11-20T20:59:59.999Z"))
+    assertEquals("вчера", at("2026-11-19T21:00:00.000Z"))
+    assertTrue(at("2026-11-19T10:00:00.000Z").startsWith("19 нояб"))
+    assertTrue(at("2026-11-14T10:00:00.000Z").startsWith("14 нояб"))
+    assertTrue(at("2025-01-03T10:00:00+03:00").startsWith("3 янв"))
     assertEquals("", at(null))
     assertEquals("", at("yesterday"))
   }
@@ -45,7 +45,7 @@ class RealDataRulesTest {
     assertEquals("Вчера", at("2026-11-20T08:00:00Z"))
     assertEquals("12 ноября", at("2026-11-12T08:00:00Z"))
     assertEquals("1 января", at("2025-12-31T22:00:00Z"))          // already the new year in Moscow
-    assertEquals("3 марта 2025", at("2025-03-03T08:00:00Z"))
+    assertEquals("3 марта", at("2025-03-03T08:00:00Z"))         // theme.ts formatDay: no year
   }
 
   private fun message(id: Int, sender: String, text: String, at: String, client: String = "c$id") =
@@ -139,11 +139,11 @@ class RealDataRulesTest {
     assertEquals("АВ", row.initials)
     assertEquals(0xFF34C3A0.toInt(), row.avatarColor)
     assertTrue(row.orbA != 0 && row.orbB != 0)
-    // Not read yet: one tick. Their message: none. No message: an empty line.
+    // Not read yet: one tick. Their message: none. No message: «Напиши первое сообщение» (ChatListScreen.tsx nativeLine).
     assertEquals(1, Messenger.summary(chat, message(8, me, "Ещё", "2026-11-21T06:06:00.000Z"), me, now, moscow)!!.row["ticks"])
     assertEquals(0, Messenger.summary(chat, message(8, "peer", "Ок", "2026-11-21T06:06:00.000Z"), me, now, moscow)!!.row["ticks"])
     val silent = Messenger.summary(chat - "settings", null, me, now, moscow)!!.row
-    assertEquals(listOf("", "", false, false), listOf(silent["preview"], silent["time"], silent["muted"], silent["pinned"]))
+    assertEquals(listOf("Напиши первое сообщение", "", false, false), listOf(silent["preview"], silent["time"], silent["muted"], silent["pinned"]))
     // The picture of the other person is asked from the chat's own server; the part of the list is the caller's word.
     val pictured = Messenger.summary(chat + mapOf("peer" to mapOf("id" to "peer", "displayName" to "Лев", "avatarId" to "a/b c")), null, me, now, moscow, "Сегодня", "https://localhost:8443")!!
     assertEquals(listOf("https://localhost:8443/files/a%2Fb%20c", "a/b c", "Сегодня"), listOf(pictured.row["avatarUrl"], pictured.row["avatarKey"], pictured.row["section"]))

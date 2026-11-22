@@ -42,6 +42,10 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- Push (push/): an incoming call while the app is closed — the ringing notification may open the app over the lock
+         screen (push/IncomingCall.kt, the reference's modules/linea-call). On Android 14+ the person can switch this off
+         in the app's notification settings. POST_NOTIFICATIONS above is asked once the account is open (push/Push.kt). -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
@@ -62,15 +66,15 @@
             android:windowSoftInputMode="adjustResize"
             android:supportsPictureInPicture="true"
             android:exported="true">
-            <!-- Links: an invitation to a channel or a server — linea://invite/CODE and invizent://invite/CODE (the
-                 reference's scheme `linea`, communities/types.ts INVITE_LINK). Only the code is read (app/DeepLinks.kt);
-                 the invitation itself is always asked from the account's own server. -->
+            <!-- Links: an invitation to a channel or a server — linea://invite/CODE. The schemes are the previous app's:
+                 Expo's prebuild registers `scheme: 'linea'` and the package name (app.config.js). Only the code is read
+                 (links/DeepLinks.kt); the invitation itself is always asked from the account's own server. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="linea" android:host="invite" />
-                <data android:scheme="invizent" android:host="invite" />
+                <data android:scheme="${applicationId}" android:host="invite" />
             </intent-filter>
         </activity>
         <!-- Effects: the app's icon on the launcher, «Оформление › Иконка приложения» (settings/AppearanceEffects.kt), as
@@ -152,6 +156,24 @@
             android:name=".screenshare.ScreenCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <!-- Push: what Firebase Cloud Messaging delivers (push/PushService.kt) — the token, a chat notification while the
+             app's process is in front, the data message of a call to a closed app. Not exported: Firebase's own receiver
+             hands it the messages. The defaults are the previous app's (expo-notifications: the icon, the colour, the
+             channel `messages`). -->
+        <service
+            android:name=".push.PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_icon_color" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="messages" />
+        <!-- Push: «Отклонить» on the ringing notification of an incoming call (push/IncomingCall.kt). Not exported. -->
+        <receiver
+            android:name=".push.IncomingCallReceiver"
+            android:exported="false" />
         <service
             android:name=".music.MusicService"
             android:exported="false"

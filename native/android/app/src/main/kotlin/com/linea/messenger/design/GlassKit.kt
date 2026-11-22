@@ -131,7 +131,7 @@ class GlassHeaderView(
     setWillNotDraw(false)
     clipChildren = false
     if (back != null) {
-      val button = GlassRoundButton(context, "chevron.left", backLabel, 19f)
+      val button = GlassRoundButton(context, "ion:chevron-back", backLabel, 23f) // IconButton «chevron-back», 23
       button.onPress = back
       addView(button)
       backButton = button

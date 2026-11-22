@@ -820,7 +820,7 @@ final class SettingsField: UIView, UITextFieldDelegate {
         input.addTarget(self, action: #selector(edited), for: .editingChanged)
         input.translatesAutoresizingMaskIntoConstraints = false
         plate.addSubview(input)
-        eye.setImage(SettingsLook.symbol("ion:eye-outline", size: 20), for: .normal)
+        eye.setImage(SettingsLook.symbol("ion:eye-outline", size: 23), for: .normal)
         eye.tintColor = Theme.muted
         eye.accessibilityLabel = "Показать"
         eye.isHidden = !secret
@@ -873,7 +873,7 @@ final class SettingsField: UIView, UITextFieldDelegate {
         input.isSecureTextEntry.toggle()
         input.text = kept
         input.textContentType = input.isSecureTextEntry ? UITextContentType.oneTimeCode : nil
-        eye.setImage(SettingsLook.symbol(input.isSecureTextEntry ? "ion:eye-outline" : "ion:eye-off-outline", size: 20), for: .normal)
+        eye.setImage(SettingsLook.symbol(input.isSecureTextEntry ? "ion:eye-outline" : "ion:eye-off-outline", size: 23), for: .normal)
         eye.accessibilityLabel = input.isSecureTextEntry ? "Показать" : "Скрыть"
     }
 

@@ -278,16 +278,20 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     val badgeWidth = if (unread == 0) 0 else maxOf(dp(18f), badge.measuredWidth + dp(10f))
     back.contentDescription = if (unread == 0) "Назад к чатам" else "Назад к чатам, непрочитанных $unread"
     val backWidth = if (unread == 0) side else dp(9f + 22f - 4f) + badgeWidth + dp(11f)
+    // ChatScreen.tsx: <Icon name="chevron-back" size={otherUnread ? 22 : 26}>, 9 from the pill's edge with a count.
+    (back as? com.linea.messenger.design.IconButton)?.let { it.symbol = "ion:chevron-back"; it.size = if (unread == 0) 26f else 22f }
     put(backPill, dp(12f), y, backWidth, side)
-    put(back, 0, 0, if (unread == 0) side else dp(36f), side)
+    put(back, 0, 0, if (unread == 0) side else dp(9f + 22f), side)
     put(badge, dp(9f + 22f - 4f), (side - dp(18f)) / 2, badgeWidth, dp(18f))
 
-    // The right column: «Позвонить», then the avatar at the edge.
+    // The right column: the avatar at the edge. The reference's phone header has no call button (calls are in the
+    // profile), so the glass «Позвонить» is not shown.
     val avatarX = width - dp(12f) - side
     put(avatarControl, avatarX, y, side, side)
     val callX = avatarX - dp(8f) - side
     put(callPill, callX, y, side, side)
     put(call, 0, 0, side, side)
+    callPill.visibility = View.GONE
 
     // The name: in the very middle of the screen; when it is too long for that, in the middle of the room between
     // «назад» and the right column.
@@ -305,10 +309,10 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     val nameWidth = Math.ceil(heading.paint.measureText(words).toDouble()).toInt() + emojiWidth
     val statusWidth = if (hasStatus) Math.ceil(status.paint.measureText(status.text.toString()).toDouble()).toInt() else 0
     val wanted = maxOf(nameWidth, statusWidth) + dp(36f)
-    val rightColumn = width - callX
+    val rightColumn = width - avatarX
     val symmetric = width - 2 * (rightColumn + dp(8f))
     val backRight = dp(12f) + backWidth
-    val between = callX - dp(8f) - (backRight + dp(8f))
+    val between = avatarX - dp(8f) - (backRight + dp(8f))
     val pillWidth = maxOf(dp(60f), minOf(wanted, (width * 0.62f).toInt(), if (wanted <= symmetric) symmetric else between))
     var pillX = (width - pillWidth) / 2
     if (pillWidth > symmetric) pillX = backRight + dp(8f) + (between - pillWidth) / 2

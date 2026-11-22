@@ -81,6 +81,8 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         table.dataSource = self
         table.delegate = self
         table.estimatedRowHeight = 60
+        // SavedScreen.tsx: the list's content stands 14 pt in from the top and the bottom.
+        table.contentInset = UIEdgeInsets(top: 14, left: 0, bottom: 14, right: 0)
         table.rowHeight = UITableView.automaticDimension
         table.register(SavedNoteCell.self, forCellReuseIdentifier: "note")
         table.register(SavedDayCell.self, forCellReuseIdentifier: "day")
@@ -193,6 +195,9 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         clip.onPress = { [weak self] in self?.attachTapped() }
         composer.contentView.addSubview(clip)
         attach.install(host: self, composer: composer.contentView)
+        // Record: the «add» button and the field give way to a take and its preview.
+        attach.control.clipView = clip
+        attach.control.fieldViews = [field, placeholder]
         attach.say = { [weak self] (words: String) -> Void in self?.flash(words) }
         attach.onBusy = { [weak self] (busy: Bool) -> Void in
             self?.clip.isEnabled = !busy
@@ -234,7 +239,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         made.onWillPlay = { [weak self] in self?.voice.pause() }
         made.holdsSilence = { [weak self] () -> Bool in
             guard let self else { return true }
-            return self.attach.recording || self.voice.isPlaying || self.presentedViewController != nil
+            return self.attach.isRecording || self.voice.isPlaying || self.presentedViewController != nil
         }
         made.onReadyChanged = { [weak self] (key: String) -> Void in self?.redraw(key) }
     }
@@ -298,6 +303,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         watch?.invalidate()
         watch = nil
         if isMovingFromParent || navigationController == nil {
+            attach.left() // Record: a take is called off, a preview thrown away
             voice.left()
             notes?.left()
         } else {
@@ -354,7 +360,12 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
             field.frame = CGRect(x: field.frame.minX + 50, y: field.frame.minY, width: field.frame.width - 50, height: field.frame.height)
             placeholder.frame = CGRect(x: placeholder.frame.minX + 50, y: placeholder.frame.minY, width: placeholder.frame.width - 50, height: placeholder.frame.height)
         }
-        attach.control.place(composerBounds: composer.contentView.bounds, composerFrame: composer.frame)
+        // Record: the take's dot, time and «slide to cancel» fill the glass up to the button; the preview starts
+        // after the trash, which stands in the «add» button's place.
+        let row = CGRect(x: 0, y: 0, width: composer.bounds.width - 8 - 44 - 6, height: composer.bounds.height - 10)
+        let previewRow = CGRect(x: clip.frame.maxX + 6, y: row.minY, width: max(0, row.width - clip.frame.maxX - 6), height: row.height)
+        attach.control.place(button: send.frame, field: attach.control.phase == .preview ? previewRow : row, trash: clip.frame)
+        attach.layoutRecording()
         table.frame = CGRect(x: 0, y: y, width: width, height: max(0, composer.frame.minY - 5 - y))
         empty.frame = table.frame
         notice.frame = CGRect(x: (width - 200) / 2, y: y + 4, width: 200, height: 30)
@@ -867,7 +878,7 @@ final class SavedNoteCanvas: UIView {
 
     // MARK: Sizes
 
-    private var noteSide: CGFloat { min(212, floor(maxSide)) }
+    private var noteSide: CGFloat { maxSide > 0 ? min(212, floor(maxSide)) : 212 }
 
     private var duration: String {
         let ms = ((attachment["media"] as? [String: Any])?["durationMs"] as? NSNumber)?.doubleValue ?? 0

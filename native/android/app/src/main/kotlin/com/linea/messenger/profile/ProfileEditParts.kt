@@ -44,7 +44,7 @@ class ProfileEditTop(context: Context) : FrameLayout(context) {
     banner.contentDescription = "Изменить баннер"
     banner.isClickable = true
     val placeholder = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
-    placeholder.addView(ProfileIconView(context, "photo", 22f, Theme.muted), LinearLayout.LayoutParams(context.px(26f), context.px(26f)))
+    placeholder.addView(ProfileIconView(context, "ion:image-outline", 24f, Theme.muted), LinearLayout.LayoutParams(context.px(24f), context.px(24f)))
     placeholder.addView(context.words("Баннер", 13f, Theme.muted), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(4f) })
     banner.addView(placeholder, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
     banner.addView(art, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -71,7 +71,8 @@ class ProfileEditTop(context: Context) : FrameLayout(context) {
 
   private fun badge(size: Float, fill: Int, tint: Int, border: Int?): View = FrameLayout(context).apply {
     background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(fill); if (border != null) setStroke(context.px(2f), border) }
-    addView(ProfileIconView(context, "camera", size * 0.5f, tint), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    // «camera-outline» 18 on the banner, 16 on the avatar.
+    addView(ProfileIconView(context, "ion:camera-outline", if (size >= 34f) 18f else 16f, tint), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
   }
 
   companion object {
@@ -126,7 +127,7 @@ class PatternPicker(context: Context, private var current: String?, private val 
       if (index % columns == 0) { row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }; grid.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (index > 0) topMargin = gap }) }
       val cell = FrameLayout(context)
       if (option != null) cell.addView(context.words(option, 24f, Theme.text).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-      else cell.addView(ProfileIconView(context, "cross", 18f, Theme.muted), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+      else cell.addView(ProfileIconView(context, "ion:close", 20f, Theme.muted), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
       cell.contentDescription = option ?: "Без узора"
       cell.isClickable = true
       cell.setOnClickListener { current = option; showChosen() }
@@ -160,10 +161,10 @@ class BannerPreview(context: Context, messenger: Messenger?, picture: Bitmap) : 
     val hero = ProfileHeroCard(context)
     hero.show(person, person.look, messenger?.server?.endpoint ?: "", localPicture = picture)
     add(hero, 16f)
-    val set = SettingsButton(context, "Установить баннер")
+    val set = SettingsButton(context, "Установить баннер", icon = "checkmark")
     set.onPress = { dismiss(); onSet?.invoke() }
     add(set, 12f)
-    val again = SettingsButton(context, "Выбрать другое", SettingsButton.Kind.SECONDARY)
+    val again = SettingsButton(context, "Выбрать другое", SettingsButton.Kind.SECONDARY, icon = "image-outline")
     again.onPress = { dismiss(); onAgain?.invoke() }
     add(again, 12f)
   }

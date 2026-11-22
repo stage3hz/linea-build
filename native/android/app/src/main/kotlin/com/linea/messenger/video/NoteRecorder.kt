@@ -38,6 +38,7 @@ import android.widget.TextView
 import com.linea.messenger.attachments.FileCore
 import com.linea.messenger.design.Theme
 import com.linea.messenger.music.MusicPlayer
+import com.linea.messenger.design.IonIcon
 import com.linea.messenger.voice.MediaIcons
 import com.linea.messenger.voice.Permits
 import java.io.File
@@ -52,7 +53,16 @@ import java.io.File
  *  reference's module stands on the CameraX library; here the platform's own Camera2 and MediaRecorder do the
  *  same, and — as on the iPhone — the camera is not turned in the middle of a take. Before the take is sent it
  *  is written anew without metadata (`VideoPrepare.prepare`), like any other video. */
-class NoteRecorder(private val activity: Activity, private val startAtOnce: Boolean) : Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar), TextureView.SurfaceTextureListener {
+class NoteRecorder(
+  private val activity: Activity, private val startAtOnce: Boolean,
+  /** Record (owner's spec): when ≥ 0, the screen is the round camera of the composer's take — it covers the page
+   *  above this line (px from the window's top; the composer below stays usable and shows the time, «slide to
+   *  cancel», the lock and the blob). The circle is min(369, width − 24) dp, centred, its centre at 40% of the
+   *  screen's height (never above the status bar); a 4 dp ring, white at 60%, fills inside its edge in the minute
+   *  a take may last; a 40 dp glass button 8 dp above the composer turns the camera. The page is blurred (0.4 s in,
+   *  0.25 s out); the circle comes up from below (0.5 s spring, damping 0.8). */
+  private val panelTop: Int = -1,
+) : Dialog(activity, android.R.style.Theme_Translucent_NoTitleBar), TextureView.SurfaceTextureListener {
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
   private val main = Handler(Looper.getMainLooper())
@@ -81,6 +91,13 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
   /** The take is finished (main thread): the recorded file, to be prepared and sent. Not called for a take that
    *  was called off. */
   var onDone: ((File) -> Unit)? = null
+  /** Record: the minute is over (the composer ends the take). */
+  var onLimit: (() -> Unit)? = null
+  private val controlled: Boolean get() = panelTop >= 0
+  /** Record: where the take is to go when it stops (null: `onDone`). */
+  private var stopped: ((File?, Long) -> Unit)? = null
+  private var stoppedMs = 0L
+  private val glassPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
   // Media: both cameras at once where the phone can (the reference's VideoNoteDualCamera.kt, video/NoteDualCamera.kt):
   // a turn only changes which camera is drawn — on screen and into the file —, so it is instant and works in the
@@ -122,25 +139,32 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
     override fun onDraw(canvas: Canvas) {
       val cx = width / 2f; val cy = height / 2f; val radius = minOf(width, height) / 2f
-      if (plate) {
+      if (plate && controlled) {
+        // Record: a 40 dp glass circle.
+        paint.style = Paint.Style.FILL; paint.color = if (Theme.dark) 0x8C141518.toInt() else 0xA6F7F7F9.toInt()
+        canvas.drawCircle(cx, cy, radius, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = maxOf(1f, d); paint.color = if (Theme.dark) 0x1FFFFFFF else 0x14000000
+        canvas.drawCircle(cx, cy, radius - paint.strokeWidth / 2, paint)
+      } else if (plate) {
         paint.style = Paint.Style.FILL; paint.color = if (isPressed) 0x3DFFFFFF else 0x24FFFFFF
         canvas.drawCircle(cx, cy, radius, paint)
       } else {
         paint.style = Paint.Style.STROKE; paint.strokeWidth = 4f * d; paint.color = Color.WHITE
         canvas.drawCircle(cx, cy, radius - 2f * d, paint)
       }
-      MediaIcons.draw(canvas, symbol(), cx, cy, symbolSize() * d, tint(), if (plate) 1.8f else 2.6f)
+      if (symbol() == "camera.flip") IonIcon.draw(canvas, "camera-reverse-outline", cx, cy, 24f * d, tint())
+      else MediaIcons.draw(canvas, symbol(), cx, cy, symbolSize() * d, tint(), if (plate) 1.8f else 2.6f)
     }
   }
 
   private val closeButton = RoundButton({ "xmark" }, true, { Color.WHITE }, { 26f })
   private val recordButton = RoundButton({ if (recording) "arrow.up" else "circle.fill" }, false, { if (recording) Color.WHITE else Theme.danger }, { if (recording) 34f else 56f })
-  private val flipButton = RoundButton({ "camera.flip" }, true, { Color.WHITE }, { 28f })
+  private val flipButton = RoundButton({ "camera.flip" }, true, { if (controlled) Theme.muted else Color.WHITE }, { 28f })
 
   /** The dimmed page with its parts placed by hand, and the ring of the take around the circle. */
   private val root = object : ViewGroup(context) {
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-    init { setWillNotDraw(false); setBackgroundColor(0xD1000000.toInt()) }
+    init { setWillNotDraw(false); setBackgroundColor(if (controlled) ((Theme.bg and 0xFFFFFF) or (0xB8 shl 24)) else 0xD1000000.toInt()) }
 
     private fun put(view: View, left: Int, top: Int, width: Int, height: Int) {
       view.measure(MeasureSpec.makeMeasureSpec(maxOf(0, width), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(maxOf(0, height), MeasureSpec.EXACTLY))
@@ -151,6 +175,17 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
       val width = right - left; val height = bottom - top
+      if (controlled) {
+        val screen = activity.window?.decorView?.height?.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val statusBar = rootWindowInsets?.let { if (Build.VERSION.SDK_INT >= 30) it.getInsets(android.view.WindowInsets.Type.statusBars()).top else @Suppress("DEPRECATION") it.systemWindowInsetTop } ?: 0
+        val side = minOf(dp(369f), width - dp(24f))
+        val circleTop = maxOf(statusBar, (screen * 0.4f - side / 2f).toInt())
+        put(circle, (width - side) / 2, circleTop, side, side)
+        put(problem, dp(32f), circleTop + side + dp(16f), width - dp(64f), dp(64f))
+        put(flipButton, dp(8f), height - dp(8f) - dp(40f), dp(40f), dp(40f))
+        fit()
+        return
+      }
       val side = minOf(dp(300f), width - dp(48f), height - dp(260f)).coerceAtLeast(dp(120f))
       val circleLeft = (width - side) / 2; val circleTop = maxOf(dp(72f), (height - side) / 2 - dp(40f))
       put(circle, circleLeft, circleTop, side, side)
@@ -166,6 +201,14 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
 
     override fun onDraw(canvas: Canvas) {
       if (progress <= 0f) return
+      if (controlled) {
+        // Record: inside the circle's edge, 4 dp, white at 60%, from the top.
+        ring.color = 0x99FFFFFF.toInt()
+        ring.strokeWidth = 4f * d
+        val inset = 4f * d
+        canvas.drawArc(circle.left + inset, circle.top + inset, circle.right - inset, circle.bottom - inset, -90f, 360f * progress, false, ring)
+        return
+      }
       ring.color = Theme.danger
       ring.strokeWidth = 3f * d
       val cx = circle.left + circle.width / 2f; val cy = circle.top + circle.height / 2f
@@ -211,6 +254,26 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
       setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
       addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+      if (controlled) {
+        // Record: only the page above the composer; touches below go to the composer, which runs the take.
+        setLayout(WindowManager.LayoutParams.MATCH_PARENT, maxOf(1, panelTop))
+        setGravity(Gravity.TOP)
+        addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        if (Build.VERSION.SDK_INT >= 31) { addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND); attributes = attributes.apply { blurBehindRadius = dp(24f) } }
+        setWindowAnimations(0)
+      }
+    }
+    if (controlled) {
+      heading.visibility = View.GONE
+      closeButton.visibility = View.GONE
+      recordButton.visibility = View.GONE
+      root.alpha = 0f
+      root.animate().alpha(1f).setDuration(400).start()
+      circle.post {
+        circle.translationY = (resources.displayMetrics.heightPixels - circle.top).toFloat()
+        circle.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.voice.SpringCurve(0.8f, 500)).start()
+      }
     }
     // Back calls the take off, as the cross does.
     setOnCancelListener { finish(keep = false) }
@@ -469,6 +532,7 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
       progress = minOf(1f, ms.toFloat() / MAX_MS)
       root.invalidate()
       // Media: the two-camera recorder has no limit of its own: the minute ends here.
+      if (controlled && ms >= MAX_MS) { onLimit?.invoke(); return }
       if (dual != null && ms >= MAX_MS) { finish(keep = true); return }
       main.postDelayed(this, 50)
     }
@@ -514,10 +578,13 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
     }
     file = null
     shut()
+    val target = stopped
+    stopped = null
     if (taken != null) {
-      if (keeps(whole, keep, ms) && taken.length() > 0) onDone?.invoke(taken) else taken.delete()
-    }
-    if (isShowing) dismiss()
+      if (keeps(whole, keep, ms) && taken.length() > 0) { if (target != null) target(taken, ms) else onDone?.invoke(taken) }
+      else { taken.delete(); target?.invoke(null, ms) }
+    } else target?.invoke(null, ms)
+    if (isShowing && target == null && !controlled) dismiss()
   }
 
   /** Media: the two-camera take ends; the cameras are let go once its file is written. */
@@ -528,16 +595,86 @@ class NoteRecorder(private val activity: Activity, private val startAtOnce: Bool
     val wasRecording = recording
     recording = false
     dualFile = null
+    val target = stopped
+    stopped = null
+    if (!wasRecording) target?.invoke(null, ms)
     if (wasRecording) {
       dualStopping = true
       both.stopRecording { file, _ ->
         dualStopping = false
-        if (file != null && keeps(true, keep, ms) && file.length() > 0) onDone?.invoke(file) else file?.delete()
+        if (file != null && keeps(true, keep, ms) && file.length() > 0) { if (target != null) main.post { target(file, ms) } else onDone?.invoke(file) }
+        else { file?.delete(); if (target != null) main.post { target(null, ms) } }
         both.release()
         lifecycleOwner.registry.currentState = androidx.lifecycle.Lifecycle.State.DESTROYED
       }
     }
-    if (isShowing) dismiss()
+    if (isShowing && target == null && !controlled) dismiss()
+  }
+
+  // Record: the composer drives the take
+
+  /** How long the take is by now. */
+  val elapsedMs: Long get() = if (recording) SystemClock.elapsedRealtime() - startedAt else stoppedMs
+
+  /** The microphone's peak right now, 0…1 (for the blob): the single recorder's amplitude ÷ 16000. */
+  fun level(): Float = try { ((recorder?.maxAmplitude ?: 0) / 16000f).coerceIn(0f, 1f) } catch (_: Exception) { 0f }
+
+  /** Stops the take; `done` gets the file (null when called off, too short or failed) and its length. The screen
+   *  stays for the preview or `close()`. */
+  fun stopTake(keep: Boolean, done: (File?, Long) -> Unit) {
+    if (closed) { done(null, 0); return }
+    stoppedMs = elapsedMs
+    stopped = done
+    finish(keep)
+  }
+
+  private var resultPlayer: android.media.MediaPlayer? = null
+
+  /** The stopped take plays round and round in the circle; a tap pauses it. */
+  fun showResult(file: File) {
+    val shown = TextureView(context)
+    circle.addView(shown, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    flipButton.animate().alpha(0f).scaleX(0.01f).scaleY(0.01f).setDuration(200).start()
+    progress = 0f
+    root.invalidate()
+    shown.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+      override fun onSurfaceTextureAvailable(made: SurfaceTexture, width: Int, height: Int) {
+        try {
+          resultPlayer = android.media.MediaPlayer().apply {
+            setDataSource(file.absolutePath)
+            setSurface(Surface(made))
+            isLooping = true
+            setOnVideoSizeChangedListener { _, w, h -> if (w > 0 && h > 0) {
+              val side = shown.width.toFloat()
+              val scale = maxOf(side / w, side / h)
+              val matrix = Matrix()
+              matrix.setScale(w * scale / side, h * scale / side, side / 2, side / 2)
+              shown.setTransform(matrix)
+            } }
+            prepare()
+            start()
+          }
+        } catch (_: Exception) {}
+      }
+      override fun onSurfaceTextureSizeChanged(made: SurfaceTexture, width: Int, height: Int) {}
+      override fun onSurfaceTextureUpdated(made: SurfaceTexture) {}
+      override fun onSurfaceTextureDestroyed(made: SurfaceTexture): Boolean { try { resultPlayer?.release() } catch (_: Exception) {}; resultPlayer = null; return true }
+    }
+    shown.setOnClickListener { togglePlayback() }
+  }
+
+  /** Play / pause of the stopped take; true when it plays. */
+  fun togglePlayback(): Boolean {
+    val made = resultPlayer ?: return false
+    return try { if (made.isPlaying) made.pause() else made.start(); made.isPlaying } catch (_: Exception) { false }
+  }
+
+  /** Everything goes: the page clears in 0.25 s and the screen closes. */
+  fun close() {
+    try { resultPlayer?.release() } catch (_: Exception) {}
+    resultPlayer = null
+    if (!closed) finish(keep = false)
+    root.animate().alpha(0f).setDuration(250).withEndAction { if (isShowing) try { dismiss() } catch (_: Exception) {} }.start()
   }
 
   /** Lets the camera, the recorder and their surfaces go. A file that was being prepared and never used goes too. */

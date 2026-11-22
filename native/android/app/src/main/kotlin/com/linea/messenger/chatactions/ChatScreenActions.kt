@@ -334,7 +334,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       top = headerBottom + dp(4f) + dp(ChatSearchBar.HEIGHT) + dp(8f)
     }
     if (pinnedBar.visibility == View.VISIBLE) {
-      put(pinnedBar, dp(12f), headerBottom + dp(4f), width - dp(24f), dp(PinnedBar.height))
+      put(pinnedBar, dp(12f), headerBottom + dp(6f), width - dp(24f), dp(PinnedBar.height)) // marginTop 6
       top = headerBottom + dp(4f) + dp(PinnedBar.height) + dp(8f)
     }
     var noticeY = top
@@ -360,7 +360,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     // Composer: the formatting bar over a selection, the emoji panel, the scheduled pill.
     above = extras.place(width, height, composerLeft, composerWidth, above, top, hidden = selecting)
     val side = dp(DownButton.side); val over = dp(DownButton.over)
-    put(downButton, width - dp(14f) - side, above - dp(12f) - side - over, side, side + over)
+    put(downButton, width - dp(14f) - side, above - dp(10f) - side - over, side, side + over) // right 14, bottom 10
     return Pair(top, height - above + dp(8f))
   }
 
@@ -602,12 +602,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       val files = listOf(file) + (shown.albumParts[key] ?: emptyList()).mapNotNull { Core.map(shown.messages[it]?.get("attachment") as? Map<*, *>) }
       items.add(at, MessageMenu.Item("square.and.arrow.down", com.linea.messenger.attachments.MediaSave.label(file)) { saveFiles(files) })
     }
-    // ChatsPlus: «В Избранное» — the message goes to this device's saved messages (chatsplus/SavedMessages.kt),
-    // after «Скопировать» as on the iPhone.
-    if (!shown.noCopy && readable(message) && !outgoing(message) && com.linea.messenger.chatsplus.SavedMessages.shared(messenger) != null) {
-      val at = items.indexOfFirst { it.symbol == "copy" || it.symbol == "square.and.arrow.down" }.let { found -> if (found >= 0) items.indexOfLast { it.symbol == "copy" || it.symbol == "square.and.arrow.down" } + 1 else minOf(1, items.size) }
-      items.add(at, MessageMenu.Item("bookmark", "В Избранное") { saveToFavorites(listOf(message)) })
-    }
+    // The reference's menu has no «В Избранное»: a message goes there through «Переслать» → «Избранное».
     if (items.isEmpty()) return
 
     var current = ""

@@ -138,7 +138,7 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
         orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         background = context.plate(Theme.alpha(Theme.accent, 0.16f), 14f)
         setPadding(context.px(12f), context.px(12f), context.px(12f), context.px(12f))
-        addView(ProfileIconView(context, "lock", 13f, Theme.accent), LayoutParams(context.px(16f), context.px(16f)))
+        addView(ProfileIconView(context, "ion:lock-closed", 15f, Theme.accent), LayoutParams(context.px(15f), context.px(15f)))
         addView(context.words("Оформление доступно с Platina.", 13f, Theme.text), LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(8f) })
       }
       add(lock)
@@ -148,12 +148,12 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
 
     if (!compact) {
       val row = LinearLayout(context).apply { orientation = HORIZONTAL }
-      val pick = SettingsButton(context, if (look.avatarVideoId.isEmpty()) "Выбрать видео" else "Заменить видео", SettingsButton.Kind.SECONDARY)
+      val pick = SettingsButton(context, if (look.avatarVideoId.isEmpty()) "Выбрать видео" else "Заменить видео", SettingsButton.Kind.SECONDARY, icon = "videocam-outline")
       pick.isEnabled = active
       pick.onPress = { onMedia?.invoke("avatarVideo") }
       row.addView(pick, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
       if (look.avatarVideoId.isNotEmpty()) {
-        val off = SettingsButton(context, "Убрать", SettingsButton.Kind.SECONDARY)
+        val off = SettingsButton(context, "Убрать", SettingsButton.Kind.SECONDARY, icon = "trash-outline")
         off.isEnabled = active
         off.onPress = { apply(mapOf("avatarVideoId" to null), "Видео убрано.") }
         row.addView(off, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(10f) })
@@ -172,7 +172,7 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     val bannerBox = LinearLayout(context).apply { orientation = VERTICAL }
     bannerBox.addView(scroller(banners))
     if (!compact) {
-      val own = SettingsButton(context, if (look.bannerId.isEmpty()) "Своё фото или видео" else "Заменить своё фото или видео", SettingsButton.Kind.SECONDARY)
+      val own = SettingsButton(context, if (look.bannerId.isEmpty()) "Своё фото или видео" else "Заменить своё фото или видео", SettingsButton.Kind.SECONDARY, icon = "image-outline")
       own.isEnabled = active
       own.onPress = { onMedia?.invoke("banner") }
       bannerBox.addView(own, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(10f) })
@@ -291,7 +291,7 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     tile.addView(context.words(label, 12f, if (selected) Theme.accent else Theme.muted, if (selected) 700 else 500).apply { gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(92f); leftMargin = context.px(4f); rightMargin = context.px(4f) })
     if (selected) {
       val check = FrameLayout(context).apply { background = context.plate(Theme.accent, 10f) }
-      check.addView(ProfileIconView(context, "tick", 10f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+      check.addView(ProfileIconView(context, "ion:checkmark", 13f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
       tile.addView(check, FrameLayout.LayoutParams(context.px(20f), context.px(20f), Gravity.END or Gravity.TOP).apply { topMargin = context.px(6f); rightMargin = context.px(8f) })
     }
     tile.isClickable = true

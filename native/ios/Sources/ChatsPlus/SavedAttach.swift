@@ -15,8 +15,9 @@ final class SavedAttach: NSObject, PHPickerViewControllerDelegate, UIDocumentPic
     private let messenger: Messenger?
     private let saved: SavedMessages
     private weak var host: UIViewController?
-    let control = RecordControl()
-    private let recorder = VoiceRecorder()
+    /// Record: the record button, its takes, the preview and the round camera (Sources/Voice/MediaRecording.swift).
+    private let recording = MediaRecording()
+    var control: RecordControl { recording.control }
     private let work = DispatchQueue(label: "invizent.saved.attach", qos: .userInitiated)
     /// Words for the person (a notice over the list).
     var say: ((String) -> Void)?
@@ -34,31 +35,36 @@ final class SavedAttach: NSObject, PHPickerViewControllerDelegate, UIDocumentPic
 
     func install(host: UIViewController, composer: UIView) {
         self.host = host
-        control.install(composer: composer, host: host.view)
-        control.timeWords = { [weak self] () -> String in
-            FileCore.call("voiceTimeFine", [self?.recorder.elapsedMs ?? 0]) as? String ?? "0:00,00"
+        recording.install(composer: composer, host: host.view)
+        recording.brokenWords = "Микрофон записал тишину — голосовое не сохранено. Запиши ещё раз."
+        recording.canStart = { [weak self] (mode: RecordControl.Mode) -> String? in
+            guard let self else { return "" }
+            if self.messenger == nil { return mode == .voice ? "Голосовые в Избранном доступны в приложении." : "Видео в Избранном доступны в приложении." }
+            return nil
         }
-        control.onModeChanged = { [weak self] (mode: RecordControl.Mode) -> Void in
-            self?.say?(mode == .video ? "Видео — удерживайте. Звук — нажмите." : "Звук — удерживайте. Видео — нажмите.")
-        }
-        control.onHoldStart = { [weak self] () -> Bool in self?.startVoice() ?? false }
-        control.onFinish = { [weak self] (keep: Bool) -> Void in self?.finishVoice(keep: keep) }
-        control.onPause = { [weak self] in
-            guard let self else { return }
-            self.recorder.togglePause()
-            self.control.setPaused(self.recorder.isPaused)
-        }
-        control.onVideo = { [weak self] in self?.recordNote() }
-        recorder.onLevel = { [weak self] (level: CGFloat) -> Void in self?.control.setLevel(level) }
-        recorder.onLimit = { [weak self] in
-            guard let self else { return }
-            self.control.reset()
-            self.finishVoice(keep: true)
+        recording.willStart = { [weak self] in self?.host?.view.endEditing(true) }
+        recording.say = { [weak self] (words: String) -> Void in self?.say?(words) }
+        recording.sendVoice = { [weak self] (file: URL, ms: Int, waveform: String?) -> Void in self?.saveVoice(file: file, durationMs: ms, waveform: waveform) }
+        recording.sendNote = { [weak self] (file: URL) -> Void in self?.saveNote(file) }
+        control.onPhase = { [weak host] (_: RecordControl.Phase) -> Void in
+            guard let view = host?.view else { return }
+            view.setNeedsLayout()
+            RecordSpec.animateLayout { view.layoutIfNeeded() }
         }
     }
 
+    /// The screen is left: a take is called off, a preview thrown away.
+    func left() {
+        recording.left()
+    }
+
+    /// The composer's place changed.
+    func layoutRecording() {
+        recording.layout()
+    }
+
     /// Whether a take is running (the composer's own controls give way).
-    var recording: Bool { recorder.isRecording }
+    var isRecording: Bool { recording.isRecording }
 
     // MARK: The paperclip
 
@@ -166,51 +172,12 @@ final class SavedAttach: NSObject, PHPickerViewControllerDelegate, UIDocumentPic
 
     // MARK: A voice note
 
-    private func startVoice() -> Bool {
-        guard messenger != nil else { say?("Голосовые в Избранном доступны в приложении."); return false }
-        switch VoiceRecorder.allowed {
-        case .none:
-            // The system asks once; the finger has left the button by then, so the person holds it again.
-            VoiceRecorder.ask { [weak self] (granted: Bool) -> Void in
-                if !granted { self?.say?(VoiceRecorder.noAccess) }
-            }
-            return false
-        case .some(false):
-            say?(VoiceRecorder.noAccess)
-            return false
-        case .some(true):
-            break
-        }
-        if MusicPlayer.shared.current != nil { MusicPlayer.shared.stop() }
-        host?.view.endEditing(true)
-        if let failure = recorder.start() {
-            say?(failure.words)
-            return false
-        }
-        return true
-    }
-
-    private func finishVoice(keep: Bool) {
-        guard let take = recorder.finish(keep: keep) else { return }
-        if take.durationMs < 500 {
-            Haptic.error()
-            try? FileManager.default.removeItem(at: take.file)
-            say?("Слишком короткое голосовое — держи запись хотя бы секунду.")
-            return
-        }
-        if take.broken {
-            Haptic.error()
-            try? FileManager.default.removeItem(at: take.file)
-            say?("Микрофон записал тишину — голосовое не сохранено. Запиши ещё раз.")
-            return
-        }
-        if take.silent { say?("Микрофон записал тишину. Если в голосовом нет звука — запиши ещё раз.") }
+    private func saveVoice(file: URL, durationMs: Int, waveform: String?) {
         let now = Date().timeIntervalSince1970 * 1000
         let name = FileCore.call("voiceName", [now.rounded(.down)]) as? String ?? "voice.m4a"
-        var media: [String: Any] = ["durationMs": take.durationMs]
-        if let waveform = take.waveform { media["waveform"] = waveform }
+        var media: [String: Any] = ["durationMs": durationMs]
+        if let waveform { media["waveform"] = waveform }
         busy = true
-        let file = take.file
         work.async { [weak self] in
             let bytes = try? Data(contentsOf: file)
             try? FileManager.default.removeItem(at: file)
@@ -224,41 +191,31 @@ final class SavedAttach: NSObject, PHPickerViewControllerDelegate, UIDocumentPic
 
     // MARK: A round video
 
-    private func recordNote() {
-        guard messenger != nil, let host else { say?("Видео в Избранном доступны в приложении."); return }
-        host.view.endEditing(true)
-        let screen = NoteRecorder(startAtOnce: true)
-        screen.onDone = { [weak self] (file: URL) -> Void in
-            guard let self else {
-                try? FileManager.default.removeItem(at: file)
-                return
+    private func saveNote(_ file: URL) {
+        busy = true
+        VideoPrepare.prepare(source: file, small: true, started: { (_: AVAssetExportSession) -> Void in }, done: { [weak self] (result: Result<VideoPrepare.Prepared, FileCore.Failure>) -> Void in
+            try? FileManager.default.removeItem(at: file)
+            let now = Date().timeIntervalSince1970 * 1000
+            let noteName = FileCore.call("noteName", [now.rounded(.down)]) as? String ?? "video.mp4"
+            var bytes: Data?
+            var media: [String: Any] = [:]
+            var preview: [String: Any]?
+            var words = ""
+            switch result {
+            case .failure(let failure): words = failure.words
+            case .success(let prepared):
+                bytes = try? Data(contentsOf: prepared.file)
+                try? FileManager.default.removeItem(at: prepared.file)
+                media = prepared.media
+                preview = prepared.preview
             }
-            self.busy = true
-            VideoPrepare.prepare(source: file, small: true, started: { (_: AVAssetExportSession) -> Void in }, done: { [weak self] (result: Result<VideoPrepare.Prepared, FileCore.Failure>) -> Void in
-                try? FileManager.default.removeItem(at: file)
-                let now = Date().timeIntervalSince1970 * 1000
-                let noteName = FileCore.call("noteName", [now.rounded(.down)]) as? String ?? "video.mp4"
-                var bytes: Data?
-                var media: [String: Any] = [:]
-                var preview: [String: Any]?
-                var words = ""
-                switch result {
-                case .failure(let failure): words = failure.words
-                case .success(let prepared):
-                    bytes = try? Data(contentsOf: prepared.file)
-                    try? FileManager.default.removeItem(at: prepared.file)
-                    media = prepared.media
-                    preview = prepared.preview
-                }
-                DispatchQueue.main.async {
-                    guard let self else { return }
-                    if !words.isEmpty { self.done(words); return }
-                    guard let bytes, !bytes.isEmpty, bytes.count <= SavedAttach.maxFile else { self.done("Не удалось обработать видео. Файл не отправлен."); return }
-                    self.upload(bytes: bytes, name: noteName, mime: "video/mp4", media: media, preview: preview)
-                }
-            })
-        }
-        host.present(screen, animated: true)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if !words.isEmpty { self.done(words); return }
+                guard let bytes, !bytes.isEmpty, bytes.count <= SavedAttach.maxFile else { self.done("Не удалось обработать видео. Файл не отправлен."); return }
+                self.upload(bytes: bytes, name: noteName, mime: "video/mp4", media: media, preview: preview)
+            }
+        })
     }
 
     // MARK: Sealed, uploaded, kept

@@ -269,9 +269,11 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       var preview = ""; var time = ""; var ticks = 0
       if (last != null) {
         // The line of the list as the core words it (a call's outcome, hidden spoilers); else the plain words.
-        preview = (Core.view("chatListText", listOf(last)) as? String).orEmpty().ifEmpty { previewText(last) }
+        preview = listWords((Core.view("chatListText", listOf(last)) as? String).orEmpty().ifEmpty { previewText(last) }).ifEmpty { "Сообщение" }
         time = listTime(last["createdAt"] as? String, now, zone)
         if (last["senderId"] as? String == userId) ticks = if (peerLastRead >= ((last["id"] as? Number)?.toLong() ?: 0L)) 2 else 1
+      } else if (chat["lastMessage"] == null) {
+        preview = "Напиши первое сообщение" // ChatListScreen.tsx nativeLine: a chat without messages yet
       }
       val color = color(peer["avatarColor"] as? String ?: "#4B73BB") // Avatars: the reference's colour for a person without one
       val orb = orbPair(color)
@@ -286,6 +288,12 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         "quietPreview" to com.linea.messenger.offline.ListCatchUp.awaitsInbox(last),
       ) + com.linea.messenger.avatars.ChatListDecor.fields(peer) // Avatars: status emoji, frame, art, plate, Platina name
       return ChatSummary(id, peerId, title, peerLastRead, row, chat, last ?: emptyMap())
+    }
+
+    /** ChatListScreen.tsx listText: a server invitation reads without its link, or «🔗 Приглашение на сервер». */
+    fun listWords(text: String): String {
+      if (text.isEmpty() || com.linea.messenger.channels.ChannelWords.inviteCode(text) == null) return text
+      return com.linea.messenger.channels.ChannelWords.withoutInviteLink(text).trim().ifEmpty { "🔗 Приглашение на сервер" }
     }
 
     /** The part of the list a chat belongs to: pinned ones first, then by the day of the last message. */
@@ -319,7 +327,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         val mine = sender == userId
         val date = date(message["createdAt"] as? String)
         val today = date?.let { dayWords(it, now, zone) } ?: ""
-        if (today != day && today.isNotEmpty()) { day = today; rows.add(mapOf("key" to "day-$index", "kind" to 1, "text" to today)) }
+        if (today != day && today.isNotEmpty()) { day = today; rows.add(mapOf("key" to "day-$index", "kind" to 1, "text" to today, "label" to "day")) }
         val next = messages.getOrNull(index + 1)
         val id = (message["id"] as? Number)?.toLong() ?: 0L
         // Bold, links, spoilers and the rest: the text and its runs as the core lays them out.
@@ -378,7 +386,6 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       return try { Instant.parse(text) } catch (_: Exception) { try { OffsetDateTime.parse(text).toInstant() } catch (_: Exception) { null } }
     }
 
-    private val weekdays = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
     private val months = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
 
     /** `09:05` on the clock of the place. */
@@ -387,16 +394,18 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     /** How many midnights lie between a moment and now (0 = today, 1 = yesterday). */
     private fun daysAgo(day: LocalDate, now: Instant, zone: ZoneId): Long = ChronoUnit.DAYS.between(day, now.atZone(zone).toLocalDate())
 
-    /** The time of a chat's last message in the list: the clock today, «Вчера», the weekday within a week, else the date. */
+    /** theme.ts formatListTime: `toLocaleDateString('ru-RU', {day:'numeric',month:'short'})` — «5 нояб.». */
+    private val shortDay = java.time.format.DateTimeFormatter.ofPattern("d MMM", Locale("ru", "RU"))
+
+    /** theme.ts formatListTime: the clock today, «вчера» (lower case), else the day and the short month. */
     fun listTime(text: String?, now: Instant, zone: ZoneId): String {
       val moment = date(text) ?: return ""
       val day = moment.atZone(zone).toLocalDate()
       val ago = daysAgo(day, now, zone)
       return when {
         ago == 0L -> clock(moment, zone)
-        ago == 1L -> "Вчера"
-        ago < 7 -> weekdays[day.dayOfWeek.value - 1]
-        else -> String.format(Locale.ROOT, "%02d.%02d", day.dayOfMonth, day.monthValue)
+        ago == 1L -> "вчера"
+        else -> shortDay.format(day)
       }
     }
 
@@ -406,7 +415,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
       return when (daysAgo(day, now, zone)) {
         0L -> "Сегодня"
         1L -> "Вчера"
-        else -> "${day.dayOfMonth} ${months[day.monthValue - 1]}" + if (day.year == now.atZone(zone).year) "" else " ${day.year}"
+        // theme.ts formatDay: «5 ноября», without a year.
+        else -> "${day.dayOfMonth} ${months[day.monthValue - 1]}"
       }
     }
   }

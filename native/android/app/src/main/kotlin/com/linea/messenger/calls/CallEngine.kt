@@ -479,6 +479,9 @@ object Calls {
     samples = null
     call = CallState(callId, chatId, peer, incoming = true, video = video, status = "incoming", speaker = video, remoteSdp = sdp)
     began()
+    // Push: opened from the ringing notification of a closed app — it goes now, and «Ответить» pressed on it answers
+    // here once the call is on screen (push/IncomingCall.kt, the reference's CallProvider).
+    app?.let { context -> com.linea.messenger.push.IncomingCall.callUp(context, chatId) { if (isCurrent(callId) && call?.status == "incoming") accept() } }
     app?.let { CallSounds.play(it, "incoming"); CallSounds.vibrate(it) }
     cancel(ringTimer)
     ringTimer = after(CallRules.ringTimeout) {
@@ -763,6 +766,7 @@ object Calls {
   private fun finish(words: String, notify: String?, retry: Boolean = false) {
     val current = call ?: return
     if (current.isOver) return
+    app?.let { com.linea.messenger.push.IncomingCall.dismiss(it) } // Push: the ringing notification goes with the call, whoever ended it
     if (notify != null) send(current, CallRules.end(current, notify))
     cleanup()
     call = current.copy(status = "ended", endedText = words, retry = retry, localVideo = false, remoteVideo = false, reconnecting = false,

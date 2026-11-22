@@ -56,6 +56,7 @@ class SettingsScreen internal constructor(context: Context, private val account:
     if (!isVisible) return
     account?.prepareSettingsAvatars()
     account?.refreshOwnProfile()
+    countMuted()
   }
 
   private val person: Map<String, Any?> get() = account?.ownProfile ?: Demo.settingsPerson()
@@ -73,59 +74,73 @@ class SettingsScreen internal constructor(context: Context, private val account:
       if (!com.linea.messenger.platina.PlatinaState.active && !com.linea.messenger.avatars.PersonLook.from(who).platina) add(profileChrome.offer(), 18f)
     }
 
-    val profile = SettingsRow(context, symbol = "person", label = "Мой профиль")
-    profile.onPress = { openProfile() }
-    // M: the reference's `Root` has «Мой профиль» alone in its group (no «Публикации и истории» row: the posts are
-    // on the profile).
-    // Platina: «Активна до …» while the account has it (platina/PlatinaState.kt, untilWords; the reference's SettingsScreen.tsx `until`).
-    val until = com.linea.messenger.platina.PlatinaState.untilWords
-    val platinaRows = if (until.isEmpty()) emptyList() else listOf(SettingsRow(context, symbol = "gift", label = "Platina", value = until).apply { onPress = { com.linea.messenger.platina.PlatinaShowcase.open(this) } })
-    addGroup(rows = listOf(profile) + platinaRows)
+    // The reference's `Root` (SettingsScreen.tsx): its groups 14 apart, 18 under the head; the icons are its Ionicons.
+    val offered = who.isNotEmpty() && !com.linea.messenger.platina.PlatinaState.active && !com.linea.messenger.avatars.PersonLook.from(who).platina
+    var gap = if (offered) 14f else 18f
+    fun group(rows: List<View>) { add(SettingsGroup(context, rows), gap); gap = 14f }
 
-    // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
-    // «Язык» here: not built in this app yet.)
-    val notifications = SettingsRow(context, symbol = "bell", label = "Уведомления и звуки")
+    val profile = SettingsRow(context, symbol = "ion:person", label = "Мой профиль")
+    profile.onPress = { openProfile() }
+    group(listOf(profile))
+
+    // «Уведомления и звуки» says how many chats are quiet right now («Без звука: N»).
+    val notifications = SettingsRow(context, symbol = "ion:notifications", label = "Уведомления и звуки", value = if (mutedChats > 0) "Без звука: $mutedChats" else "")
     notifications.onPress = { openPage("notifications") }
     val shownTheme = ThemeStore.nightState()["shown"] as? String ?: "black"
-    val appearance = SettingsRow(context, symbol = "palette", label = "Оформление", value = ThemeStore.themeName(shownTheme))
+    val appearance = SettingsRow(context, symbol = "ion:color-palette", label = "Оформление", value = ThemeStore.themeName(shownTheme))
     appearance.onPress = { openPage("appearance") }
-    // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (chatsplus/ChatFolders.kt).
-    val folders = SettingsRow(context, symbol = "folder", label = "Папки с чатами")
+    // ChatsPlus: «Папки с чатами» — the folders above the chat list, kept on this device (chatsplus/ChatFolders.kt); the
+    // row shows how many there are.
+    val folderCount = account?.let { com.linea.messenger.chatsplus.ChatFolderStore.of(context, it.userId).folders.size } ?: 0
+    val folders = SettingsRow(context, symbol = "ion:folder", label = "Папки с чатами", value = if (folderCount > 0) folderCount.toString() else "")
     folders.onPress = { open(com.linea.messenger.chatsplus.FoldersSettingsPage(context, account?.messenger)) }
     // Effects: «Энергосбережение и анимации» and «Язык» (settings/PowerSettings.kt, settings/LanguageSettings.kt).
-    val power = SettingsRow(context, symbol = "battery", label = "Энергосбережение и анимации")
+    val power = SettingsRow(context, symbol = "ion:battery-half", label = "Энергосбережение и анимации")
     power.onPress = { openPage("power") }
-    val language = SettingsRow(context, symbol = "globe", label = "Язык", value = com.linea.messenger.language.Language.chosenName)
+    val language = SettingsRow(context, symbol = "ion:language", label = "Язык", value = com.linea.messenger.language.Language.chosenName)
     language.onPress = { openPage("language") }
-    addGroup(rows = listOf(notifications, appearance, folders, power, language))
+    group(listOf(notifications, appearance, folders, power, language))
 
-    val privacy = SettingsRow(context, symbol = "lock", label = "Конфиденциальность")
+    val privacy = SettingsRow(context, symbol = "ion:lock-closed", label = "Конфиденциальность")
     privacy.onPress = { account?.let { open(PrivacyScreen(context, it)) } }
-    val security = SettingsRow(context, symbol = "shield", label = "Безопасность")
+    // «Безопасность и устройства»: the reference's one SecurityScreen — the secrets, the sessions, the blocked people and
+    // deleting the account (settings/Security.kt).
+    val security = SettingsRow(context, symbol = "ion:shield-checkmark", label = "Безопасность и устройства")
     security.onPress = { account?.let { open(SecurityScreen(context, it)) } }
-    val sessions = SettingsRow(context, symbol = "phone", label = "Активные сеансы")
-    sessions.onPress = { account?.let { open(SessionsScreen(context, it)) } }
-    val blocked = SettingsRow(context, symbol = "blocked", label = "Заблокированные")
-    blocked.onPress = { account?.let { open(BlockedScreen(context, it)) } }
-    val data = SettingsRow(context, symbol = "drive", label = "Данные и память")
+    val data = SettingsRow(context, symbol = "ion:server", label = "Данные и память")
     data.onPress = { openPage("data") }
-    addGroup(rows = listOf(privacy, security, sessions, blocked, data))
+    group(listOf(privacy, security, data))
 
-    val help = SettingsRow(context, symbol = "lifebuoy", label = "Помощь и поддержка")
+    val help = SettingsRow(context, symbol = "ion:help-buoy", label = "Помощь и поддержка")
     help.onPress = { if (account != null) openSupport() }
-    val about = SettingsRow(context, symbol = "info", label = "О приложении", value = appVersion(context))
-    about.onPress = { open(AboutScreen(context)) }
-    addGroup(rows = listOf(help, about))
+    group(listOf(help))
 
-    val leave = SettingsRow(context, symbol = "exit", label = "Выйти из аккаунта", danger = true)
+    val leave = SettingsRow(context, symbol = "ion:log-out-outline", label = "Выйти из аккаунта", danger = true)
     leave.onPress = { askToLeave() }
-    addGroup(rows = listOf(leave))
+    group(listOf(leave))
 
-    // What the app is made of, in one quiet line.
-    val made = context.words("INVIZENT ${appVersion(context)} · ядро ${Core.version}", 12f, Theme.subtle)
-    made.typeface = Typeface.MONOSPACE
+    // The technical line: «Чёрная» — monospaced (12, `subtle`, letter spacing −0.15); other themes — 11 in `muted`.
+    val version = appVersion(context)
+    val made = if (ThemeStore.look.black) context.words("INVIZENT $version · e2ee · signal", 12f, Theme.subtle).apply {
+      typeface = Typeface.MONOSPACE
+      letterSpacing = -0.15f / 12f
+    } else context.words("Инвиз $version · переписка защищена сквозным шифрованием", 11f, Theme.muted)
     made.gravity = Gravity.CENTER
-    add(made, 18f)
+    add(made, 14f)
+  }
+
+  /** How many chats are quiet right now (the reference's `mutedChats`), from the list kept on this device. */
+  private var mutedChats = 0
+
+  private fun countMuted() {
+    val messenger = account?.messenger ?: return
+    com.linea.messenger.offline.ChatCache.cachedChats(messenger) { list ->
+      val quiet = list.count { chat ->
+        val settings = Core.map(chat.chat["settings"]) ?: return@count false
+        NotificationsScreen.muteState(settings)["muted"] as? Boolean ?: false
+      }
+      if (quiet != mutedChats) { mutedChats = quiet; if (built) build() }
+    }
   }
 
   private fun openProfile() {

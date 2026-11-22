@@ -103,7 +103,9 @@ final class SettingsProfileChrome {
         let avatarTop: CGFloat = 200 - 57 - 8 - 58
         NSLayoutConstraint.activate([
             ring.topAnchor.constraint(equalTo: head.topAnchor, constant: avatarTop),
-            ring.leadingAnchor.constraint(equalTo: head.leadingAnchor, constant: -1),
+            // The reference: the head's column is 20 from the screen (4 in from the list's 16), the avatar 5 inside its
+            // pressable — 25 from the edge.
+            ring.leadingAnchor.constraint(equalTo: head.leadingAnchor, constant: 4),
             ring.widthAnchor.constraint(equalToConstant: 110),
             ring.heightAnchor.constraint(equalToConstant: 110),
             nameRow.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 12),
@@ -125,8 +127,18 @@ final class SettingsProfileChrome {
         brand.font = .systemFont(ofSize: 11, weight: .heavy)
         brand.kern = 2.4
         brand.show("ИНВИЗ PLATINA", platina: true)
-        let title = SettingsLook.words("Твой профиль —\nзаметнее любого другого", size: 18, color: Theme.text, weight: .heavy)
-        let words = SettingsLook.words("Живой баннер и аватар, платиновое имя, рамки, невидимка и всё, что выйдет дальше.", size: 13, color: Theme.muted)
+        // The reference: the title 18 ExtraBold, letter spacing −0.3, line 23; the words 13, line 19.
+        func lines(_ text: String, size: CGFloat, weight: UIFont.Weight, color: UIColor, line: CGFloat, kern: CGFloat) -> UILabel {
+            let label = UILabel()
+            label.numberOfLines = 0
+            let style = NSMutableParagraphStyle()
+            style.minimumLineHeight = line
+            style.maximumLineHeight = line
+            label.attributedText = NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color, .kern: kern, .paragraphStyle: style])
+            return label
+        }
+        let title = lines("Твой профиль —\nзаметнее любого другого", size: 18, weight: .heavy, color: Theme.text, line: 23, kern: -0.3)
+        let words = lines("Живой баннер и аватар, платиновое имя, рамки, невидимка и всё, что выйдет дальше.", size: 13, weight: .regular, color: Theme.muted, line: 19, kern: 0)
         let button = PlatinaButton(title: "Попробовать Platina", size: 15)
         button.layer.cornerRadius = 15
         button.addAction(UIAction { (_: UIAction) -> Void in

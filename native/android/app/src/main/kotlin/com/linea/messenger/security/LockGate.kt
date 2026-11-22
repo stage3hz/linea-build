@@ -161,7 +161,7 @@ private fun logo(context: Context): ImageView = ImageView(context).apply {
 class LockCover(context: Context) : LinearLayout(context) {
   var onRetry: (() -> Unit)? = null
   private val words = context.words("Не удалось прочитать настройки код-пароля", 16f, Theme.text)
-  private val again = SettingsButton(context, "Повторить", SettingsButton.Kind.SECONDARY)
+  private val again = SettingsButton(context, "Повторить", SettingsButton.Kind.PRIMARY, icon = "refresh-outline")
 
   init {
     orientation = VERTICAL
@@ -214,7 +214,7 @@ class LockScreen(context: Context, private val sampleKind: String? = null) : Fra
     addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     if (sampleKind == null && LockStore.current.biometrics) LockBiometrics.label(context)?.let { label ->
       bioLabel = label
-      entry.biometric = Triple("fingerprint", label) { tryBiometrics() }
+      entry.biometric = Triple("ion:finger-print-outline", label) { tryBiometrics() }
     }
     refreshWords()
   }

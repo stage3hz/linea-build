@@ -59,7 +59,8 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
   val field = ManualEditText(context)
   private val caption = context.words("", 11f, Theme.muted, 700)
   private val plate = FrameLayout(context)
-  private val eye = SymbolButton(context, "eye", 20f, Theme.muted)
+  // The reference's `IconButton` eye-outline / eye-off-outline (23) on a clear glass round.
+  private val eye = SymbolButton(context, "ion:eye-outline", 23f, Theme.muted).apply { background = com.linea.messenger.design.GlassDrawable(this) }
   private val refusal = context.words("Введи по одному символу. Вставка и автозаполнение отключены.", 11f, Theme.muted)
   private var captionText = caption
 
@@ -160,7 +161,7 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
   }
 
   private fun updateEye() {
-    eye.symbol = if (hidden) "eye" else "eye.slash"
+    eye.symbol = if (hidden) "ion:eye-outline" else "ion:eye-off-outline"
     eye.contentDescription = (if (hidden) "Показать" else "Скрыть") + ": " + captionText.lowercase(Locale.ROOT)
   }
 

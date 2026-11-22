@@ -108,7 +108,7 @@ class MediaPagesTest {
     assertNull(rows(chat).single { it.rowKey == "sample-voice-2" }.mediaState)
     // Its parts answer to touches: the button, the place on the waveform, the speed.
     assertEquals(Pair("play", 0f), playing.mediaAt(38f * d, 34f * d))
-    val wave = playing.mediaAt(72f * d + 90f * d, 24f * d)!!
+    val wave = playing.mediaAt(72f * d + 103f * d, 24f * d)!!
     assertEquals("wave", wave.first)
     assertEquals(0.5f, wave.second, 0.02f)
     assertEquals("rate", playing.mediaAt(72f * d + 170f * d, 49f * d)?.first)

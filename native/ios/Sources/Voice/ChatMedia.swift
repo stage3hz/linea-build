@@ -92,18 +92,19 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     private weak var sendButton: UIButton?
     private weak var composer: UIView?
     private weak var actions: ChatScreenActions?
+    private weak var attachments: ChatAttachments?
     private let messenger: Messenger?
     private let chatId: String
     private let peerId: String
-    private let control = RecordControl()
-    private let recorder = VoiceRecorder()
+    /// Record: the record button, its takes, the preview and the round camera (Sources/Voice/MediaRecording.swift).
+    private let recording = MediaRecording()
+    private var control: RecordControl { recording.control }
     private lazy var voice = VoicePlayer(server: messenger?.server)
     private var notes: NotePlayback?
     private var outgoing: [Outgoing] = []
     private let work = DispatchQueue(label: "invizent.media", qos: .userInitiated)
     private let toast = UILabel()
     private var toastHide: DispatchWorkItem?
-    private var hintBack: DispatchWorkItem?
     private var watch: Timer?
     private var sampleRows: [[String: Any]] = []
     /// Called on the main queue when the rows of what is on its way out changed.
@@ -128,9 +129,12 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         self.field = field
         self.composer = composer
         self.actions = actions
+        self.attachments = attachments
         sendButton = send
-        control.edgeInset = 0 // Composer: the microphone on its round glass at the row's end
-        control.install(composer: composer, host: host.view)
+        recording.install(composer: composer, host: host.view)
+        control.clipView = attachments.clipButton
+        control.clipSlides = true
+        if let emoji = actions.extras.emojiView { control.fieldViews = [field, emoji] } else { control.fieldViews = [field] }
         notes = NotePlayback(server: messenger?.server, list: list)
 
         toast.font = .systemFont(ofSize: 14)
@@ -165,26 +169,27 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         notes?.holdsSilence = { [weak self] () -> Bool in
             guard let self else { return true }
             // Also while something stands over the chat (the round video recorder uses the microphone).
-            return self.recorder.isRecording || self.voice.isPlaying || self.host?.presentedViewController != nil
+            return self.recording.isRecording || self.voice.isPlaying || self.host?.presentedViewController != nil
         }
 
-        control.timeWords = { [weak self] () -> String in
-            FileCore.call("voiceTimeFine", [self?.recorder.elapsedMs ?? 0]) as? String ?? "0:00,00"
+        recording.canStart = { [weak self] (_: RecordControl.Mode) -> String? in
+            guard let self else { return "" }
+            return self.messenger == nil ? "" : nil
         }
-        control.onModeChanged = { [weak self] (mode: RecordControl.Mode) -> Void in self?.modeChanged(mode) }
-        control.onHoldStart = { [weak self] () -> Bool in self?.startVoice() ?? false }
-        control.onFinish = { [weak self] (send: Bool) -> Void in self?.finishVoice(send: send) }
-        control.onPause = { [weak self] in
+        recording.willStart = { [weak self] in
             guard let self else { return }
-            self.recorder.togglePause()
-            self.control.setPaused(self.recorder.isPaused)
+            self.voice.pause()
+            self.notes?.rest()
+            self.host?.view.endEditing(true)
         }
-        control.onVideo = { [weak self] in self?.recordNote() }
-        recorder.onLevel = { [weak self] (level: CGFloat) -> Void in self?.control.setLevel(level) }
-        recorder.onLimit = { [weak self] in
-            guard let self else { return }
-            self.control.reset()
-            self.finishVoice(send: true)
+        recording.say = { [weak self] (words: String) -> Void in self?.say(words) }
+        recording.sendVoice = { [weak self] (file: URL, ms: Int, waveform: String?) -> Void in self?.sendVoice(file: file, durationMs: ms, waveform: waveform) }
+        recording.sendNote = { [weak self] (file: URL) -> Void in self?.sendNote(file) }
+        // The composer lays itself out again in one of its 0.4 s transitions when a take starts, locks or stops.
+        control.onPhase = { [weak self] (_: RecordControl.Phase) -> Void in
+            guard let view = self?.host?.view else { return }
+            view.setNeedsLayout()
+            RecordSpec.animateLayout { view.layoutIfNeeded() }
         }
         DispatchQueue.global(qos: .utility).async { ChatMedia.sweepOld() }
         #if targetEnvironment(simulator)
@@ -203,6 +208,10 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         }
     }
 
+    /// Record: a take is on screen (the composer's pills make room for it) / its preview waits.
+    var recordingTake: Bool { control.phase == .holding || control.phase == .locked }
+    var recordingPreview: Bool { control.phase == .preview }
+
     /// Places the record button and the strip (after the screen placed the composer). The microphone stands in
     /// the send button's place while there is nothing to send.
     func place(composerFrame: CGRect, in view: UIView) {
@@ -219,8 +228,19 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
             control.setVisible(microphone)
             sendButton.isHidden = microphone
         }
-        control.place(composerBounds: composer.bounds, composerFrame: composerFrame)
+        // Record: while a take runs the paperclip slides off to the left and the field's pill takes its place
+        // (from the composer's edge to the button's gap); the preview has the usual pill, the trash in the
+        // paperclip's place.
+        let width = composer.bounds.width, height = composer.bounds.height
+        let side = ComposerPills.side
+        let takeShown = control.phase == .holding || control.phase == .locked
+        let pill = takeShown ? CGRect(x: 0, y: 0, width: width - side - ComposerPills.gap, height: height) : ComposerPills.fieldPill(width: width, height: height)
+        if takeShown, let clip = attachments?.clipButton {
+            clip.frame = CGRect(x: -side - ComposerPills.gap - 6, y: height - side, width: side, height: side)
+        }
+        control.place(button: CGRect(x: width - side, y: height - side, width: side, height: side), field: pill, trash: CGRect(x: 0, y: height - side, width: side, height: side))
         composer.bringSubviewToFront(control.button)
+        recording.layout()
         if !toast.isHidden { placeToast(in: view) }
     }
 
@@ -259,100 +279,44 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     func left() {
         watch?.invalidate()
         watch = nil
-        if recorder.isRecording {
-            _ = recorder.finish(keep: false)
-            control.reset()
-        }
+        recording.left()
         voice.left()
         notes?.left()
     }
 
     // MARK: Recording a voice message
 
-    private func modeChanged(_ mode: RecordControl.Mode) {
-        // As the reference: the hint stands right in the field for a moment.
-        field?.hintWords = mode == .video ? "Видео — удерживайте. Звук — нажмите." : "Звук — удерживайте. Видео — нажмите."
-        hintBack?.cancel()
-        let back = DispatchWorkItem { [weak self] in self?.field?.hintWords = "Сообщение" }
-        hintBack = back
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2, execute: back)
-    }
-
-    private func startVoice() -> Bool {
-        guard messenger != nil else { return false }
-        switch VoiceRecorder.allowed {
-        case .none:
-            // The system asks once; the finger has left the button by then, so the person holds it again.
-            VoiceRecorder.ask { [weak self] (granted: Bool) -> Void in
-                if !granted { self?.say(VoiceRecorder.noAccess) }
-            }
-            return false
-        case .some(false):
-            say(VoiceRecorder.noAccess)
-            return false
-        case .some(true):
-            break
-        }
-        voice.pause()
-        notes?.rest()
-        if MusicPlayer.shared.current != nil { MusicPlayer.shared.stop() }
-        host?.view.endEditing(true)
-        if let failure = recorder.start() {
-            say(failure.words)
-            return false
-        }
-        return true
-    }
-
-    private func finishVoice(send: Bool) {
+    /// Record: a voice message to send (a take, or a stopped take joined and trimmed): sealed and uploaded as
+    /// any other attachment.
+    private func sendVoice(file: URL, durationMs: Int, waveform: String?) {
         relayout()
-        guard let take = recorder.finish(keep: send) else { return }
-        if take.durationMs < 500 {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            try? FileManager.default.removeItem(at: take.file)
-            say("Слишком короткое голосовое — держи запись хотя бы секунду.")
-            return
-        }
-        if take.broken {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            try? FileManager.default.removeItem(at: take.file)
-            say("Микрофон записал тишину — голосовое не отправлено. Запиши ещё раз.")
-            return
-        }
-        if take.silent { say("Микрофон записал тишину. Если в голосовом нет звука — запиши ещё раз.") }
         let now = Date().timeIntervalSince1970 * 1000
-        guard let name = FileCore.call("voiceName", [now.rounded(.down)]) as? String else { return }
-        var media: [String: Any] = ["durationMs": take.durationMs]
-        if let waveform = take.waveform { media["waveform"] = waveform }
+        guard let name = FileCore.call("voiceName", [now.rounded(.down)]) as? String else {
+            try? FileManager.default.removeItem(at: file)
+            return
+        }
+        var media: [String: Any] = ["durationMs": durationMs]
+        if let waveform { media["waveform"] = waveform }
         let item = Outgoing(kind: "voice")
         item.meta = actions?.takeReply()
-        item.wave = take.waveform ?? ""
-        item.mediaTime = FileCore.call("voiceTime", [take.durationMs]) as? String ?? ""
-        item.payload = Payload(file: take.file, name: name, mimeType: "audio/mp4", media: media, preview: nil, video: false)
+        item.wave = waveform ?? ""
+        item.mediaTime = FileCore.call("voiceTime", [durationMs]) as? String ?? ""
+        item.payload = Payload(file: file, name: name, mimeType: "audio/mp4", media: media, preview: nil, video: false)
         add(item)
         run(item)
     }
 
-    // MARK: A round video
-
-    private func recordNote() {
-        guard messenger != nil, let host else { return }
-        voice.pause()
-        notes?.rest()
-        host.view.endEditing(true)
-        let screen = NoteRecorder(startAtOnce: true)
-        screen.onDone = { [weak self] (file: URL) -> Void in
-            guard let self else {
-                try? FileManager.default.removeItem(at: file)
-                return
-            }
-            let item = Outgoing(kind: "note")
-            item.meta = self.actions?.takeReply()
-            item.source = file
-            self.add(item)
-            self.run(item)
+    /// Record: a recorded round video to send (written anew without metadata on the way).
+    private func sendNote(_ file: URL) {
+        guard messenger != nil else {
+            try? FileManager.default.removeItem(at: file)
+            return
         }
-        host.present(screen, animated: true)
+        let item = Outgoing(kind: "note")
+        item.meta = actions?.takeReply()
+        item.source = file
+        add(item)
+        run(item)
     }
 
     // MARK: A video from the gallery
@@ -661,7 +625,6 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
                 self?.list?.setMediaState(state)
             }
             if wanted == "recording" {
-                control.timeWords = { () -> String in "0:04,63" }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
                     self?.control.demoHolding()
                     self?.relayout()

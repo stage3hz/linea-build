@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.text.TextUtils
 import android.view.Gravity
+import android.widget.FrameLayout
+import com.linea.messenger.design.plate
 import android.view.View
 import android.widget.LinearLayout
 import com.linea.messenger.app.Messenger
@@ -41,13 +43,13 @@ object SessionWords {
 
   private fun mentions(words: String, needles: List<String>): Boolean = words.lowercase(Locale.ROOT).let { low -> needles.any { low.contains(it) } }
 
-  /** The picture of the device's kind (one of `Symbols`): a phone, a tablet, the globe of a browser, a computer. */
+  /** The picture of the device's kind: the reference's `deviceIcon` (SecurityScreen.tsx) — Ionicons names with "ion:". */
   fun symbol(session: Map<String, Any?>): String {
     val platform = text(session, "platform")
-    if (platform == "ios" || platform == "android") return if (mentions(text(session, "deviceModel"), listOf("ipad", "tablet"))) "tablet" else "phone"
-    if (platform == "web") return "globe"
-    if (platform == "windows") return "desktop"
-    return if (mentions(text(session, "deviceName"), listOf("android", "iphone", "ipad", "ios", "pixel", "galaxy"))) "phone" else "desktop"
+    if (platform == "ios" || platform == "android") return if (mentions(text(session, "deviceModel"), listOf("ipad", "tablet"))) "ion:tablet-portrait-outline" else "ion:phone-portrait-outline"
+    if (platform == "web") return "ion:globe-outline"
+    if (platform == "windows") return "ion:desktop-outline"
+    return if (mentions(text(session, "deviceName"), listOf("android", "iphone", "ipad", "ios", "pixel", "galaxy"))) "ion:phone-portrait-outline" else "ion:desktop-outline"
   }
 
   /** This device first, then the newest sign-ins. */
@@ -74,7 +76,7 @@ class SessionsScreen(context: Context, private val account: SettingsAccount) : S
   var opensFirstWhenLoaded = false
 
   override fun build() {
-    setSide("refresh", "Обновить список сеансов") { if (!busy && !loading) refresh() }
+    setSide("ion:refresh-outline", "Обновить список сеансов") { if (!busy && !loading) refresh() }
     refresh()
   }
 
@@ -119,7 +121,7 @@ class SessionsScreen(context: Context, private val account: SettingsAccount) : S
     if (current.isNotEmpty()) addGroup(rows = current.map { row(it) })
 
     // «Завершить все другие сеансы» sits between this device and the other sessions.
-    val endOthers = SettingsButton(context, "Завершить все другие сеансы", SettingsButton.Kind.DANGER)
+    val endOthers = SettingsButton(context, "Завершить все другие сеансы", SettingsButton.Kind.DANGER, icon = "log-out-outline")
     endOthers.isEnabled = !busy && others.isNotEmpty()
     endOthers.onPress = { askToEndOthers() }
     add(endOthers, 14f)
@@ -202,8 +204,9 @@ class SessionRow(context: Context, session: Map<String, Any?>) : LinearLayout(co
     gravity = Gravity.CENTER_VERTICAL
     setPadding(context.px(14f), context.px(13f), context.px(14f), context.px(13f))
     val current = SessionWords.isCurrent(session)
-    val icon = SymbolView(context, SessionWords.symbol(session), 22f, Theme.text)
-    icon.plate = SettingsLook.chip
+    // The reference's `SessionRow`: a 42 square of `accentSoft`, radius 16, the glyph 23 in the accent.
+    val icon = FrameLayout(context).apply { background = context.plate(ThemeStore.look.accentSoft, 16f) }
+    icon.addView(SymbolView(context, SessionWords.symbol(session), 23f, Theme.accent), FrameLayout.LayoutParams(context.px(23f), context.px(23f), Gravity.CENTER))
     addView(icon, LayoutParams(context.px(42f), context.px(42f)).apply { rightMargin = context.px(12f) })
 
     val name = context.words(SessionWords.name(session, "Устройство"), 14f, Theme.text, 700)
@@ -214,7 +217,7 @@ class SessionRow(context: Context, session: Map<String, Any?>) : LinearLayout(co
     top.gravity = Gravity.CENTER_VERTICAL
     // The name gives way to the mark: it is cut short, the mark is not.
     top.addView(name, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
-    if (current) top.addView(SettingsSwitchRow.paddedLabel(context, "Это устройство", 10f), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
+    if (current) top.addView(SettingsSwitchRow.paddedLabel(context, "Это устройство", 10f).apply { setTextColor(Theme.accent); background = context.plate(ThemeStore.look.accentSoft, 8f) }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
 
     val lines = ArrayList<View>()
     lines.add(top)
@@ -225,7 +228,7 @@ class SessionRow(context: Context, session: Map<String, Any?>) : LinearLayout(co
     lines.add(context.words((if (address.isEmpty()) "" else "$address · ") + seen, 11f, Theme.subtle).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
     addView(stacked(context, lines, 3f), LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
 
-    addView(SymbolView(context, "chevron.right", 13f, Theme.subtle), LayoutParams(context.px(14f), context.px(14f)).apply { leftMargin = context.px(12f) })
+    addView(SymbolView(context, "ion:chevron-forward", 18f, Theme.subtle), LayoutParams(context.px(18f), context.px(18f)).apply { leftMargin = context.px(12f) })
     isClickable = true
     isFocusable = true
     setOnClickListener { onPress?.invoke() }
@@ -248,7 +251,7 @@ class SessionRow(context: Context, session: Map<String, Any?>) : LinearLayout(co
 @SuppressLint("ViewConstructor")
 class SessionDetailScreen(context: Context, private val session: Map<String, Any?>, private val onEnd: (SessionDetailScreen) -> Unit) :
   SettingsPage(context, if (SessionWords.isCurrent(session)) "Это устройство" else "Сеанс") {
-  private val endButton = SettingsButton(context, if (SessionWords.isCurrent(session)) "Выйти на этом устройстве" else "Завершить сеанс", SettingsButton.Kind.DANGER)
+  private val endButton = SettingsButton(context, if (SessionWords.isCurrent(session)) "Выйти на этом устройстве" else "Завершить сеанс", SettingsButton.Kind.DANGER, icon = "log-out-outline")
 
   fun setBusy(busy: Boolean) {
     endButton.setBusy(busy)
@@ -266,7 +269,7 @@ class SessionDetailScreen(context: Context, private val session: Map<String, Any
 
   override fun build() {
     val current = SessionWords.isCurrent(session)
-    val head = beside(context, SessionWords.symbol(session), 25f, 48f, stacked(context, listOf(
+    val head = beside(context, SessionWords.symbol(session), 26f, 48f, stacked(context, listOf(
       context.words(SessionWords.name(session, "Устройство"), 17f, Theme.text, 800),
       context.words(if (current) "Текущий сеанс на этом устройстве" else "Действующий сеанс на другом устройстве", 12f, Theme.muted),
     ), 3f), 12f)

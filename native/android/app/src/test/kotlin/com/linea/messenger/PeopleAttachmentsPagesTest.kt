@@ -120,7 +120,9 @@ class PeopleAttachmentsPagesTest {
   @Test fun theSearchOfPeople() {
     val activity = launch("11-people-search", demo().putExtra("peoplesearch", "мар"), wait = 900)
     val page = find(activity.window.decorView, "PeopleScreen")!!
-    assertEquals(listOf("РЕЗУЛЬТАТЫ ПОИСКА", "Марина Ким", "@marina.kim"), texts(find(page, "ListView")!!))
+    // The heading stands above the list (it does not scroll), as in PeopleScreen.tsx.
+    assertEquals(listOf("Марина Ким", "@marina.kim"), texts(find(page, "ListView")!!))
+    assertTrue(texts(page).contains("РЕЗУЛЬТАТЫ ПОИСКА"))
     assertTrue(named(page).contains("Очистить поиск"))
     val none = launch("11-people-search-none", demo().putExtra("peoplesearch", "@zz"), wait = 900)
     assertTrue(texts(none.window.decorView).containsAll(listOf("Пока никого", "По началу @имени ищется с 4 символов. Введи ещё или напиши @имя целиком.")))

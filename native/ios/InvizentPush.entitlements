@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- A build signed with a Push-capable profile (the App Store): the App Group of Invizent.entitlements plus APNs.
+     Sideloaded and unsigned builds use Invizent.entitlements, without «aps-environment», as the previous app's
+     sideloaded builds did (mobile/plugins/withNoIosPush.js); push then says «Уведомления не настроены в этой сборке
+     приложения.» (Sources/Shell/Push.swift). -->
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>production</string>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.linea.messenger.preview.screen</string>
+	</array>
+</dict>
+</plist>

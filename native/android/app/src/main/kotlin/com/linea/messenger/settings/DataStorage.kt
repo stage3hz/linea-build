@@ -73,7 +73,7 @@ class DataScreen(context: Context, private val account: SettingsAccount) : Setti
     val row = LinearLayout(context)
     row.orientation = LinearLayout.HORIZONTAL
     row.gravity = Gravity.CENTER_VERTICAL
-    row.addView(SymbolView(context, symbol, 18f, Theme.accent), LinearLayout.LayoutParams(dp(20f), dp(20f)))
+    row.addView(SymbolView(context, symbol, 22f, Theme.accent), LinearLayout.LayoutParams(dp(22f), dp(22f))) // Ionicons 22
     row.addView(context.words(label, 15f, Theme.text), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(10f) })
     val amount = context.words(value, 15f, Theme.text, 700)
     amount.gravity = Gravity.END
@@ -89,7 +89,7 @@ class DataScreen(context: Context, private val account: SettingsAccount) : Setti
     val share = serverShare(limits)
     val server = LinearLayout(context)
     server.orientation = LinearLayout.VERTICAL
-    server.addView(line("cloud", "Использовано", used), LinearLayout.LayoutParams(wide, wrap))
+    server.addView(line("ion:cloud-outline", "Использовано", used), LinearLayout.LayoutParams(wide, wrap))
     server.addView(ShareBar(context, share, if (share > 0.9f) Theme.danger else Theme.accent), LinearLayout.LayoutParams(wide, dp(6f)).apply { topMargin = dp(10f) })
     limits?.let { server.addView(context.words(planWords(it["platina"] as? Boolean ?: false), 12f, Theme.muted), LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(10f) }) }
     server.addView(context.words("Зашифрованные вложения из личных чатов. Сервер не может их прочитать.", 12f, Theme.muted), LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(10f) })
@@ -102,7 +102,7 @@ class DataScreen(context: Context, private val account: SettingsAccount) : Setti
     clean.onPress = { clearCache() }
     val device = LinearLayout(context)
     device.orientation = LinearLayout.VERTICAL
-    device.addView(line("drive", "Временные файлы", cacheWords), LinearLayout.LayoutParams(wide, wrap))
+    device.addView(line("ion:server-outline", "Временные файлы", cacheWords), LinearLayout.LayoutParams(wide, wrap))
     device.addView(context.words("Расшифрованные для просмотра вложения. Всё это можно скачать и расшифровать заново.", 12f, Theme.muted), LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(12f) })
     device.addView(clean, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(12f) })
     if (doneWords.isNotEmpty()) device.addView(context.words(doneWords, 12f, Theme.muted), LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(12f) })

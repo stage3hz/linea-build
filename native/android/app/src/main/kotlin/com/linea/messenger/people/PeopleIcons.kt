@@ -20,6 +20,8 @@ object PeopleIcons {
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). `ink`: the colour of what is cut out of a filled shape. */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int, ink: Int = Theme.bg) {
+    // "ion:<name>": the reference's own Ionicons glyph; «ion:chevron-back» its drawn back chevron (design/Symbols.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.Symbols.draw(canvas, name, cx, cy, size, color)
     if (name == "people" || name == "back") return Icons.draw(canvas, name, cx, cy, size, color)
     // Calls: the pictures of «Звонок» and «Видео» (calls/CallIcons.kt).
     if (com.linea.messenger.calls.CallIcons.adds(name)) return com.linea.messenger.calls.CallIcons.draw(canvas, name, cx, cy, size, color, ink)

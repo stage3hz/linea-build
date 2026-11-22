@@ -143,10 +143,10 @@ object ProfileChatExtras {
     for ((label, seconds) in spans) {
       val preview = Instant.now().plusSeconds(seconds)
       // Counted from the moment of the choice, not from the moment the sheet was opened.
-      choices.add(ChoiceSheet.Choice("clock", label, "Без звука до " + endLabel(preview) + ".") { pick(Instant.now().plusSeconds(seconds).truncatedTo(ChronoUnit.MILLIS).toString()) })
+      choices.add(ChoiceSheet.Choice("ion:time-outline", label, "Без звука до " + endLabel(preview) + ".") { pick(Instant.now().plusSeconds(seconds).truncatedTo(ChronoUnit.MILLIS).toString()) })
     }
-    choices.add(ChoiceSheet.Choice("bell.slash", "Навсегда", "Пока не включишь снова. Звонки продолжат звонить.") { pick(null) })
-    choices.add(ChoiceSheet.Choice("clock", "Настроить…", "Своё время: дни, часы и минуты.") {
+    choices.add(ChoiceSheet.Choice("ion:notifications-off-outline", "Навсегда", "Пока не включишь снова. Звонки продолжат звонить.") { pick(null) })
+    choices.add(ChoiceSheet.Choice("ion:options-outline", "Настроить…", "Своё время: дни, часы и минуты.") {
       val custom = com.linea.messenger.chatsplus.MuteCustomSheet(context) { until -> pick(until) }
       custom.onBack = { muteSheet(context, title, pick) }
       custom.show()
@@ -180,17 +180,18 @@ object ProfileChatExtras {
   /** «Автоудаление»: `pick` gets a new value only (the sheet closes either way). */
   fun autoDeleteSheet(context: Context, current: Int, pick: (Int) -> Unit) {
     val choices = autoDelete.map { ttl ->
-      ChoiceSheet.Choice(if (ttl == current) "radio.on" else "radio", if (ttl != 0) autoDeleteLabel(ttl) else "Выключено") { if (ttl != current) pick(ttl) }
+      ChoiceSheet.Choice(if (ttl == current) "ion:checkmark-circle" else "ion:ellipse-outline", if (ttl != 0) autoDeleteLabel(ttl) else "Выключено") { if (ttl != current) pick(ttl) }
     }
     ChoiceSheet(context, "Автоудаление", "Новые сообщения в этом чате удалятся у вас обоих через выбранное время. Собеседник увидит, что автоудаление включено.", choices).show()
   }
 
   /** «Очистить историю?» → «Удалить у обоих». */
   fun clearSheet(context: Context, name: String, confirm: () -> Unit) {
-    ChoiceSheet(context, "Очистить историю?", "", listOf(ChoiceSheet.Choice("archive", "Удалить у обоих", "Все сообщения исчезнут у тебя и у $name. Вернуть не получится.", danger = true, run = confirm))).show()
+    ChoiceSheet(context, "Очистить историю?", "", listOf(ChoiceSheet.Choice("ion:trash-outline", "Удалить у обоих", "Все сообщения исчезнут у тебя и у $name. Вернуть не получится.", danger = true, run = confirm))).show()
   }
 
-  class Item(val title: String, val danger: Boolean = false, val run: () -> Unit)
+  /** `icon`: the reference's MenuItem icon (an Ionicons name). */
+  class Item(val title: String, val danger: Boolean = false, val icon: String = "", val run: () -> Unit)
 
   /** The items of «Ещё» that belong to the chat, in the reference's order: «Автоудаление · …», «Запретить /
    *  Разрешить пересылку и копирование», «Обои», «Поиск»; and, apart, «Очистить историю». */
@@ -198,17 +199,17 @@ object ProfileChatExtras {
     val context = profile.context
     val ttl = link.ttl; val noCopy = link.noCopy
     val top = ArrayList<Item>()
-    top.add(Item("Автоудаление · " + autoDeleteLabel(ttl)) {
+    top.add(Item("Автоудаление · " + autoDeleteLabel(ttl), icon = "timer-outline") {
       autoDeleteSheet(context, link.ttl) { next -> link.setRules(next, link.noCopy); notice(autoDeleteNotice(next)) }
     })
-    top.add(Item(if (noCopy) "Разрешить пересылку и копирование" else "Запретить пересылку и копирование") {
+    top.add(Item(if (noCopy) "Разрешить пересылку и копирование" else "Запретить пересылку и копирование", icon = if (noCopy) "lock-closed" else "lock-open-outline") {
       profile.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
       link.setRules(link.ttl, !noCopy)
       notice(noCopyNotice(noCopy))
     })
-    if (link.canWallpaper) top.add(Item("Обои") { link.openWallpaper(profile) })
-    if (link.canSearch) top.add(Item("Поиск") { link.openSearch(profile) })
-    val clear = Item("Очистить историю", danger = true) {
+    if (link.canWallpaper) top.add(Item("Обои", icon = "image-outline") { link.openWallpaper(profile) })
+    if (link.canSearch) top.add(Item("Поиск", icon = "search-outline") { link.openSearch(profile) })
+    val clear = Item("Очистить историю", danger = true, icon = "trash-bin-outline") {
       clearSheet(context, name) { link.clearForBoth(); notice("История очищена у обоих") }
     }
     return top to clear
@@ -371,7 +372,7 @@ class SharedMediaView(context: Context) : LinearLayout(context) {
       if (bitmap != null) {
         picture.setImageBitmap(bitmap)
         tile.addView(picture, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-      } else tile.addView(ProfileIconView(context, "photo", 22f, Theme.muted), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+      } else tile.addView(ProfileIconView(context, "ion:image-outline", 22f, Theme.muted), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
       val video = kind(item.attachment) == "video"
       if (video) {
         val ms = (com.linea.messenger.core.Core.map(item.attachment["media"] as? Map<*, *>)?.get("durationMs") as? Number)?.toLong() ?: 0L
@@ -425,7 +426,7 @@ class SharedMediaView(context: Context) : LinearLayout(context) {
       val note = isVideoNote(item.attachment)
       val icon = FrameLayout(context)
       icon.background = context.plate(Theme.accent, if (voiceList) 21f else 10f)
-      icon.addView(ProfileIconView(context, if (voiceList) (if (note) "video" else "play") else "doc", 18f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+      icon.addView(ProfileIconView(context, if (voiceList) (if (note) "ion:videocam" else "ion:play") else "ion:document-text", 20f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
       val title = if (voiceList) (if (note) "Видеосообщение" else "Голосовое сообщение") else (item.attachment["name"] as? String ?: "Файл")
       val bytes = (item.attachment["size"] as? Number)?.toLong() ?: 0L
       val key = item.message["rowKey"] as? String ?: ""

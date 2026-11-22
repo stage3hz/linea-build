@@ -134,8 +134,8 @@ class MiniProfile(
   private fun actionButton(symbol: String, label: String, primary: Boolean, action: () -> Unit): View {
     val c = context
     val line = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = c.plate(if (primary) Theme.accent else Theme.surface2, 14f); minimumHeight = c.px(44f) }
-    val ink = if (primary) Theme.onAccent else Theme.text
-    line.addView(ProfileIconView(c, symbol, 15f, ink), LinearLayout.LayoutParams(c.px(18f), c.px(18f)))
+    val ink = if (primary) 0xFFFFFFFF.toInt() else Theme.text // the reference writes #FFFFFF on the accent
+    line.addView(ProfileIconView(c, symbol, 18f, ink), LinearLayout.LayoutParams(c.px(18f), c.px(18f))) // Ionicons 18
     line.addView(c.words(label, 14f, ink, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = c.px(7f) })
     line.isClickable = true
     line.contentDescription = label
@@ -146,7 +146,7 @@ class MiniProfile(
   private fun tile(symbol: String, label: String, action: () -> Unit): View {
     val c = context
     val box = LinearLayout(c).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; background = c.plate(Theme.surface2, 14f); setPadding(c.px(4f), c.px(11f), c.px(4f), c.px(11f)) }
-    box.addView(ProfileIconView(c, symbol, 18f, Theme.accent), LinearLayout.LayoutParams(c.px(22f), c.px(22f)))
+    box.addView(ProfileIconView(c, symbol, 21f, Theme.accent), LinearLayout.LayoutParams(c.px(21f), c.px(21f))) // Ionicons 21
     box.addView(c.words(label, 12f, Theme.text, 600), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(5f) })
     box.isClickable = true
     box.contentDescription = label
@@ -158,12 +158,18 @@ class MiniProfile(
   private fun row(symbol: String, label: String, danger: Boolean = false, on: Boolean? = null, hint: String = "", action: () -> Unit): View {
     val c = context
     val line = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; minimumHeight = c.px(48f); setPadding(c.px(14f), c.px(8f), c.px(14f), c.px(8f)) }
-    line.addView(ProfileIconView(c, symbol, 17f, if (danger) Theme.danger else Theme.text), LinearLayout.LayoutParams(c.px(22f), c.px(22f)))
+    line.addView(ProfileIconView(c, symbol, 20f, if (danger) Theme.danger else Theme.text), LinearLayout.LayoutParams(c.px(20f), c.px(20f))) // Ionicons 20
     val words = LinearLayout(c).apply { orientation = LinearLayout.VERTICAL }
     words.addView(c.words(label, 15f, if (danger) Theme.danger else Theme.text, 600))
     if (hint.isNotEmpty()) words.addView(c.words(hint, 12f, Theme.muted))
     line.addView(words, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = c.px(12f) })
-    if (on != null) line.addView(Switch(c).apply { isChecked = on; isClickable = false; isFocusable = false; com.linea.messenger.settings.SettingsLook.paint(this) }) // E
+    // The reference draws its own small switch here: a 44×26 pill (radius 13, 3 inside) of the accent when on, `surface2`
+    // when off, with a white 20 knob at the end.
+    if (on != null) line.addView(FrameLayout(c).apply {
+      background = c.plate(if (on) Theme.accent else Theme.surface2, 13f)
+      addView(View(c).apply { background = c.plate(0xFFFFFFFF.toInt(), 10f) },
+        FrameLayout.LayoutParams(c.px(20f), c.px(20f), Gravity.CENTER_VERTICAL or (if (on) Gravity.END else Gravity.START)).apply { leftMargin = c.px(3f); rightMargin = c.px(3f) })
+    }, LinearLayout.LayoutParams(c.px(44f), c.px(26f)))
     line.isClickable = true
     line.contentDescription = label
     line.setOnClickListener { action() }
@@ -179,17 +185,17 @@ class MiniProfile(
     if (quick != null) {
       val tiles = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL }
       fun addTile(view: View) = tiles.addView(view, LinearLayout.LayoutParams(0, wrap, 1f).apply { if (tiles.childCount > 0) leftMargin = c.px(8f) })
-      quick.onCall?.let { call -> addTile(tile("phone.fill", "Звонок") { call(false) }); addTile(tile("video.fill", "Видео") { call(true) }) }
-      addTile(tile("photo", "Вложения", quick.onAttachments))
+      quick.onCall?.let { call -> addTile(tile("ion:call", "Звонок") { call(false) }); addTile(tile("ion:videocam", "Видео") { call(true) }) }
+      addTile(tile("ion:images", "Вложения", quick.onAttachments))
       rows.addView(tiles, LinearLayout.LayoutParams(wide, wrap))
       val group = LinearLayout(c).apply { orientation = LinearLayout.VERTICAL; background = c.plate(Theme.surface2, 14f); clipToOutline = true }
       val friend = isFriend
       if (friend != null) {
         val words = if (friend) "Удалить из друзей" else if (request == "outgoing") "Отменить заявку" else if (request == "incoming") "Принять в друзья" else "Добавить в друзья"
-        group.addView(row(if (friend) "person.minus" else if (request == "outgoing") "clock" else "person.plus", words) { toggleFriend() })
+        group.addView(row(if (friend) "ion:person-remove-outline" else if (request == "outgoing") "ion:time-outline" else "ion:person-add-outline", words) { toggleFriend() })
       } else group.addView(ProgressBar(c).apply { isIndeterminate = true; indeterminateTintList = android.content.res.ColorStateList.valueOf(Theme.accent) }, LinearLayout.LayoutParams(wide, c.px(48f)))
       quick.onNoCopy?.let { onNoCopy ->
-        group.addView(row(if (quick.noCopy) "lock" else "lock.open", "Запретить пересылку и копирование", on = quick.noCopy, hint = "Для обоих в этом чате") {
+        group.addView(row(if (quick.noCopy) "ion:lock-closed-outline" else "ion:lock-open-outline", "Запретить пересылку и копирование", on = quick.noCopy, hint = "Для обоих в этом чате") {
           card.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
           val next = !quick.noCopy
           quick.noCopy = next
@@ -199,18 +205,18 @@ class MiniProfile(
         })
       }
       val blockWords = if (blocked) "Разблокировать" else if (confirmBlock) "Нажми ещё раз, чтобы заблокировать" else "Заблокировать"
-      group.addView(row(if (blocked) "hand" else "minus.circle", blockWords, danger = !blocked) { blockPressed() })
+      group.addView(row(if (blocked) "ion:hand-left-outline" else "ion:remove-circle-outline", blockWords, danger = !blocked) { blockPressed() })
       rows.addView(group, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = c.px(10f) })
       note.gravity = Gravity.CENTER
       (note.parent as? ViewGroup)?.removeView(note)
       rows.addView(note, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = c.px(10f) })
-      onOpenProfile?.let { rows.addView(actionButton("person.plus", "Открыть профиль", false, it), LinearLayout.LayoutParams(wide, wrap).apply { topMargin = c.px(10f) }) }
+      onOpenProfile?.let { rows.addView(actionButton("ion:person-circle-outline", "Открыть профиль", false, it), LinearLayout.LayoutParams(wide, wrap).apply { topMargin = c.px(10f) }) }
       return
     }
     val line = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL }
     fun addAction(view: View) = line.addView(view, LinearLayout.LayoutParams(0, wrap, 1f).apply { if (line.childCount > 0) leftMargin = c.px(8f) })
-    if (!me && onWrite != null) addAction(actionButton("bubble.fill", "Написать", true, onWrite))
-    onOpenProfile?.let { addAction(actionButton("person.plus", "Профиль", me || onWrite == null, it)) }
+    if (!me && onWrite != null) addAction(actionButton("ion:chatbubble-outline", "Написать", true, onWrite))
+    onOpenProfile?.let { addAction(actionButton("ion:person-circle-outline", "Профиль", me || onWrite == null, it)) }
     if (line.childCount > 0) rows.addView(line, LinearLayout.LayoutParams(wide, wrap))
   }
 

@@ -88,6 +88,7 @@ class PeopleRulesTest {
         is PeopleList.Item.Request -> (if (item.incoming) "< " else "> ") + item.person.id
         is PeopleList.Item.Friend -> item.person.id
         is PeopleList.Item.Empty -> item.heading + " | " + item.words
+        PeopleList.Item.Gap -> "—"
       }
     }
     // No search: the requests that came, those that were sent, then the friends.
@@ -137,10 +138,10 @@ class PeopleRulesTest {
   }
 
   @Test fun theWordsOfAProfile() {
-    assertEquals("person.plus" to "В друзья", ProfileWords.friendTile(false, null))
-    assertEquals("person.plus" to "В друзья", ProfileWords.friendTile(null, null))
-    assertEquals("person.minus" to "В друзьях", ProfileWords.friendTile(true, null))
-    assertEquals("clock" to "Заявка", ProfileWords.friendTile(false, "outgoing"))
+    assertEquals("ion:person-add" to "В друзья", ProfileWords.friendTile(false, null))
+    assertEquals("ion:person-add" to "В друзья", ProfileWords.friendTile(null, null))
+    assertEquals("ion:person-remove" to "В друзьях", ProfileWords.friendTile(true, null))
+    assertEquals("ion:time-outline" to "Заявка", ProfileWords.friendTile(false, "outgoing"))
     assertEquals("person.plus" to "Принять", ProfileWords.friendTile(false, "incoming"))
     assertEquals("Удалить из друзей", ProfileWords.friendMenu(true, null))
     assertEquals("Отменить заявку", ProfileWords.friendMenu(false, "outgoing"))

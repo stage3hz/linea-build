@@ -32,8 +32,9 @@ class MsgSwipeReply(private val host: ViewGroup) {
   private var moving: Pair<String, View>? = null
   private var decided = false
   private var armed = false
-  private val badge = ChatIconView(host.context, "reply", 14f, Theme.accent).apply {
-    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.alpha(Theme.accent, 0.16f)) }
+  // MessageRow.tsx SwipeToReply: <Icon name="arrow-undo" size={17}> on a 32-point accentSoft circle.
+  private val badge = ChatIconView(host.context, "ion:arrow-undo", 17f, Theme.accent).apply {
+    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(com.linea.messenger.settings.ThemeStore.look.accentSoft) }
     alpha = 0f
     isClickable = false
   }
@@ -59,7 +60,7 @@ class MsgSwipeReply(private val host: ViewGroup) {
           moving = found
           downX = event.x
           host.parent?.requestDisallowInterceptTouchEvent(true)
-          badge.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.alpha(Theme.accent, 0.16f)) }
+          badge.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(com.linea.messenger.settings.ThemeStore.look.accentSoft) }
           badge.color = Theme.accent
           return true
         }

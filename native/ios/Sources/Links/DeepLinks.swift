@@ -1,6 +1,6 @@
 import UIKit
 
-/// Links that open the app: `linea://invite/CODE` and `invizent://invite/CODE` (the URL schemes in project.yml),
+/// Links that open the app: `linea://invite/CODE` (the URL schemes in project.yml: the previous app's),
 /// and `https://invizent.com/i/CODE` when the system hands such a link over. Only our own addresses are recognised
 /// (`ChannelWords.inviteCode`, the reference's `inviteCodeFrom`); the invitation itself is always asked from our
 /// server by its code and shown as «Приглашение» over «Каналы» (Channels/CommunityForms.swift, `InvitePage`).

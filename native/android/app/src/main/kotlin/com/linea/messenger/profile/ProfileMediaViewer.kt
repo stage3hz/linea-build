@@ -82,7 +82,7 @@ class ProfileMediaViewer(context: Context, private val person: Person, private v
       pages.add(page)
       fill(position)
     }
-    val back = IconButton(context, "back", 22f, Color.WHITE)
+    val back = IconButton(context, "ion:chevron-back", 24f, Color.WHITE) // «chevron-back» 24
     back.background = context.plate(0x1FFFFFFF, 22f)
     back.contentDescription = "Закрыть"
     back.setOnClickListener { dismiss() }

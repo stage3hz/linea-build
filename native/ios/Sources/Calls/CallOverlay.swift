@@ -285,7 +285,7 @@ enum CallEntry {
 #if targetEnvironment(simulator)
 /// What the simulator check asks of calls by launch arguments (see SceneDelegate.simulatorStart):
 ///   -calldemo outgoing    no account: the call screen of a call being placed — «Вызов…» under the name, the ring
-///                         pulsing around the picture, «Динамик», «Видео», «Убрать звук», «Завершить»
+///                         pulsing around the picture, «Звук», «Видео», «Убрать звук», «Завершить»
 ///   -calldemo incoming    «Входящий звонок» with «Отклонить» and «Ответить»
 ///   -calldemo active      a running audio call: the key emoji at the top, the clock (from 0:42) under the name
 ///   -calldemo video       a running video call: the other side's picture over the whole screen and this phone's

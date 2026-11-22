@@ -65,6 +65,11 @@ extension Messenger {
     /// «Выйти из аккаунта»: the server ends this session, then it is forgotten here. `done` (main queue) gets
     /// the words for the sign-in screen (empty when all went well), or why leaving was not finished.
     func signOut(done: @escaping (Result<String, ServerError>) -> Void) {
+        // Push: this device stops receiving pushes first, while the session still works (push.ts `stopPush`).
+        Push.shared.stop(server) { [weak self] in self?.endSession(done: done) }
+    }
+
+    private func endSession(done: @escaping (Result<String, ServerError>) -> Void) {
         server.op("logout", []) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }

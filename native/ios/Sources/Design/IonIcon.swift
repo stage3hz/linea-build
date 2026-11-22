@@ -43,6 +43,8 @@ enum IonIcon {
 
     /// A template image of the glyph, `size` points square; an empty image when the name is unknown.
     static func image(_ name: String, size: CGFloat) -> UIImage {
+        // The reference draws «chevron-back» itself (components.tsx `BackChevron`), not with the font.
+        if name == "chevron-back" { return BackChevronGlyph.image(size: size) }
         let key = "\(name)@\(size)"
         if let made = cache[key] { return made }
         let shape = path(name, size: size)

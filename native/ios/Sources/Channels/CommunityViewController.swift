@@ -29,7 +29,7 @@ final class ChannelHeaderView: UIView {
         pill.shape(radius: 27)
         pill.isUserInteractionEnabled = false
         addSubview(pill)
-        backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        backButton.setImage(IonIcon.image("chevron-back", size: 23), for: .normal) // IconButton «chevron-back», 23
         backButton.tintColor = Theme.text
         backButton.accessibilityLabel = "Назад"
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
@@ -61,7 +61,8 @@ final class ChannelHeaderView: UIView {
         toolActions = []
         for (index, item) in items.enumerated() {
             let button = UIButton(type: .system)
-            button.setImage(UIImage(systemName: item.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)), for: .normal)
+            // The reference's IconButton glyph (23); a name of the icon set, else a system symbol.
+            button.setImage(IonIcon.has(item.symbol) ? IonIcon.image(item.symbol, size: 23) : UIImage(systemName: item.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)), for: .normal)
             button.tintColor = Theme.text
             button.accessibilityLabel = item.label
             button.tag = index
@@ -281,8 +282,8 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         header.avatar.show(found.summary)
         header.setWords(found.summary.name, found.summary.countWords)
         var tools: [(symbol: String, label: String, action: () -> Void)] = []
-        if found.can(Perm.invite) { tools.append((symbol: "person.badge.plus", label: "Пригласить", action: { [weak self] in self?.invite() })) }
-        tools.append((symbol: "gearshape", label: "Настройки", action: { [weak self] in self?.openSettings() }))
+        if found.can(Perm.invite) { tools.append((symbol: "person-add-outline", label: "Пригласить", action: { [weak self] in self?.invite() })) }
+        tools.append((symbol: "settings-outline", label: "Настройки", action: { [weak self] in self?.openSettings() }))
         header.setTools(tools)
         if found.blog {
             showPosts(found, tools: tools)
@@ -556,14 +557,21 @@ final class ChannelCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         contentView.backgroundColor = .clear
+        // Pressed: the soft accent on a rounded row 12 in from the list's sides (radius 12).
         let pressed = UIView()
-        pressed.backgroundColor = Theme.veil(0.07)
+        let wash = UIView()
+        wash.backgroundColor = ThemeStore.look.accentSoft
+        wash.layer.cornerRadius = 12
+        wash.layer.cornerCurve = .continuous
+        wash.frame = CGRect(x: 12, y: 0, width: 100, height: 44)
+        wash.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        pressed.addSubview(wash)
         selectedBackgroundView = pressed
         dot.backgroundColor = Theme.text
-        dot.layer.cornerRadius = 2.5
+        dot.layer.cornerRadius = 3
         icon.contentMode = .center
         icon.tintColor = Theme.muted
-        lock.image = UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 10, weight: .regular))
+        lock.image = IonIcon.image("lock-closed", size: 13)
         lock.tintColor = Theme.subtle
         lock.contentMode = .center
         people.font = .systemFont(ofSize: 12)
@@ -577,7 +585,7 @@ final class ChannelCell: UITableViewCell {
     func show(_ channel: CommunityChannel, unread: Int, mentions count: Int) {
         let fresh = channel.isText && unread > 0
         dot.isHidden = !fresh
-        icon.image = UIImage(systemName: channel.isText ? "ellipsis.bubble" : "speaker.wave.2.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular))
+        icon.image = IonIcon.image(channel.isText ? "chatbox-ellipses-outline" : "volume-medium", size: 19)
         name.text = channel.isText ? "# " + channel.name : channel.name
         name.font = .systemFont(ofSize: 16, weight: fresh ? .bold : .medium)
         name.textColor = channel.isText && !fresh ? Theme.muted : Theme.text
@@ -594,23 +602,27 @@ final class ChannelCell: UITableViewCell {
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = contentView.bounds.width, height = contentView.bounds.height
-        dot.frame = CGRect(x: 9, y: (height - 9) / 2, width: 5, height: 9)
-        icon.frame = CGRect(x: 20, y: 0, width: 24, height: height)
-        let room = width - 54 - 20 - (people.text?.isEmpty == false ? 50 : 0)
-        let trail: CGFloat = (lock.isHidden ? 0 : 20) + (mentions.isHidden ? 0 : mentions.wide + 6)
+        // The row: 12 in from the list, paddingHorizontal 10, gap 10 — the icon (19), the name, the lock (13), the
+        // counter; the unread dot 2 left of the row.
+        if let wash = selectedBackgroundView?.subviews.first { wash.frame = CGRect(x: 12, y: 0, width: max(0, width - 24), height: height) }
+        dot.frame = CGRect(x: 10, y: (height - 9) / 2, width: 5, height: 9)
+        icon.frame = CGRect(x: 22, y: 0, width: 19, height: height)
+        let peopleWide: CGFloat = people.text?.isEmpty == false ? ceil(people.sizeThatFits(CGSize(width: 100, height: 20)).width) + 10 : 0
+        let room = width - 51 - 22 - peopleWide
+        let trail: CGFloat = (lock.isHidden ? 0 : 13 + 10) + (mentions.isHidden ? 0 : mentions.wide + 10)
         let wide = min(ceil(name.sizeThatFits(CGSize(width: 1000, height: 22)).width), max(0, room - trail))
-        name.frame = CGRect(x: 54, y: 0, width: wide, height: height)
-        var after = 54 + wide + 6
+        name.frame = CGRect(x: 51, y: 0, width: wide, height: height)
+        var after = 51 + wide + 10
         if !lock.isHidden {
-            lock.frame = CGRect(x: after, y: 0, width: 14, height: height)
-            after += 20
+            lock.frame = CGRect(x: after, y: 0, width: 13, height: height)
+            after += 13 + 10
         }
         if !mentions.isHidden {
             let badge = mentions.wide
             mentions.frame = CGRect(x: after, y: (height - 20) / 2, width: badge, height: 20)
         }
-        people.frame = CGRect(x: width - 20 - 50, y: 0, width: 50, height: height)
-        insideTint.frame = CGRect(x: 10, y: 1, width: max(0, width - 20), height: height - 2)
+        people.frame = CGRect(x: width - 22 - 50, y: 0, width: 50, height: height)
+        insideTint.frame = CGRect(x: 12, y: 0, width: max(0, width - 24), height: height)
     }
 
     /// Voice channels: this phone is inside — a green wash, the icon and the name in green.

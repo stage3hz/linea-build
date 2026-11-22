@@ -95,12 +95,18 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   private val context: Context = host.context
   private val main = Handler(Looper.getMainLooper())
   private val d = context.resources.displayMetrics.density
+  /** Record: the paperclip, which gives its place to the trash while a voice take or its preview is shown. */
+  val clipButton: View get() = button
   private val button = object : View(context) {
     init { isClickable = true; isFocusable = true; contentDescription = "Вложения: галерея, файлы, опрос" }
     override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
-    override fun onDraw(canvas: android.graphics.Canvas) =
-      PeopleIcons.draw(canvas, "paperclip", width / 2f, height / 2f, 24f * d, if (isPressed) Theme.alpha(Theme.text, 0.5f) else Theme.text)
+    // ChatScreen.tsx: <Icon name="attach" size={26} color={t.text}> turned 45°.
+    override fun onDraw(canvas: android.graphics.Canvas) {
+      canvas.save(); canvas.rotate(45f, width / 2f, height / 2f)
+      com.linea.messenger.design.IonIcon.draw(canvas, "attach", width / 2f, height / 2f, 26f * d, if (isPressed) Theme.alpha(Theme.text, 0.5f) else Theme.text)
+      canvas.restore()
+    }
   }
   private var pending: List<Pending> = emptyList()
   /** One picture or file at a time is read and made ready; one at a time is sealed and uploaded. */

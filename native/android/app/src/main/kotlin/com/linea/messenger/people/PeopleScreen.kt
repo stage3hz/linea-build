@@ -27,6 +27,7 @@ import android.widget.TextView
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.chat.ChatScreen
 import com.linea.messenger.design.BarMetrics
+import com.linea.messenger.design.IonIcon
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.titled
 import com.linea.messenger.net.Server
@@ -98,7 +99,7 @@ class PeopleScreen(
   private val caption: TextView get() = header.subtitleLabel
   private val searchBox = com.linea.messenger.design.GlassSearchField(context)
   private val field = EditText(context)
-  private val clearButton = RoundIconButton(context, "close-circle", RoundIconButton.Look.PLAIN, 18f)
+  private val clearButton = PeopleRoundButton(context, "close-circle", RoundIconButton.Look.PLAIN, 18f)
   /** What did not work (the reference's `Notice error`), above the list, 17 from the sides. */
   private val notice = PeopleNoticeView(context)
   /** «ДРУЗЬЯ  5» / «РЕЗУЛЬТАТЫ ПОИСКА»: above the list, not in it (it does not scroll), 26 from the left. */
@@ -144,7 +145,7 @@ class PeopleScreen(
       is PeopleList.Item.Label -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { show(item.words, first = items.getOrNull(position - 1) !is PeopleList.Item.Request) }
       is PeopleList.Item.Notice -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { show("", first = true) }
       PeopleList.Item.Gap -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { gap() }
-      is PeopleList.Item.Empty -> (convertView as? PeopleEmptyCell ?: PeopleEmptyCell(context)).apply { show(item.heading, item.words) }
+      is PeopleList.Item.Empty -> (convertView as? PeopleEmptyCell ?: PeopleEmptyCell(context)).apply { room = list.height - list.paddingBottom; show(item.heading, item.words) }
       is PeopleList.Item.Request -> (convertView as? PersonCell ?: PersonCell(context)).apply {
         val person = item.person
         val buttons = if (item.incoming) listOf(
@@ -462,88 +463,154 @@ class PeopleScreen(
   }
 }
 
-/** A quiet heading of a part of the list («ДРУЗЬЯ  5»), or words about what did not work. */
+/** A quiet heading («ДРУЗЬЯ  5», «ЗАЯВКИ В ДРУЗЬЯ  2»): 10, bold, 1.7 apart, 26 from the left. In the list (a
+ *  requests' heading): 4 above (and 6 more above the second section), 10 under; above the list: 12 under. */
 class PeopleLabelCell(context: Context) : TextView(context) {
   private val d = resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
 
-  init { includeFontPadding = false }
+  init {
+    includeFontPadding = false
+    textSize = 10f
+    typeface = Theme.weight(700)
+    letterSpacing = 1.7f / 10f
+    setTextColor(Theme.muted)
+    maxLines = 1
+  }
 
-  fun show(words: String, notice: Boolean) {
+  fun show(words: String, first: Boolean, outside: Boolean = false) {
     text = words
-    if (notice) {
-      textSize = 14f
-      typeface = Theme.weight(400)
-      letterSpacing = 0f
-      setTextColor(Theme.danger)
-      gravity = Gravity.START or Gravity.TOP
-      setPadding(dp(26f), dp(7f), dp(26f), dp(15f))
-      layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, AbsListView.LayoutParams.WRAP_CONTENT)
-    } else {
-      textSize = 11f
-      typeface = Theme.weight(700)
-      letterSpacing = 1.7f / 11f
-      setTextColor(Theme.muted)
-      gravity = Gravity.START or Gravity.CENTER_VERTICAL
-      setPadding(dp(26f), 0, dp(26f), dp(8f))
-      layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, dp(34f))
-    }
-    if (android.os.Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = !notice
+    gravity = Gravity.START or Gravity.TOP
+    setPadding(dp(26f), if (outside) 0 else dp(if (first) 4f else 10f), dp(26f), dp(if (outside) 12f else 10f))
+    layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, AbsListView.LayoutParams.WRAP_CONTENT)
+    if (android.os.Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = words.isNotEmpty()
+  }
+
+  /** The 12 after the requests. */
+  fun gap() {
+    text = ""
+    setPadding(0, 0, 0, 0)
+    layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, dp(12f))
   }
 }
 
-/** «Кому напишем?» — the list is empty. */
-class PeopleEmptyCell(context: Context) : ViewGroup(context) {
+/** What did not work (the reference's `Notice` with `error`): glass of radius 18 under the danger tint, the
+ *  `alert-circle-outline` (19) and the words (13 on 19) in the danger colour, 14 inside, 10 between. */
+class PeopleNoticeView(context: Context) : ViewGroup(context) {
   private val d = resources.displayMetrics.density
-  private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.veil(0.07f) }
-  private val heading = TextView(context)
+  private fun dp(value: Float) = Math.round(value * d)
   private val words = TextView(context)
+  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
   init {
     setWillNotDraw(false)
-    heading.textSize = 21f
-    heading.typeface = Theme.weight(800)
-    heading.setTextColor(Theme.text)
-    heading.gravity = Gravity.CENTER
-    heading.includeFontPadding = false
-    addView(heading)
-    words.textSize = 15f
-    words.setTextColor(Theme.muted)
-    words.gravity = Gravity.CENTER
+    words.textSize = 13f
+    words.includeFontPadding = false
+    if (android.os.Build.VERSION.SDK_INT >= 28) words.lineHeight = dp(19f)
     addView(words)
   }
 
-  fun show(title: String, text: String) {
-    heading.text = title
+  fun show(text: String) {
     words.text = text
+    words.setTextColor(Theme.danger)
+    contentDescription = text
+    requestLayout(); invalidate()
+  }
+
+  fun heightFor(width: Int): Int {
+    words.measure(MeasureSpec.makeMeasureSpec(maxOf(1, width - dp(28f + 19f + 10f)), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    return maxOf(dp(19f), words.measuredHeight) + dp(28f)
+  }
+
+  override fun onMeasure(widthSpec: Int, heightSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(widthSpec), MeasureSpec.getSize(heightSpec))
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    val inner = maxOf(1, (right - left) - dp(28f + 19f + 10f))
+    words.measure(MeasureSpec.makeMeasureSpec(inner, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    words.layout(dp(14f + 19f + 10f), dp(14f), dp(14f + 19f + 10f) + inner, dp(14f) + words.measuredHeight)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    val r = 18f * d
+    paint.color = Theme.veil(0.06f)
+    canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, paint)
+    paint.color = com.linea.messenger.settings.ThemeStore.look.dangerBg
+    canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, paint)
+    IonIcon.draw(canvas, "alert-circle-outline", 14f * d + 9.5f * d, 14f * d + 9.5f * d, 19f * d, Theme.danger)
+  }
+}
+
+/** «Кому напишем?» — the list is empty: the reference's `Empty` with `people-outline`, in the middle of the room
+ *  left (`justifyContent: center`, 35 kept free under it). */
+class PeopleEmptyCell(context: Context) : ViewGroup(context) {
+  private val d = resources.displayMetrics.density
+  private val empty = com.linea.messenger.chatsplus.EmptyStateView(context)
+  /** The room the list leaves for it (its own height, without the bar's padding). */
+  var room = 0
+
+  init { addView(empty) }
+
+  fun show(title: String, text: String) {
+    empty.show("ion:people-outline", title, text)
     requestLayout()
   }
 
   override fun onMeasure(widthSpec: Int, heightSpec: Int) {
     val width = MeasureSpec.getSize(widthSpec)
-    heading.measure(MeasureSpec.makeMeasureSpec((width - 56f * d).toInt().coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    val room = minOf(310f * d, width - 56f * d).toInt().coerceAtLeast(0)
-    words.measure(MeasureSpec.makeMeasureSpec(room, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    setMeasuredDimension(width, (300f * d).toInt())
+    val inner = width - Math.round(28f * d)
+    setMeasuredDimension(width, maxOf(empty.contentHeight(inner), room - Math.round(35f * d)) + Math.round(35f * d))
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-    val width = right - left
-    val headingTop = ((38f + 94f + 21f) * d).toInt()
-    heading.layout((28f * d).toInt(), headingTop, (28f * d).toInt() + heading.measuredWidth, headingTop + heading.measuredHeight)
-    val wordsTop = headingTop + heading.measuredHeight + (13f * d).toInt()
-    val wordsLeft = (width - words.measuredWidth) / 2
-    words.layout(wordsLeft, wordsTop, wordsLeft + words.measuredWidth, wordsTop + words.measuredHeight)
-  }
-
-  override fun onDraw(canvas: Canvas) {
-    val side = 94f * d; val x = (width - side) / 2; val y = 38f * d
-    canvas.drawRoundRect(x, y, x + side, y + side, 30f * d, 30f * d, paint)
-    PeopleIcons.draw(canvas, "people", width / 2f, y + side / 2, 40f * d, Theme.accent)
+    val side = Math.round(14f * d)
+    empty.measure(MeasureSpec.makeMeasureSpec(right - left - side * 2, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(bottom - top - Math.round(35f * d), MeasureSpec.EXACTLY))
+    empty.layout(side, 0, right - left - side, bottom - top - Math.round(35f * d))
   }
 }
 
-/** A person in the list: the picture, the name, the @username, and round buttons on the right. */
+/** One round button of a row (PeopleScreen.tsx): the info — `IconButton` 22 on clear glass 38 × 40; the chat —
+ *  38 × 38, radius 18, the soft accent and the page's border; a request's — 38 round, the accent (`primary`) or the
+ *  border; 19 each. Pressed: 0.6. */
+class PeopleRoundButton(context: Context, private val symbol: String, private val look: RoundIconButton.Look, private val size: Float = if (look == RoundIconButton.Look.PLAIN) 22f else 19f) : View(context) {
+  private val d = resources.displayMetrics.density
+  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+  init {
+    isClickable = look != RoundIconButton.Look.SOFT // the chat button is a picture: the row opens the chat
+    isFocusable = false
+    if (look == RoundIconButton.Look.PLAIN) { background = com.linea.messenger.design.GlassDrawable(this); tag = "info" }
+  }
+
+  override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
+
+  override fun drawableStateChanged() {
+    super.drawableStateChanged()
+    if (look == RoundIconButton.Look.PLAIN) { val s = if (isPressed) 0.86f else 1f; animate().scaleX(s).scaleY(s).setDuration(120).start() }
+    invalidate()
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    val w = width.toFloat(); val h = height.toFloat()
+    val dim = if ((isPressed && look != RoundIconButton.Look.PLAIN) || !isEnabled) 0.6f else 1f
+    fun shade(color: Int) = Theme.alpha(color, (color ushr 24) / 255f * dim)
+    val color = when (look) {
+      RoundIconButton.Look.PLAIN -> Theme.muted
+      RoundIconButton.Look.SOFT -> {
+        paint.style = Paint.Style.FILL; paint.color = com.linea.messenger.settings.ThemeStore.look.accentSoft
+        canvas.drawRoundRect(0f, 0f, w, h, 18f * d, 18f * d, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = com.linea.messenger.settings.ThemeStore.look.border
+        canvas.drawRoundRect(d / 2, d / 2, w - d / 2, h - d / 2, 18f * d, 18f * d, paint)
+        Theme.accent
+      }
+      RoundIconButton.Look.PRIMARY -> { paint.style = Paint.Style.FILL; paint.color = shade(Theme.accent); canvas.drawCircle(w / 2, h / 2, minOf(w, h) / 2, paint); Theme.onAccent }
+      RoundIconButton.Look.OUTLINE -> { paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = shade(com.linea.messenger.settings.ThemeStore.look.border); canvas.drawCircle(w / 2, h / 2, minOf(w, h) / 2 - d / 2, paint); Theme.muted }
+    }
+    IonIcon.draw(canvas, symbol, w / 2, h / 2, size * d, shade(color))
+  }
+}
+
+/** A person in the list: the picture (54), the name, the @username, and round buttons on the right. A request:
+ *  12 inside, 12 between, radius 22, framed; a person: 14, 14, radius 24, the border and a veil only when pressed. */
 class PersonCell(context: Context) : ViewGroup(context) {
   class Action(val symbol: String, val words: String, val look: RoundIconButton.Look, val run: () -> Unit)
 
@@ -555,14 +622,13 @@ class PersonCell(context: Context) : ViewGroup(context) {
   /** Avatars: the person's emoji status after the name (avatars/StatusEmoji.kt). */
   private val statusEmoji = com.linea.messenger.avatars.StatusEmojiView(context)
   private val waiting = ProgressBar(context)
-  private var buttons: List<RoundIconButton> = emptyList()
+  private var buttons: List<PeopleRoundButton> = emptyList()
   private var framed = false
   private var busy = false
 
   init {
     setWillNotDraw(false)
     addView(avatar)
-    nameLabel.textSize = 16f
     nameLabel.typeface = Theme.weight(600)
     nameLabel.setTextColor(Theme.text)
     nameLabel.maxLines = 1
@@ -587,18 +653,20 @@ class PersonCell(context: Context) : ViewGroup(context) {
     this.busy = busy
     avatar.show(person, address)
     nameLabel.text = person.displayName
+    nameLabel.textSize = if (framed) 15f else 16f
+    nameLabel.letterSpacing = if (framed) 0f else -0.2f / 16f
     statusEmoji.show(person.look, if (framed) 14f else 15f) // Avatars
     handleLabel.text = handle
-    alpha = if (dimmed) 0.5f else 1f
+    alpha = if (dimmed) (if (framed) 0.5f else 0.45f) else 1f
     for (button in buttons) removeView(button)
     // While this row's request is on its way, the wheel stands where its buttons were (in a list of people:
     // where the «написать» button was).
     val shown = if (!busy) actions else if (framed) emptyList() else actions.dropLast(1)
     buttons = shown.map { action ->
-      RoundIconButton(context, action.symbol, action.look, if (action.look == RoundIconButton.Look.PLAIN) 23f else 18f).apply {
+      PeopleRoundButton(context, action.symbol, action.look).apply {
         contentDescription = action.words
         isEnabled = enabled
-        setOnClickListener { action.run() }
+        if (isClickable) setOnClickListener { action.run() }
         this@PersonCell.addView(this)
       }
     }
@@ -615,50 +683,54 @@ class PersonCell(context: Context) : ViewGroup(context) {
   /** The row is pressed, not its buttons with it. */
   override fun dispatchSetPressed(pressed: Boolean) {}
 
-  private fun exactly(size: Float) = MeasureSpec.makeMeasureSpec((size * d).toInt(), MeasureSpec.EXACTLY)
+  private fun exactly(size: Float) = MeasureSpec.makeMeasureSpec(Math.round(size * d), MeasureSpec.EXACTLY)
+  private val inset: Float get() = if (framed) 12f else 14f
 
   override fun onMeasure(widthSpec: Int, heightSpec: Int) {
     val width = MeasureSpec.getSize(widthSpec)
-    avatar.measure(exactly(48f), exactly(48f))
-    waiting.measure(exactly(22f), exactly(22f))
-    for (button in buttons) button.measure(exactly(38f), exactly(38f))
-    val taken = 28f + 14f + 48f + 14f + 12f + (buttons.size + if (busy) 1 else 0) * 44f
-    val room = MeasureSpec.makeMeasureSpec((width - taken * d).toInt().coerceAtLeast(0), MeasureSpec.EXACTLY)
+    avatar.measure(exactly(54f), exactly(54f))
+    waiting.measure(exactly(20f), exactly(20f))
+    for (button in buttons) button.measure(exactly(38f), exactly(if (button.tag == "info") 40f else 38f))
+    val taken = 28f + inset + 54f + inset + inset + buttons.size * (38f + inset) + (if (busy) 20f + inset else 0f)
+    val room = MeasureSpec.makeMeasureSpec(Math.round(width - taken * d).coerceAtLeast(0), MeasureSpec.EXACTLY)
     // Avatars: the status takes its room after the name.
     statusEmoji.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    val emojiRoom = if (statusEmoji.visibility == View.VISIBLE) statusEmoji.measuredWidth + (6f * d).toInt() else 0
+    val emojiRoom = if (statusEmoji.visibility == View.VISIBLE) statusEmoji.measuredWidth + Math.round(6f * d) else 0
     nameLabel.measure(MeasureSpec.makeMeasureSpec((MeasureSpec.getSize(room) - emojiRoom).coerceAtLeast(0), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     handleLabel.measure(room, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    setMeasuredDimension(width, ((if (framed) 78f else 83f) * d).toInt())
+    // A request: 12 + 54 + 12 and 6 under it; a person: 14 + 54 + 14 and 7 under it.
+    setMeasuredDimension(width, Math.round((if (framed) 84f else 89f) * d))
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     val gap = (if (framed) 6f else 7f) * d
     val cardLeft = 14f * d; val height = (bottom - top) - gap
     fun put(view: View, x: Float, y: Float) = view.layout(x.toInt(), y.toInt(), x.toInt() + view.measuredWidth, y.toInt() + view.measuredHeight)
-    put(avatar, cardLeft + 14f * d, (height - 48f * d) / 2)
-    var edge = (right - left) - 14f * d - 12f * d
+    put(avatar, cardLeft + inset * d, (height - 54f * d) / 2)
+    var edge = (right - left) - 14f * d - inset * d
     if (busy) {
-      put(waiting, edge - 19f * d - 11f * d, height / 2 - 11f * d)
-      edge -= (38f + 6f) * d
+      put(waiting, edge - 20f * d, height / 2 - 10f * d)
+      edge -= (20f + inset) * d
     }
     for (button in buttons.reversed()) {
-      put(button, edge - 38f * d, (height - 38f * d) / 2)
-      edge -= (38f + 6f) * d
+      put(button, edge - 38f * d, (height - button.measuredHeight) / 2)
+      edge -= (38f + inset) * d
     }
-    val textLeft = cardLeft + (14f + 48f + 14f) * d
-    put(nameLabel, textLeft, height / 2 - 1f * d - nameLabel.measuredHeight)
-    if (statusEmoji.visibility == View.VISIBLE) put(statusEmoji, textLeft + nameLabel.measuredWidth + 6f * d, height / 2 - 1f * d - nameLabel.measuredHeight / 2f - statusEmoji.measuredHeight / 2f) // Avatars
-    put(handleLabel, textLeft, height / 2 + 4f * d)
+    val textLeft = cardLeft + (inset + 54f + inset) * d
+    val spacing = (if (framed) 4f else 6f) * d
+    val textTop = (height - nameLabel.measuredHeight - spacing - handleLabel.measuredHeight) / 2
+    put(nameLabel, textLeft, textTop)
+    if (statusEmoji.visibility == View.VISIBLE) put(statusEmoji, textLeft + nameLabel.measuredWidth + 6f * d, textTop + nameLabel.measuredHeight / 2f - statusEmoji.measuredHeight / 2f) // Avatars
+    put(handleLabel, textLeft, textTop + nameLabel.measuredHeight + spacing)
   }
 
   override fun onDraw(canvas: Canvas) {
     val gap = (if (framed) 6f else 7f) * d
-    val l = 14f * d; val r = width - 14f * d; val b = height - gap; val radius = 24f * d
-    val fill = if (isPressed) Theme.veil(0.07f) else if (framed) Theme.veil(0.04f) else 0
+    val l = 14f * d; val r = width - 14f * d; val b = height - gap; val radius = (if (framed) 22f else 24f) * d
+    val fill = if (framed) (if (Theme.dark) 0x0AFFFFFF else 0x73FFFFFF) else if (isPressed) (if (Theme.dark) 0x12FFFFFF else 0x80FFFFFF.toInt()) else 0
     if (fill != 0) { paint.style = Paint.Style.FILL; paint.color = fill; canvas.drawRoundRect(l, 0f, r, b, radius, radius, paint) }
-    if (framed) {
-      paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = Theme.veil(0.08f)
+    if (framed || isPressed) {
+      paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = com.linea.messenger.settings.ThemeStore.look.border
       canvas.drawRoundRect(l + d / 2, d / 2, r - d / 2, b - d / 2, radius, radius, paint)
     }
   }

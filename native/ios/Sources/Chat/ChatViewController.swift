@@ -206,7 +206,7 @@ final class ChatViewController: UIViewController {
         // Voice/Video: the record button and the strip of a take.
         media.place(composerFrame: composer.frame, in: view)
         // Composer: the microphone's round glass only while the record button stands there.
-        pills.place(width: composer.bounds.width, height: composerHeight, microphone: send.isHidden, hidden: false)
+        pills.place(width: composer.bounds.width, height: composerHeight, microphone: send.isHidden && !media.recordingPreview, hidden: false, recording: media.recordingTake)
         list.frame = view.bounds
         // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
         // Music: the player strip under the header; what ChatActions places there moves down by its room.

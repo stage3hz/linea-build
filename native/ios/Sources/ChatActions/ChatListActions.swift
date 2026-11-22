@@ -227,7 +227,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         Theme.surface2.getRed(&r, green: &g, blue: &b, alpha: &a)
         func byte(_ v: CGFloat) -> Int { Int((max(0, min(1, v)) * 255).rounded()) }
-        let color = Int(0xFF00_0000) | byte(r) << 16 | byte(g) << 8 | byte(b)
+        let color = byte(a) << 24 | byte(r) << 16 | byte(g) << 8 | byte(b) // with its own alpha, as processColor gives it
         return ["id": id, "title": title, "preview": preview, "time": "", "unread": 0, "initials": initials, "avatarColor": color, "orbA": 0, "orbB": 0, "section": ""]
     }
 

@@ -1,9 +1,17 @@
-# The native Android app (native/android, Kotlin + the Rust core) built for a real phone as a RELEASE build with
-# its own identifier (com.linea.messenger.native) — it installs BESIDE the current app and cannot touch its keys
-# or history. Runs only for the branch `native-apk`; the file and a check of what is inside go to the branch
-# native-apk-output. Signed with a key made for this one build (thrown away afterwards): a later test build
-# cannot update this one — the earlier test build is removed first. Nothing here talks to any server.
-name: Native Android test APK
+# The native Android app (native/android, Kotlin + the Rust core) built for a real phone as a RELEASE build with the
+# previous app's identifier as it is on the owner's phone — com.linea.messenger.preview, the preview build
+# (android-apk.yml, APP_ENV=development) — so it installs OVER that app as an update and keeps its session, device
+# key, storage keys and history (the same private files and keystore keys). Runs only for the branch `native-apk`;
+# the file and a check of what is inside go to the branch native-apk-output. Nothing here talks to any server.
+#
+# Signed exactly as android-apk.yml signs the previous app: with the owner's keystore from the secrets
+# ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD (all four or none; the
+# keystore exists only for the build step and is deleted afterwards) — the phone takes an update only from the same
+# key. Without them: a throw-away key made for this one run, and the summary says plainly that such an APK cannot
+# update an installed app. The version code is the run number plus 1000: above the previous app's (47) and growing
+# with every build, so every build installs over the one before. Firebase (push): google-services.json from the secret
+# GOOGLE_SERVICES_JSON_B64 when set, else the committed mobile/google-services.json. No secret is ever printed.
+name: Native Android APK
 on:
   push:
     branches: [native-apk]
@@ -17,6 +25,8 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      PACKAGE: com.linea.messenger.preview
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -28,45 +38,127 @@ jobs:
         continue-on-error: true
         env:
           INVIZENT_ATTEST_KEY: ${{ secrets.ATTEST_KEY }}
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GS_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/out"; OUT="$RUNNER_TEMP/out"
           exec > >(tee "$OUT/log.txt") 2>&1
           # A request-signing key of another shape than this build accepts is left out rather than stopping the build.
           printf '%s' "${INVIZENT_ATTEST_KEY:-}" | grep -Eq '^[A-Za-z0-9+/=_-]{16,200}$' && ATTEST=set || { ATTEST=none; export INVIZENT_ATTEST_KEY=""; }
+
+          # Signing: all four secrets or none (as android-apk.yml).
+          set_count=0
+          for v in KS_B64 KS_PASSWORD KEY_ALIAS KEY_PASSWORD; do if [ -n "${!v}" ]; then set_count=$((set_count + 1)); fi; done
+          # The keystore lives only for this step: removed on success, failure or cancellation.
+          KS="$RUNNER_TEMP/release.keystore"
+          trap 'rm -f "$KS"' EXIT
+          if [ "$set_count" = 4 ]; then
+            SIGNING=release
+            printf '%s' "$KS_B64" | base64 -d > "$KS"
+            export INVIZENT_KEYSTORE_PASSWORD="$KS_PASSWORD" INVIZENT_KEY_ALIAS="$KEY_ALIAS" INVIZENT_KEY_PASSWORD="$KEY_PASSWORD"
+          elif [ "$set_count" = 0 ]; then
+            SIGNING=throwaway
+            echo "::warning::No ANDROID_KEYSTORE_* secrets: the APK is signed with a key made for this run only. It CANNOT update an installed app (the phone refuses an update signed with another key)."
+            INVIZENT_KEYSTORE_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+            export INVIZENT_KEYSTORE_PASSWORD INVIZENT_KEY_ALIAS=throwaway INVIZENT_KEY_PASSWORD="$INVIZENT_KEYSTORE_PASSWORD"
+            keytool -genkeypair -keystore "$KS" -storetype PKCS12 -storepass "$INVIZENT_KEYSTORE_PASSWORD" -keypass "$INVIZENT_KEY_PASSWORD" -alias throwaway -keyalg RSA -keysize 3072 -validity 365 -dname "CN=INVIZENT throw-away build key" >/dev/null 2>&1
+          else
+            echo "::error::Only $set_count of 4 signing secrets are set (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD). Set all of them or none."
+            exit 1
+          fi
+          echo "$SIGNING" > "$RUNNER_TEMP/signing.txt"
+
+          # google-services.json: the secret (outside the checkout) or the committed file; it must list this package.
+          if [ -n "$GS_B64" ]; then
+            export INVIZENT_GOOGLE_SERVICES="$RUNNER_TEMP/google-services.json"
+            printf '%s' "$GS_B64" | base64 -d > "$INVIZENT_GOOGLE_SERVICES"
+            GS_SOURCE='secret GOOGLE_SERVICES_JSON_B64'
+          else
+            export INVIZENT_GOOGLE_SERVICES="$GITHUB_WORKSPACE/mobile/google-services.json"
+            GS_SOURCE='committed mobile/google-services.json'
+          fi
+          echo "$GS_SOURCE" > "$RUNNER_TEMP/gs.txt"
+          python3 - "$INVIZENT_GOOGLE_SERVICES" "$PACKAGE" <<'PY' || { echo "::error::$GS_SOURCE has no Android client for $PACKAGE: push would never work. Register the package in Firebase and update the file."; exit 1; }
+          import json, sys
+          packages = [c.get('client_info', {}).get('android_client_info', {}).get('package_name') for c in json.load(open(sys.argv[1])).get('client', [])]
+          print('google-services.json packages:', ', '.join(p for p in packages if p))
+          sys.exit(0 if sys.argv[2] in packages else 1)
+          PY
+
+          # Every build installs over the one before: above the previous app's 47, growing with every run.
+          VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))
+          echo "$VERSION_CODE" > "$RUNNER_TEMP/version-code.txt"
+
           sudo apt-get install -y protobuf-compiler >/dev/null
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           if ! ls -d "$SDK"/ndk/*/ >/dev/null 2>&1; then yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006" >/dev/null; fi
           echo "== core for phones (arm64-v8a)"; native/android/build-core.sh arm64-v8a
-          export INVIZENT_TEST_KEYSTORE_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
-          keytool -genkeypair -keystore "$RUNNER_TEMP/test.jks" -storepass "$INVIZENT_TEST_KEYSTORE_PASSWORD" -keypass "$INVIZENT_TEST_KEYSTORE_PASSWORD" -alias test -keyalg RSA -keysize 3072 -validity 365 -dname "CN=INVIZENT test build" >/dev/null 2>&1
           cd native/android
-          ./gradlew --no-daemon :app:assembleRelease -PtestSuffix=.native -PtestKeystore="$RUNNER_TEMP/test.jks" > "$OUT/gradle.log" 2>&1 || { grep -nE "^e: |error:|FAILED|What went wrong" -A4 "$OUT/gradle.log" | head -80; tail -40 "$OUT/gradle.log"; exit 1; }
+          ./gradlew --no-daemon :app:assembleRelease -PreleaseKeystore="$KS" -PversionCode="$VERSION_CODE" > "$OUT/gradle.log" 2>&1 || { grep -nE "^e: |error:|FAILED|What went wrong" -A4 "$OUT/gradle.log" | head -80; tail -40 "$OUT/gradle.log"; exit 1; }
+          rm -f "$KS"
           APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
-          cp "$APK" "$OUT/INVIZENT-native-Android-arm64-test.apk"
+          SUFFIX=""; [ "$SIGNING" = release ] || SUFFIX="-throwaway-key"
+          NAME="INVIZENT-native-Android-arm64$SUFFIX.apk"
+          cp "$APK" "$OUT/$NAME"
           BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
+          BADGING=$("$BT/aapt2" dump badging "$APK" | grep '^package:')
+          APK_PACKAGE=$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<<"$BADGING")
+          APK_CODE=$(sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" <<<"$BADGING")
+          [ "$APK_PACKAGE" = "$PACKAGE" ] || { echo "::error::the APK is $APK_PACKAGE, not $PACKAGE"; exit 1; }
+          [ "$APK_CODE" = "$VERSION_CODE" ] || { echo "::error::versionCode $APK_CODE, expected $VERSION_CODE"; exit 1; }
+          "$BT/apksigner" verify --print-certs "$APK" > "$OUT/signer.txt"
+          CERT_SHA256=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$OUT/signer.txt")
+          echo "$CERT_SHA256" > "$RUNNER_TEMP/cert.txt"
           {
             echo "commit $GITHUB_SHA"
-            echo "== size"; ls -l "$OUT/INVIZENT-native-Android-arm64-test.apk" | awk '{print $5" bytes"}'; sha256sum "$OUT/INVIZENT-native-Android-arm64-test.apk" | awk '{print "sha256 "$1}'
+            echo "== size"; ls -l "$OUT/$NAME" | awk '{print $5" bytes"}'; sha256sum "$OUT/$NAME" | awk '{print "sha256 "$1}'
             echo "== request-signing key: $ATTEST"
             echo "== identity"; "$BT/aapt2" dump badging "$APK" | grep -E "^package:|^sdkVersion|^targetSdkVersion|application-label:" || true
-            echo "== permissions (expected: INTERNET only)"; "$BT/aapt2" dump permissions "$APK" || true
-            echo "== signature"; "$BT/apksigner" verify --print-certs "$APK" | head -4 || true
+            echo "== signing: $SIGNING (certificate SHA-256 $CERT_SHA256)"
+            echo "== google-services.json: $GS_SOURCE"
+            echo "== firebase settings in the APK"; "$BT/aapt2" dump resources "$APK" | grep -E "string/(google_app_id|gcm_defaultSenderId|project_id)" || echo "MISSING"
+            echo "== notification sounds"; unzip -l "$APK" | grep -E "res/.*call_ring" || echo "MISSING"
+            echo "== permissions"; "$BT/aapt2" dump permissions "$APK" || true
             echo "== libraries"; unzip -l "$APK" | grep -E "\.so$" | awk '{print $4, $1}'
             echo "== debuggable (expected: no)"; "$BT/aapt2" dump badging "$APK" | grep -c "application-debuggable" || true
             echo "== sample data and test hooks (expected absent)"; if unzip -p "$APK" 'classes*.dex' | strings | grep -q "Книжный клуб"; then echo "PRESENT"; else echo "absent"; fi
           } > "$OUT/verify.txt"
           cat "$OUT/verify.txt"
           ! grep -q "PRESENT" "$OUT/verify.txt"
+          ! grep -q "MISSING" "$OUT/verify.txt"
           echo "== done"
+      - name: Summary
+        if: always()
+        run: |
+          SIGNING=$(cat "$RUNNER_TEMP/signing.txt" 2>/dev/null || echo unknown)
+          {
+            echo "## Native Android APK"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| package | \`$PACKAGE\` (installs over the previous preview app) |"
+            echo "| versionCode | $(cat "$RUNNER_TEMP/version-code.txt" 2>/dev/null || echo '?') (run number + 1000; the previous app's last is 47) |"
+            if [ "$SIGNING" = release ]; then
+              echo "| signing | owner keystore from secrets (the key of the previous app's APK): installs as an update |"
+            else
+              echo "| signing | **throw-away key made in this run: this APK CANNOT update an installed app.** Set ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD to the previous app's key. |"
+            fi
+            echo "| signer certificate SHA-256 | \`$(cat "$RUNNER_TEMP/cert.txt" 2>/dev/null || echo '?')\` |"
+            echo "| push | FCM, $(cat "$RUNNER_TEMP/gs.txt" 2>/dev/null || echo '?') |"
+            echo "| result | ${{ steps.work.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish (branch native-apk-output)
         if: always()
         run: |
           cd "$RUNNER_TEMP/out" 2>/dev/null || { mkdir -p "$RUNNER_TEMP/out" && cd "$RUNNER_TEMP/out"; }
-          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u)" > STATUS.txt
+          echo "${{ steps.work.outcome }} $GITHUB_SHA $(date -u) signing=$(cat "$RUNNER_TEMP/signing.txt" 2>/dev/null || echo unknown)" > STATUS.txt
           [ -f gradle.log ] && { grep -nE "^e: |error:|FAILED|What went wrong" -A3 gradle.log | head -200 > gradle-errors.txt; tail -80 gradle.log > gradle-tail.txt; : > gradle.log; } || true
           git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
-          git add -A && git commit -qm "Native Android test APK for $GITHUB_SHA: ${{ steps.work.outcome }}"
+          git add -A && git commit -qm "Native Android APK for $GITHUB_SHA: ${{ steps.work.outcome }}"
           for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-apk-output" && break; sleep 15; done
       - name: Fail the job if the build failed
         if: steps.work.outcome != 'success'

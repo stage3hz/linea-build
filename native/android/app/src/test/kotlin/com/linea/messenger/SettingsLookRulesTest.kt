@@ -1,5 +1,6 @@
 package com.linea.messenger
 
+import com.linea.messenger.push.Push
 import com.linea.messenger.core.Core
 import com.linea.messenger.design.Theme
 import com.linea.messenger.settings.DataScreen
@@ -314,10 +315,13 @@ class SettingsLookRulesTest {
     assertTrue(NotificationPrefs.flag("chats", "sound"))
   }
 
-  @Test fun thePageSaysThatNotificationsAreNotShownYet() {
-    assertTrue(NotificationsScreen.notice.startsWith("Приложение пока не показывает уведомления"))
-    assertTrue(NotificationsScreen.notice.contains("только сохраняются на этом устройстве — приложение их ещё не учитывает"))
-    assertTrue(NotificationsScreen.notice.endsWith("Звук чата выключается на сервере уже сейчас."))
+  @Test fun thePageSaysThePushStateAsTheReference() {
+    // NotificationsSection.tsx / push.ts `pushStatusText`, word for word.
+    assertEquals("Разрешение на уведомления ещё не запрошено." to false, NotificationsScreen.pushLine(Push.Status.PENDING))
+    assertEquals("Уведомления выключены в настройках системы." to true, NotificationsScreen.pushLine(Push.Status.DENIED))
+    assertEquals("Уведомления не настроены в этой сборке приложения." to true, NotificationsScreen.pushLine(Push.Status.UNAVAILABLE))
+    assertEquals("Сервер пока не отправляет уведомления на это устройство." to true, NotificationsScreen.pushLine(Push.Status.SERVER_OFF))
+    assertEquals("Когда приложение закрыто, уведомления показывает система. Переключатели ниже действуют, пока приложение запущено. В уведомлении только имя отправителя: текст остаётся зашифрованным." to false, NotificationsScreen.pushLine(Push.Status.ON))
   }
 
   @Test fun theSoundOfAChatReadsOnTheLocalClock() {

@@ -19,6 +19,8 @@ final class VoiceRecorder: NSObject {
         let broken: Bool
         /// Nothing above the waveform's threshold was heard: sent, but the person is told.
         let silent: Bool
+        /// Record: the loudness ten times a second (0…1), for the preview's waveform and for joining takes.
+        let levels: [Double]
     }
 
     struct Failure: Error {
@@ -31,6 +33,7 @@ final class VoiceRecorder: NSObject {
 
     private var recorder: AVAudioRecorder?
     private var meter: Timer?
+    private var peakMeter: Timer?
     private var samples: [Double] = []
     private var sampleStride = 1
     private var pendingLevel = 0.0
@@ -39,6 +42,8 @@ final class VoiceRecorder: NSObject {
     private(set) var isPaused = false
     /// The loudness right now, 0…1 (main queue, ten times a second).
     var onLevel: ((CGFloat) -> Void)?
+    /// Record: the peak loudness every 25 ms, 0…1 (main queue); when set, `onLevel` is not called.
+    var onPeak: ((CGFloat) -> Void)?
     /// The longest take was reached: it must be finished and sent.
     var onLimit: (() -> Void)?
 
@@ -122,7 +127,20 @@ final class VoiceRecorder: NSObject {
         let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in self?.measure() }
         RunLoop.main.add(timer, forMode: .common)
         meter = timer
+        // Record: the blob follows the loudest sample of every 25 ms (owner's spec), not the waveform's average.
+        let peaks = Timer(timeInterval: 0.025, repeats: true) { [weak self] _ in self?.measurePeak() }
+        RunLoop.main.add(peaks, forMode: .common)
+        peakMeter = peaks
         return nil
+    }
+
+    /// Record: the peak of the last 25 ms as the blob reads it: the linear amplitude ÷ 16000 of 32768 (0…1).
+    private func measurePeak() {
+        guard let recorder, !isPaused else { return }
+        recorder.updateMeters()
+        let decibels = Double(recorder.peakPower(forChannel: 0))
+        let linear = decibels.isFinite ? pow(10, decibels / 20) : 0
+        onPeak?(CGFloat(min(1, max(0, linear * 32768 / 16000))))
     }
 
     private func measure() {
@@ -132,7 +150,7 @@ final class VoiceRecorder: NSObject {
         let level = decibels.isFinite ? min(1, max(0, (decibels + 60) / 60)) : 0
         loudest = max(loudest, level)
         push(level)
-        onLevel?(CGFloat(level))
+        if onPeak == nil { onLevel?(CGFloat(level)) }
         if elapsedMs >= VoiceRecorder.maxMs { onLimit?() }
     }
 
@@ -152,6 +170,8 @@ final class VoiceRecorder: NSObject {
         guard let recorder else { return nil }
         meter?.invalidate()
         meter = nil
+        peakMeter?.invalidate()
+        peakMeter = nil
         // Read before `stop()`: afterwards the recorder reports zero.
         let durationMs = min(VoiceRecorder.maxMs, elapsedMs)
         let file = recorder.url
@@ -169,6 +189,6 @@ final class VoiceRecorder: NSObject {
         let bytes = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         // 128 kbit/s is 16 bytes a millisecond; a file under an eighth of that is not the take.
         let tiny = durationMs >= 1000 && bytes < durationMs * 16 / 8
-        return Take(file: file, durationMs: durationMs, waveform: waveform, broken: tiny, silent: durationMs >= 1000 && !(loudest > 0.02))
+        return Take(file: file, durationMs: durationMs, waveform: waveform, broken: tiny, silent: durationMs >= 1000 && !(loudest > 0.02), levels: levels)
     }
 }

@@ -46,7 +46,7 @@ class LanguageRow(context: Context, native: String, name: String, chosen: Boolea
     texts.addView(context.words("", 15f, Theme.text, 600).apply { text = android.text.SpannableString(native) })
     texts.addView(context.words("", 13f, Theme.muted).apply { text = android.text.SpannableString(name) }, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(2f) })
     addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
-    addView(SymbolView(context, "check", 17f, Theme.accent).apply { alpha = if (chosen) 1f else 0f }, LayoutParams(context.px(20f), context.px(20f)))
+    addView(SymbolView(context, "ion:checkmark", 20f, Theme.accent).apply { alpha = if (chosen) 1f else 0f }, LayoutParams(context.px(20f), context.px(20f)))
     isClickable = true
     isFocusable = true
     isSelected = chosen

@@ -2,8 +2,8 @@
 # photographed on the SAME simulator with the SAME data, screen by screen, so every visual or behavioural difference
 # can be found by looking at two pictures next to each other.
 #
-# As in native-takeover.yml: the previous app is built for the simulator with the release identifier
-# com.invizent.app, signs in to a test account on a LOCAL test server (HTTPS with a test CA trusted inside this
+# As in native-takeover.yml: the previous app is built for the simulator with the preview identifier
+# com.linea.messenger.preview, signs in to a test account on a LOCAL test server (HTTPS with a test CA trusted inside this
 # simulator only; TLS stays on), made-up people send it really encrypted messages (tools/sim-seed.mjs, here with
 # SIM_SEED_RICH=1 and the account's sign-in: more people, a friend and a request, a community with channels).
 # Then, BEFORE the native app exists on the simulator, Maestro walks the previous app through the screens listed in
@@ -84,10 +84,11 @@ jobs:
           (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
           (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
           (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
-          # APP_ENV=production gives the release identifier (mobile/app.config.js), as on the owner's phone.
+          # APP_ENV=development gives the preview identifier com.linea.messenger.preview (mobile/app.config.js), the build
+          # the owner has on his phone (ios-unsigned-ipa.yml) and the identifier the native app carries.
           # EXPO_PUBLIC_SIMULATOR_SERVER is accepted by that app only as https://localhost:<port> (src/serverConfig.ts):
-          # it then has no other address at all. EXPO_PUBLIC_API_URL only satisfies the production config's check.
-          (cd mobile && export APP_ENV=production IOS_BUNDLE_ID=com.invizent.app EXPO_PUBLIC_API_URL="$SERVER" EXPO_PUBLIC_SIMULATOR_SERVER="$SERVER" EXPO_PUBLIC_ALLOW_LOCAL_HTTP=0 \
+          # it then has no other address at all.
+          (cd mobile && export APP_ENV=development EXPO_PUBLIC_SIMULATOR_SERVER="$SERVER" EXPO_PUBLIC_ALLOW_LOCAL_HTTP=0 \
             && npx expo prebuild --platform ios --clean --no-install \
             && cd ios && { for attempt in 1 2 3; do pod install && break; [ "$attempt" = 3 ] && exit 1; sleep 30; done; } \
             && SCHEME=$(basename *.xcworkspace .xcworkspace) && echo "$SCHEME" > "$RUNNER_TEMP/scheme" \
@@ -98,7 +99,7 @@ jobs:
           REF_APP="$PWD/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/$(cat "$RUNNER_TEMP/scheme").app"
           for app in "$REF_APP" "$NATIVE_APP"; do
             id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist"); echo "$app -> $id"
-            [ "$id" = com.invizent.app ] || { echo "::error::$app has identifier $id, not com.invizent.app"; exit 1; }
+            [ "$id" = com.linea.messenger.preview ] || { echo "::error::$app has identifier $id, not com.linea.messenger.preview"; exit 1; }
             codesign -d --entitlements :- "$app" > "$OUT/entitlements-$(basename "$app" .app).plist" 2>/dev/null || true
           done
 
@@ -147,7 +148,7 @@ jobs:
 
           stage "the previous app signs in"
           limit 600 xcrun simctl install "$UDID" "$REF_APP"
-          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done
           for attempt in 1 2 3; do curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break; [ "$attempt" = 3 ] && exit 1; rm -rf "$HOME/.maestro"; sleep 30; done
           (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test -e LOGIN="$TEST_LOGIN" -e PASSWORD="$TEST_PASSWORD" -e WORD="$TEST_WORD" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml") \
             || { shot ref-signin-failed; echo "::error::the previous app did not sign in"; exit 1; }
@@ -169,17 +170,17 @@ jobs:
             gather
             [ -f "$CMP/ref-$name.png" ] || [ -f "$CMP/ref-$name-failed.png" ] || miss "ref-$name" "no picture"
           done < "$NAMES"
-          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+          limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview || true
 
           stage "the native app is installed OVER the previous one"
           limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
-          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done
           start() { # seconds, launch arguments… — always pointed at the local test server
             # -effects 1: «Снег» and «Ледяное стекло» on, as they are by default in the reference (the native app keeps
             # them off on the simulator unless asked), so the rime on the glass shows on both sides.
             local wait="$1"; shift
-            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server "$SERVER" -effects 1 "$@"
+            limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview -server "$SERVER" -effects 1 "$@"
             sleep "$wait"
           }
           # nat NN-name seconds args…: a screen reached by launch arguments alone.
@@ -223,7 +224,7 @@ jobs:
           natflow 18-emoji-panel 30 -openchat 1
           nat 19-chatlist-search 30 -chatsearch "Тим"
           natflow 20-sections 25
-          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+          limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview || true
 
           stage "pairs"
           python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install -q pillow

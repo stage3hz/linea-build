@@ -148,11 +148,11 @@ final class PlatinaStudioView: UIView {
             lock.axis = .horizontal
             lock.spacing = 8
             lock.alignment = .center
-            lock.backgroundColor = Theme.accent.withAlphaComponent(0.16)
+            lock.backgroundColor = ThemeStore.look.accentSoft // the reference: `accentSoft`
             lock.layer.cornerRadius = 14
             lock.isLayoutMarginsRelativeArrangement = true
             lock.layoutMargins = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
-            let icon = UIImageView(image: UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)))
+            let icon = UIImageView(image: IonIcon.image("lock-closed", size: 15)) // «lock-closed» 15 in the accent
             icon.tintColor = Theme.accent
             icon.setContentHuggingPriority(.required, for: .horizontal)
             let words = SettingsLook.words("Оформление доступно с Platina.", size: 13, color: Theme.text)
@@ -441,7 +441,7 @@ final class PlatinaStudioView: UIView {
             name.trailingAnchor.constraint(equalTo: tile.trailingAnchor, constant: -4),
         ])
         if selected {
-            let check = UIImageView(image: UIImage(systemName: "checkmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 10, weight: .bold)))
+            let check = UIImageView(image: IonIcon.image("checkmark", size: 13)) // «checkmark» 13 in `onAccent`
             check.tintColor = Theme.onAccent
             check.backgroundColor = Theme.accent
             check.contentMode = .center

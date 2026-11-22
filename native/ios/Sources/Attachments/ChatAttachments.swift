@@ -48,6 +48,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     private let chatId: String
     private let peerId: String
     private let button = UIButton(type: .system)
+    /// Record: the paperclip, which gives its place to the trash while a voice take or its preview is shown.
+    var clipButton: UIView { button }
     private var pending: [Pending] = []
     /// One attachment at a time is prepared, sealed and uploaded.
     private let work = DispatchQueue(label: "invizent.attachments", qos: .userInitiated)
@@ -586,7 +588,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         if !simulatorOpened, UserDefaults.standard.string(forKey: "notedemo") != nil {
             simulatorOpened = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                self?.host?.present(NoteRecorder(startAtOnce: false), animated: false)
+                if let view = self?.host?.view { _ = NoteRecorder.demo(over: view) }
             }
             return
         }

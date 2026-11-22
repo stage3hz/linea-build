@@ -29,6 +29,13 @@ object MessageReactions {
 
 /** The menu of one message: the quick reactions, the message's own words, and what can be done with it.
  *  It stands over the chat, next to the message it was opened for; a touch beside it puts it away. */
+/** The reference's Ionicons for the menu's items (ChatScreen.tsx MenuItem icons), by the names the items carry. */
+private val ION = mapOf(
+  "reply" to "arrow-undo-outline", "copy" to "copy-outline", "square.and.arrow.down" to "download-outline", "pin" to "pin-outline",
+  "pin.slash" to "pin", "forward" to "arrow-redo-outline", "pencil" to "create-outline", "refresh" to "refresh-outline",
+  "trash" to "trash-outline", "check.circle" to "checkmark-circle-outline", "eye.slash" to "eye-off-outline", "bookmark" to "bookmark-outline",
+)
+
 class MessageMenu(
   context: Context,
   /** Where on the screen the message was touched, px. */
@@ -61,18 +68,25 @@ class MessageMenu(
 
   /** One line of the menu. */
   private inner class Row(val item: Item) : View(context) {
-    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d }
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.veil(0.1f) }
+    // ContextMenu.tsx MenuItem: 15.5-point words, pressed white 0.08 on dark / black 0.05 on light.
+    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15.5f * d }
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (Theme.dark) 0x14FFFFFF else 0x0D000000 }
+    /** «separated»: a 6-point band above the item (black 0.22 on dark, 0.05 on light). */
+    var band = 0f
     init { isClickable = true; isFocusable = true; contentDescription = item.label }
     override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
     override fun onDraw(canvas: Canvas) {
-      if (isPressed) canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fill)
+      if (band > 0f) { fill.color = if (Theme.dark) 0x38000000 else 0x0D000000; canvas.drawRect(0f, 0f, width.toFloat(), band, fill) }
+      fill.color = if (Theme.dark) 0x14FFFFFF else 0x0D000000
+      if (isPressed) canvas.drawRect(0f, band, width.toFloat(), height.toFloat(), fill)
       val ink = if (item.danger) Theme.danger else Theme.text
-      ChatIcons.draw(canvas, item.symbol, 26f * d, height / 2f, 19f * d, ink)
+      val middle = band + (height - band) / 2f
+      // padding 16, <Icon size={19}> (the reference's Ionicons), 13 to the words.
+      ChatIcons.draw(canvas, ION[item.symbol]?.let { "ion:$it" } ?: item.symbol, 16f * d + 9.5f * d, middle, 19f * d, ink)
       text.color = ink
-      val shown = TextUtils.ellipsize(item.label, text, width - 60f * d, TextUtils.TruncateAt.END)
-      canvas.drawText(shown, 0, shown.length, 48f * d, height / 2f - (text.ascent() + text.descent()) / 2, text)
+      val shown = TextUtils.ellipsize(item.label, text, width - 64f * d, TextUtils.TruncateAt.END)
+      canvas.drawText(shown, 0, shown.length, 48f * d, middle - (text.ascent() + text.descent()) / 2, text)
     }
   }
 
@@ -88,9 +102,9 @@ class MessageMenu(
   }
 
   private val pill = Plate(24f)
-  private val panel = Plate(22f)
+  private val panel = Plate(26f) // ContextMenu.tsx: the menu's radius 26
   private val reactionButtons = ArrayList<TextView>()
-  private val moreButton = ChatIconView(context, "chevron.down", 16f, Theme.muted).apply { isClickable = true; isFocusable = true; contentDescription = "Все реакции" }
+  private val moreButton = ChatIconView(context, "ion:chevron-down", 18f, Theme.muted).apply { isClickable = true; isFocusable = true; contentDescription = "Все реакции" }
   private val bubble = TextView(context).apply {
     text = preview
     textSize = 17f
@@ -168,9 +182,11 @@ class MessageMenu(
       }
       var panelHeight = 0
       rowViews.forEachIndexed { index, row ->
-        if (row.item.separated && index > 0) panelHeight += dp(8f)
-        put(row, 0, panelHeight, panelWidth, dp(46f))
-        panelHeight += dp(46f)
+        // ContextMenu.tsx MenuItem: 44 tall; a «separated» one carries its 6-point band above.
+        val band = if (row.item.separated && index > 0) dp(6f) else 0
+        row.band = band.toFloat()
+        put(row, 0, panelHeight, panelWidth, dp(44f) + band)
+        panelHeight += dp(44f) + band
       }
 
       var total = panelHeight

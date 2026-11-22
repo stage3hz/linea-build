@@ -23,6 +23,8 @@ object ProfileIcons {
   private val chat = setOf("bell", "bell.slash", "archive", "forward", "pencil", "xmark")
 
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph; «ion:chevron-back» its drawn back chevron (design/Symbols.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.Symbols.draw(canvas, name, cx, cy, size, color)
     if (name in people) return PeopleIcons.draw(canvas, name, cx, cy, size, color, Theme.surface2 or 0xFF000000.toInt())
     if (name in chat) return ChatIcons.draw(canvas, name, cx, cy, size, color)
     stroke.color = color; fill.color = color; stroke.strokeWidth = 1.8f

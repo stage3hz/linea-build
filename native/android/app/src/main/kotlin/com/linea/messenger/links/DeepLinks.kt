@@ -14,7 +14,7 @@ import com.linea.messenger.shell.Navigation
 import com.linea.messenger.shell.RootScreen
 import java.lang.ref.WeakReference
 
-/** Links that open the app: `linea://invite/CODE` and `invizent://invite/CODE` (the VIEW filter of the manifest). Only our
+/** Links that open the app: `linea://invite/CODE` (the VIEW filter of the manifest: the previous app's schemes). Only our
  *  own addresses are recognised (`ChannelWords.inviteCode`, the reference's `inviteCodeFrom`); the invitation itself is
  *  always asked from our server by its code and shown as «Приглашение» over «Каналы» (channels/CommunityForms.kt,
  *  `InvitePage`). A link that comes before the account is open waits for it. (The previous app: `App.tsx`, `Linking`;

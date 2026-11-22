@@ -120,6 +120,11 @@ fun signOutNotice(failure: ServerError?): String = when (failure) {
 /** «Выйти из аккаунта»: the server ends this session, then it is forgotten here. `done` (main thread) gets the
  *  words for the sign-in screen (empty when all went well), or why leaving was not finished. */
 fun Messenger.signOut(done: (Result<String>) -> Unit) {
+  // Push: this device stops receiving pushes first, while the session still works (push.ts `stopPush`).
+  com.linea.messenger.push.Push.stop(this) { endSession(done) }
+}
+
+private fun Messenger.endSession(done: (Result<String>) -> Unit) {
   server.op("logout", emptyList()) { result ->
     mainThread.post {
       val notice = signOutNotice(if (result.isSuccess) null else Server.error(result))

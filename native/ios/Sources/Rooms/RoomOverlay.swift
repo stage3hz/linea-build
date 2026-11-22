@@ -138,10 +138,10 @@ final class RoomBarView: RoomGlassView {
     private let dot = UIView()
     private let heading = UILabel()
     private let words = UILabel()
-    private let micButton = UIButton(type: .system)
-    private let leaveButton = UIButton(type: .system)
+    private let micButton = UIButton(type: .custom)
+    private let leaveButton = UIButton(type: .custom)
     // ScreenShare: «Остановить демонстрацию» while this phone shares its screen (the reference's VoiceBar).
-    private let stopShareButton = UIButton(type: .system)
+    private let stopShareButton = UIButton(type: .custom)
     private var roomId = ""
     /// Channels: the bar of a community's voice channel opens the community.
     private var communityId: String?
@@ -161,8 +161,11 @@ final class RoomBarView: RoomGlassView {
         opener.isAccessibilityElement = true
         opener.accessibilityTraits = .button
         micButton.addTarget(self, action: #selector(mute), for: .touchUpInside)
+        // `IconButton`: 44 round of clear glass that gives a little under the finger.
+        micButton.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
+        GlassBacking.put(under: micButton)
         content.addSubview(micButton)
-        leaveButton.setImage(UIImage(systemName: "phone.down.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)), for: .normal)
+        leaveButton.setImage(IonIcon.image("call", size: 18), for: .normal)
         leaveButton.tintColor = .white
         leaveButton.backgroundColor = Theme.danger
         leaveButton.layer.cornerRadius = 20
@@ -170,7 +173,9 @@ final class RoomBarView: RoomGlassView {
         leaveButton.addTarget(self, action: #selector(leave), for: .touchUpInside)
         content.addSubview(leaveButton)
         // ScreenShare
-        stopShareButton.setImage(UIImage(systemName: "stop.circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)), for: .normal)
+        stopShareButton.setImage(IonIcon.image("stop-circle-outline", size: 23), for: .normal)
+        stopShareButton.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
+        GlassBacking.put(under: stopShareButton)
         stopShareButton.tintColor = Theme.danger
         stopShareButton.accessibilityLabel = "Остановить демонстрацию"
         stopShareButton.addAction(UIAction { _ in ScreenShare.shared.stop() }, for: .touchUpInside)
@@ -203,7 +208,7 @@ final class RoomBarView: RoomGlassView {
         }
         words.text = line
         opener.accessibilityLabel = (voice.communityId != nil ? "Голосовой канал " : "Комната ") + voice.name
-        micButton.setImage(UIImage(systemName: voice.muted ? "mic.slash.fill" : "mic.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)), for: .normal)
+        micButton.setImage(IonIcon.image(voice.muted ? "mic-off" : "mic", size: 21), for: .normal)
         micButton.tintColor = voice.muted ? Theme.danger : Theme.text
         micButton.accessibilityLabel = voice.muted ? "Включить микрофон" : "Выключить микрофон"
         stopShareButton.isHidden = ScreenShare.shared.sharing == nil // ScreenShare
@@ -213,12 +218,13 @@ final class RoomBarView: RoomGlassView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width, height = bounds.height
+        // paddingRight 4, gap 8: the way out (40), the microphone and the stop button (`IconButton`, 44 each).
         leaveButton.frame = CGRect(x: width - 4 - 40, y: (height - 40) / 2, width: 40, height: 40)
-        micButton.frame = CGRect(x: leaveButton.frame.minX - 4 - 40, y: (height - 40) / 2, width: 40, height: 40)
+        micButton.frame = CGRect(x: leaveButton.frame.minX - 8 - 44, y: (height - 44) / 2, width: 44, height: 44)
         // ScreenShare: the stop button left of the microphone while sharing.
-        stopShareButton.frame = CGRect(x: micButton.frame.minX - 4 - 40, y: (height - 40) / 2, width: 40, height: 40)
+        stopShareButton.frame = CGRect(x: micButton.frame.minX - 8 - 44, y: (height - 44) / 2, width: 44, height: 44)
         let openerEnd = stopShareButton.isHidden ? micButton.frame.minX : stopShareButton.frame.minX
-        opener.frame = CGRect(x: 0, y: 0, width: openerEnd - 4, height: height)
+        opener.frame = CGRect(x: 0, y: 0, width: openerEnd - 8, height: height)
         dot.frame = CGRect(x: 12, y: (height - 8) / 2, width: 8, height: 8)
         heading.frame = CGRect(x: 29, y: 7, width: max(0, opener.bounds.width - 29), height: 17)
         words.frame = CGRect(x: 29, y: 25, width: max(0, opener.bounds.width - 29), height: 16)

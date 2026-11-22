@@ -68,10 +68,10 @@ class PowerSettingsScreen(context: Context) : SettingsPage(context, "Энерг�
     val caption = context.words("РЕСУРСОЁМКИЕ ПРОЦЕССЫ", 11f, Theme.muted, 700).apply { letterSpacing = 0.1f }
     card.addView(SettingsLook.inset(caption, top = 14f, side = 14f))
     val items = listOf(
-      listOf("autoplayVideo", "video", "Автозапуск видео", "Кружки и видео в чатах сами играют без звука, видео-аватары двигаются."),
-      listOf("autoplayGif", "photo", "Автозапуск GIF", "GIF в чатах, на аватарах и баннерах проигрываются сами."),
-      listOf("animatedStickers", "smile", "Анимированные стикеры", "Большие эмодзи в сообщениях двигаются."),
-      listOf("animatedEmoji", "sparkles", "Анимированные эмодзи", "Эмодзи-статусы рядом с именем двигаются."),
+      listOf("autoplayVideo", "ion:videocam", "Автозапуск видео", "Кружки и видео в чатах сами играют без звука, видео-аватары двигаются."),
+      listOf("autoplayGif", "ion:images", "Автозапуск GIF", "GIF в чатах, на аватарах и баннерах проигрываются сами."),
+      listOf("animatedStickers", "ion:happy", "Анимированные стикеры", "Большие эмодзи в сообщениях двигаются."),
+      listOf("animatedEmoji", "ion:sparkles", "Анимированные эмодзи", "Эмодзи-статусы рядом с именем двигаются."),
     )
     for (item in items) {
       val key = item[0]
@@ -79,7 +79,7 @@ class PowerSettingsScreen(context: Context) : SettingsPage(context, "Энерг�
       row.onChange = { on -> DevicePreferences.set(mapOf(key to on)) }
       card.addView(row)
     }
-    val animations = PowerRow(context, "wand", "Анимации интерфейса", "Плавные переходы, рамки и эффекты профиля.", Motion.mode != "off")
+    val animations = PowerRow(context, "ion:color-wand", "Анимации интерфейса", "Плавные переходы, рамки и эффекты профиля.", Motion.mode != "off")
     animations.onChange = { on -> DevicePreferences.set(mapOf("animations" to if (on) "auto" else "off")) }
     card.addView(animations)
     val reason = context.words("", 12f, Theme.muted).also { reasonLabel = it }
@@ -184,8 +184,9 @@ class PowerRow(context: Context, symbol: String, title: String, text: String, va
     orientation = HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
     setPadding(context.px(14f), context.px(10f), context.px(14f), context.px(10f))
-    val chip = FrameLayout(context).apply { background = context.plate(SettingsLook.chip, 17f) }
-    chip.addView(SymbolView(context, symbol, 16f, Theme.text), FrameLayout.LayoutParams(context.px(20f), context.px(20f), Gravity.CENTER))
+    // The reference's PowerRow: a 34 circle of 0.07 white / 0.05 black, the Ionicons glyph 18.
+    val chip = FrameLayout(context).apply { background = context.plate(Theme.veil(if (Theme.dark) 0.07f else 0.05f), 17f) }
+    chip.addView(SymbolView(context, symbol, 18f, Theme.text), FrameLayout.LayoutParams(context.px(18f), context.px(18f), Gravity.CENTER))
     addView(chip, LayoutParams(context.px(34f), context.px(34f)))
     val texts = LinearLayout(context).apply { orientation = VERTICAL }
     texts.addView(context.words(title, 15f, Theme.text))

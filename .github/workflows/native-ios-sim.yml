@@ -63,12 +63,12 @@ jobs:
           limit 600 xcrun simctl install "$UDID" "$APP"
           # A system question left open by one shot (camera for the round video, the photo library) stays on screen over
           # the following ones: the simulator answers yes beforehand. On a phone the app asks at the moment of use.
-          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done
           limit 60 xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
           shot() { # name, launch arguments…
             local name="$1"; shift
-            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.invizent.app "$@"
+            limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview "$@"
             sleep "${SHOT_WAIT:-8}"
             # The simulator sometimes stalls on a screenshot: one more try, then go on without that picture.
             limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png" || { sleep 5; limit 90 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"; } || echo "no picture: $name"
@@ -307,10 +307,10 @@ jobs:
               # A freshly made simulator is slow on its first launches: one launch to warm it, and the keyboard's
               # one-time tip («Speed up your typing…») marked as already seen so it does not cover the shots.
               limit 60 xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
-              for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
-              limit 240 xcrun simctl launch "$UDID" com.invizent.app -auth 1 >/dev/null 2>&1 || true
+              for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done
+              limit 240 xcrun simctl launch "$UDID" com.linea.messenger.preview -auth 1 >/dev/null 2>&1 || true
               sleep 25
-              limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
+              limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
               shot 430-auth-small-keyboard-login -auth 1 -authfocus 1 || echo "no picture: 430"
               shot 430b-auth-small-keyboard-register -auth 1 -authmode register -authfocus 1 || echo "no picture: 430b"
               shot 430c-auth-small-keyboard-profile -auth 1 -authmode profile -authfocus 2 || echo "no picture: 430c"
@@ -369,16 +369,16 @@ jobs:
           node tools/native-sim-account.mjs http://127.0.0.1:3999 nativetester native_check | sed 's/"password":"[^"]*"/"password":"…"/'
           live() { # name, seconds to wait, launch arguments…
             local name="$1" wait="$2"; shift 2
-            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server https://localhost:8443 "$@"
+            limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview -server https://localhost:8443 "$@"
             sleep "$wait"
             # The simulator sometimes stalls on a screenshot: one more try, then go on without that picture.
             limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png" || { sleep 5; limit 90 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"; } || echo "no picture: $name"
           }
           shot() { # name, launch arguments… (no server: sample data)
             local name="$1"; shift
-            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.invizent.app "$@"
+            limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview "$@"
             sleep 12
             # The simulator sometimes stalls on a screenshot: one more try, then go on without that picture.
             limit 60 xcrun simctl io "$UDID" screenshot "$OUT/$name.png" || { sleep 5; limit 90 xcrun simctl io "$UDID" screenshot "$OUT/$name.png"; } || echo "no picture: $name"

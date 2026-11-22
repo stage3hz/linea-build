@@ -27,6 +27,10 @@ class ComposerPills(context: Context, page: GlassSource?) : View(context) {
   /** The round glass of the record button is shown (not while the send button stands there). */
   var microphoneShown = true
     set(value) { if (field != value) { field = value; invalidate() } }
+  /** Record: 0 at rest, 1 while a voice or video take runs — the paperclip's glass slides off to the left, the
+   *  field's pill reaches the composer's edge, the microphone's glass gives way to the blob. */
+  var recordShift = 0f
+    set(value) { if (field != value) { field = value; invalidate() } }
   /** Nothing is drawn (while a take covers the row). */
   var hidden = false
     set(value) { if (field != value) { field = value; invalidate() } }
@@ -41,9 +45,11 @@ class ComposerPills(context: Context, page: GlassSource?) : View(context) {
     if (hidden) return
     val w = width.toFloat(); val h = height.toFloat()
     val side = SIDE * d; val gap = GAP * d
-    clip.draw(canvas, 0f, h - side, side, h, side / 2)
-    // The field's pill: from the paperclip's gap to the microphone's gap.
-    if (w - 2 * (side + gap) > 0f) field.draw(canvas, side + gap, 0f, w - side - gap, h, 20f * d)
-    if (microphoneShown) microphone.draw(canvas, w - side, h - side, w, h, side / 2)
+    val away = (side + gap + 6f * d) * recordShift
+    clip.draw(canvas, -away, h - side, side - away, h, side / 2)
+    // The field's pill: from the paperclip's gap to the microphone's gap (from the edge while a take runs).
+    val fieldLeft = (side + gap) * (1f - recordShift)
+    if (w - side - gap - fieldLeft > 0f) field.draw(canvas, fieldLeft, 0f, w - side - gap, h, 20f * d)
+    if (microphoneShown && recordShift <= 0f) microphone.draw(canvas, w - side, h - side, w, h, side / 2)
   }
 }

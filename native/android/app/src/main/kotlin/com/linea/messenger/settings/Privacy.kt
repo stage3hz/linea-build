@@ -144,7 +144,7 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
       else add(SettingsNotice(context, model.failure, error = true))
     }
     // Security: the device lock sits first on the privacy screen (settings/PasscodeSettings.kt).
-    val passcode = SettingsRow(context, symbol = "passcode", label = "Код-пароль", value = if (com.linea.messenger.security.LockStore.current.record != null) "Вкл." else "Выкл.")
+    val passcode = SettingsRow(context, symbol = "ion:keypad", label = "Код-пароль", value = if (com.linea.messenger.security.LockStore.current.record != null) "Вкл." else "Выкл.")
     passcode.onPress = { open(PasscodeScreen(context)) }
     addGroup("Безопасность", listOf(passcode))
     if (model.privacy == null) {
@@ -154,7 +154,7 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
     val saving = model.saving
     val platina = model.platina
 
-    val lastSeen = SettingsRow(context, symbol = "clock", label = "Время захода", value = model.lastSeenSummary)
+    val lastSeen = SettingsRow(context, symbol = "ion:time", label = "Время захода", value = model.lastSeenSummary)
     lastSeen.onPress = { open(LastSeenScreen(context, model)) }
     val newChats = SettingsSwitchRow(context, "Новые разговоры", "Кто ещё не писал тебе, сможет начать чат. Выключи, чтобы писали только те, с кем переписка уже есть.",
       value = model.flag("allowNewChats", true), enabled = !saving)
@@ -181,7 +181,7 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
       if (index != callIndex) model.change(mapOf("calls" to callModes[index].value))
     }
     // Security: the lists «Разрешить» and «Никогда» (settings/PrivacyLists.kt).
-    val callLists = SettingsRow(context, symbol = "person", label = if (model.word("calls", "everyone") == "everyone") "Никогда" else "Разрешить и никогда")
+    val callLists = SettingsRow(context, symbol = "ion:people-outline", label = if (model.word("calls", "everyone") == "everyone") "Никогда" else "Разрешить и никогда")
     callLists.onPress = { open(CallRulesScreen(context, model.account)) }
     addGroup("Звонки", listOf(callBox, callLists))
 
@@ -248,8 +248,8 @@ class LastSeenScreen(context: Context, private val model: SettingsPrivacyModel) 
     // Security: «Исключения» — «Всегда показывать» (not with «Все»), «Никогда не показывать» (not with «Никто») (settings/PrivacyLists.kt).
     val lists = ArrayList<View>()
     fun count(people: Int): String = if (people < 0) "" else if (people > 0) people.toString() else "Добавить"
-    if (mode != "everyone") lists.add(SettingsRow(context, symbol = "check.circle", label = "Всегда показывать", value = count(model.allowCount)).apply { onPress = { open(LastSeenExceptionsScreen(context, model.account, model, "allow")) } })
-    if (mode != "nobody") lists.add(SettingsRow(context, symbol = "minus.circle", label = "Никогда не показывать", value = count(model.denyCount)).apply { onPress = { open(LastSeenExceptionsScreen(context, model.account, model, "deny")) } })
+    if (mode != "everyone") lists.add(SettingsRow(context, symbol = "ion:checkmark-circle", label = "Всегда показывать", value = count(model.allowCount)).apply { onPress = { open(LastSeenExceptionsScreen(context, model.account, model, "allow")) } })
+    if (mode != "nobody") lists.add(SettingsRow(context, symbol = "ion:remove-circle", label = "Никогда не показывать", value = count(model.denyCount)).apply { onPress = { open(LastSeenExceptionsScreen(context, model.account, model, "deny")) } })
     addGroup("Исключения", lists)
     add(SettingsLook.foot(context, "Вы можете добавить пользователей в список исключений из настроек выше."), 8f)
 

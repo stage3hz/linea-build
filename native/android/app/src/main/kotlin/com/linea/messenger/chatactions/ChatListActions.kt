@@ -791,7 +791,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     }
 
     private fun special(id: String, title: String, preview: String, initials: String): Map<String, Any?> =
-      mapOf("id" to id, "title" to title, "preview" to preview, "time" to "", "unread" to 0, "initials" to initials, "avatarColor" to 0xFF161718.toInt(), "orbA" to 0, "orbB" to 0, "section" to "")
+      mapOf("id" to id, "title" to title, "preview" to preview, "time" to "", "unread" to 0, "initials" to initials, "avatarColor" to com.linea.messenger.design.Theme.surface2, "orbA" to 0, "orbB" to 0, "section" to "")
 
     /** The rows of the list for everything that is known at the moment. */
     fun rows(state: State): Made {
@@ -826,8 +826,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         row["muted"] = quiet
         row["pinned"] = isPinned
         // Avatars: the title may carry the person's status emoji (avatars/ChatListDecor.kt).
-        // ChatsPlus: the crossed bell is drawn after the name (chats/ChatRowView.kt), not a 🔕 in it.
-        row["title"] = chat.row["title"] as? String ?: chat.title
+        // A chat without sound ends its title with « 🔕» (ChatListScreen.tsx nativeRows).
+        row["title"] = (chat.row["title"] as? String ?: chat.title) + (if (quiet) " 🔕" else "")
         row["unread"] = if (count > 0) count else if (isMarked) 1 else 0
         val draft = draftLine(state.draft(chat.id))
         val sending = state.sending(chat.id)

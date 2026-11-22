@@ -397,6 +397,15 @@ final class NoteCamera: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, 
 
     // MARK: Torch and zoom
 
+    /// Record: the microphone's peak right now, 0…1 (linear amplitude ÷ 16000 of 32768), for the composer's blob.
+    func peakLevel() -> Float {
+        let output = multiOn ? (rig?.audioOutput ?? audioOutput) : audioOutput
+        guard let channel = output.connections.first?.audioChannels.first else { return 0 }
+        let decibels = channel.peakHoldLevel
+        guard decibels.isFinite else { return 0 }
+        return min(1, max(0, powf(10, decibels / 20) * 32768 / 16000))
+    }
+
     func setTorch(_ on: Bool) {
         sessionQueue.async {
             self.torch = on

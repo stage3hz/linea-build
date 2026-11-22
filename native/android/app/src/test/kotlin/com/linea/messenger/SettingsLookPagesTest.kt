@@ -425,13 +425,13 @@ class SettingsLookPagesTest {
   private fun chat(id: String, title: String, settings: Map<String, Any?>) = Messenger.ChatSummary(id, "p-$id", title, 0, emptyMap(),
     chat = mapOf("id" to id, "settings" to settings, "peer" to mapOf("id" to "p-$id", "displayName" to title, "avatarColor" to "#4088C7")))
 
-  @Test fun notificationsSayPlainlyThatTheyAreNotShownYet() {
+  @Test fun notificationsSayThePushStateFirst() {
     account.chats = listOf(chat("c1", "Алиса Воронцова", mapOf("muted" to true)), chat("c2", "Саша", mapOf("muted" to false)),
       chat("c3", "Книжный клуб", mapOf("muted" to true, "mutedUntil" to "2999-01-05T09:00:00.000Z")), chat("c4", "Лев", mapOf("muted" to true, "mutedUntil" to "2020-01-05T09:00:00.000Z")))
     launchWithAccount("notifications")
     assertEquals("NotificationsScreen", topName)
-    assertEquals(NotificationsScreen.notice, texts()[1])
-    has("Уведомления и звуки", "ЛИЧНЫЕ ЧАТЫ", "Показывать уведомления", "Новые сообщения и реакции в личных чатах.", "Звук", "Короткий сигнал при новом сообщении.",
+    assertEquals("Разрешение на уведомления ещё не запрошено.", texts()[1])
+    has("Уведомления и звуки", "ЛИЧНЫЕ ЧАТЫ", "Показывать уведомления", "Новые сообщения и реакции в личных чатах, пока приложение свёрнуто. Когда оно закрыто, уведомления показывает система.", "Звук", "Короткий сигнал при новом сообщении.",
       "СООБЩЕСТВА", "Сообщения в каналах сообществ, где ты состоишь. Сообщества без звука присылают только упоминания.", "Короткий сигнал при новом сообщении в сообществе.",
       "ЗВОНКИ", "Мелодия", "Неон", "Вибрация", "Телефон вибрирует при входящем звонке, пока приложение запущено.",
       "БЕЙДЖ НА ИКОНКЕ", "Считать непрочитанные", "Число непрочитанных сообщений на иконке приложения.", "Включая чаты без звука", "Сообщения из чатов с выключенным звуком тоже попадают в число на иконке.",

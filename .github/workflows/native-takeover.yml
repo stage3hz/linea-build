@@ -1,8 +1,11 @@
 # The update check: the native iPhone app (native/ios) installed OVER the previous app (React Native, mobile/) with
-# the same identifier com.invizent.app must open what that app left on the phone — the session, the device key, the
-# storage key, the encrypted storage and the decrypted history — the way the owner will install it on his phone.
+# the same identifier com.linea.messenger.preview must open what that app left on the phone — the session, the device
+# key, the storage key, the encrypted storage and the decrypted history — the way the owner will install it on his
+# phone: the owner's phone has the PREVIEW build of the previous app (ios-unsigned-ipa.yml, APP_ENV=development).
+# Then the next native build (a higher build number) is installed over the first one and must keep all of it too:
+# every update installs over the one before.
 #
-# On one simulator: the previous app is built for the simulator as a release build with the release identifier,
+# On one simulator: the previous app is built for the simulator as a release build of the preview configuration,
 # signs in to a test account on a LOCAL test server (HTTPS with a test CA trusted inside this simulator only; TLS
 # stays on), made-up people send it really encrypted messages (tools/sim-seed.mjs), and it opens two chats. Then the
 # native app is installed over it (`simctl install` replaces the app and keeps its data and keychain, as an update
@@ -35,6 +38,8 @@ jobs:
       TEST_PASSWORD: 'Synthetic!Native.42'
       TEST_WORD: ambergardenprism
       SERVER: https://localhost:8443
+      # The previous app as it is on the owner's phone (the preview build) and the native app that takes it over.
+      BUNDLE: com.linea.messenger.preview
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,6 +67,7 @@ jobs:
           ARCH=$(uname -m); if [ "$ARCH" = arm64 ]; then SIM_RUST=aarch64-apple-ios-sim; else SIM_RUST=x86_64-apple-ios; fi
           rustup target add "$SIM_RUST" || true
           # Both apps are signed the same way for the simulator (ad hoc, no team), so both get the same keychain group.
+          echo "BUNDLE=$BUNDLE"
           SIGN=(CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES)
 
           stage "build the native app"
@@ -69,18 +75,25 @@ jobs:
           which xcodegen || brew install xcodegen
           native/ios/build-core.sh "$SIM_RUST"
           (cd native/ios && xcodegen generate && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" build > "$OUT/native-build.log" 2>&1) \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" CURRENT_PROJECT_VERSION=1 build > "$OUT/native-build.log" 2>&1) \
             || { grep -E "error:" "$OUT/native-build.log" | head -60; tail -60 "$OUT/native-build.log"; exit 1; }
-          NATIVE_APP="$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
+          NATIVE_APP="$RUNNER_TEMP/native-1/Invizent.app"; mkdir -p "$RUNNER_TEMP/native-1" && ditto "$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app" "$NATIVE_APP"
+          # The next build (N+1): the same sources with the next build number, as the next update will come.
+          (cd native/ios && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" CURRENT_PROJECT_VERSION=2 build > "$OUT/native-build-next.log" 2>&1) \
+            || { grep -E "error:" "$OUT/native-build-next.log" | head -60; exit 1; }
+          NATIVE_NEXT="$RUNNER_TEMP/native-2/Invizent.app"; mkdir -p "$RUNNER_TEMP/native-2" && ditto "$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app" "$NATIVE_NEXT"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$NATIVE_APP/Info.plist")" = 1 ] && [ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$NATIVE_NEXT/Info.plist")" = 2 ]
 
-          stage "build the previous app (release identifier, local test server baked in)"
+          stage "build the previous app (the preview build, local test server baked in)"
           (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
           (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
           (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
-          # APP_ENV=production gives the release identifier (mobile/app.config.js), as on the owner's phone.
+          # APP_ENV=development gives the preview identifier com.linea.messenger.preview (mobile/app.config.js), exactly as
+          # ios-unsigned-ipa.yml builds the app the owner has on his phone (its App Group and extension follow it).
           # EXPO_PUBLIC_SIMULATOR_SERVER is accepted by that app only as https://localhost:<port> (src/serverConfig.ts):
-          # it then has no other address at all. EXPO_PUBLIC_API_URL only satisfies the production config's check.
-          (cd mobile && export APP_ENV=production IOS_BUNDLE_ID=com.invizent.app EXPO_PUBLIC_API_URL="$SERVER" EXPO_PUBLIC_SIMULATOR_SERVER="$SERVER" EXPO_PUBLIC_ALLOW_LOCAL_HTTP=0 \
+          # it then has no other address at all.
+          (cd mobile && export APP_ENV=development EXPO_PUBLIC_SIMULATOR_SERVER="$SERVER" EXPO_PUBLIC_ALLOW_LOCAL_HTTP=0 \
             && npx expo prebuild --platform ios --clean --no-install \
             && cd ios && { for attempt in 1 2 3; do pod install && break; [ "$attempt" = 3 ] && exit 1; sleep 30; done; } \
             && SCHEME=$(basename *.xcworkspace .xcworkspace) && echo "$SCHEME" > "$RUNNER_TEMP/scheme" \
@@ -89,9 +102,11 @@ jobs:
               CARGO_BUILD_TARGET="$SIM_RUST" LINEA_SIGNAL_FFI_TARGET="$SIM_RUST" "${SIGN[@]}" build > "$OUT/reference-build.log" 2>&1) \
             || { grep -E "error:" "$OUT/reference-build.log" | head -60; tail -80 "$OUT/reference-build.log"; exit 1; }
           REF_APP="$PWD/mobile/ios/simbuild/Build/Products/Release-iphonesimulator/$(cat "$RUNNER_TEMP/scheme").app"
-          for app in "$REF_APP" "$NATIVE_APP"; do
+          for app in "$REF_APP" "$NATIVE_APP" "$NATIVE_NEXT"; do
             id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist"); echo "$app -> $id"
-            [ "$id" = com.invizent.app ] || { echo "::error::$app has identifier $id, not com.invizent.app"; exit 1; }
+            [ "$id" = "$BUNDLE" ] || { echo "::error::$app has identifier $id, not $BUNDLE"; exit 1; }
+            group=$(/usr/libexec/PlistBuddy -c 'Print RTCAppGroupIdentifier' "$app/Info.plist"); echo "$app App Group -> $group"
+            [ "$group" = "group.$BUNDLE.screen" ] || { echo "::error::$app has App Group $group, not group.$BUNDLE.screen"; exit 1; }
             codesign -d --entitlements :- "$app" > "$OUT/entitlements-$(basename "$app" .app).plist" 2>/dev/null || true
           done
 
@@ -137,7 +152,7 @@ jobs:
             local name="$1" container kc="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Keychains/keychain-2-debug.db"
             {
               echo "## $name $(date -u)"
-              container=$(xcrun simctl get_app_container "$UDID" com.invizent.app data 2>/dev/null || true)
+              container=$(xcrun simctl get_app_container "$UDID" "$BUNDLE" data 2>/dev/null || true)
               echo "data container: $container"
               [ -n "$container" ] && (cd "$container" && find Documents Library/Preferences -maxdepth 3 2>/dev/null | sed "s/$SCOPE/<scope>/g" | sort | head -100; ls -la Documents/SQLite 2>/dev/null | sed "s/$SCOPE/<scope>/g")
               echo "-- keychain rows (genp: service | account | generic | group | accessibility; keys: tag | group | accessibility)"
@@ -157,21 +172,21 @@ jobs:
           (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/takeover-read.yaml") \
             || { shot ref-read-failed; echo "::error::the previous app did not show the chats"; exit 1; }
           sleep 5
-          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+          limit 60 xcrun simctl terminate "$UDID" "$BUNDLE" || true
           inventory "after the previous app"
 
           stage "the native app is installed OVER the previous one"
           limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
-          xcrun simctl appinfo "$UDID" com.invizent.app > "$OUT/appinfo-after-install.txt" 2>&1 || true
+          xcrun simctl appinfo "$UDID" "$BUNDLE" > "$OUT/appinfo-after-install.txt" 2>&1 || true
           inventory "after installing the native app (not started yet)"
           EXPECT='Привет! Ты где?|Ок, жду|Не забудь!'
           launch() { # name, seconds, launch arguments… — always pointed at the local test server
             local name="$1" wait="$2"; shift 2
-            limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server "$SERVER" "$@"
+            limit 60 xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true
+            limit 120 xcrun simctl launch "$UDID" "$BUNDLE" -server "$SERVER" "$@"
             sleep "$wait"; shot "$name"
           }
-          report() { local container; container=$(xcrun simctl get_app_container "$UDID" com.invizent.app data); cp "$container/Documents/$1" "$OUT/$1" 2>/dev/null || echo "VERDICT=NO REPORT" > "$OUT/$1"; sed -i '' "s/$SCOPE/<scope>/g" "$OUT/$1"; cat "$OUT/$1"; }
+          report() { local container; container=$(xcrun simctl get_app_container "$UDID" "$BUNDLE" data); cp "$container/Documents/$1" "$OUT/$1" 2>/dev/null || echo "VERDICT=NO REPORT" > "$OUT/$1"; sed -i '' "s/$SCOPE/<scope>/g" "$OUT/$1"; cat "$OUT/$1"; }
           launch native-01-takeover-check 12 -takeovercheck 1 -takeoveruser "$USER_ID" -takeoverexpect "$EXPECT" -takeoverreport takeover-check-first.txt
           report takeover-check-first.txt
 
@@ -186,17 +201,32 @@ jobs:
           proxy || true
           launch native-07-takeover-check-after 12 -takeovercheck 1 -takeoveruser "$USER_ID" -takeoverexpect "$EXPECT" -takeoverreport takeover-check-after.txt
           report takeover-check-after.txt
-          limit 60 xcrun simctl terminate "$UDID" com.invizent.app || true
+          limit 60 xcrun simctl terminate "$UDID" "$BUNDLE" || true
           inventory "after the native app ran"
+
+          stage "the next native build (N+1) is installed over the native one (N)"
+          limit 600 xcrun simctl install "$UDID" "$NATIVE_NEXT"
+          xcrun simctl appinfo "$UDID" "$BUNDLE" > "$OUT/appinfo-after-next.txt" 2>&1 || true
+          launch native-08-next-takeover-check 12 -takeovercheck 1 -takeoveruser "$USER_ID" -takeoverexpect "$EXPECT" -takeoverreport takeover-check-next.txt
+          report takeover-check-next.txt
+          launch native-09-next-chats 30
+          launch native-10-next-chat 35 -openchat 1
+          limit 60 xcrun simctl terminate "$UDID" "$BUNDLE" || true
+          inventory "after the next native build ran"
 
           stage "verdict"
           first=$(grep -c '^VERDICT=PASS$' "$OUT/takeover-check-first.txt" || true)
           after=$(grep -c '^VERDICT=PASS$' "$OUT/takeover-check-after.txt" || true)
+          next=$(grep -c '^VERDICT=PASS$' "$OUT/takeover-check-next.txt" || true)
+          d3=$(grep '^device=' "$OUT/takeover-check-next.txt" || true); k3=$(grep '^devicekey=' "$OUT/takeover-check-next.txt" || true)
           d1=$(grep '^device=' "$OUT/takeover-check-first.txt" || true); d2=$(grep '^device=' "$OUT/takeover-check-after.txt" || true)
           k1=$(grep '^devicekey=' "$OUT/takeover-check-first.txt" || true); k2=$(grep '^devicekey=' "$OUT/takeover-check-after.txt" || true)
           verdict=PASS
           [ "$first" = 1 ] || verdict=FAIL
           [ "$after" = 1 ] || verdict=FAIL
+          [ "$next" = 1 ] || { verdict=FAIL; echo "the next native build did not keep what the first one had"; }
+          [ -n "$d3" ] && [ "$d1" = "$d3" ] || { verdict=FAIL; echo "the device record changed with the next build: '$d1' -> '$d3'"; }
+          [ -n "$k3" ] && [ "$k1" = "$k3" ] || { verdict=FAIL; echo "the device key changed with the next build: '$k1' -> '$k3'"; }
           [ -n "$d1" ] && [ "$d1" = "$d2" ] || { verdict=FAIL; echo "the device record changed: '$d1' -> '$d2'"; }
           [ -n "$k1" ] && [ "$k1" = "$k2" ] || { verdict=FAIL; echo "the device key changed: '$k1' -> '$k2'"; }
           echo "$verdict" > "$OUT/VERDICT.txt"
@@ -209,7 +239,7 @@ jobs:
           [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 2h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
           verdict=$(cat VERDICT.txt 2>/dev/null || echo "NOT REACHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
           echo "$verdict ${{ steps.work.outcome }} $GITHUB_SHA $(date -u) $(uname -m)" > STATUS.txt
-          for f in native-build.log reference-build.log; do [ -f "$f" ] && { grep -nE "error:|ld: " "$f" | head -200 > "${f%.log}-errors.txt"; tail -200 "$f" > "${f%.log}-tail.txt"; rm "$f"; } || true; done
+          for f in native-build.log native-build-next.log reference-build.log; do [ -f "$f" ] && { grep -nE "error:|ld: " "$f" | head -200 > "${f%.log}-errors.txt"; tail -200 "$f" > "${f%.log}-tail.txt"; rm "$f"; } || true; done
           find . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
           find . -name 'commands-*.json' -delete; find . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;
           git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"

@@ -111,7 +111,7 @@ class TrustSheet(context: Context, private val messenger: Messenger?, private va
       val trusted = device["trusted"] as? Boolean ?: false
       val own = device["self"] as? Boolean ?: false
       val head = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-      head.addView(SymbolView(context, "shield", 19f, if (trusted) Theme.accent else Theme.danger), LinearLayout.LayoutParams(context.px(21f), context.px(21f)))
+      head.addView(SymbolView(context, if (trusted) "ion:shield-checkmark-outline" else "ion:shield-outline", 22f, if (trusted) Theme.accent else Theme.danger), LinearLayout.LayoutParams(context.px(22f), context.px(22f)))
       val texts = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
       texts.addView(context.words(if (own) "Твоё другое устройство" else "Устройство собеседника", 15f, Theme.text, 700))
       texts.addView(context.words((device["deviceName"] as? String ?: "") + " · " + (if (trusted) "ты подтвердил этот ключ" else "новый ключ"), 12f, Theme.muted), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
@@ -141,7 +141,7 @@ class TrustSheet(context: Context, private val messenger: Messenger?, private va
       row.addView(mark, LinearLayout.LayoutParams(context.px(18f), context.px(18f)))
       row.addView(context.words(sentence, 13f, Theme.text), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(10f) })
       add(row, 12f)
-      val confirm = SettingsButton(context, "Подтвердить проверенные ключи")
+      val confirm = SettingsButton(context, "Подтвердить проверенные ключи", icon = "shield-checkmark-outline")
       confirm.isEnabled = checked && !loading
       confirm.alpha = if (confirm.isEnabled) 1f else 0.5f
       if (busy) confirm.setBusy(true)

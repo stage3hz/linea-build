@@ -37,6 +37,7 @@ import com.linea.messenger.auth.ManualEditText
 import com.linea.messenger.chats.AvatarStore
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.BusyButton
+import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassHeaderView
 import com.linea.messenger.design.GlassRoundButton
 import com.linea.messenger.design.GlassSource
@@ -102,7 +103,7 @@ object SettingsLook {
 
   /** The quiet name above a group. */
   fun caption(context: Context, text: String): View {
-    val label = context.words(text.uppercase(Locale.ROOT), 11f, Theme.muted, 500)
+    val label = context.words(text.uppercase(Locale.ROOT), 11f, Theme.muted, if (ThemeStore.look.black) 500 else 700)
     label.letterSpacing = 0.1f
     if (Build.VERSION.SDK_INT >= 28) label.isAccessibilityHeading = true
     return inset(label, top = 8f, side = 8f)
@@ -137,6 +138,8 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   protected val main = Handler(Looper.getMainLooper())
   private val heading = context.words(pageName, if (large) 34f else 20f, Theme.text, if (large) 700 else 600)
   private var sideAction: (() -> Unit)? = null
+  /** The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14. */
+  private val side: Float get() = if (large) 16f else 14f
   // B: the pages with a back button have the reference's header (SettingsScreen.tsx `Page`): a glass pill (radius 27,
   // 12 from the edges, at least 60 tall, 8 inside) with a round glass back button and the name; the list scrolls
   // under it (blurred there), with the page's colour fading in behind (tabInset.tsx `FloatingHeader`).
@@ -170,7 +173,7 @@ open class SettingsPage(context: Context, private val pageName: String, private 
     scroll.isVerticalScrollBarEnabled = false
     scroll.isFillViewport = true
     column.orientation = LinearLayout.VERTICAL
-    column.setPadding(dp(16f), dp(8f), dp(16f), dp(28f))
+    column.setPadding(dp(side), dp(8f), dp(side), dp(30f))
     scroll.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     if (large) {
       addView(scroll)
@@ -212,13 +215,13 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
       if (showsHeading) {
         put(heading, dp(20f), edges.top + dp(8f), width - dp(40f), dp(41f))
-        if (column.paddingBottom != dp(28f) + barRoom) column.setPadding(dp(16f), dp(8f), dp(16f), dp(28f) + barRoom)
+        if (column.paddingBottom != dp(30f) + barRoom) column.setPadding(dp(side), dp(8f), dp(side), dp(30f) + barRoom)
         val top = edges.top + dp(8f + 41f + 8f)
         put(scroll, 0, top, width, height - top)
       } else {
         // D: the column starts where it did under the big name (8 + 41 + 8 + 8 under the status bar).
         val first = edges.top + dp(8f + 41f + 8f + 8f)
-        if (column.paddingBottom != dp(28f) + barRoom || column.paddingTop != first) column.setPadding(dp(16f), first, dp(16f), dp(28f) + barRoom)
+        if (column.paddingBottom != dp(30f) + barRoom || column.paddingTop != first) column.setPadding(dp(side), first, dp(side), dp(30f) + barRoom)
         put(scroll, 0, 0, width, height)
       }
     } else if (header != null) {
@@ -226,7 +229,7 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       put(header, dp(12f), edges.top + dp(12f), width - dp(24f), header.measuredHeight)
       // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below).
       val below = edges.top + dp(12f) + header.measuredHeight + dp(7f)
-      if (column.paddingTop != below + dp(16f)) column.setPadding(dp(16f), below + dp(16f), dp(16f), dp(28f))
+      if (column.paddingTop != below + dp(16f)) column.setPadding(dp(side), below + dp(16f), dp(side), dp(30f))
       put(headerEdge, 0, 0, width, below)
       // The page ends where the keyboard begins, so a field is never under it.
       put(behind, 0, 0, width, height - maxOf(edges.keyboard, edges.bottom))
@@ -262,7 +265,7 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   fun setSide(symbol: String, label: String, action: () -> Unit) {
     sideAction = action
     sideButton?.let { it.symbol = symbol; it.contentDescription = label; return }
-    sideButton = header?.addTool(symbol, label, iconSize = 17f) { sideAction?.invoke() }
+    sideButton = header?.addTool(symbol, label, iconSize = if (symbol.startsWith("ion:")) 19f else 17f) { sideAction?.invoke() }
     requestLayout()
   }
 
@@ -289,7 +292,8 @@ open class SettingsPage(context: Context, private val pageName: String, private 
     if (label.isEmpty()) {
       add(group, 16f)
     } else {
-      add(SettingsLook.caption(context, label), 14f)
+      // The reference's `Group`: 16 between the parts of a page, 7 between the name and its card (the caption has 8 above).
+      add(SettingsLook.caption(context, label), 8f)
       add(group, 7f)
     }
     return group
@@ -328,18 +332,43 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   }
 }
 
-/** Rows on one card, a hairline between them. */
+/** Rows on one card (the reference's `Group`, SettingsScreen.tsx). «Чёрная» (`black` themes): a flat card of the
+ *  theme's `glassOpaque`, radius 12, a hairline `border` around it and between the rows from 57 in. Every other theme:
+ *  a glass surface, radius 20, 2 above and below the rows, no lines between them. */
 @SuppressLint("ViewConstructor")
 class SettingsGroup(context: Context, rows: List<View>) : LinearLayout(context) {
+  private val flat = ThemeStore.look.black
+  private val glass = Glass(this)
+  private val d = resources.displayMetrics.density
+
   init {
     orientation = VERTICAL
-    background = context.plate(SettingsLook.card, 12f, SettingsLook.line)
+    val hairline = maxOf(1, context.px(0.5f))
+    if (flat) {
+      background = android.graphics.drawable.GradientDrawable().apply {
+        setColor(ThemeStore.look.glassOpaque); cornerRadius = 12f * d; setStroke(hairline, ThemeStore.look.border)
+      }
+    } else {
+      setWillNotDraw(false)
+      setPadding(0, context.px(2f), 0, context.px(2f))
+    }
+    outlineProvider = object : android.view.ViewOutlineProvider() {
+      override fun getOutline(view: View, outline: android.graphics.Outline) { outline.setRoundRect(0, 0, view.width, view.height, (if (flat) 12f else 20f) * d) }
+    }
     clipToOutline = true
     rows.forEachIndexed { index, row ->
-      if (index > 0) addView(SettingsLook.rule(context), LayoutParams(LayoutParams.MATCH_PARENT, maxOf(1, context.px(0.5f))))
+      if (index > 0 && flat) {
+        val rule = View(context).apply { setBackgroundColor(ThemeStore.look.border) }
+        addView(rule, LayoutParams(LayoutParams.MATCH_PARENT, hairline).apply { leftMargin = context.px(57f) })
+      }
       (row.parent as? android.view.ViewGroup)?.removeView(row)
       addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    if (!flat) glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 20f * d)
+    super.onDraw(canvas)
   }
 }
 
@@ -351,6 +380,7 @@ class SettingsRow(context: Context, symbol: String = "", private val label: Stri
   var onPress: (() -> Unit)? = null
   private val nameLabel = context.words(label, 15f, if (danger) Theme.danger else Theme.text)
   private val valueLabel = context.words(value, 13f, Theme.muted)
+  private var iconChip: View? = null
 
   init {
     orientation = HORIZONTAL
@@ -358,8 +388,11 @@ class SettingsRow(context: Context, symbol: String = "", private val label: Stri
     setPadding(context.px(14f), context.px(7f), context.px(14f), context.px(7f))
     minimumHeight = context.px(48f)
     if (symbol.isNotEmpty()) {
+      // The reference's `Item`: a 34 circle of rgba(255,255,255,0.07) (dark) / rgba(0,0,0,0.05) (light), `dangerBg` for
+      // «Выйти»; the Ionicons glyph 18 square in it.
       val icon = SymbolView(context, symbol, 18f, if (danger) Theme.danger else Theme.text)
-      icon.plate = if (danger) SettingsLook.dangerChip else SettingsLook.chip
+      icon.plate = if (danger) ThemeStore.look.dangerBg else Theme.veil(if (Theme.dark) 0.07f else 0.05f)
+      iconChip = icon
       addView(icon, LayoutParams(context.px(34f), context.px(34f)).apply { rightMargin = context.px(13f) })
     }
     nameLabel.maxLines = 2
@@ -378,12 +411,13 @@ class SettingsRow(context: Context, symbol: String = "", private val label: Stri
     }
     if (checked != null) {
       // One of several: the chosen one has a mark, the others an empty place of the same size.
-      val mark = SymbolView(context, "check", 18f, Theme.text)
+      // The reference: `<View style={{ width: 22 }}>` holding Ionicons «checkmark» 20 in the accent.
+      val mark = SymbolView(context, "ion:checkmark", 20f, Theme.accent)
       mark.alpha = if (checked) 1f else 0f
-      addView(mark, LayoutParams(context.px(20f), context.px(20f)).apply { leftMargin = context.px(13f) })
+      addView(mark, LayoutParams(context.px(22f), context.px(20f)).apply { leftMargin = context.px(13f) })
       isSelected = checked
     } else if (arrow && !danger) {
-      addView(SymbolView(context, "chevron.right", 13f, Theme.subtle), LayoutParams(context.px(14f), context.px(14f)).apply { leftMargin = context.px(13f) })
+      addView(SymbolView(context, "ion:chevron-forward", 17f, Theme.subtle), LayoutParams(context.px(17f), context.px(17f)).apply { leftMargin = context.px(13f) })
     }
     isClickable = true
     isFocusable = true
@@ -400,8 +434,21 @@ class SettingsRow(context: Context, symbol: String = "", private val label: Stri
   }
 
   override fun setPressed(pressed: Boolean) {
+    val was = isPressed
     super.setPressed(pressed)
-    setBackgroundColor(if (pressed) SettingsLook.pressed else 0)
+    // The reference's `Item`: rgba(127,127,127,0.12) under the finger; the icon squishes to 0.82 (spring damping 14,
+    // stiffness 420) and springs back (damping 9, stiffness 260).
+    setBackgroundColor(if (pressed) 0x1F7F7F7F else 0)
+    val chip = iconChip ?: return
+    if (was == pressed) return
+    // Mass 1: the damping ratio is c / (2√k); the spring settles (to a thousandth) in 13.8 / c seconds (shell/Spring.kt).
+    val stiffness = if (pressed) 420f else 260f
+    val damping = if (pressed) 14f else 9f
+    val ratio = damping / (2f * Math.sqrt(stiffness.toDouble()).toFloat())
+    val target = if (pressed) 0.82f else 1f
+    chip.animate().cancel()
+    chip.animate().scaleX(target).scaleY(target).setDuration(Math.round(13800f / damping).toLong())
+      .setInterpolator(com.linea.messenger.shell.SpringCurve(ratio)).start()
   }
 
   override fun setEnabled(enabled: Boolean) {
@@ -478,32 +525,97 @@ class SettingsSegments(context: Context, labels: List<String>, chosen: Int, enab
 
 /** A few words on a plate: something happened, or something went wrong (then it can offer to try again). */
 @SuppressLint("ViewConstructor")
+/** The reference's `Notice` (components.tsx): glass, radius 18, 14 inside; Ionicons «alert-circle-outline» (an error, in
+ *  `danger` over `dangerBg`) or «information-circle-outline» (in the accent) 19, 10 to the words (13, line 19);
+ *  «Повторить» on the right (12 Bold, the accent). */
 class SettingsNotice(context: Context, text: String, error: Boolean = false, onRetry: (() -> Unit)? = null) : LinearLayout(context) {
+  private val glass = Glass(this)
+  private val d = resources.displayMetrics.density
+  private val tint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (error) ThemeStore.look.dangerBg else 0 }
+
   init {
-    orientation = VERTICAL
-    background = context.plate(if (error) SettingsLook.dangerChip else SettingsLook.chip, 12f)
-    setPadding(context.px(13f), context.px(11f), context.px(13f), context.px(11f))
-    addView(context.words(text, 13f, if (error) Theme.danger else Theme.text), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    orientation = HORIZONTAL
+    gravity = Gravity.TOP
+    setWillNotDraw(false)
+    setPadding(context.px(14f), context.px(14f), context.px(14f), context.px(14f))
+    addView(SymbolView(context, if (error) "ion:alert-circle-outline" else "ion:information-circle-outline", 19f, if (error) Theme.danger else Theme.accent),
+      LayoutParams(context.px(19f), context.px(19f)).apply { rightMargin = context.px(10f) })
+    val words = context.words(text, 13f, if (error) Theme.danger else Theme.text)
+    words.setLineSpacing(0f, 1f)
+    if (Build.VERSION.SDK_INT >= 28) words.lineHeight = context.px(19f)
+    addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
     if (onRetry != null) {
-      val again = context.words("Повторить", 13f, Theme.text, 600)
+      val again = context.words("Повторить", 12f, Theme.accent, 700)
       again.gravity = Gravity.CENTER_VERTICAL
-      again.minHeight = context.px(32f)
+      again.minHeight = context.px(28f)
       again.isClickable = true
       again.isFocusable = true
       again.setOnClickListener { onRetry() }
-      addView(again, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(6f) })
+      addView(again, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(10f) })
     }
     if (error) accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
   }
+
+  override fun onDraw(canvas: Canvas) {
+    val r = 18f * d
+    glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), r)
+    if (tint.color != 0) canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, tint)
+    super.onDraw(canvas)
+  }
 }
 
-/** A wide button: the main one, a quiet one, or a dangerous one. It can show that it is busy. */
+/** A wide button: the reference's `Button` (components.tsx) — 54 tall, radius 21; the main one is the theme's
+ *  `accentGradient` (opacity 0.96) with a white shine and a 1 border; the quiet one glass; the dangerous one `dangerBg`.
+ *  The label 16 Bold, letter spacing −0.15; an Ionicons `icon` 20, 10 before it. Pressed it springs to 0.96. */
 @SuppressLint("ViewConstructor")
-class SettingsButton(context: Context, label: String, kind: Kind = Kind.PRIMARY) : BusyButton(context, label,
-  fill = when (kind) { Kind.PRIMARY -> Theme.accent; Kind.SECONDARY -> SettingsLook.chip; Kind.DANGER -> SettingsLook.dangerChip },
+class SettingsButton(context: Context, label: String, kind: Kind = Kind.PRIMARY, icon: String = "") : BusyButton(context, label,
+  fill = when (kind) { Kind.PRIMARY -> Theme.accent; Kind.SECONDARY -> Glass.DARK_PLAIN; Kind.DANGER -> ThemeStore.look.dangerBg },
   ink = when (kind) { Kind.PRIMARY -> Theme.onAccent; Kind.SECONDARY -> Theme.text; Kind.DANGER -> Theme.danger },
-  radius = 14f) {
+  radius = 21f, textSize = 16f, weight = 700) {
   enum class Kind { PRIMARY, SECONDARY, DANGER }
+  private val glass = Glass(this)
+  private val quiet = kind == Kind.SECONDARY
+
+  init {
+    val d = resources.displayMetrics.density
+    minimumHeight = context.px(54f)
+    setPadding(context.px(21f), 0, context.px(21f), 0)
+    when (kind) {
+      Kind.PRIMARY -> {
+        val colors = ThemeStore.look.accentGradient.ifEmpty { listOf(Theme.accent, Theme.accent) }
+        val body = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, colors.toIntArray()).apply {
+          cornerRadius = 21f * d; alpha = Math.round(0.96f * 255)
+        }
+        val shine = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0x38FFFFFF, 0x00FFFFFF)).apply {
+          cornerRadius = 21f * d
+          setStroke(maxOf(1, context.px(1f)), if (Theme.dark) 0x94EBF5FF.toInt() else 0x59FFFFFF)
+        }
+        background = android.graphics.drawable.LayerDrawable(arrayOf(body, shine))
+      }
+      Kind.SECONDARY -> { background = null; setWillNotDraw(false) }
+      Kind.DANGER -> {}
+    }
+    for (index in 0 until childCount) {
+      val child = getChildAt(index)
+      if (child is TextView) child.letterSpacing = -0.15f / 16f
+    }
+    if (icon.isNotEmpty()) {
+      val name = if (icon.startsWith("ion:")) icon else "ion:$icon"
+      val ink = when (kind) { Kind.PRIMARY -> Theme.onAccent; Kind.SECONDARY -> Theme.text; Kind.DANGER -> Theme.danger }
+      addView(SymbolView(context, name, 20f, ink), childCount - 1, LayoutParams(context.px(20f), context.px(20f)).apply { marginEnd = context.px(10f) })
+    }
+    com.linea.messenger.chatlook.Bouncy.attach(this, 0.96f)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    if (quiet) glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 21f * resources.displayMetrics.density)
+    super.onDraw(canvas)
+  }
+
+  override fun setEnabled(enabled: Boolean) {
+    super.setEnabled(enabled)
+    alpha = if (enabled) 1f else 0.45f
+  }
 }
 
 /** One line of typing with its caption. A secret is hidden while typed (the eye shows it) and is typed by hand
@@ -517,7 +629,7 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
   var allowed: ((Char) -> Boolean)? = null
   var onReturn: (() -> Unit)? = null
   var onEdit: (() -> Unit)? = null
-  private val eye = SymbolButton(context, "eye", 18f, Theme.muted)
+  private val eye = SymbolButton(context, "ion:eye-outline", 23f, Theme.muted)
   private var setting = false
 
   var value: String
@@ -595,7 +707,7 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
     input.transformationMethod = if (hidden) null else PasswordTransformationMethod.getInstance()
     setting = false
     input.setSelection(caret.coerceAtMost(input.text.length))
-    eye.symbol = if (hidden) "eye.slash" else "eye"
+    eye.symbol = if (hidden) "ion:eye-off-outline" else "ion:eye-outline"
     eye.contentDescription = if (hidden) "Скрыть" else "Показать"
   }
 }

@@ -37,7 +37,7 @@ import com.linea.messenger.shell.Screen
 object ProfileWords {
   /** The friends tile: its picture and its word. `isFriend` null: the profile is still being read. */
   fun friendTile(isFriend: Boolean?, request: String?): Pair<String, String> = Pair(
-    if (isFriend == true) "person.minus" else if (request == "outgoing") "clock" else "person.plus",
+    if (isFriend == true) "ion:person-remove" else if (request == "outgoing") "ion:time-outline" else "ion:person-add",
     if (isFriend == true) "В друзьях" else if (request == "outgoing") "Заявка" else if (request == "incoming") "Принять" else "В друзья",
   )
 
@@ -88,8 +88,8 @@ class PersonProfileScreen(
   private val content = LinearLayout(context)
   private val topBar = View(context)
   // C: back and «Ещё» are the reference's IconButtons — rounds of clear glass, the icons in the text colour.
-  private val back = com.linea.messenger.design.GlassRoundButton(context, "back", "Назад", 22f, painter = { c, n, x, y, size, color -> com.linea.messenger.design.Icons.draw(c, n, x, y, size, color) })
-  private val more = com.linea.messenger.design.GlassRoundButton(context, "dots", "Ещё", 22f, painter = { c, n, x, y, size, color -> PeopleIcons.draw(c, n, x, y, size, color) })
+  private val back = com.linea.messenger.design.GlassRoundButton(context, "ion:chevron-back", "Назад", 23f) // IconButton «chevron-back», 23
+  private val more = com.linea.messenger.design.GlassRoundButton(context, "ion:ellipsis-horizontal", "Ещё", 23f) // IconButton «ellipsis-horizontal», 23
   // Profile: the top as the reference's UserProfile.tsx — banner / festive colour, the decorated avatar, the
   // platinum name and emoji status, the effect (profile/ProfileHead.kt).
   private val hero = com.linea.messenger.profile.ProfileHeroView(context)
@@ -239,7 +239,7 @@ class PersonProfileScreen(
     val count = tiles.childCount
     if (count == 0 || width <= 0) return
     val room = maxOf(dp(200f), width - dp(36f))
-    val each = minOf(dp(104f), (room - dp(10f) * (count - 1)) / count)
+    val each = minOf(dp(120f), (room - dp(10f) * (count - 1)) / count) // `flex: 1, maxWidth: 120`
     for (index in 0 until count) {
       val params = tiles.getChildAt(index).layoutParams
       if (params.width != each) { params.width = each; tiles.getChildAt(index).layoutParams = params }
@@ -310,28 +310,30 @@ class PersonProfileScreen(
     sharedMedia.show(chatLink?.messages ?: emptyList()) // Profile
   }
 
-  private fun makeTile(symbol: String, words: String, loading: Boolean): ProfileTile {
-    val tile = ProfileTile(context, symbol, words, loading)
+  private fun makeTile(symbol: String, words: String, loading: Boolean, active: Boolean = false, sub: String = ""): ProfileTile {
+    val tile = ProfileTile(context, symbol, words, loading, active, sub)
     tile.isEnabled = !loading && !busy
     val gap = if (tiles.childCount == 0) 0 else dp(10f)
-    tiles.addView(tile, LinearLayout.LayoutParams(dp(104f), dp(66f)).apply { leftMargin = gap })
+    // The reference's tile: 12 + 22 + 6 + the label's line + 12 (and the sublabel's line, 3 closer).
+    tiles.addView(tile, LinearLayout.LayoutParams(dp(120f), dp(if (sub.isEmpty()) 67f else 77f)).apply { leftMargin = gap })
+    com.linea.messenger.chatlook.Bouncy.attach(tile, 0.9f) // `Bouncy scaleTo={.9}`
     return tile
   }
 
   private fun rebuildTiles() {
     tiles.removeAllViews()
-    if (!fromChat) makeTile("bubble.fill", "Написать", loading = false).setOnClickListener { writeTapped() }
+    if (!fromChat) makeTile("ion:chatbubble", "Написать", loading = false).setOnClickListener { writeTapped() }
     if (fromChat) {
       // Calls: opened from a chat, the row is «Звонок», «Видео», «Ещё», as in the reference (the friends
       // action is in «Ещё» then). calls/CallOverlay.kt places the call.
       for (video in listOf(false, true)) {
-        makeTile(if (video) "video.fill" else "phone.fill", if (video) "Видео" else "Звонок", loading = false).setOnClickListener {
+        makeTile(if (video) "ion:videocam" else "ion:call", if (video) "Видео" else "Звонок", loading = false).setOnClickListener {
           com.linea.messenger.calls.CallEntry.call(messenger, chatId, userId, name, shownPerson, video)
         }
       }
     } else {
       val (symbol, words) = ProfileWords.friendTile(isFriend, request)
-      val friend = makeTile(symbol, words, loading = isFriend == null && problemWords.isEmpty())
+      val friend = makeTile(symbol, words, loading = isFriend == null && problemWords.isEmpty(), active = isFriend == true || request == "incoming")
       if (isFriend == null) friend.isEnabled = false
       friend.setOnClickListener { friendTapped() }
     }
@@ -339,12 +341,13 @@ class PersonProfileScreen(
       // Profile: «Звук» / «Без звука» (with how long under it) and «Поиск», as the reference's row
       // «call · video · sound · search · more».
       val quiet = com.linea.messenger.profile.ProfileChatExtras.muted(link.settings)
-      val sound = makeTile(if (quiet) "bell.slash" else "bell", if (quiet) "Без звука" else "Звук", loading = false)
+      val sound = makeTile(if (quiet) "ion:notifications-off" else "ion:notifications", if (quiet) "Без звука" else "Звук", loading = false, active = quiet,
+        sub = if (quiet) com.linea.messenger.profile.ProfileChatExtras.untilLabel(link.settings["mutedUntil"] as? String) else "")
       if (quiet) sound.contentDescription = "Без звука, " + com.linea.messenger.profile.ProfileChatExtras.untilLabel(link.settings["mutedUntil"] as? String)
       sound.setOnClickListener { soundTapped() }
-      if (link.canSearch) makeTile("search", "Поиск", loading = false).setOnClickListener { link.openSearch(this) }
+      if (link.canSearch) makeTile("ion:search", "Поиск", loading = false).setOnClickListener { link.openSearch(this) }
     }
-    val other = makeTile("dots", "Ещё", loading = false)
+    val other = makeTile("ion:ellipsis-horizontal", "Ещё", loading = false)
     other.setOnClickListener { showMore(other) }
     fitTiles(width)
   }
@@ -374,18 +377,21 @@ class PersonProfileScreen(
   /** «Ещё»: the friends line (in a profile opened from a chat), blocking, a complaint. */
   private fun showMore(anchor: View) {
     val menu = PopupMenu(context, anchor)
+    // The reference's MenuItems carry Ionicons (20, in the text colour; red for the dangerous ones).
+    fun icon(name: String, danger: Boolean = false) = com.linea.messenger.design.IonIcon.drawable(context, name, dp(20f), if (danger) Theme.danger else Theme.text)
     val friendNow = isFriend
-    if (fromChat && friendNow != null) menu.menu.add(ProfileWords.friendMenu(friendNow, request)).setOnMenuItemClickListener { friendTapped(); true }
+    if (fromChat && friendNow != null) menu.menu.add(ProfileWords.friendMenu(friendNow, request)).setIcon(icon(if (friendNow) "person-remove-outline" else "person-add-outline")).setOnMenuItemClickListener { friendTapped(); true }
     // Profile: the chat's own items, then «Очистить историю» apart with «Заблокировать» and «Пожаловаться».
     chatLink?.let { link ->
       val (top, clear) = com.linea.messenger.profile.ProfileChatExtras.menuItems(link, this, shownPerson.displayName.ifEmpty { name }) { words -> say(notice = words) }
-      for (item in top) menu.menu.add(0, 0, 0, item.title).setOnMenuItemClickListener { item.run(); true }
-      menu.menu.add(1, 0, 1, clear.title).setOnMenuItemClickListener { clear.run(); true }
+      for (item in top) menu.menu.add(0, 0, 0, item.title).setIcon(icon(item.icon)).setOnMenuItemClickListener { item.run(); true }
+      menu.menu.add(1, 0, 1, clear.title).setIcon(icon(clear.icon)).setOnMenuItemClickListener { clear.run(); true }
     }
-    if (blocked) menu.menu.add(1, 0, 2, "Разблокировать").setOnMenuItemClickListener { setBlocked(false); true }
-    else menu.menu.add(1, 0, 2, "Заблокировать").setOnMenuItemClickListener { confirmBlock(); true }
-    menu.menu.add(1, 0, 3, "Пожаловаться").setOnMenuItemClickListener { report(); true }
+    if (blocked) menu.menu.add(1, 0, 2, "Разблокировать").setIcon(icon("hand-left-outline")).setOnMenuItemClickListener { setBlocked(false); true }
+    else menu.menu.add(1, 0, 2, "Заблокировать").setIcon(icon("remove-circle-outline", true)).setOnMenuItemClickListener { confirmBlock(); true }
+    menu.menu.add(1, 0, 3, "Пожаловаться").setIcon(icon("warning-outline", true)).setOnMenuItemClickListener { report(); true }
     if (android.os.Build.VERSION.SDK_INT >= 28 && chatLink != null) menu.menu.setGroupDividerEnabled(true)
+    if (android.os.Build.VERSION.SDK_INT >= 29) menu.setForceShowIcon(true)
     menu.show()
   }
 
@@ -427,7 +433,7 @@ class PersonProfileScreen(
     }
     if (card.childCount > 0) card.addView(hairline())
     val lock = object : View(context) {
-      override fun onDraw(canvas: Canvas) = PeopleIcons.draw(canvas, "lock", width / 2f, height / 2f, width.toFloat(), Theme.accent)
+      override fun onDraw(canvas: Canvas) = PeopleIcons.draw(canvas, "ion:lock-closed", width / 2f, height / 2f, width.toFloat(), Theme.accent)
     }
     val words = TextView(context).apply { text = "Переписка защищена сквозным шифрованием"; textSize = 12f; setTextColor(Theme.muted) }
     val secure = LinearLayout(context).apply {
@@ -599,19 +605,23 @@ class PersonProfileScreen(
 /** One of the buttons under the name: a picture above a word on a soft plate; a wheel in place of the picture
  *  while its answer is awaited. It dims under a finger and while it cannot be pressed. */
 @SuppressLint("ViewConstructor")
-class ProfileTile(context: Context, private val symbol: String, private val words: String, private val loading: Boolean) : FrameLayout(context) {
+class ProfileTile(context: Context, private val symbol: String, private val words: String, private val loading: Boolean,
+                  private val active: Boolean = false, private val sub: String = "") : FrameLayout(context) {
   private val d = resources.displayMetrics.density
-  private val plate = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.surface2 }
+  // The reference's tile (UserProfile.tsx): glass, radius 18; the Ionicons glyph 22 from 12, 6 to the label (12 SemiBold),
+  // the sublabel 10 in `muted` 3 closer; an active one (a friend, a quiet chat) in the accent.
+  private val glass = com.linea.messenger.design.Glass(this)
   private val label = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Theme.weight(600); textAlign = Paint.Align.CENTER }
+  private val small = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f * d; typeface = Theme.weight(400); textAlign = Paint.Align.CENTER; color = Theme.muted }
 
   init {
     setWillNotDraw(false)
     isClickable = true
     isFocusable = true
-    contentDescription = words
+    contentDescription = if (sub.isEmpty()) words else "$words, $sub"
     if (loading) {
-      val wheel = ProgressBar(context).apply { isIndeterminate = true; indeterminateTintList = ColorStateList.valueOf(Theme.text) }
-      addView(wheel, LayoutParams((20f * d).toInt(), (20f * d).toInt(), Gravity.CENTER_HORIZONTAL or Gravity.TOP).apply { topMargin = (11f * d).toInt() })
+      val wheel = ProgressBar(context).apply { isIndeterminate = true; indeterminateTintList = ColorStateList.valueOf(Theme.accent) }
+      addView(wheel, LayoutParams((22f * d).toInt(), (22f * d).toInt(), Gravity.CENTER_HORIZONTAL or Gravity.TOP).apply { topMargin = (12f * d).toInt() })
     }
   }
 
@@ -623,12 +633,17 @@ class ProfileTile(context: Context, private val symbol: String, private val word
   }
 
   override fun onDraw(canvas: Canvas) {
-    canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), 18f * d, 18f * d, plate)
-    val color = Theme.alpha(Theme.text, if (isPressed || !isEnabled) 0.5f else 1f)
-    if (!loading) PeopleIcons.draw(canvas, symbol, width / 2f, 21f * d, 22f * d, color, Theme.surface2 or 0xFF000000.toInt())
+    glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 18f * d)
+    val color = Theme.alpha(if (active) Theme.accent else Theme.text, if (!isEnabled) 0.5f else 1f)
+    if (!loading) PeopleIcons.draw(canvas, symbol, width / 2f, 23f * d, 22f * d, color, Theme.surface2 or 0xFF000000.toInt())
     label.color = color
     val shown = TextUtils.ellipsize(words, label, width - 8f * d, TextUtils.TruncateAt.END)
-    canvas.drawText(shown, 0, shown.length, width / 2f, height - 13f * d, label)
+    val labelTop = 40f * d
+    canvas.drawText(shown, 0, shown.length, width / 2f, labelTop - label.fontMetrics.ascent, label)
+    if (sub.isNotEmpty()) {
+      val line = TextUtils.ellipsize(sub, small, width - 8f * d, TextUtils.TruncateAt.END)
+      canvas.drawText(line, 0, line.length, width / 2f, labelTop + 15f * d - 3f * d - small.fontMetrics.ascent, small)
+    }
   }
 }
 
@@ -651,7 +666,7 @@ class ReportSheet(context: Context, private val onSend: (String) -> Unit) : Dial
     override fun getAccessibilityClassName(): CharSequence = "android.widget.RadioButton"
     override fun onDraw(canvas: Canvas) {
       val on = index == chosen
-      PeopleIcons.draw(canvas, if (on) "radio.on" else "radio", 11f * d, height / 2f, 22f * d, if (on) Theme.accent else Theme.muted, Theme.page(0xFF141516.toInt()))
+      PeopleIcons.draw(canvas, if (on) "ion:checkmark-circle" else "ion:ellipse-outline", 11f * d, height / 2f, 22f * d, if (on) Theme.accent else Theme.muted, Theme.page(0xFF141516.toInt()))
       canvas.drawText(words, 34f * d, height / 2f - (text.ascent() + text.descent()) / 2, text)
     }
   }

@@ -30,10 +30,12 @@ object ChannelIcons {
     "share", "plane", "rosette", "video", "doc", "newspaper", "music", "cpu", "smile", "cap", "sport", "palette", "dots.circle")
 
   /** A name `Symbols` does not draw itself and this file does (so a row of the settings can show it). */
-  fun adds(name: String): Boolean = name in own || name in fromIcons || name in fromPeople
+  fun adds(name: String): Boolean = name.startsWith("ion:") || name in own || name in fromIcons || name in fromPeople
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). An unknown name draws nothing. */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     if (name in fromIcons) return Icons.draw(canvas, name, cx, cy, size, color)
     if (name in fromSymbols) return Symbols.draw(canvas, name, cx, cy, size, color)
     fromPeople[name]?.let { return PeopleIcons.draw(canvas, it, cx, cy, size, color) }

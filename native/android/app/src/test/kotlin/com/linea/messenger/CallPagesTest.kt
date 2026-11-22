@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import com.linea.messenger.calls.CallBarView
 import com.linea.messenger.calls.CallHost
+import com.linea.messenger.calls.CallAudioPanel
 import com.linea.messenger.calls.CallRoundButton
 import com.linea.messenger.calls.CallScreenView
 import com.linea.messenger.calls.Calls
@@ -77,20 +78,20 @@ class CallPagesTest {
     val activity = launch("call-outgoing", "outgoing")
     val shown = screen(activity)
     assertNotNull(shown)
-    assertEquals(listOf("Динамик", "Видео", "Убрать звук", "Завершить"), buttons(activity))
+    assertEquals(listOf("Звук", "Видео", "Убрать звук", "Завершить"), buttons(activity))
     val words = texts(shown!!)
     assertTrue(words.toString(), words.contains("Алиса Воронцова"))
     assertTrue(words.toString(), words.contains("🔒 Звонок защищён сквозным шифрованием"))
     if (Core.loaded) assertTrue(words.toString(), words.contains("Вызов…"))
     // The screen covers the whole window.
     assertEquals(page(activity).width, shown.width)
-    // «Убрать звук» and «Динамик» change their own button.
+    // «Убрать звук» changes its own button; «Звук» opens the choice of the device (CallAudioPanel.tsx).
     press(activity, "Убрать звук")
-    assertEquals(listOf("Динамик", "Видео", "Звук выкл", "Завершить"), buttons(activity))
+    assertEquals(listOf("Звук", "Видео", "Звук выкл", "Завершить"), buttons(activity))
     assertEquals(true, Calls.call?.muted)
-    press(activity, "Динамик")
-    assertEquals(true, Calls.call?.speaker)
-    assertTrue(all(page(activity), CallRoundButton::class.java).first { it.words == "Динамик" }.isSelected)
+    press(activity, "Звук")
+    assertEquals(1, all(page(activity), CallAudioPanel::class.java).size)
+    assertTrue(texts(page(activity)).contains("Как в системе"))
   }
 
   @Test fun anIncomingCallIsAnsweredOrDeclined() {
@@ -102,15 +103,15 @@ class CallPagesTest {
     assertEquals(false, Calls.call?.minimized)
     press(activity, "Ответить")
     assertEquals("active", Calls.call?.status)
-    assertEquals(listOf("Динамик", "Видео", "Убрать звук", "Завершить"), buttons(activity))
-    assertTrue(texts(screen(activity)!!).any { it.startsWith("🔒 🦊") })
+    assertEquals(listOf("Звук", "Видео", "Убрать звук", "Завершить"), buttons(activity))
+    assertTrue(texts(screen(activity)!!).any { it.startsWith("🦊") }) // the lock is a picture before the key
     snap("call-answered", page(activity))
   }
 
   @Test fun aRunningCallAndItsEnd() {
     val activity = launch("call-active", "active")
     val words = texts(screen(activity)!!)
-    assertTrue(words.toString(), words.contains("🔒 🦊 🌵 🎧 ⭐"))
+    assertTrue(words.toString(), words.contains("🦊 🌵 🎧 ⭐"))
     if (Core.loaded) assertTrue(words.toString(), words.any { it.startsWith("0:4") })
     if (!Core.loaded) return
     // «Завершить»: the words of the end stay for a moment, then the screen is gone.
@@ -126,12 +127,12 @@ class CallPagesTest {
 
   @Test fun aVideoCall() {
     val activity = launch("call-video", "video")
-    assertEquals(listOf("Динамик", "Видео", "Повернуть", "Убрать звук", "Завершить"), buttons(activity))
-    assertTrue(texts(screen(activity)!!).contains("🔒 🐳 🍋 🚀 🌙"))
+    assertEquals(listOf("Звук", "Видео", "Повернуть", "Убрать звук", "Завершить"), buttons(activity))
+    assertTrue(texts(screen(activity)!!).contains("🐳 🍋 🚀 🌙"))
     // «Видео» switches this phone's camera off: «Повернуть» goes with it.
     press(activity, "Видео")
     assertEquals(true, Calls.call?.cameraOff)
-    assertEquals(listOf("Динамик", "Видео", "Убрать звук", "Завершить"), buttons(activity))
+    assertEquals(listOf("Звук", "Видео", "Убрать звук", "Завершить"), buttons(activity))
   }
 
   @Test fun noConnectionOffersToTryAgain() {
@@ -155,13 +156,13 @@ class CallPagesTest {
     val bar = all(page(activity), CallBarView::class.java).first()
     val d = activity.resources.displayMetrics.density
     assertEquals(Math.round(36f * d), bar.height)
-    // Rounded, 8 dp from the screen's edges and below the status bar.
-    assertEquals(page(activity).width - 2 * Math.round(8f * d), bar.width)
-    assertEquals(Math.round(8f * d), bar.left)
-    assertTrue(texts(bar).first().contains("Алиса Воронцова"))
+    // A full-width strip right under the status bar (CallBanner).
+    assertEquals(page(activity).width, bar.width)
+    assertEquals(0, bar.left)
+    assertTrue(texts(bar).contains("Алиса Воронцова"))
     assertTrue(bar.contentDescription.toString().endsWith("Вернуться к звонку"))
     val pages = all(page(activity), Navigation::class.java).first()
-    assertEquals(Math.round((8f + 36f + 8f) * d), (pages.layoutParams as ViewGroup.MarginLayoutParams).topMargin)
+    assertEquals(Math.round(36f * d), (pages.layoutParams as ViewGroup.MarginLayoutParams).topMargin)
     // A touch on the bar opens the call again; the pages go back up.
     bar.performClick()
     idle(activity)
@@ -181,8 +182,8 @@ class CallPagesTest {
     idle(activity, 800)
     val chat = all(page(activity), ChatScreen::class.java).first()
     assertEquals("Позвонить", chat.callButton.contentDescription)
-    // ChatLook: the button stands in its glass pill, right of the middle, next to the avatar.
-    assertTrue(chat.callButton.width > 0 && (chat.callButton.parent as View).left + chat.callButton.left > chat.width / 2)
+    // ChatScreen.tsx: the phone header has no call button (calls are in the profile): its glass pill stays hidden.
+    assertEquals(View.GONE, (chat.callButton.parent as View).visibility)
     // Opened from the chat, the profile's row is «Звонок», «Видео», «Ещё».
     chat.openProfile()
     idle(activity, 800)

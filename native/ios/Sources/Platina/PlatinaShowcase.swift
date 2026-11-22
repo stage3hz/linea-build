@@ -13,15 +13,15 @@ enum PlatinaShowcase {
 
 final class PlatinaShowcaseViewController: UIViewController, UIScrollViewDelegate {
     private static let perks: [(symbol: String, title: String, text: String)] = [
-        ("video.fill", "Живой аватар", "Видео до 10 секунд вместо фото"),
-        ("circle", "Рамки", "Платиновая и ещё шесть анимированных"),
-        ("photo.fill", "Живой баннер", "Фото, видео или анимация над профилем"),
+        ("videocam", "Живой аватар", "Видео до 10 секунд вместо фото"),
+        ("ellipse-outline", "Рамки", "Платиновая и ещё шесть анимированных"),
+        ("image", "Живой баннер", "Фото, видео или анимация над профилем"),
         ("sparkles", "Эффект профиля", "Снег, искры, лепестки — когда открывают твой профиль"),
-        ("rectangle.stack.fill", "Табличка", "Фон за именем в чатах и списках участников"),
-        ("diamond.fill", "Платиновое имя и печать", "Видно в чатах, каналах и на серверах"),
-        ("face.smiling.fill", "Анимированные эмодзи", "Статус у имени и большие эмодзи в чатах"),
-        ("paintpalette.fill", "Цветовые темы", "Семь палитр: Аметист, Кофе, Олива, Сумерки, Лагуна, Индиго, Неон"),
-        ("eye.slash.fill", "Невидимка", "Скрыть время захода и прочтения"),
+        ("albums", "Табличка", "Фон за именем в чатах и списках участников"),
+        ("diamond", "Платиновое имя и печать", "Видно в чатах, каналах и на серверах"),
+        ("happy", "Анимированные эмодзи", "Статус у имени и большие эмодзи в чатах"),
+        ("color-palette", "Цветовые темы", "Семь палитр: Аметист, Кофе, Олива, Сумерки, Лагуна, Индиго, Неон"),
+        ("eye-off", "Невидимка", "Скрыть время захода и прочтения"),
         ("at", "Смена @имени", "Дополнительные смены публичного имени"),
     ]
     private let owner: (id: String, name: String)?
@@ -151,7 +151,7 @@ final class PlatinaShowcaseViewController: UIViewController, UIScrollViewDelegat
         glass.layer.cornerRadius = 22
         glass.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(glass)
-        close.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)), for: .normal)
+        close.setImage(IonIcon.image("close", size: 22), for: .normal) // «close» 22, white
         close.tintColor = .white
         close.accessibilityLabel = "Закрыть"
         close.addTarget(self, action: #selector(closePressed), for: .touchUpInside)
@@ -258,8 +258,8 @@ final class PlatinaShowcaseViewController: UIViewController, UIScrollViewDelegat
         metal.endPoint = CGPoint(x: 1, y: 1)
         metal.frame = CGRect(x: 0, y: 0, width: 34, height: 34)
         icon.layer.addSublayer(metal)
-        // Platina: the reference's gem, not the system rhombus.
-        let symbol = UIImageView(image: perk.symbol == "diamond.fill" ? GemGlyph.image(size: 18) : UIImage(systemName: perk.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)))
+        // Platina: the reference's Ionicons glyph of the perk, 17, in #1A1F2A.
+        let symbol = UIImageView(image: IonIcon.image(perk.symbol, size: 17))
         symbol.tintColor = UIColor(hex: 0x1A1F2A)
         symbol.contentMode = .center
         symbol.frame = CGRect(x: 0, y: 0, width: 34, height: 34)

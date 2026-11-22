@@ -15,7 +15,7 @@ final class AuthEntry: UIView, UITextFieldDelegate {
     let field = ManualTextField()
     private let caption = UILabel()
     private let plate = UIView()
-    private let eye = UIButton(type: .system)
+    private let eye = UIButton(type: .custom)
     private let refusal = UILabel()
     private let secret: Bool
     private var captionText: String
@@ -78,6 +78,7 @@ final class AuthEntry: UIView, UITextFieldDelegate {
         eye.isHidden = !secret
         eye.addTarget(self, action: #selector(toggle), for: .touchUpInside)
         eye.translatesAutoresizingMaskIntoConstraints = false
+        GlassBacking.put(under: eye)
         plate.addSubview(eye)
 
         refusal.text = "Введи по одному символу. Вставка и автозаполнение отключены."
@@ -137,7 +138,8 @@ final class AuthEntry: UIView, UITextFieldDelegate {
 
     private func updateEye() {
         let hidden = field.isSecureTextEntry
-        eye.setImage(UIImage(systemName: hidden ? "eye" : "eye.slash"), for: .normal)
+        // The reference's `IconButton` eye-outline / eye-off-outline (23) on a clear glass round.
+        eye.setImage(IonIcon.image(hidden ? "eye-outline" : "eye-off-outline", size: 23), for: .normal)
         eye.accessibilityLabel = (hidden ? "Показать" : "Скрыть") + ": " + captionText.lowercased()
     }
 

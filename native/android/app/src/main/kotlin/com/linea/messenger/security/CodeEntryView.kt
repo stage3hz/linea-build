@@ -148,7 +148,7 @@ class CodeEntryView(context: Context, kind: String) : LinearLayout(context) {
       pad.addView(doneButton, LayoutParams(context.px(292f), context.px(50f)))
       if (bio != null) {
         bioButton.removeAllViews()
-        bioButton.addView(SymbolView(context, bio.first, 18f, Theme.accent), LayoutParams(context.px(20f), context.px(20f)))
+        bioButton.addView(SymbolView(context, bio.first, 20f, Theme.accent), LayoutParams(context.px(20f), context.px(20f)))
         bioButton.addView(context.words(" " + bio.second, 15f, Theme.accent, 600))
         pad.addView(bioButton, LayoutParams(LayoutParams.WRAP_CONTENT, context.px(44f)).apply { topMargin = context.px(12f) })
       }
@@ -165,7 +165,7 @@ class CodeEntryView(context: Context, kind: String) : LinearLayout(context) {
     val last = ArrayList<View>()
     last.add(if (bio != null) iconKey(bio.first, bio.second) { bioPressed() } else View(context))
     last.add(digitKey("0"))
-    val wipe = iconKey("backspace", "Стереть") { erasePressed() }
+    val wipe = iconKey("ion:backspace-outline", "Стереть") { erasePressed() }
     erase = wipe
     last.add(wipe)
     line(last)
@@ -184,7 +184,7 @@ class CodeEntryView(context: Context, kind: String) : LinearLayout(context) {
 
   private fun iconKey(symbol: String, label: String, action: () -> Unit): View {
     val made = PadKey(context)
-    made.addView(SymbolView(context, symbol, 26f, Theme.text), FrameLayout.LayoutParams(context.px(30f), context.px(30f), Gravity.CENTER))
+    made.addView(SymbolView(context, symbol, 28f, Theme.text), FrameLayout.LayoutParams(context.px(28f), context.px(28f), Gravity.CENTER)) // PadKey: Ionicons 28
     made.contentDescription = label
     made.setOnClickListener { action() }
     return made

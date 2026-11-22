@@ -48,16 +48,16 @@ object PlatinaShowcase {
   }
 
   val perks = listOf(
-    Triple("video", "Живой аватар", "Видео до 10 секунд вместо фото"),
-    Triple("minus.circle", "Рамки", "Платиновая и ещё шесть анимированных"),
-    Triple("photo", "Живой баннер", "Фото, видео или анимация над профилем"),
-    Triple("sparkles", "Эффект профиля", "Снег, искры, лепестки — когда открывают твой профиль"),
-    Triple("archive", "Табличка", "Фон за именем в чатах и списках участников"),
-    Triple("gem", "Платиновое имя и печать", "Видно в чатах, каналах и на серверах"),
-    Triple("sparkles", "Анимированные эмодзи", "Статус у имени и большие эмодзи в чатах"),
-    Triple("pencil", "Цветовые темы", "Семь палитр: Аметист, Кофе, Олива, Сумерки, Лагуна, Индиго, Неон"),
-    Triple("lock", "Невидимка", "Скрыть время захода и прочтения"),
-    Triple("info", "Смена @имени", "Дополнительные смены публичного имени"),
+    Triple("ion:videocam", "Живой аватар", "Видео до 10 секунд вместо фото"),
+    Triple("ion:ellipse-outline", "Рамки", "Платиновая и ещё шесть анимированных"),
+    Triple("ion:image", "Живой баннер", "Фото, видео или анимация над профилем"),
+    Triple("ion:sparkles", "Эффект профиля", "Снег, искры, лепестки — когда открывают твой профиль"),
+    Triple("ion:albums", "Табличка", "Фон за именем в чатах и списках участников"),
+    Triple("ion:diamond", "Платиновое имя и печать", "Видно в чатах, каналах и на серверах"),
+    Triple("ion:happy", "Анимированные эмодзи", "Статус у имени и большие эмодзи в чатах"),
+    Triple("ion:color-palette", "Цветовые темы", "Семь палитр: Аметист, Кофе, Олива, Сумерки, Лагуна, Индиго, Неон"),
+    Triple("ion:eye-off", "Невидимка", "Скрыть время захода и прочтения"),
+    Triple("ion:at", "Смена @имени", "Дополнительные смены публичного имени"),
   )
 }
 
@@ -111,7 +111,7 @@ class PlatinaShowcaseSheet(context: Context, private val from: View, private val
     column.addView(button, LinearLayout.LayoutParams(wide, context.px(54f)).apply { topMargin = context.px(24f) })
     note.gravity = Gravity.CENTER
     column.addView(note, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = context.px(10f) })
-    val close = ProfileIconView(context, "cross", 17f, Color.WHITE)
+    val close = ProfileIconView(context, "ion:close", 22f, Color.WHITE) // «close» 22
     close.background = context.plate(0x29FFFFFF, 22f)
     close.contentDescription = "Закрыть"
     close.isClickable = true
@@ -175,7 +175,8 @@ class PlatinaShowcaseSheet(context: Context, private val from: View, private val
     val line = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(c.px(16f), c.px(11f), c.px(16f), c.px(11f)) }
     val icon = FrameLayout(c)
     icon.background = GradientDrawable(GradientDrawable.Orientation.TL_BR, PlatinaMetal.platinum.map { lookColor(it) }.toIntArray()).apply { cornerRadius = 11f * c.resources.displayMetrics.density }
-    icon.addView(ProfileIconView(c, perk.first, 15f, 0xFF1A1F2A.toInt()), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    // The perk's Ionicons glyph 17 in #1A1F2A.
+    icon.addView(ProfileIconView(c, perk.first, 17f, 0xFF1A1F2A.toInt()), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     line.addView(icon, LinearLayout.LayoutParams(c.px(34f), c.px(34f)))
     val texts = LinearLayout(c).apply { orientation = LinearLayout.VERTICAL }
     texts.addView(c.words(perk.second, 15f, text, 600))

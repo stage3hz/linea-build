@@ -38,8 +38,8 @@ import com.linea.messenger.voice.MsgMediaState
 // ChatLook: the open look is the default; bubbles come with a wallpaper or the choice in «Оформление»
 // (chatlook/BubbleLook.kt).
 val MSG_OPEN_LOOK: Boolean get() = com.linea.messenger.chatlook.ChatBubbleLook.open
-/** From the screen's edge to a message's plate, dp (the text stands 13 further in). */
-private const val MSG_EDGE = 3f
+/** From the screen's edge to a message's plate, dp (ChatScreen.tsx listSide: 6 in the open look, 9 with bubbles). */
+private const val MSG_EDGE = 6f
 /** The same without the open look. */
 private const val MSG_EDGE_BUBBLES = 9f
 
@@ -54,8 +54,22 @@ class MsgRowView(context: Context) : View(context) {
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val body = TextPaint(Paint.ANTI_ALIAS_FLAG)
   private val small = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f * d }
-  private val smallBold = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12.5f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
   private val meta = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d }
+  // MessageRow.tsx: «Переслано от …» 11 semibold; the quote's author 11 bold over its words 12; the day 10 semibold;
+  // a call's row 14 semibold over its time 11 (tabular digits).
+  private val forwardPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Theme.weight(600) }
+  private val quoteAuthorPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Theme.weight(700) }
+  private val quotePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Theme.weight(400) }
+  private val dayPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f * d; typeface = Theme.weight(600) }
+  private val callPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * d; typeface = Theme.weight(600) }
+  private val callTimePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; fontFeatureSettings = "tnum" }
+  /** Bubbles: the time in the plate's lower corner, its room kept at the end of the words. */
+  private var timeCorner = false
+  /** The time at the right of the reaction chips' row. */
+  private var timeBeside = false
+  /** MessageRow.tsx JumpFlash: how much of the light is on (0…1). */
+  private var flashLight = 0f
+  private var flashRun: android.animation.Animator? = null
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val bigPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
   private val matrix = Matrix()
@@ -74,7 +88,44 @@ class MsgRowView(context: Context) : View(context) {
   private var bodyY = 0f
   /** ChatActions: the row is lit for a moment (the message a quote or the pinned bar jumped to). */
   var flash = false
-    set(value) { if (field != value) { field = value; invalidate() } }
+    set(value) { if (field != value) { field = value; if (value) playFlash(); invalidate() } }
+
+  /** MessageRow.tsx JumpFlash: accentSoft over the row, in 160 ms, held 650 ms, out in 550 ms (withTiming's
+   *  Easing.inOut(Easing.quad)). */
+  private fun playFlash() {
+    flashRun?.cancel()
+    val ease = android.view.animation.PathInterpolator(0.455f, 0.03f, 0.515f, 0.955f)
+    val rise = android.animation.ValueAnimator.ofFloat(0f, 1f).apply { duration = 160; interpolator = ease; addUpdateListener { flashLight = it.animatedValue as Float; invalidate() } }
+    val fade = android.animation.ValueAnimator.ofFloat(1f, 0f).apply { duration = 550; startDelay = 650; interpolator = ease; addUpdateListener { flashLight = it.animatedValue as Float; invalidate() } }
+    flashRun = android.animation.AnimatorSet().apply { playSequentially(rise, fade); start() }
+  }
+
+  /** From the plate's edges to the words (MessageRow.tsx), px: bubbles 11 + the text's own 1 on both sides; the open
+   *  look 2 (line) + 10 + 1 / 4 + 1 for the other side, 4 + 1 / 0 + 1 for one's own. A photo with words keeps its card. */
+  private fun pads(item: MsgRow): Pair<Float, Float> =
+    if (!MSG_OPEN_LOOK || item.media == "photo") Pair(12f * d, 12f * d) else if (item.mine) Pair(5f * d, 1f * d) else Pair(13f * d, 5f * d)
+
+  /** chatPreferences.ts TEXT_SIZES: the line of each text size (15/20, 17/22, 19/25, 22/28), dp. */
+  private fun lineOf(size: Float): Float = when (size) { 15f -> 20f; 17f -> 22f; 19f -> 25f; 22f -> 28f; else -> Math.round(size * 1.3f).toFloat() }
+
+  /** React Native's `lineHeight`: every line exactly `height` px, the glyphs in its middle. */
+  private class FixedLine(val height: Int) : android.text.style.LineHeightSpan {
+    override fun chooseHeight(text: CharSequence, start: Int, end: Int, spanstartv: Int, lineHeight: Int, fm: Paint.FontMetricsInt) {
+      val now = fm.descent - fm.ascent
+      if (now <= 0) return
+      val extra = height - now
+      val up = extra / 2
+      fm.ascent -= up; fm.descent += extra - up
+      fm.top = fm.ascent; fm.bottom = fm.descent
+    }
+  }
+
+  private fun bodyLayout(text: CharSequence, width: Int): StaticLayout {
+    val lined = SpannableString(text)
+    lined.setSpan(FixedLine(Math.round(lineOf(fontSize) * d)), 0, lined.length, Spanned.SPAN_INCLUSIVE_INCLUSIVE)
+    return StaticLayout.Builder.obtain(lined, 0, lined.length, body, width.coerceAtLeast(1))
+      .setAlignment(Layout.Alignment.ALIGN_NORMAL).setMaxLines(400).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).setLineSpacing(0f, 1f).build()
+  }
   /** ChatActions: where the quote of an answer was drawn last (a tap on it jumps to the original). */
   private var quoteLeft = 0f
   private var quoteTop = 0f
@@ -294,6 +345,9 @@ class MsgRowView(context: Context) : View(context) {
       .setAlignment(if (center) Layout.Alignment.ALIGN_CENTER else Layout.Alignment.ALIGN_NORMAL)
       .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).setLineSpacing(2f * d, 1f).build()
 
+  /** The quote's block: 5 above, the author, 1, the words, 5 below. */
+  private fun quoteHeight(quote: StaticLayout): Float = 5f * d + Math.ceil((quoteAuthorPaint.descent() - quoteAuthorPaint.ascent()).toDouble()).toFloat() + 1f * d + quote.height + 5f * d
+
   private fun widest(layout: StaticLayout?): Float { var w = 0f; if (layout != null) for (i in 0 until layout.lineCount) w = maxOf(w, layout.getLineWidth(i)); return w }
 
   private fun build(item: MsgRow, width: Int) {
@@ -307,17 +361,36 @@ class MsgRowView(context: Context) : View(context) {
       val box = minOf(width - 2 * edge, 360f * d)
       noticeLayout = layout(item.text, small, (box - 54f * d).toInt(), 8, false)
       bubbleW = minOf(box, widest(noticeLayout) + 54f * d); bubbleH = maxOf((noticeLayout?.height ?: 0).toFloat(), 18f * d) + 20f * d
+    } else if (item.kind == 1 && item.label == "day") {
+      // MessageRow.tsx DayChip: padding 6/14 and a 1-point border around 10-point semibold words.
+      bubbleW = Math.ceil(dayPaint.measureText(item.text).toDouble()).toFloat() + 30f * d
+      bubbleH = Math.ceil((dayPaint.descent() - dayPaint.ascent()).toDouble()).toFloat() + 14f * d
+    } else if (item.kind == 1 && item.label.startsWith("call")) {
+      // MessageRow.tsx CallServiceRow: up to 360 wide; border 1, padding 8 / 14 / 7, the 34-point circle, 10 between.
+      val words = maxOf(callPaint.measureText(item.text), callTimePaint.measureText(item.time))
+      val room = minOf(360f * d, width - 2 * edge) - (2f + 8f + 34f + 10f + 14f) * d
+      val textW = minOf(room, words)
+      val textH = (callPaint.descent() - callPaint.ascent()) + 1f * d + (callTimePaint.descent() - callTimePaint.ascent())
+      bubbleW = (2f + 8f + 34f + 10f) * d + textW + 14f * d
+      bubbleH = (2f + 14f) * d + maxOf(34f * d, textH)
     } else if (item.kind == 1) {
       noticeLayout = layout(item.text, small, (width * 0.8f).toInt(), 6, true)
       bubbleW = widest(noticeLayout) + 24f * d; bubbleH = (noticeLayout?.height ?: 0) + 12f * d
     } else {
-      val inner = (width * 0.78f - 26f * d).toInt()
+      // MessageRow.tsx: at most 85 % of the row (the list's side margins taken off), less the plate's padding.
+      val pad = pads(item)
+      val inner = ((width - 2 * edge) * 0.85f - pad.first - pad.second).toInt()
+      timeCorner = false; timeBeside = false; timeX = 0f; timeBase = 0f
       // Composer: 1–3 emoji alone stand large, each in its box (the reference's 112 / 84 / 68).
       if (item.bigEmoji > 0) { bigGlyphs = com.linea.messenger.composer.BigEmoji.graphemes(item.text).take(3); bigBox = com.linea.messenger.composer.BigEmoji.box(bigGlyphs.size) * d }
-      if (item.text.isNotEmpty() && bigGlyphs.isEmpty()) textLayout = layout(styled(item), body, inner, 400)
-      if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = layout(item.quoteText, small, inner - (12f * d).toInt(), 2)
+      if (item.text.isNotEmpty() && bigGlyphs.isEmpty()) textLayout = bodyLayout(styled(item), inner)
+      if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = StaticLayout.Builder.obtain(item.quoteText, 0, item.quoteText.length, quotePaint, (inner - 18f * d).toInt().coerceAtLeast(1))
+        .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
       if (item.label.isNotEmpty() && item.media != "photo" && item.media != "file") labelLayout = layout(item.label, small, inner, 2) // Attachments: a file's card draws its own words
-      layoutChips(item, inner.toFloat())
+      // MessageRow.tsx `reactionsInside`: the chips and, 10 to their right, the time share one row.
+      val metaRoom = meta.measureText(item.time) + (if (item.mine) 19f * d else 0f) + (if (item.silent) 15f * d else 0f)
+      timeBeside = item.chips.isNotEmpty() && item.media != "note" && item.bigEmoji == 0
+      layoutChips(item, if (timeBeside) maxOf(40f * d, inner - 10f * d - metaRoom) else inner.toFloat())
       if (item.reactions.isNotEmpty() && chips.isEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
       if (thumb != null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
       // Voice/Video: a round video is a circle, a video keeps its place even before its picture is known, a voice
@@ -328,11 +401,12 @@ class MsgRowView(context: Context) : View(context) {
       // Attachments: a photo shown whole, a file as a card (MediaBubble.tsx; attachments/InlineMedia.kt).
       else if (item.media == "photo") com.linea.messenger.attachments.InlineMediaArt.photoSize(item, width.toFloat(), d).let { thumbW = it.first; thumbH = it.second }
       else if (item.media == "file") com.linea.messenger.attachments.InlineMediaArt.fileSize(item, inner.toFloat(), d).let { fileW = it.first; fileH = it.second }
-      val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f) + (if (item.silent) 15f * d else 0f) // Composer: the bell of «без звука»
+      val metaWidth = meta.measureText(item.time) + (if (item.mine) 19f * d else 0f) + (if (item.silent) 15f * d else 0f) // the mark 4 + 15; Composer: the bell of «без звука»
       var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW, voiceW))
+      if (timeBeside) w = maxOf(w, minOf(inner.toFloat(), chipsW + 10f * d + metaRoom))
       w = maxOf(w, fileW) // Attachments
-      if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
-      if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
+      if (quoteLayout != null) w = maxOf(w, minOf(inner.toFloat(), maxOf(widest(quoteLayout), quoteAuthorPaint.measureText(item.quoteAuthor)) + 18f * d))
+      if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), forwardPaint.measureText(item.forward) + 2f * d))
       // LinkPreview: the card stands under the text, and the time then goes under the card.
       item.linkCard?.let { link -> card = com.linea.messenger.linkpreview.MsgLinkCardLayout.make(link, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
       // Polls: the poll stands where the text would (a poll's text is only for clients without polls).
@@ -340,15 +414,26 @@ class MsgRowView(context: Context) : View(context) {
       if (bigGlyphs.isNotEmpty()) w = maxOf(w, bigBox * bigGlyphs.size)
       // Media: an album's mosaic stands above its caption.
       item.album?.let { album -> albumLayout = com.linea.messenger.attachments.MsgAlbumLayout.make(album, width.toFloat(), inner.toFloat(), d).also { w = maxOf(w, it.width) } }
-      // The open look: the time goes after the last word when the line has room for it (plain left-to-right
-      // text only: not under reactions, not after a quote or a code block).
+      // MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside.
       val text = textLayout
-      if (MSG_OPEN_LOOK && text != null && text.lineCount > 0 && reactLayout == null && chips.isEmpty() && card == null && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }) {
+      val line = lineOf(fontSize) * d
+      if (text != null && text.lineCount > 0 && reactLayout == null && chips.isEmpty() && card == null && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }) {
         val last = text.lineCount - 1
         val end = Math.ceil(text.getLineMax(last).toDouble()).toFloat()
-        if (text.getParagraphDirection(last) == Layout.DIR_LEFT_TO_RIGHT && text.getEllipsisCount(last) == 0 && end + 8f * d + metaWidth <= inner) {
-          timeInline = true; timeX = end + 8f * d; timeBase = text.getLineBaseline(last).toFloat()
-          w = maxOf(w, end + 8f * d + metaWidth)
+        val ltr = text.getParagraphDirection(last) == Layout.DIR_LEFT_TO_RIGHT
+        if (MSG_OPEN_LOOK && item.media != "photo") {
+          // The open look: the time follows the last word («\u00A0\u00A0» + time, then the mark), else on the next line.
+          val gap = meta.measureText("\u00A0\u00A0")
+          timeInline = true
+          if (ltr && end + gap + metaWidth <= inner) { timeX = end + gap; timeBase = text.getLineBaseline(last).toFloat(); w = maxOf(w, end + gap + metaWidth) }
+          else { timeX = 0f; timeBase = text.getLineBaseline(last) + line }
+        } else {
+          // Bubbles: the time in the lower corner (10 from the right, 6 from the bottom); an invisible spacer at the end
+          // of the words keeps its room: «\u00A0\u00A0\u00A0[silent]time[mine: 7 × \u00A0]\u00A0» in 11 pt.
+          val spacer = "\u00A0\u00A0\u00A0" + (if (item.silent) "\u00A0".repeat(5) else "") + item.time + (if (item.mine) "\u00A0".repeat(7) else "") + "\u00A0"
+          val room = meta.measureText(spacer)
+          timeCorner = true
+          if (ltr && end + room <= inner) w = maxOf(w, end + room) else { timeBase = line; w = maxOf(w, minOf(inner.toFloat(), room)) }
         }
       }
       // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
@@ -357,9 +442,10 @@ class MsgRowView(context: Context) : View(context) {
         builtFor = item; builtWidth = width; builtFont = fontSize
         return
       }
-      var h = 9f * d
-      if (item.forward.isNotEmpty()) h += 18f * d
-      if (quoteLayout != null) h += 17f * d + quoteLayout!!.height + 8f * d
+      // MessageRow.tsx: 6 above the content; the forward line 4 above what follows; the quote's block 6 above it.
+      var h = 6f * d
+      if (item.forward.isNotEmpty()) h += Math.ceil((forwardPaint.descent() - forwardPaint.ascent()).toDouble()).toFloat() + 4f * d
+      if (quoteLayout != null) h += quoteHeight(quoteLayout!!) + 6f * d
       if (thumbH > 0f) h += thumbH + 6f * d
       albumLayout?.let { h += it.height + 6f * d } // Media
       if (voiceH > 0f) h += voiceH + 4f * d
@@ -367,12 +453,14 @@ class MsgRowView(context: Context) : View(context) {
       if (fileH > 0f) h += fileH + 4f * d // Attachments
       pollLayout?.let { h += it.height + 4f * d } // Polls
       if (bigGlyphs.isNotEmpty()) h += bigBox // Composer
-      if (textLayout != null) h += textLayout!!.height
+      if (textLayout != null) h += textLayout!!.height + (if (timeCorner && timeBase > 0f) line else 0f) + (if (timeInline && timeX == 0f && textLayout!!.lineCount > 0) line else 0f)
       card?.let { h += it.height + 7f * d }
       if (reactLayout != null) h += reactLayout!!.height + 6f * d
       if (chipsH > 0f) h += chipsH + 6f * d
-      h += if (timeInline) 6f * d else 16f * d + 6f * d
-      bubbleW = w + 26f * d; bubbleH = h
+      // Below: 6 under words that carry the time or beside the chips (5 + the time's 1), else the time's own row
+      // (4 above it, 5 below).
+      h += if (timeInline || timeCorner || timeBeside) 6f * d else 4f * d + Math.ceil((meta.descent() - meta.ascent()).toDouble()).toFloat() + 5f * d
+      bubbleW = maxOf(if (MSG_OPEN_LOOK) 0f else 60f * d, w + pad.first + pad.second); bubbleH = h
     }
     builtFor = item; builtWidth = width; builtFont = fontSize
   }
@@ -382,7 +470,9 @@ class MsgRowView(context: Context) : View(context) {
     val item = row
     if (item == null) { setMeasuredDimension(width, 0); return }
     if (builtFor != item || builtWidth != width || builtFont != fontSize) build(item, width)
-    val gap = if (item.kind == 2) 20f * d else if (item.kind == 1) 8f * d else if (item.tail) 7f * d else 2f * d
+    // MessageRow.tsx: the day chip 15 above and 18 below, a call's row 6 below, a message 6 after a run and 2 inside one.
+    val gap = if (item.kind == 2) 20f * d else if (item.kind == 1 && item.label == "day") 33f * d else if (item.kind == 1 && item.label.startsWith("call")) 6f * d
+      else if (item.kind == 1) 8f * d else if (item.tail) 6f * d else 2f * d
     setMeasuredDimension(width, (bubbleH + gap).toInt())
   }
 
@@ -414,6 +504,40 @@ class MsgRowView(context: Context) : View(context) {
       noticeLayout?.let { canvas.save(); canvas.translate(left + 40f * d, top + 10f * d); it.draw(canvas); canvas.restore() }
       return
     }
+    if (item.kind == 1 && item.label == "day") {
+      val look = com.linea.messenger.settings.ThemeStore.look
+      val left = (w - bubbleW) / 2; val top = 15f * d
+      fill.color = if (look.black) 0xAD000000.toInt() else if (look.dark) 0xAD1E2435.toInt() else 0x85FFFFFF.toInt()
+      canvas.drawRoundRect(left, top, left + bubbleW, top + bubbleH, 14f * d, 14f * d, fill)
+      stroke.color = if (look.dark) 0x14FFFFFF else 0xE0FFFFFF.toInt(); stroke.strokeWidth = 1f * d
+      canvas.drawRoundRect(left + 0.5f * d, top + 0.5f * d, left + bubbleW - 0.5f * d, top + bubbleH - 0.5f * d, 13.5f * d, 13.5f * d, stroke)
+      dayPaint.color = palette.muted
+      canvas.drawText(item.text, left + 15f * d, top + 7f * d - dayPaint.ascent(), dayPaint)
+      return
+    }
+    if (item.kind == 1 && item.label.startsWith("call")) {
+      val look = com.linea.messenger.settings.ThemeStore.look
+      val red = item.label.contains("!")
+      val left = (w - bubbleW) / 2
+      fill.color = if (item.checked == 1) look.accentSoft else if (isPressed) (if (look.dark) 0x1AFFFFFF else 0xC7FFFFFF.toInt())
+        else if (look.dark) 0x990C0F18.toInt() else 0x9EFFFFFF.toInt()
+      canvas.drawRoundRect(left, 0f, left + bubbleW, bubbleH, 20f * d, 20f * d, fill)
+      stroke.color = if (look.dark) 0x14FFFFFF else 0xE0FFFFFF.toInt(); stroke.strokeWidth = 1f * d
+      canvas.drawRoundRect(left + 0.5f * d, 0.5f * d, left + bubbleW - 0.5f * d, bubbleH - 0.5f * d, 19.5f * d, 19.5f * d, stroke)
+      val cx = left + (1f + 8f + 17f) * d; val cy = bubbleH / 2
+      fill.color = if (red) look.dangerBg else look.accentSoft
+      canvas.drawCircle(cx, cy, 17f * d, fill)
+      com.linea.messenger.design.IonIcon.draw(canvas, if (item.label.contains("v")) "videocam" else "call", cx, cy, 17f * d, if (red) palette.danger else palette.accent)
+      val tx = cx + 17f * d + 10f * d
+      val wordsH = callPaint.descent() - callPaint.ascent(); val timeH = callTimePaint.descent() - callTimePaint.ascent()
+      val ty = cy - (wordsH + 1f * d + timeH) / 2
+      callPaint.color = if (red) palette.danger else palette.text
+      val shown = TextUtils.ellipsize(item.text, callPaint, left + bubbleW - 14f * d - tx, TextUtils.TruncateAt.END)
+      canvas.drawText(shown, 0, shown.length, tx, ty - callPaint.ascent(), callPaint)
+      callTimePaint.color = palette.muted
+      canvas.drawText(item.time, tx, ty + wordsH + 1f * d - callTimePaint.ascent(), callTimePaint)
+      return
+    }
     if (item.kind == 1) {
       val left = (w - bubbleW) / 2
       fill.color = palette.notice; canvas.drawRoundRect(left, 0f, left + bubbleW, bubbleH, 14f * d, 14f * d, fill)
@@ -422,14 +546,20 @@ class MsgRowView(context: Context) : View(context) {
       return
     }
     var side = edge
+    // MessageRow.tsx JumpFlash: accentSoft over the row, 9 past the list's margins, 2 higher.
+    if (flashLight > 0f) {
+      fill.color = alpha(com.linea.messenger.settings.ThemeStore.look.accentSoft, Math.round(((com.linea.messenger.settings.ThemeStore.look.accentSoft ushr 24) and 255) * flashLight))
+      canvas.drawRect(edge - 9f * d, -2f * d, w - edge + 9f * d, height - 2f * d, fill)
+    }
     if (item.checked >= 0) {
-      val cx = 9f * d + 12f * d; val cy = bubbleH / 2
+      // MessageRow.tsx: a chosen message lies on accentSoft (radius 14, 6 past the margins); the mark is
+      // <Icon name="checkmark-circle"|"ellipse-outline" size={24}> at the left of a 30-point column.
       if (item.checked == 1) {
-        fill.color = palette.accent; canvas.drawCircle(cx, cy, 11f * d, fill)
-        stroke.color = palette.onAccent; stroke.strokeWidth = 2f * d
-        path.reset(); path.moveTo(cx - 5f * d, cy); path.lineTo(cx - 1.5f * d, cy + 3.5f * d); path.lineTo(cx + 5f * d, cy - 3.5f * d); canvas.drawPath(path, stroke)
-      } else { stroke.color = palette.subtle; stroke.strokeWidth = 1.6f * d; canvas.drawCircle(cx, cy, 10.5f * d, stroke) }
-      if (!item.mine) side += 34f * d
+        fill.color = com.linea.messenger.settings.ThemeStore.look.accentSoft
+        canvas.drawRoundRect(edge - 6f * d, 0f, w - edge + 6f * d, height.toFloat(), 14f * d, 14f * d, fill)
+      }
+      com.linea.messenger.design.IonIcon.draw(canvas, if (item.checked == 1) "checkmark-circle" else "ellipse-outline", edge + 12f * d, height / 2f, 24f * d, if (item.checked == 1) palette.accent else palette.subtle)
+      if (!item.mine) side += 30f * d
     }
     val left = if (item.mine) w - edge - bubbleW else side
     fill.color = if (item.mine) palette.mine else palette.theirs
@@ -449,32 +579,39 @@ class MsgRowView(context: Context) : View(context) {
     if (MSG_OPEN_LOOK && !item.mine && item.media != "photo" && (item.text.isNotEmpty() || item.label.isNotEmpty())) {
       val line = com.linea.messenger.chatlook.ChatBubbleLook.peerLine
       fill.color = if (line != 0) line else palette.accent
-      canvas.drawRect(left, 2f * d, left + 2f * d, bubbleH - 2f * d, fill)
+      canvas.drawRect(left, 0f, left + 2f * d, bubbleH, fill) // `borderLeftWidth: 2`, the whole height
     }
-    if (isPressed) { fill.color = Theme.veil(0.08f); canvas.drawPath(path, fill) }
-    // ChatActions: the message a jump ended at is lit.
-    if (flash) { fill.color = Theme.veil(0.16f); canvas.drawPath(path, fill) }
+    // MessageRow.tsx: a message has no pressed look (a tap opens its menu); the jump's light is drawn above.
 
-    val x = left + 13f * d
-    var y = 9f * d
+    val pad = pads(item)
+    val x = left + pad.first
+    var y = 6f * d
     val metaColor = if (item.mine) palette.mineMeta else palette.muted
     val markColor = if (item.mine) palette.mineMark else palette.accent
+    val inner = bubbleW - pad.first - pad.second
     if (item.forward.isNotEmpty()) {
-      smallBold.color = markColor
-      val shown = TextUtils.ellipsize(item.forward, smallBold, bubbleW - 26f * d, TextUtils.TruncateAt.END)
-      canvas.drawText(shown, 0, shown.length, x, y - smallBold.ascent(), smallBold); y += 18f * d
+      // MessageRow.tsx: 11 semibold in the accent, 4 above what follows.
+      forwardPaint.color = palette.accent
+      val shown = TextUtils.ellipsize(item.forward, forwardPaint, inner - 2f * d, TextUtils.TruncateAt.END)
+      canvas.drawText(shown, 0, shown.length, x + 1f * d, y - forwardPaint.ascent(), forwardPaint)
+      y += Math.ceil((forwardPaint.descent() - forwardPaint.ascent()).toDouble()).toFloat() + 4f * d
     }
     quoteLayout?.let { quote ->
-      val height = 17f * d + quote.height
-      quoteLeft = x; quoteTop = y; quoteRight = left + bubbleW - 13f * d; quoteBottom = y + height + 2f * d
-      fill.color = palette.quote; canvas.drawRoundRect(x, y, left + bubbleW - 13f * d, y + height + 2f * d, 6f * d, 6f * d, fill)
-      fill.color = markColor; canvas.drawRoundRect(x, y, x + 3f * d, y + height + 2f * d, 2f * d, 2f * d, fill)
-      smallBold.color = markColor
-      val author = TextUtils.ellipsize(item.quoteAuthor, smallBold, bubbleW - 44f * d, TextUtils.TruncateAt.END)
-      canvas.drawText(author, 0, author.length, x + 9f * d, y + 2f * d - smallBold.ascent(), smallBold)
-      small.color = metaColor
-      canvas.save(); canvas.translate(x + 9f * d, y + 17f * d); quote.draw(canvas); canvas.restore()
-      y += height + 8f * d
+      // MessageRow.tsx: white 0.06 / black 0.04, radius 10, the 3-point bar, 7 to the words, 5 above and below.
+      val height = quoteHeight(quote)
+      quoteLeft = x; quoteTop = y; quoteRight = x + inner; quoteBottom = y + height
+      fill.color = if (Theme.dark) 0x0FFFFFFF else 0x0A000000
+      canvas.drawRoundRect(x, y, x + inner, y + height, 10f * d, 10f * d, fill)
+      canvas.save()
+      path.reset(); path.addRoundRect(x, y, x + inner, y + height, 10f * d, 10f * d, Path.Direction.CW); canvas.clipPath(path)
+      fill.color = markColor; canvas.drawRoundRect(x, y, x + 3f * d, y + height, 2f * d, 2f * d, fill)
+      canvas.restore()
+      quoteAuthorPaint.color = markColor
+      val author = TextUtils.ellipsize(item.quoteAuthor, quoteAuthorPaint, inner - 18f * d, TextUtils.TruncateAt.END)
+      canvas.drawText(author, 0, author.length, x + 10f * d, y + 5f * d - quoteAuthorPaint.ascent(), quoteAuthorPaint)
+      quotePaint.color = metaColor
+      canvas.save(); canvas.translate(x + 10f * d, y + 5f * d + Math.ceil((quoteAuthorPaint.descent() - quoteAuthorPaint.ascent()).toDouble()).toFloat() + 1f * d); quote.draw(canvas); canvas.restore()
+      y += height + 6f * d
     }
     val image = thumb
     // Voice/Video: where the picture of a video or a round video stands; without a picture, a quiet plate.
@@ -516,7 +653,8 @@ class MsgRowView(context: Context) : View(context) {
     chipsX = x; chipsY = y + 6f * d
     for (chip in chips) {
       val cx = chipsX + chip.x; val cy = chipsY + chip.y
-      fill.color = if (chip.mine) palette.accent else alpha(palette.text, 0x1A)
+      // MessageRow.tsx: mine in the accent, else white 0.10 on dark / black 0.06 on light.
+      fill.color = if (chip.mine) palette.accent else if (Theme.dark) 0x1AFFFFFF else 0x0F000000
       canvas.drawRoundRect(cx, cy, cx + chip.w, cy + 24f * d, 12f * d, 12f * d, fill)
       chipEmoji.color = palette.text
       canvas.drawText(chip.emoji, cx + 8f * d, cy + 12f * d - (chipEmoji.ascent() + chipEmoji.descent()) / 2, chipEmoji)
@@ -526,27 +664,26 @@ class MsgRowView(context: Context) : View(context) {
       }
     }
 
-    meta.color = if (item.ticks == 4) palette.danger else metaColor
-    val marks = if (item.mine) 20f * d else 0f
-    // After the last word of the text, or in the plate's lower corner.
+    meta.color = metaColor // the time keeps its colour; a failed message's red is its mark
+    val marks = if (item.mine) 19f * d else 0f
+    // MessageRow.tsx: after the last word (the open look), in a bubble's corner 10 from the right and 6 from the
+    // bottom, beside the chips, or on a row of its own at the right (5 above the plate's bottom).
     val inline = timeInline && textLayout != null
-    val right = if (inline) x + timeX + meta.measureText(item.time) + marks + (if (item.silent) 15f * d else 0f) else left + bubbleW - 13f * d // Composer: room for the bell
-    val base = if (inline) textTop + timeBase else bubbleH - 8f * d
+    val corner = timeCorner && textLayout != null
+    val under = left + bubbleW - (if (corner) 10f * d else if (MSG_OPEN_LOOK && item.media != "photo") pad.second - 1f * d else 11f * d)
+    val right = if (inline) x + timeX + meta.measureText(item.time) + marks + (if (item.silent) 15f * d else 0f) else under // Composer: room for the bell
+    val base = if (inline) textTop + timeBase else bubbleH - (if (corner || timeBeside) 6f * d else 5f * d) - meta.descent()
     canvas.drawText(item.time, right - marks - meta.measureText(item.time), base, meta)
-    // Composer: «без звука» — a crossed bell before the time.
-    if (item.silent) com.linea.messenger.chatactions.ChatIcons.draw(canvas, "bell.slash", right - marks - meta.measureText(item.time) - 8f * d, base - 4f * d, 11f * d, metaColor)
+    val middle = base + (meta.ascent() + meta.descent()) / 2
+    // Composer: «без звука» — <Icon name="notifications-off" size={11} color={t.subtle}> before the time, 4 apart.
+    if (item.silent) com.linea.messenger.design.IonIcon.draw(canvas, "notifications-off", right - marks - meta.measureText(item.time) - 4f * d - 5.5f * d, middle, 11f * d, palette.subtle)
+    // After the time, 4 apart: <Icon name="checkmark"|"checkmark-done" size={15}> (read in the accent); on its way
+    // <Icon name="time-outline" size={12}>; failed <Icon name="alert-circle" size={13} color={t.danger}>.
     if (item.mine && item.ticks in 1..2) {
-      stroke.color = if (item.ticks == 2) markColor else metaColor; stroke.strokeWidth = 1.5f * d
-      val bx = right - 15f * d; val my = base - 4f * d
-      path.reset(); path.moveTo(bx, my); path.lineTo(bx + 3.5f * d, my + 3.5f * d); path.lineTo(bx + 10f * d, my - 4f * d)
-      if (item.ticks == 2) { path.moveTo(bx + 5f * d, my + 1.5f * d); path.lineTo(bx + 7f * d, my + 3.5f * d); path.lineTo(bx + 13.5f * d, my - 4f * d) }
-      canvas.drawPath(path, stroke)
+      com.linea.messenger.design.IonIcon.draw(canvas, if (item.ticks == 2) "checkmark-done" else "checkmark", right - 7.5f * d, middle, 15f * d, if (item.ticks == 2) markColor else metaColor)
     } else if (item.mine && item.ticks >= 3) {
-      stroke.color = if (item.ticks == 4) palette.danger else metaColor; stroke.strokeWidth = 1.4f * d
-      val cx = right - 7f * d; val cy = base - 4f * d
-      canvas.drawCircle(cx, cy, 5f * d, stroke)
-      if (item.ticks == 3) { canvas.drawLine(cx, cy - 2.5f * d, cx, cy, stroke); canvas.drawLine(cx, cy, cx + 2f * d, cy + 1f * d, stroke) }
-      else { canvas.drawLine(cx, cy - 2.5f * d, cx, cy + 0.5f * d, stroke); canvas.drawPoint(cx, cy + 2.5f * d, stroke) }
+      val failed = item.ticks == 4
+      com.linea.messenger.design.IonIcon.draw(canvas, if (failed) "alert-circle" else "time-outline", right - 7.5f * d, middle, if (failed) 13f * d else 12f * d, if (failed) palette.danger else metaColor)
     }
   }
 }

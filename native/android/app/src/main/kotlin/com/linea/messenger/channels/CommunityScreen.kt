@@ -70,7 +70,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
     for (button in tools) removeView(button)
     tools.clear()
     for (item in items) {
-      val button = ChannelIconButton(context, item.symbol, 22f, Theme.text)
+      val button = ChannelIconButton(context, item.symbol, if (item.symbol.startsWith("ion:")) 23f else 22f, Theme.text)
       button.contentDescription = item.label
       button.setOnClickListener { item.action() }
       com.linea.messenger.design.GlassBacking.put(button) // B
@@ -280,8 +280,8 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     header.avatar.show(found.summary)
     header.setWords(found.summary.name, found.summary.countWords)
     val tools = ArrayList<ChannelHeaderView.Tool>()
-    if (found.can(Perm.invite)) tools.add(ChannelHeaderView.Tool("person.plus", "Пригласить") { invite() })
-    tools.add(ChannelHeaderView.Tool("gear", "Настройки") { openSettings() })
+    if (found.can(Perm.invite)) tools.add(ChannelHeaderView.Tool("ion:person-add-outline", "Пригласить") { invite() })
+    tools.add(ChannelHeaderView.Tool("ion:settings-outline", "Настройки") { openSettings() })
     header.setTools(tools)
     if (found.blog) return showPosts(found, tools)
     val made = ArrayList<Item>()
@@ -433,14 +433,14 @@ class ChannelCell(context: Context) : ViewGroup(context) {
   private val d = resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
   private val dot = View(context)
-  private val icon = ChannelIconView(context, "bubble", 18f, Theme.muted)
+  private val icon = ChannelIconView(context, "ion:chatbox-ellipses-outline", 19f, Theme.muted)
   private val name = context.words("", 16f, Theme.text, 500)
-  private val lock = ChannelIconView(context, "lock", 13f, Theme.subtle)
+  private val lock = ChannelIconView(context, "ion:lock-closed", 13f, Theme.subtle)
   private val mentions = ChannelBadgeLabel(context)
   private val people = context.words("", 12f, Theme.muted)
 
   init {
-    dot.background = context.plate(Theme.text, 2.5f)
+    dot.background = context.plate(Theme.text, 3f)
     name.maxLines = 1; name.ellipsize = TextUtils.TruncateAt.END; name.gravity = Gravity.CENTER_VERTICAL
     people.gravity = Gravity.CENTER_VERTICAL or Gravity.END
     for (part in listOf(dot, icon, name, lock, mentions, people)) addView(part)
@@ -449,7 +449,7 @@ class ChannelCell(context: Context) : ViewGroup(context) {
   fun show(channel: CommunityChannel, unread: Int, count: Int) {
     val fresh = channel.isText && unread > 0
     dot.visibility = if (fresh) VISIBLE else GONE
-    icon.symbol = if (channel.isText) "bubble" else "speaker"
+    icon.symbol = if (channel.isText) "ion:chatbox-ellipses-outline" else "ion:volume-medium"
     name.text = if (channel.isText) "# " + channel.name else channel.name
     name.typeface = Theme.weight(if (fresh) 700 else 500)
     name.setTextColor(if (channel.isText && !fresh) Theme.muted else Theme.text)
@@ -472,20 +472,23 @@ class ChannelCell(context: Context) : ViewGroup(context) {
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     val width = r - l; val height = b - t
-    put(dot, dp(9f), (height - dp(9f)) / 2, dp(5f), dp(9f))
-    put(icon, dp(20f), 0, dp(24f), height)
+    // The row: 12 in from the list, paddingHorizontal 10, gap 10 — the icon (19), the name, the lock (13), the
+    // counter; the unread dot 2 left of the row.
+    put(dot, dp(10f), (height - dp(9f)) / 2, dp(5f), dp(9f))
+    put(icon, dp(22f), 0, dp(19f), height)
     val voice = !people.text.isNullOrEmpty()
-    val room = width - dp(54f + 20f) - (if (voice) dp(50f) else 0)
+    val peopleWide = if (voice) Math.ceil(people.paint.measureText(people.text.toString()).toDouble()).toInt() + dp(10f) else 0
+    val room = width - dp(51f + 22f) - peopleWide
     val badge = mentions.wide
-    val trail = (if (lock.visibility == VISIBLE) dp(20f) else 0) + (if (badge > 0) badge + dp(6f) else 0)
+    val trail = (if (lock.visibility == VISIBLE) dp(23f) else 0) + (if (badge > 0) badge + dp(10f) else 0)
     val wide = minOf(Math.ceil(name.paint.measureText(name.text.toString()).toDouble()).toInt() + 1, maxOf(0, room - trail))
-    put(name, dp(54f), 0, wide, height)
-    var after = dp(54f) + wide + dp(6f)
+    put(name, dp(51f), 0, wide, height)
+    var after = dp(51f) + wide + dp(10f)
     if (lock.visibility == VISIBLE) {
-      put(lock, after, 0, dp(14f), height)
-      after += dp(20f)
+      put(lock, after, 0, dp(13f), height)
+      after += dp(23f)
     }
     if (badge > 0) put(mentions, after, (height - dp(20f)) / 2, badge, dp(20f))
-    put(people, width - dp(70f), 0, dp(50f), height)
+    put(people, width - dp(72f), 0, dp(50f), height)
   }
 }

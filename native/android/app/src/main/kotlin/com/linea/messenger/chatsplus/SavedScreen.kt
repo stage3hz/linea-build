@@ -47,6 +47,8 @@ import com.linea.messenger.design.words
 import com.linea.messenger.people.pages
 import com.linea.messenger.settings.ThemeStore
 import com.linea.messenger.shell.Screen
+import com.linea.messenger.voice.MsgMediaBoxes
+import com.linea.messenger.voice.MsgMediaState
 import java.time.Instant
 import java.time.ZoneId
 
@@ -68,18 +70,27 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   private val tile = FrameLayout(context)
   private val titleLabel = context.words("Избранное", 16f, Theme.text, 700)
   private val countLabel = context.words("", 11f, Theme.muted)
-  private val searchButton = PlusIconView(context, "search", 18f, Theme.muted)
+  private val searchButton = PlusIconView(context, "ion:search-outline", 23f, Theme.muted)
   private val searchBox = GlassPlate(context, 22f)
   private val searchField = EditText(context)
   private val list = ListView(context)
+  /** The list in a frame, so a round video's player can stand over its row (video/NotePlayback.kt). */
+  private val listHost = FrameLayout(context)
+  /** Voice messages and round videos play here as in a chat. */
+  private val voice = com.linea.messenger.voice.VoicePlayer(context, messenger?.server)
+  private val notes = com.linea.messenger.video.NotePlayback(context, messenger?.server, listHost, { key -> noteHost(key) }, { visibleKeys() })
+  private var mediaState: MsgMediaState? = null
+  private val watch = object : Runnable {
+    override fun run() { notes.refresh(); main.postDelayed(this, 500) }
+  }
   private val empty = EmptyStateView(context)
   private val notice = context.words("", 12f, Theme.accent)
   private val composer = GlassPlate(context, 28f)
   private val field = EditText(context)
-  private val send = PlusIconView(context, "arrow.up", 19f, Theme.onAccent)
-  private val clip = PlusIconView(context, "paperclip", 19f, Theme.muted)
+  private val send = PlusIconView(context, "ion:arrow-up", 23f, Theme.onAccent)
+  private val clip = PlusIconView(context, "ion:add", 23f, Theme.accent)
   private val editBanner = context.words("Редактирование заметки", 12f, Theme.accent, 700)
-  private val editClose = PlusIconView(context, "xmark", 14f, Theme.muted)
+  private val editClose = PlusIconView(context, "ion:close", 18f, Theme.muted)
   private val selectCancel = context.words("Отмена", 16f, Theme.accent)
   private val selectCount = context.words("", 15f, Theme.text, 600)
   private val selectDelete = LinearLayout(context)
@@ -101,10 +112,11 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     override fun getViewTypeCount() = 2
     override fun getItemViewType(position: Int) = if (lines[position] is Line.Day) 0 else 1
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View = when (val line = lines[position]) {
-      is Line.Day -> (convertView as? TextView ?: dayPill()).also { it.text = line.words }
+      is Line.Day -> (convertView as? FrameLayout ?: dayPill()).also { (it.tag as? TextView)?.text = line.words }
       is Line.Note -> (convertView as? SavedNoteRow ?: SavedNoteRow(context)).also {
         val id = line.item["id"] as? String ?: ""
-        it.show(line.item, ownName, selection?.contains(id))
+        val key = "saved:$id"
+        it.show(line.item, ownName, selection?.contains(id), mediaState?.takeIf { state -> state.key == key }, noteRoom)
       }
     }
   }
@@ -116,11 +128,19 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     list.selector = ColorDrawable(Color.TRANSPARENT)
     list.isVerticalScrollBarEnabled = false
     list.clipToPadding = false
+    // SavedScreen.tsx: the list's content stands 14 dp in from the top and the bottom.
+    list.setPadding(0, context.px(14f), 0, context.px(14f))
     list.transcriptMode = ListView.TRANSCRIPT_MODE_DISABLED
     list.adapter = adapter
     list.setOnItemClickListener { _, view, position, _ -> pressed(position, view) }
     list.setOnItemLongClickListener { view, _, position, _ -> held(position, view); true }
-    addView(list)
+    list.setOnScrollListener(object : AbsListView.OnScrollListener {
+      override fun onScrollStateChanged(view: AbsListView?, scrollState: Int) {}
+      override fun onScroll(view: AbsListView?, firstVisibleItem: Int, visibleItemCount: Int, totalItemCount: Int) { notes.follow() }
+    })
+    listHost.addView(list, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    addView(listHost)
+    installPlayers()
     empty.visibility = View.GONE
     addView(empty)
 
@@ -129,7 +149,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     back.isClickable = true
     back.setOnClickListener { pages()?.pop() }
     tile.background = context.plate(Theme.accent, 16f)
-    tile.addView(PlusIconView(context, "bookmark.fill", 18f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    tile.addView(PlusIconView(context, "ion:bookmark", 21f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     searchButton.isClickable = true
     searchButton.setOnClickListener { toggleSearch() }
     titleLabel.maxLines = 1
@@ -138,7 +158,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
 
     searchBox.visibility = View.GONE
     searchBox.gravity = Gravity.CENTER_VERTICAL
-    searchBox.addView(PlusIconView(context, "search", 16f, Theme.muted), LinearLayout.LayoutParams(context.px(36f), context.px(46f)))
+    searchBox.addView(PlusIconView(context, "ion:search-outline", 18f, Theme.muted), LinearLayout.LayoutParams(context.px(36f), context.px(46f)))
     searchField.hint = "Поиск в Избранном"
     searchField.setHintTextColor(Theme.muted)
     searchField.setTextColor(Theme.text)
@@ -172,7 +192,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     send.contentDescription = "Сохранить заметку"
     send.isClickable = true
     send.setOnClickListener { submit() }
-    clip.contentDescription = "Добавить фото или файл"
+    clip.contentDescription = "Сохранить фото, видео или файл"
     clip.isClickable = true
     clip.setOnClickListener { hideKeyboard(); attach.openMenu() }
     editBanner.visibility = View.GONE
@@ -188,7 +208,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     selectDelete.gravity = Gravity.CENTER
     selectDelete.isClickable = true
     selectDelete.contentDescription = "Удалить выбранное"
-    selectDelete.addView(PlusIconView(context, "trash", 16f, Theme.danger), LinearLayout.LayoutParams(context.px(20f), context.px(20f)).apply { rightMargin = context.px(4f) })
+    selectDelete.addView(PlusIconView(context, "ion:trash-outline", 19f, Theme.danger), LinearLayout.LayoutParams(context.px(20f), context.px(20f)).apply { rightMargin = context.px(4f) })
     selectDelete.addView(context.words("Удалить", 16f, Theme.danger))
     selectDelete.setOnClickListener { deleteSelected() }
     for (part in listOf(field, send, clip, editBanner, editClose, selectCancel, selectCount, selectDelete)) addView(part)
@@ -204,14 +224,76 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     override fun afterTextChanged(s: Editable?) { then() }
   }
 
-  private fun dayPill(): TextView = context.words("", 10f, Theme.muted, 600).apply {
-    gravity = Gravity.CENTER
-    layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, context.px(57f))
-    background = DayPill(context)
+  /** SavedScreen.tsx: the day in a capsule — 15 above, 6 × 14 inside, 14 below; t.glass on a dark theme, white
+   *  at 0.52 on a light one; 10 dp semibold muted. */
+  private fun dayPill(): FrameLayout = FrameLayout(context).apply {
+    layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, AbsListView.LayoutParams.WRAP_CONTENT)
+    val words = context.words("", 10f, Theme.muted, 600)
+    words.gravity = Gravity.CENTER
+    words.setPadding(context.px(14f), context.px(6f), context.px(14f), context.px(6f))
+    words.background = context.plate(if (Theme.dark) ThemeStore.look.glass else 0x85FFFFFF.toInt(), 14f)
+    addView(words, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL).apply {
+      topMargin = context.px(15f); bottomMargin = context.px(14f)
+    })
+    tag = words
+  }
+
+  // Voice messages and round videos
+
+  private fun installPlayers() {
+    voice.onState = { state -> setMediaState(state) }
+    voice.onProblem = { words -> flash(words) }
+    voice.onWillPlay = { notes.quiet() }
+    notes.onState = { state -> setMediaState(state) }
+    notes.onProblem = { words -> flash(words) }
+    notes.onWillPlay = { voice.pause() }
+    notes.holdsSilence = { voice.isPlaying }
+    notes.onReadyChanged = { key -> noteRow(key)?.redraw(mediaState?.takeIf { it.key == key }) }
+  }
+
+  private fun noteRow(key: String): SavedNoteRow? {
+    for (index in 0 until list.childCount) (list.getChildAt(index) as? SavedNoteRow)?.takeIf { it.key == key }?.let { return it }
+    return null
+  }
+
+  private fun noteHost(key: String): android.graphics.RectF? {
+    val row = noteRow(key) ?: return null
+    val box = row.noteBox() ?: return null
+    return box.apply { offset(row.left.toFloat(), row.top.toFloat()) }
+  }
+
+  private fun visibleKeys(): List<String> = (0 until list.childCount).mapNotNull { (list.getChildAt(it) as? SavedNoteRow)?.key }
+
+  private fun setMediaState(next: MsgMediaState?) {
+    if (next == mediaState) return
+    val keys = listOf(mediaState?.key, next?.key)
+    mediaState = next
+    for (index in 0 until list.childCount) {
+      val row = list.getChildAt(index) as? SavedNoteRow ?: continue
+      if (row.key in keys) row.redraw(next?.takeIf { it.key == row.key })
+    }
+  }
+
+  /** The width a round video may take: 85 % of the list without its 15 dp sides (SavedScreen.tsx `maxSide`). */
+  private val noteRoom: Float get() = Math.floor(((list.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - 30f * d) * 0.85).toFloat()
+
+  /** A part of a note was touched: the voice message's button or waveform (start / pause — never a seek, the
+   *  owner's rule), its speed, a round video (with sound / pause), a file's card (open). */
+  private fun partPressed(item: Map<String, Any?>, part: String) {
+    val attachment = Core.map(item["attachment"]) ?: return
+    val key = "saved:" + (item["id"] as? String ?: "")
+    when (part) {
+      "rate" -> flash(voice.cycleRate())
+      "play", "wave" -> voice.toggle(key, attachment)
+      "thumb" -> notes.toggle(key, attachment)
+      "card" -> open(attachment)
+    }
   }
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
+    main.removeCallbacks(watch)
+    main.postDelayed(watch, 500)
     SavedMessages.changed.watch(changed)
     if (ChatsPlusDemo.savedSearch) main.postDelayed({
       if (!searching) toggleSearch()
@@ -221,6 +303,9 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   }
 
   override fun onDetachedFromWindow() {
+    main.removeCallbacks(watch)
+    voice.left()
+    notes.left()
     SavedMessages.changed.unwatch(changed)
     hideKeyboard()
     super.onDetachedFromWindow()
@@ -240,7 +325,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     // The field grows with the text up to 136 dp, as the reference's composer.
     val bottomGap = maxOf(edges.bottom, edges.keyboard) + dp(10f)
     val choosing = selection != null
-    val fieldWidth = width - dp(24f) - dp(16f) - dp(44f) - dp(6f) - (if (clip.visibility == View.VISIBLE) dp(34f) else 0)
+    val fieldWidth = width - dp(24f) - dp(16f) - dp(44f) - dp(6f) - (if (clip.visibility == View.VISIBLE) dp(50f) else 0)
     field.measure(MeasureSpec.makeMeasureSpec(maxOf(1, fieldWidth), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     val wanted = field.measuredHeight.coerceIn(dp(44f), dp(136f))
     val banner = if (editingRow != null && !choosing) dp(36f) else 0
@@ -250,14 +335,14 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     put(composer, cx, cy, cw, composerHeight)
     put(editBanner, cx + dp(16f), cy + dp(8f), cw - dp(70f), dp(28f))
     put(editClose, cx + cw - dp(44f), cy + dp(4f), dp(36f), dp(36f))
-    val fieldLeft = cx + dp(8f) + (if (clip.visibility == View.VISIBLE) dp(34f) else 0)
+    val fieldLeft = cx + dp(8f) + (if (clip.visibility == View.VISIBLE) dp(50f) else 0)
     put(field, fieldLeft, cy + dp(8f) + banner, fieldWidth, inner)
     put(send, cx + cw - dp(8f + 44f), cy + composerHeight - dp(8f + 44f), dp(44f), dp(44f))
-    put(clip, cx + dp(4f), cy + composerHeight - dp(8f + 44f), dp(36f), dp(44f))
+    put(clip, cx + dp(8f), cy + composerHeight - dp(8f + 44f), dp(44f), dp(44f))
     put(selectCancel, cx + dp(8f), cy + dp(8f), dp(80f), dp(44f))
     put(selectDelete, cx + cw - dp(8f + 110f), cy + dp(8f), dp(110f), dp(44f))
     put(selectCount, cx + dp(90f), cy + dp(8f), cw - dp(200f), dp(44f))
-    put(list, 0, y, width, maxOf(0, cy - dp(5f) - y))
+    put(listHost, 0, y, width, maxOf(0, cy - dp(5f) - y))
     put(empty, 0, y, width, maxOf(0, cy - dp(5f) - y))
     val noticeWidth = minOf(width - dp(40f), notice.paint.measureText(notice.text.toString()).toInt() + dp(28f))
     put(notice, (width - noticeWidth) / 2, y + dp(4f), noticeWidth, dp(30f))
@@ -278,7 +363,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     lines = next
     val count = saved.items.size
     countLabel.text = if (count > 0) "$count · только на этом устройстве" else "Хранится только на этом устройстве"
-    searchButton.symbol = if (searching) "xmark" else "search"
+    searchButton.symbol = if (searching) "ion:close" else "ion:search-outline"
     searchButton.color = if (searching) Theme.accent else Theme.muted
     searchButton.contentDescription = if (searching) "Закрыть поиск" else "Поиск в Избранном"
     searchButton.invalidate()
@@ -286,8 +371,8 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     val nothing = shown.isEmpty() && saved.loaded
     empty.visibility = if (nothing) View.VISIBLE else View.GONE
     if (nothing) {
-      if (searching) empty.show("search", "Ничего не найдено", "Попробуй другое слово.")
-      else empty.show("bookmark", "Здесь пока пусто", "Пиши заметки, сохраняй файлы и голосовые. Любое сообщение из чата можно отправить сюда через долгое нажатие → «В Избранное».")
+      if (searching) empty.show("ion:search-outline", "Ничего не найдено", "Попробуй другое слово.")
+      else empty.show("ion:bookmark-outline", "Здесь пока пусто", "Пиши заметки, сохраняй файлы и голосовые. Любое сообщение из чата можно отправить сюда через долгое нажатие → «В Избранное».")
     }
     if (saved.error.isNotEmpty()) flash(saved.error)
     if (scrollToNewest && lines.isNotEmpty()) list.post { list.setSelection(lines.size - 1) }
@@ -304,7 +389,9 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
       refreshComposer()
       return
     }
-    Core.map(item["attachment"])?.let { open(it) }
+    // SavedScreen.tsx: outside «Выбрать» a note itself takes no tap; its attachment has its own controls.
+    val row = view as? SavedNoteRow ?: return
+    row.part(row.downX, row.downY)?.let { partPressed(item, it) }
   }
 
   // Menu
@@ -381,7 +468,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     send.visibility = if (choosing) View.GONE else View.VISIBLE
     send.isEnabled = ready
     send.alpha = if (ready) 1f else 0.4f
-    send.symbol = if (editingRow != null) "checkmark" else "arrow.up"
+    send.symbol = if (editingRow != null) "ion:checkmark" else "ion:arrow-up"
     send.contentDescription = if (editingRow != null) "Сохранить изменения" else "Сохранить заметку"
     send.invalidate()
     clip.visibility = if (choosing || editingRow != null) View.GONE else View.VISIBLE
@@ -474,22 +561,6 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     main.postDelayed({ if (run == noticeRun) notice.animate().alpha(0f).setDuration(250).start() }, 2200)
   }
 
-  /** The quiet capsule behind a day's words. */
-  private class DayPill(context: Context) : android.graphics.drawable.Drawable() {
-    private val d = context.resources.displayMetrics.density
-    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = Theme.veil(0.07f) }
-    override fun draw(canvas: android.graphics.Canvas) {
-      val b = bounds
-      val w = 120f * d
-      val left = b.exactCenterX() - w / 2
-      canvas.drawRoundRect(left, b.top + 15f * d, left + w, b.top + 43f * d, 14f * d, 14f * d, paint)
-    }
-    override fun setAlpha(alpha: Int) {}
-    override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
-    @Deprecated("Deprecated in Java")
-    override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
-  }
-
   companion object {
     /** Opens «Избранное» over the page `from` stands in. */
     fun open(from: View, messenger: Messenger?) {
@@ -501,60 +572,351 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   }
 }
 
-/** One note at the right edge: where it came from, its file, its words, and the time after the last word. */
+/** One note at the right edge, drawn as the reference's SavedScreen.tsx row: where it came from, its attachment
+ *  exactly as a chat draws it (VoiceBubble, VideoNoteBubble, AttachmentCard), its words and the time. A round video
+ *  with no words and no origin stands alone with the time in a pill under it (`circleOnly`). The owner's open look:
+ *  no plate unless bubbles are chosen in «Оформление» (then the reference's plate: radius 23, 8 at the lower right).
+ *  iOS: native/ios/Sources/ChatsPlus/SavedViewController.swift (SavedNoteCanvas). */
 @SuppressLint("ViewConstructor")
-private class SavedNoteRow(context: Context) : LinearLayout(context) {
-  private val check = PlusIconView(context, "circle", 21f, Theme.subtle)
-  private val column = LinearLayout(context)
-  private val origin = context.words("", 11f, Theme.accent, 600).apply { gravity = Gravity.END; maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-  private val file = context.words("", 14f, Theme.accent, 500).apply { gravity = Gravity.END; maxLines = 1; ellipsize = TextUtils.TruncateAt.MIDDLE }
-  private val body = TextView(context).apply { gravity = Gravity.END; textSize = 16f; setTextColor(Theme.text) }
+private class SavedNoteRow(context: Context) : View(context) {
+  private val d = resources.displayMetrics.density
+  var key = ""; private set
+  private var item: Map<String, Any?> = emptyMap()
+  private var checked: Boolean? = null
+  private var originWords = ""
+  private var words = ""
+  private var timeWords = ""
+  private var edited = false
+  /** "voice", "note", "card" or "" (no attachment). */
+  private var kind = ""
+  private var fileKind = "file"
+  private var attachment: Map<String, Any?> = emptyMap()
+  private var poster: android.graphics.Bitmap? = null
+  private var posterOf = ""
+  private var maxSide = 212f
+  var state: MsgMediaState? = null
+  private val boxes = MsgMediaBoxes()
+  /** Where the parts stand (px, in this view). */
+  private val boxRect = android.graphics.RectF()
+  private val originRect = android.graphics.RectF()
+  private val media = android.graphics.RectF()
+  private val textAt = android.graphics.PointF()
+  private val timeRect = android.graphics.RectF()
+  private var timeInline = false
+  private var textLayout: android.text.StaticLayout? = null
+  private var originLayout: android.text.StaticLayout? = null
+  private var laidWidth = -1
+  private var laidHeight = 0
+  /** Where the last finger came down (for the list's tap). */
+  var downX = 0f; private set
+  var downY = 0f; private set
+
+  private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private val line = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE }
+  private val originPaint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private val textPaint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private val small = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
 
   init {
-    orientation = HORIZONTAL
-    gravity = Gravity.CENTER_VERTICAL
     layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, AbsListView.LayoutParams.WRAP_CONTENT)
-    setPadding(context.px(10f), context.px(4f), context.px(15f), context.px(10f))
-    addView(check, LayoutParams(context.px(30f), context.px(30f)).apply { rightMargin = context.px(5f) })
-    column.orientation = VERTICAL
-    column.gravity = Gravity.END
-    column.addView(origin, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(4f) })
-    column.addView(file, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(4f) })
-    column.addView(body, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
-    addView(column, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
   }
 
-  fun show(item: Map<String, Any?>, own: String, checked: Boolean?) {
-    check.visibility = if (checked == null) View.GONE else View.VISIBLE
-    check.symbol = if (checked == true) "circle.fill.check" else "circle"
-    check.color = if (checked == true) Theme.accent else Theme.subtle
-    check.invalidate()
+  /** chatPreferences.ts TEXT_SIZES: the size of message text and its line (dp). */
+  private val metrics: Pair<Float, Float> get() {
+    val size = ThemeStore.textSize
+    return when {
+      size < 16f -> Pair(15f, 20f)
+      size < 18f -> Pair(17f, 22f)
+      size < 20f -> Pair(19f, 25f)
+      else -> Pair(22f, 28f)
+    }
+  }
+
+  /** `circleOnly` (SavedScreen.tsx): a round video with no words and no origin, shown alone. */
+  private val circleOnly: Boolean get() = kind == "note" && words.isEmpty() && !item.containsKey("origin")
+  /** A plate only when bubbles are chosen; the open look has none (the owner's rule). */
+  private val plated: Boolean get() = !com.linea.messenger.chatlook.ChatBubbleLook.open && !circleOnly
+  private val visual: Boolean get() = fileKind == "photo" || fileKind == "video"
+
+  private val duration: String get() {
+    val ms = (Core.map(attachment["media"])?.get("durationMs") as? Number)?.toDouble() ?: 0.0
+    val seconds = (ms / 1000).toInt()
+    return if (seconds > 0) "${seconds / 60}:" + String.format(java.util.Locale.ROOT, "%02d", seconds % 60) else ""
+  }
+
+  fun show(next: Map<String, Any?>, own: String, checked: Boolean?, state: MsgMediaState?, maxSide: Float) {
+    item = next
+    key = "saved:" + (next["id"] as? String ?: "")
+    this.checked = checked
+    this.state = state
+    this.maxSide = maxSide
     val now = Instant.now(); val zone = ZoneId.systemDefault()
-    val from = Core.map(item["origin"])
-    if (from != null) {
+    val from = Core.map(next["origin"])
+    originWords = if (from != null) {
       val author = from["author"] as? String ?: ""
       val day = Messenger.date(from["sentAt"] as? String)?.let { Messenger.dayWords(it, now, zone) } ?: ""
-      origin.text = (if (author == own && own.isNotEmpty()) "Твоё сообщение" else "От $author") + (if (day.isEmpty()) "" else " · $day")
-      origin.visibility = View.VISIBLE
-    } else origin.visibility = View.GONE
-    val attachment = Core.map(item["attachment"])
-    if (attachment != null) {
-      val (text, icon) = ChatRowLooks.attachmentLine(attachment)
-      file.text = (if (icon == "mic") "🎤 " else "") + text
-      file.visibility = View.VISIBLE
-    } else file.visibility = View.GONE
-    val time = (if (item.containsKey("editedAt")) "изм. " else "") + (Messenger.date(item["savedAt"] as? String)?.let { Messenger.clock(it, zone) } ?: "")
-    val text = item["text"] as? String ?: ""
-    // The open look: the time stands after the last word, small and quiet.
-    val words = SpannableStringBuilder(text)
-    val start = words.length
-    words.append((if (text.isEmpty()) "" else "  ") + time)
-    words.setSpan(AbsoluteSizeSpan(10, true), start, words.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    words.setSpan(ForegroundColorSpan(Theme.muted), start, words.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    body.text = words
-    // The words take at most 85 % of the row, at its right edge.
-    val room = (resources.displayMetrics.widthPixels * 0.85f).toInt()
-    body.maxWidth = room; file.maxWidth = room; origin.maxWidth = room
-    contentDescription = (if (text.isEmpty()) (if (file.visibility == View.VISIBLE) file.text.toString() else "Запись") else text) + ", " + time
+      (if (author == own) "Твоё сообщение" else "От $author") + " · " + day
+    } else ""
+    words = next["text"] as? String ?: ""
+    edited = next.containsKey("editedAt")
+    timeWords = Messenger.date(next["savedAt"] as? String)?.let { Messenger.clock(it, zone) } ?: ""
+    attachment = Core.map(next["attachment"]) ?: emptyMap()
+    if (attachment.isEmpty()) kind = "" else {
+      com.linea.messenger.attachments.AttachmentStore.remember(key, attachment)
+      kind = when (com.linea.messenger.voice.MediaRows.kind(attachment)) { "voice" -> "voice"; "note" -> "note"; else -> "card" }
+      fileKind = FileCore.describe(attachment).kind
+    }
+    val picture = Core.map(attachment["preview"])?.get("base64") as? String ?: ""
+    if (picture != posterOf) {
+      posterOf = picture
+      poster = if (picture.isEmpty()) null else try { Base64.decode(picture, Base64.DEFAULT).let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) } } catch (_: Throwable) { null }
+    }
+    laidWidth = -1
+    val lineWords = if (attachment.isEmpty()) "" else SavedMessages.line(next).first
+    contentDescription = listOf(originWords, words.ifEmpty { lineWords.ifEmpty { "Запись" } }, (if (edited) "изм. " else "") + timeWords).filter { it.isNotEmpty() }.joinToString(", ")
+    requestLayout()
+    invalidate()
+  }
+
+  fun redraw(next: MsgMediaState?) { state = next; invalidate() }
+
+  /** Where a round video stands in this view (null: none). */
+  fun noteBox(): android.graphics.RectF? = if (kind == "note" && !media.isEmpty) android.graphics.RectF(media) else null
+
+  /** The part under a point: "play", "wave", "rate", "thumb" (a round video) or "card". */
+  fun part(x: Float, y: Float): String? {
+    if (checked != null) return null
+    if (kind == "voice") return boxes.part(x, y, d)?.first
+    if (kind == "note" && media.contains(x, y)) return "thumb"
+    if (kind == "card" && media.contains(x, y)) return "card"
+    return null
+  }
+
+  override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+    if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) { downX = event.x; downY = event.y }
+    return super.dispatchTouchEvent(event)
+  }
+
+  private fun cardSize(room: Float): Pair<Float, Float> {
+    if (visual) return Pair(230f * d, 190f * d)
+    val width = minOf(270f * d, maxOf(180f * d, room))
+    val nameRoom = (width - (42f + 10f + 10f + 17f) * d).toInt().coerceAtLeast(1)
+    small.textSize = 14f * d; small.typeface = Theme.weight(600)
+    val name = android.text.StaticLayout.Builder.obtain(attachment["name"] as? String ?: "", 0, (attachment["name"] as? String ?: "").length, small, nameRoom).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
+    small.textSize = 12f * d; small.typeface = Theme.weight(400)
+    val column = name.height + 4f * d + (small.descent() - small.ascent())
+    return Pair(width, maxOf(46f * d, column) + 14f * d)
+  }
+
+  private fun lay(width: Int) {
+    if (width == laidWidth) return
+    laidWidth = width
+    val left = (if (checked == null) 15f else 45f) * d
+    val room = (width - left - 15f * d) * 0.85f
+    val pad = if (plated) 12f * d else 0f
+    val inner = maxOf(40f * d, room - 2 * pad)
+    var y = if (circleOnly) 0f else if (kind.isEmpty()) 11f * d else 7f * d
+    var contentWidth = 0f
+    originRect.setEmpty(); media.setEmpty(); timeRect.setEmpty(); originLayout = null; textLayout = null; timeInline = false
+    if (originWords.isNotEmpty()) {
+      originPaint.textSize = 11f * d; originPaint.typeface = Theme.weight(600); originPaint.color = Theme.accent
+      val made = android.text.StaticLayout.Builder.obtain(originWords, 0, originWords.length, originPaint, inner.toInt()).setIncludePad(false).build()
+      originLayout = made
+      var widest = 0f
+      for (index in 0 until made.lineCount) widest = maxOf(widest, made.getLineWidth(index))
+      originRect.set(0f, y, Math.ceil(widest.toDouble()).toFloat(), y + made.height)
+      y += made.height + 4f * d
+      contentWidth = maxOf(contentWidth, originRect.width())
+    }
+    if (kind.isNotEmpty()) {
+      val size = when (kind) {
+        "voice" -> Pair(minOf(inner, com.linea.messenger.voice.MediaRowArt.voiceWidth * d), com.linea.messenger.voice.MediaRowArt.voiceHeight * d)
+        "note" -> { val side = minOf(212f * d, Math.floor(maxSide.toDouble()).toFloat()); Pair(side, side) }
+        else -> cardSize(inner)
+      }
+      media.set(0f, y, size.first, y + size.second)
+      y += size.second + (if (words.isEmpty()) 1f else 7f) * d
+      contentWidth = maxOf(contentWidth, size.first)
+    }
+    small.textSize = 9f * d; small.typeface = Theme.weight(400)
+    val timeText = (if (edited) "изм. " else "") + timeWords
+    val timeW = Math.ceil(small.measureText(timeText).toDouble()).toFloat()
+    val timeH = small.descent() - small.ascent()
+    var textLeft = 0f
+    if (words.isNotEmpty()) {
+      val (size, lineHeight) = metrics
+      textPaint.textSize = size * d; textPaint.typeface = Theme.weight(400); textPaint.color = Theme.text
+      val natural = textPaint.fontMetrics.let { it.descent - it.ascent }
+      val made = android.text.StaticLayout.Builder.obtain(words, 0, words.length, textPaint, inner.toInt()).setIncludePad(false)
+        .setLineSpacing(lineHeight * d - natural, 1f).build()
+      textLayout = made
+      var widest = 0f
+      for (index in 0 until made.lineCount) widest = maxOf(widest, made.getLineWidth(index))
+      val textW = Math.ceil(widest.toDouble()).toFloat()
+      val textH = made.lineCount * lineHeight * d
+      contentWidth = maxOf(contentWidth, textW)
+      // The open look: the time follows the last word when it fits on that line.
+      val last = made.getLineWidth(made.lineCount - 1)
+      if (!plated && last + 8f * d + timeW <= inner) {
+        timeInline = true
+        timeRect.set(last + 8f * d, y + textH - timeH - 3f * d, last + 8f * d + timeW, y + textH - 3f * d)
+        contentWidth = maxOf(contentWidth, timeRect.right)
+      }
+      textAt.set(0f, y)
+      y += textH
+      textLeft = textW
+    }
+    if (circleOnly) {
+      small.textSize = 11f * d
+      val pillW = Math.ceil(small.measureText(timeWords).toDouble()).toFloat() + 16f * d
+      val pillH = (small.descent() - small.ascent()) + 6f * d
+      timeRect.set(0f, y + 3f * d, pillW, y + 3f * d + pillH)
+      y += 3f * d + pillH
+      contentWidth = maxOf(contentWidth, pillW)
+    } else if (!timeInline) {
+      timeRect.set(0f, y + 4f * d, timeW, y + 4f * d + timeH)
+      y += 4f * d + timeH
+      contentWidth = maxOf(contentWidth, timeW)
+    }
+    if (!circleOnly) y += 7f * d
+    val boxWidth = maxOf(if (circleOnly) 0f else 74f * d, contentWidth + 2 * pad)
+    val boxLeft = width - 15f * d - boxWidth
+    boxRect.set(boxLeft, 0f, boxLeft + boxWidth, y)
+    val right = boxRect.right - pad
+    fun shift(rect: android.graphics.RectF) { if (!rect.isEmpty) rect.offsetTo(right - rect.width(), rect.top) }
+    shift(originRect); shift(media)
+    if (textLayout != null) {
+      val block = maxOf(textLeft, if (timeInline) timeRect.right else 0f)
+      val start = right - block
+      textAt.set(start, textAt.y)
+      if (timeInline) timeRect.offset(start, 0f) else shift(timeRect)
+    } else shift(timeRect)
+    laidHeight = Math.ceil(y.toDouble()).toInt() + Math.round(8f * d)
+  }
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val width = MeasureSpec.getSize(widthMeasureSpec)
+    lay(width)
+    setMeasuredDimension(width, laidHeight)
+  }
+
+  private fun glyph(canvas: android.graphics.Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) =
+    com.linea.messenger.design.IonIcon.draw(canvas, name, cx, cy, size * d, color)
+
+  override fun onDraw(canvas: android.graphics.Canvas) {
+    lay(width)
+    checked?.let { on ->
+      // SavedScreen.tsx: checkmark-circle / ellipse-outline, 24 dp, accent / subtle.
+      glyph(canvas, if (on) "checkmark-circle" else "ellipse-outline", 30f * d, height / 2f, 24f, if (on) Theme.accent else Theme.subtle)
+    }
+    if (plated) {
+      // SavedScreen.tsx: t.bubble, radius 23 (8 at the lower right), a 1 dp border.
+      val inset = 0.5f * d
+      val path = android.graphics.Path()
+      val r = 23f * d; val s = 8f * d
+      path.addRoundRect(boxRect.left + inset, boxRect.top + inset, boxRect.right - inset, boxRect.bottom - inset, floatArrayOf(r, r, r, r, s, s, r, r), android.graphics.Path.Direction.CW)
+      fill.color = ThemeStore.look.bubble
+      canvas.drawPath(path, fill)
+      line.color = if (Theme.dark) 0x409DB6FF else 0xD4FFFFFF.toInt()
+      line.strokeWidth = 1f * d
+      canvas.drawPath(path, line)
+    }
+    originLayout?.let { canvas.save(); canvas.translate(originRect.left, originRect.top); it.draw(canvas); canvas.restore() }
+    boxes.clear()
+    when (kind) {
+      "voice" -> {
+        val mediaInfo = Core.map(attachment["media"])
+        val row = com.linea.messenger.chat.MsgRow.parse(listOf(mapOf("key" to key, "kind" to 0, "mine" to true, "media" to "voice", "wave" to (mediaInfo?.get("waveform") as? String ?: ""),
+          "mediaTime" to (FileCore.call("voiceTime", listOf((mediaInfo?.get("durationMs") as? Number)?.toDouble() ?: 0.0)) as? String ?: "")))).firstOrNull()
+        if (row != null) com.linea.messenger.voice.MediaRowArt.voice(canvas, row, state, Theme.messages, media.left, media.top, media.width(), d, boxes)
+      }
+      "note" -> drawNote(canvas)
+      "card" -> drawCard(canvas)
+    }
+    textLayout?.let { canvas.save(); canvas.translate(textAt.x, textAt.y); it.draw(canvas); canvas.restore() }
+    if (circleOnly) {
+      fill.color = if (Theme.dark) 0x73000000 else 0x52000000
+      canvas.drawRoundRect(timeRect, 10f * d, 10f * d, fill)
+      small.textSize = 11f * d; small.typeface = Theme.weight(400); small.color = 0xFFFFFFFF.toInt()
+      canvas.drawText(timeWords, timeRect.centerX() - small.measureText(timeWords) / 2, timeRect.centerY() - (small.ascent() + small.descent()) / 2, small)
+    } else {
+      small.textSize = 9f * d; small.typeface = Theme.weight(400); small.color = Theme.muted
+      canvas.drawText((if (edited) "изм. " else "") + timeWords, timeRect.left, timeRect.top - small.ascent(), small)
+    }
+  }
+
+  /** VideoNoteBubble at rest: the poster in its circle (or the placeholder), and the marks of a chat's circle. */
+  private fun drawNote(canvas: android.graphics.Canvas) {
+    val picture = poster
+    if (picture != null && picture.width > 0 && picture.height > 0) {
+      canvas.save()
+      val clip = android.graphics.Path().apply { addOval(media, android.graphics.Path.Direction.CW) }
+      canvas.clipPath(clip)
+      fill.color = Theme.surface2
+      canvas.drawRect(media, fill)
+      val scale = maxOf(media.width() / picture.width, media.height() / picture.height)
+      val w = picture.width * scale; val h = picture.height * scale
+      canvas.drawBitmap(picture, null, android.graphics.RectF(media.centerX() - w / 2, media.centerY() - h / 2, media.centerX() + w / 2, media.centerY() + h / 2), fill)
+      canvas.restore()
+    } else com.linea.messenger.voice.MediaRowArt.plate(canvas, true, Theme.messages, media, d)
+    if (!com.linea.messenger.video.NotePlayback.hostedKeys.contains(key)) com.linea.messenger.voice.MediaRowArt.noteMarks(canvas, key, duration, state, media, d)
+  }
+
+  /** components.tsx AttachmentCard. */
+  private fun drawCard(canvas: android.graphics.Canvas) {
+    val size = FileCore.sizeText((attachment["size"] as? Number)?.toLong() ?: 0L)
+    val icon = when (fileKind) { "photo" -> "image-outline"; "video" -> "videocam-outline"; "audio" -> "musical-notes-outline"; else -> "document-outline" }
+    if (visual) {
+      canvas.save()
+      val clip = android.graphics.Path().apply { addRoundRect(media, 16f * d, 16f * d, android.graphics.Path.Direction.CW) }
+      canvas.clipPath(clip)
+      fill.color = Theme.surface2
+      canvas.drawRect(media, fill)
+      val picture = poster
+      if (picture != null && picture.width > 0 && picture.height > 0) {
+        val scale = maxOf(media.width() / picture.width, media.height() / picture.height)
+        val w = picture.width * scale; val h = picture.height * scale
+        canvas.drawBitmap(picture, null, android.graphics.RectF(media.centerX() - w / 2, media.centerY() - h / 2, media.centerX() + w / 2, media.centerY() + h / 2), fill)
+      } else glyph(canvas, icon, media.centerX(), media.centerY(), 46f, Theme.muted)
+      fill.color = 0x9E0A1423.toInt()
+      canvas.drawCircle(media.centerX(), media.centerY(), 23f * d, fill)
+      glyph(canvas, if (fileKind == "video") "play" else "arrow-down", media.centerX(), media.centerY(), 24f, 0xFFFFFFFF.toInt())
+      // Two labels at the foot: «12 МБ · загрузить» at the left, the length at the right (7 × 4 inside, radius 8).
+      small.textSize = 11f * d; small.typeface = Theme.weight(400); small.color = 0xFFFFFFFF.toInt()
+      fun label(text: String, alignRight: Boolean) {
+        val w = Math.ceil(small.measureText(text).toDouble()).toFloat() + 14f * d
+        val h = (small.descent() - small.ascent()) + 8f * d
+        val l = if (alignRight) media.right - 10f * d - w else media.left + 10f * d
+        val frame = android.graphics.RectF(l, media.bottom - 9f * d - h, l + w, media.bottom - 9f * d)
+        fill.color = 0xAD0A1423.toInt()
+        canvas.drawRoundRect(frame, 8f * d, 8f * d, fill)
+        canvas.drawText(text, frame.left + 7f * d, frame.centerY() - (small.ascent() + small.descent()) / 2, small)
+      }
+      label("$size · загрузить", false)
+      if (duration.isNotEmpty()) label(duration, true)
+      canvas.restore()
+      return
+    }
+    // The file line: a 42 × 46 plate (radius 15, accentSoft, a 1 dp glassBorder) with the accent glyph, the name
+    // (14 semibold, two lines) over «size · открыть» (12 muted), and the arrow at the end.
+    val plate = android.graphics.RectF(media.left, media.centerY() - 23f * d, media.left + 42f * d, media.centerY() + 23f * d)
+    val inset = 0.5f * d
+    fill.color = ThemeStore.look.accentSoft
+    canvas.drawRoundRect(plate.left + inset, plate.top + inset, plate.right - inset, plate.bottom - inset, 14.5f * d, 14.5f * d, fill)
+    line.color = ThemeStore.look.glassBorder; line.strokeWidth = 1f * d
+    canvas.drawRoundRect(plate.left + inset, plate.top + inset, plate.right - inset, plate.bottom - inset, 14.5f * d, 14.5f * d, line)
+    glyph(canvas, icon, plate.centerX(), plate.centerY(), 22f, Theme.accent)
+    val textX = plate.right + 10f * d
+    val textWidth = (media.right - 10f * d - 17f * d - textX).toInt().coerceAtLeast(1)
+    small.textSize = 14f * d; small.typeface = Theme.weight(600); small.color = Theme.text
+    val nameText = attachment["name"] as? String ?: ""
+    val name = android.text.StaticLayout.Builder.obtain(nameText, 0, nameText.length, small, textWidth).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
+    val sub = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Theme.weight(400); color = Theme.muted }
+    val column = name.height + 4f * d + (sub.descent() - sub.ascent())
+    val top = media.centerY() - column / 2
+    canvas.save(); canvas.translate(textX, top); name.draw(canvas); canvas.restore()
+    val subWords = TextUtils.ellipsize(size + (if (duration.isEmpty()) "" else " · $duration") + " · открыть", sub, textWidth.toFloat(), TextUtils.TruncateAt.END).toString()
+    canvas.drawText(subWords, textX, top + name.height + 4f * d - sub.ascent(), sub)
+    glyph(canvas, if (fileKind == "audio") "play" else "arrow-down-outline", media.right - 8.5f * d, media.centerY(), 17f, Theme.muted)
   }
 }

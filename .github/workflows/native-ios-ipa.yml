@@ -2,8 +2,14 @@
 # Payload/Invizent.app inside an .ipa — for installing with the owner's own signing tool. Runs only for the
 # branch `native-ipa`. The file and a check of what is inside go to the branch native-ipa-output.
 #
-# The build carries the previous app's identifier (com.invizent.app), as the owner decided: it installs OVER the
-# current app and keeps its keys and history (the storage is the same). Nothing here talks to any server.
+# The build carries the previous app's identifier as it is on the owner's phone — com.linea.messenger.preview, the
+# preview build of ios-unsigned-ipa.yml (APP_ENV=development) — with its extension and App Group
+# (com.linea.messenger.preview.ScreenBroadcast, group.com.linea.messenger.preview.screen): it installs OVER that app
+# and keeps its session, device key and history (the same data container and keychain group, when it is signed by
+# the same team). The version is at least the previous app's (0.16.3) and the build number grows with every run
+# (the run number), so every build installs over the one before. As the previous app's sideloaded builds
+# (mobile/plugins/withNoIosPush.js) it has no «aps-environment»: such a build has no push token and says
+# «Уведомления не настроены в этой сборке приложения.». Nothing here talks to any server.
 name: Native iOS unsigned IPA
 on:
   push:
@@ -46,6 +52,7 @@ jobs:
           xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' -derivedDataPath build/dd ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS="" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             build > "$OUT/xcodebuild.log" 2>&1 || { grep -E "error|ld: " "$OUT/xcodebuild.log" | head -60; tail -40 "$OUT/xcodebuild.log"; exit 1; }
           APP="$PWD/build/dd/Build/Products/Release-iphoneos/Invizent.app"
           mkdir -p pack/Payload && ditto "$APP" pack/Payload/Invizent.app
@@ -56,14 +63,16 @@ jobs:
             echo "commit $GITHUB_SHA"; xcodebuild -version | tr '\n' ' '; echo
             echo "== size"; ls -l "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" | awk '{print $5" bytes"}'; shasum -a 256 "$OUT/INVIZENT-native-iOS-arm64-unsigned.ipa" | awk '{print "sha256 "$1}'
             echo "== request-signing key: $(cat "$RUNNER_TEMP/attest.txt" 2>/dev/null || echo unknown)"
-            echo "== identity"; for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion MinimumOSVersion CFBundleDisplayName; do printf '%s: ' "$key"; /usr/libexec/PlistBuddy -c "Print :$key" "$A/Info.plist"; done
+            echo "== identity"; for key in CFBundleIdentifier CFBundleShortVersionString CFBundleVersion MinimumOSVersion CFBundleDisplayName RTCScreenSharingExtension; do printf '%s: ' "$key"; /usr/libexec/PlistBuddy -c "Print :$key" "$A/Info.plist"; done
+            echo "== URL schemes"; /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" "$A/Info.plist" || true
+            echo "== push: no aps-environment in an unsigned build (expected: none)"; codesign -d --entitlements :- "$A" 2>/dev/null | grep -A1 aps-environment || echo "none"
             echo "== executable"; file "$A/Invizent"; lipo -info "$A/Invizent"
             echo "== code signature (expected none)"; codesign -dv "$A" 2>&1 | head -3 || true
             echo "== permissions asked in Info.plist (expected none)"; /usr/libexec/PlistBuddy -c "Print" "$A/Info.plist" | grep -i "UsageDescription" || echo "none"
             echo "== simulator-only sample data (expected absent)"; if strings -a "$A/Invizent" | grep -q "Книжный клуб"; then echo "PRESENT"; else echo "absent"; fi
             echo "== files"; (cd "$A" && find . -maxdepth 2 | head -40)
             # ScreenShare: the broadcast extension must be inside (PlugIns/ScreenBroadcast.appex), with its own identifier.
-            # Unsigned: the App Group group.com.invizent.app.screen has to be granted to BOTH by the signing tool.
+            # Unsigned: the App Group group.com.linea.messenger.preview.screen has to be granted to BOTH by the signing tool.
             echo "== extensions"; ls "$A/PlugIns" 2>/dev/null || echo "none"
             X="$A/PlugIns/ScreenBroadcast.appex"
             if [ -d "$X" ]; then for key in CFBundleIdentifier NSExtension:NSExtensionPointIdentifier RTCAppGroupIdentifier; do printf '%s: ' "$key"; /usr/libexec/PlistBuddy -c "Print :$key" "$X/Info.plist"; done; file "$X/ScreenBroadcast"; fi
@@ -72,8 +81,19 @@ jobs:
           cat "$OUT/verify.txt"
           lipo -info "$A/Invizent" | grep -q arm64
           test -f "$A/PlugIns/ScreenBroadcast.appex/ScreenBroadcast"
-          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/PlugIns/ScreenBroadcast.appex/Info.plist")" = "com.invizent.app.ScreenBroadcast" ]
-          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/Info.plist")" = "com.invizent.app" ]
+          # The previous app's names (mobile/app.config.js, plugins/withScreenBroadcast.js for the preview bundle).
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/PlugIns/ScreenBroadcast.appex/Info.plist")" = "com.linea.messenger.preview.ScreenBroadcast" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/Info.plist")" = "com.linea.messenger.preview" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :RTCAppGroupIdentifier' "$A/Info.plist")" = "group.com.linea.messenger.preview.screen" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :RTCAppGroupIdentifier' "$A/PlugIns/ScreenBroadcast.appex/Info.plist")" = "group.com.linea.messenger.preview.screen" ]
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :RTCScreenSharingExtension' "$A/Info.plist")" = "com.linea.messenger.preview.ScreenBroadcast" ]
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes' "$A/Info.plist" | grep -qx '    linea'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes' "$A/Info.plist" | grep -qx '    com.linea.messenger.preview'
+          # Installs over the previous app (0.16.3) and over the build before this one.
+          python3 -c 'import sys; v=[int(x) for x in sys.argv[1].split(".")]; sys.exit(0 if v >= [0,16,3] else 1)' "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$A/Info.plist")"
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$A/Info.plist")" = "$GITHUB_RUN_NUMBER" ]
+          # Push: the long ringtone of a call's notification is in the bundle (server: call_ring_ios.wav).
+          test -f "$A/call_ring_ios.wav"
           ! grep -q "PRESENT" "$OUT/verify.txt"
           echo "== done"
       - name: Publish (branch native-ipa-output)

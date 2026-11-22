@@ -97,6 +97,8 @@ class VoiceRecorder(private val context: Context) {
     val broken: Boolean,
     /** Nothing above the waveform's threshold was heard: sent, but the person is told. */
     val silent: Boolean,
+    /** Record: the loudness ten times a second (0…1), for the preview's waveform and for joining takes. */
+    val levels: List<Double> = emptyList(),
   )
 
   private val main = Handler(Looper.getMainLooper())
@@ -110,6 +112,8 @@ class VoiceRecorder(private val context: Context) {
     private set
   /** The loudness right now, 0…1 (main thread, ten times a second). */
   var onLevel: ((Float) -> Unit)? = null
+  /** Record: the peak loudness every 25 ms, 0…1 (the amplitude ÷ 16000 of 32767), for the composer's blob. */
+  var onPeak: ((Float) -> Unit)? = null
   /** The longest take was reached: it must be finished and sent. */
   var onLimit: (() -> Unit)? = null
 
@@ -122,11 +126,21 @@ class VoiceRecorder(private val context: Context) {
     return maxOf(0L, until - startedAt - pausedFor)
   }
 
+  // Record: the recorder's peak is read every 25 ms (reading it resets it): each reading goes to the blob, the
+  // loudest of every four makes the waveform's sample.
+  private var windowPeak = 0
+  private var windowTicks = 0
   private val meter = object : Runnable {
     override fun run() {
-      if (recorder == null) return
-      measure()
-      main.postDelayed(this, 100)
+      val recorder = recorder ?: return
+      if (!isPaused) {
+        val amplitude = try { recorder.maxAmplitude } catch (_: Exception) { 0 }
+        onPeak?.invoke((amplitude / 16000f).coerceIn(0f, 1f))
+        windowPeak = maxOf(windowPeak, amplitude)
+        windowTicks += 1
+        if (windowTicks >= 4) { measure(windowPeak); windowPeak = 0; windowTicks = 0 }
+      }
+      main.postDelayed(this, 25)
     }
   }
 
@@ -160,14 +174,14 @@ class VoiceRecorder(private val context: Context) {
     isPaused = false
     // The first reading only starts the recorder's own measuring.
     try { made.maxAmplitude } catch (_: Exception) {}
-    main.postDelayed(meter, 100)
+    windowPeak = 0
+    windowTicks = 0
+    main.postDelayed(meter, 25)
     return null
   }
 
-  private fun measure() {
-    val recorder = recorder ?: return
-    if (isPaused) return
-    val amplitude = try { recorder.maxAmplitude } catch (_: Exception) { 0 }
+  private fun measure(amplitude: Int) {
+    if (recorder == null || isPaused) return
     val level = level(amplitude)
     gathered.push(level)
     onLevel?.invoke(level.toFloat())
@@ -208,7 +222,7 @@ class VoiceRecorder(private val context: Context) {
       return null
     }
     val waveform = FileCore.call("waveform", listOf(gathered.levels())) as? String
-    return Take(target, durationMs, waveform, broken = !stopped || tiny(durationMs, target.length()), silent = durationMs >= 1000 && !(gathered.loudest > 0.02))
+    return Take(target, durationMs, waveform, broken = !stopped || tiny(durationMs, target.length()), silent = durationMs >= 1000 && !(gathered.loudest > 0.02), levels = gathered.levels())
   }
 
   companion object {

@@ -183,16 +183,16 @@ class PasscodeScreen(context: Context) : SettingsPage(context, "Код-паро�
   private fun fillSettings() {
     val settings = LockStore.current
     if (settings.record == null) {
-      val enable = SettingsRow(context, symbol = "passcode", label = "Включить код-пароль")
+      val enable = SettingsRow(context, symbol = "ion:keypad", label = "Включить код-пароль")
       enable.onPress = { kind = "digits"; first = null; error = ""; phase = Phase.Setup(change = false); fill() }
       addGroup(rows = listOf(enable))
       add(SettingsLook.foot(context, "Когда код-пароль включён, при открытии Инвиза показывается экран блокировки. Код хранится только на этом устройстве в виде хеша: сервер его не знает."), 8f)
       add(SettingsLook.foot(context, "Если ты забудешь код-пароль, придётся переустановить приложение (на компьютере — закрыть вкладку и войти снова)."), 8f)
       return
     }
-    val off = SettingsRow(context, symbol = "lock", label = "Выключить код-пароль", danger = true)
+    val off = SettingsRow(context, symbol = "ion:lock-open", label = "Выключить код-пароль", danger = true)
     off.onPress = { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); LockStore.disable(); fill() }
-    val change = SettingsRow(context, symbol = "key", label = "Сменить код-пароль")
+    val change = SettingsRow(context, symbol = "ion:key", label = "Сменить код-пароль")
     change.onPress = { kind = "digits"; first = null; error = ""; phase = Phase.Setup(change = true); fill() }
     addGroup(rows = listOf(off, change))
     LockBiometrics.label(context)?.let { label ->
@@ -200,7 +200,7 @@ class PasscodeScreen(context: Context) : SettingsPage(context, "Код-паро�
       bio.onChange = { on -> toggleBiometrics(on) }
       addGroup(rows = listOf(bio))
     }
-    val autolock = SettingsRow(context, symbol = "clock", label = "Автоблокировка", value = LockRules.autolockLabels[settings.autolock] ?: "")
+    val autolock = SettingsRow(context, symbol = "ion:timer", label = "Автоблокировка", value = LockRules.autolockLabels[settings.autolock] ?: "")
     autolock.onPress = { chooseAutolock() }
     addGroup(rows = listOf(autolock))
     add(SettingsLook.foot(context, "Код-пароль запрашивается, если приложение не открывали дольше выбранного времени. «Сразу» блокирует при каждом уходе из Инвиза."), 8f)
@@ -221,14 +221,16 @@ class PasscodeScreen(context: Context) : SettingsPage(context, "Код-паро�
   }
 
   private fun chooseAutolock() {
-    val current = LockStore.current.autolock
-    val labels = LockRules.autolockModes.map { (LockRules.autolockLabels[it] ?: it) + if (it == current) " ✓" else "" }.toTypedArray()
-    ask(AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Автоблокировка")
-      .setItems(labels) { _, which ->
-        val mode = LockRules.autolockModes[which]
+    // The reference's Sheet «Автоблокировка»: a SheetAction per mode with `autolockIcon` (off «close-circle-outline»,
+    // immediate «flash-outline», a time «time-outline»).
+    val choices = LockRules.autolockModes.map { mode ->
+      val symbol = if (mode == "off") "ion:close-circle-outline" else if (mode == "immediate") "ion:flash-outline" else "ion:time-outline"
+      com.linea.messenger.chatactions.ChoiceSheet.Choice(symbol, LockRules.autolockLabels[mode] ?: mode) {
         performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         LockStore.update { it.copy(autolock = mode) }
         fill()
-      }.setNegativeButton("Отмена", null))
+      }
+    }
+    com.linea.messenger.chatactions.ChoiceSheet(context, "Автоблокировка", "«Выключена»: код запрашивается только при запуске приложения, а не при возвращении в него.", choices).show()
   }
 }

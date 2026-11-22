@@ -61,6 +61,8 @@ class ComposerExtras(private val context: Context) {
   var onSay: ((String) -> Unit)? = null
 
   private lateinit var emojiButton: ChatIconView
+  /** Record: the emoji button fades with the field's text while a voice take or its preview is shown. */
+  val emojiView: android.view.View? get() = if (::emojiButton.isInitialized) emojiButton else null
   private var panel: EmojiPanel? = null
   /** The keyboard's last height, px. */
   private var keyboardHeight = 0
@@ -91,7 +93,7 @@ class ComposerExtras(private val context: Context) {
       }
     }
 
-    emojiButton = ChatIconView(context, "face.smiling", 21f, Theme.muted)
+    emojiButton = ChatIconView(context, "ion:happy-outline", 22f, Theme.muted)
     emojiButton.contentDescription = "Стикеры и эмодзи"
     emojiButton.isClickable = true
     emojiButton.setOnClickListener { toggleEmoji() }
@@ -145,7 +147,8 @@ class ComposerExtras(private val context: Context) {
    *  stands above the field (px). */
   fun place(width: Int, height: Int, composerLeft: Int, composerWidth: Int, above: Int, top: Int, hidden: Boolean): Int {
     emojiButton.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
-    emojiButton.symbol = if (panel == null) "face.smiling" else "keyboard"
+    // <Icon name={stickers ? 'keypad-outline' : 'happy-outline'} size={22}>, the accent while the panel is open.
+    emojiButton.symbol = if (panel == null) "ion:happy-outline" else "ion:keypad-outline"
     emojiButton.color = if (panel == null) Theme.muted else Theme.accent
     emojiButton.invalidate()
     var next = above

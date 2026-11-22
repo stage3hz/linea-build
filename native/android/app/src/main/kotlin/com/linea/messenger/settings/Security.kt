@@ -20,12 +20,13 @@ internal fun stacked(context: Context, parts: List<View>, gap: Float): LinearLay
   }
 }
 
-/** An icon on a quiet round plate with words beside it. */
+/** An icon in the accent on a square of `accentSoft` (radius 16; 18 for the 48 one of a session's sheet), words beside
+ *  it — the reference's SecurityScreen.tsx. */
 internal fun beside(context: Context, symbol: String, symbolSize: Float, plateSize: Float, texts: View, gap: Float): LinearLayout = LinearLayout(context).apply {
   orientation = LinearLayout.HORIZONTAL
   gravity = Gravity.CENTER_VERTICAL
-  val icon = SymbolView(context, symbol, symbolSize, Theme.text)
-  icon.plate = SettingsLook.chip
+  val icon = android.widget.FrameLayout(context).apply { background = context.plate(ThemeStore.look.accentSoft, if (plateSize >= 48f) 18f else 16f) }
+  icon.addView(SymbolView(context, symbol, symbolSize, Theme.accent), android.widget.FrameLayout.LayoutParams(context.px(symbolSize), context.px(symbolSize), Gravity.CENTER))
   addView(icon, LinearLayout.LayoutParams(context.px(plateSize), context.px(plateSize)).apply { rightMargin = context.px(gap) })
   addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 }
@@ -68,9 +69,9 @@ class SecurityScreen(context: Context, private val account: SettingsAccount) : S
   private fun card(parts: List<View>): View = SettingsLook.inset(stacked(context, parts, 13f), top = 16f, side = 16f, bottom = 16f)
 
   /** The name of a secret word and whether it is set up. */
-  private fun wordState(name: String, configured: Boolean): View = beside(context, if (configured) "check.circle" else "key", 22f, 42f, stacked(context, listOf(
+  private fun wordState(name: String, configured: Boolean): View = beside(context, if (configured) "ion:checkmark-circle-outline" else "ion:key-outline", 25f, 42f, stacked(context, listOf(
     context.words(name, 15f, Theme.text, 700),
-    context.words(if (configured) "Настроено" else "Пока не настроено", 12f, if (configured) Theme.text else Theme.muted),
+    context.words(if (configured) "Настроено" else "Пока не настроено", 12f, if (configured) Theme.accent else Theme.muted),
   ), 4f), 11f)
 
   private fun fill() {
@@ -88,14 +89,17 @@ class SecurityScreen(context: Context, private val account: SettingsAccount) : S
       add(SettingsNotice(context, "Заверши настройку двух слов. В старом аккаунте недостающие слова можно добавить, пока помнишь пароль."), 14f)
     }
 
-    val password = SettingsButton(context, "Изменить пароль", SettingsButton.Kind.SECONDARY)
+    val password = SettingsButton(context, "Изменить пароль", SettingsButton.Kind.SECONDARY, icon = "key-outline")
     password.onPress = { openForm(SecretChangeScreen.Form.PASSWORD, confirmationConfigured) }
-    addGroup("Пароль", listOf(card(listOf(
-      context.words("Можно использовать длинную фразу. После смены пароля все сеансы завершатся.", 13f, Theme.muted),
-      password,
-    ))))
+    // The reference: Ionicons «lock-closed-outline» 23 in the accent beside the words, 12 apart.
+    val passwordLine = LinearLayout(context).apply {
+      orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+      addView(SymbolView(context, "ion:lock-closed-outline", 23f, Theme.accent), LinearLayout.LayoutParams(context.px(23f), context.px(23f)).apply { rightMargin = context.px(12f) })
+      addView(context.words("Можно использовать длинную фразу. После смены пароля все сеансы завершатся.", 13f, Theme.muted), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    }
+    addGroup("Пароль", listOf(card(listOf(passwordLine, password))))
 
-    val confirmation = SettingsButton(context, if (confirmationConfigured) "Изменить слово подтверждения" else "Настроить слово подтверждения", SettingsButton.Kind.SECONDARY)
+    val confirmation = SettingsButton(context, if (confirmationConfigured) "Изменить слово подтверждения" else "Настроить слово подтверждения", SettingsButton.Kind.SECONDARY, icon = "key-outline")
     confirmation.onPress = { openForm(SecretChangeScreen.Form.CONFIRMATION, confirmationConfigured) }
     addGroup("Подтверждение входа", listOf(card(listOf(
       wordState("Слово подтверждения", confirmationConfigured),
@@ -108,7 +112,7 @@ class SecurityScreen(context: Context, private val account: SettingsAccount) : S
       context.words("Ограничение действует на сервере и относится только к восстановлению. Вход с паролем и словом подтверждения остаётся доступен.", 12f, Theme.muted),
     ), 5f), top = 13f, side = 13f, bottom = 13f)
     limit.background = context.plate(SettingsLook.chip, 14f)
-    val recovery = SettingsButton(context, if (recoveryConfigured) "Изменить слово восстановления" else "Настроить слово восстановления", SettingsButton.Kind.SECONDARY)
+    val recovery = SettingsButton(context, if (recoveryConfigured) "Изменить слово восстановления" else "Настроить слово восстановления", SettingsButton.Kind.SECONDARY, icon = "key-outline")
     recovery.onPress = { openForm(SecretChangeScreen.Form.RECOVERY, confirmationConfigured) }
     addGroup("Восстановление доступа", listOf(card(listOf(
       wordState("Слово восстановления", recoveryConfigured),
@@ -118,7 +122,16 @@ class SecurityScreen(context: Context, private val account: SettingsAccount) : S
       recovery,
     ))))
 
-    val remove = SettingsRow(context, symbol = "trash", label = "Удалить аккаунт", danger = true)
+    // «Сеансы и устройства» and «Заблокированные» stand here in the reference's SecurityScreen (before «Удалить аккаунт»);
+    // their lists are on their own pages (settings/Sessions.kt, settings/PrivacyLists.kt).
+    val sessions = SettingsRow(context, symbol = "ion:phone-portrait-outline", label = "Активные сеансы")
+    sessions.onPress = { open(SessionsScreen(context, account)) }
+    addGroup("Сеансы и устройства", listOf(sessions))
+    val blocked = SettingsRow(context, symbol = "ion:hand-left-outline", label = "Заблокированные")
+    blocked.onPress = { open(BlockedScreen(context, account)) }
+    addGroup(rows = listOf(blocked))
+
+    val remove = SettingsRow(context, symbol = "ion:trash-outline", label = "Удалить аккаунт", danger = true)
     remove.onPress = { open(DeleteAccountScreen(context, account, confirmationConfigured)) }
     addGroup(rows = listOf(remove))
 
@@ -280,7 +293,7 @@ class DeleteAccountScreen(context: Context, private val account: SettingsAccount
   private val password = SettingsField(context, "Пароль", "Пароль этого аккаунта", secret = true)
   private val word = SettingsField(context, "Слово подтверждения", "Слово для входа", secret = true)
   private val noticeBox = LinearLayout(context)
-  private val removeButton = SettingsButton(context, "Удалить навсегда", SettingsButton.Kind.DANGER)
+  private val removeButton = SettingsButton(context, "Удалить навсегда", SettingsButton.Kind.DANGER, icon = "trash-outline")
 
   override fun build() {
     noticeBox.orientation = LinearLayout.VERTICAL

@@ -48,6 +48,8 @@ object ChatIcons {
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     fromPeople[name]?.let { return PeopleIcons.draw(canvas, it, cx, cy, size, color) }
     if (name == "send") return Icons.draw(canvas, name, cx, cy, size, color)
     // «Ответить» is the arrow that turns back to the left (channels/ChannelIcons.kt, through Symbols).
@@ -190,6 +192,9 @@ class SendButton(context: Context) : View(context) {
     val cx = width / 2f; val cy = height / 2f
     disc.color = if (isPressed) Theme.alpha(Theme.accent, 0.8f) else Theme.accent
     canvas.drawCircle(cx, cy, minOf(width, height) / 2f, disc)
+    // <Icon name={editing ? 'checkmark' : 'arrow-up'} color={t.onAccent} size={25}>
+    com.linea.messenger.design.IonIcon.draw(canvas, if (editing) "checkmark" else "arrow-up", cx, cy, 25f * d, Theme.onAccent)
+    if (com.linea.messenger.design.IonIcon.has("arrow-up")) return
     line.color = Theme.onAccent; line.strokeWidth = 2.4f * d
     mark.reset()
     if (editing) {
@@ -273,7 +278,7 @@ class PinnedBar(context: Context) : GlassBar(context, 26f) {
   private val headingLabel = line(15f, Theme.text, 500).apply { text = "Закреплённое сообщение" }
   private val wordsLabel = line(15f, Theme.muted)
   private val openButton = View(context).apply { isClickable = true; isFocusable = true; contentDescription = "Перейти к закреплённому сообщению" }
-  private val unpinButton = ChatIconView(context, "xmark", 16f, Theme.muted).apply { isClickable = true; isFocusable = true; contentDescription = "Открепить" }
+  private val unpinButton = ChatIconView(context, "ion:close", 22f, Theme.muted).apply { isClickable = true; isFocusable = true; contentDescription = "Открепить" }
   var onOpen: (() -> Unit)? = null
   var onUnpin: (() -> Unit)? = null
 
@@ -288,9 +293,13 @@ class PinnedBar(context: Context) : GlassBar(context, 26f) {
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     val width = right - left; val height = bottom - top
-    put(stripe, dp(16f), dp(11f), Math.round(2.5f * d), dp(34f))
-    put(headingLabel, dp(30f), dp(9f), width - dp(30f) - dp(50f), dp(19f))
-    put(wordsLabel, dp(30f), dp(28f), width - dp(30f) - dp(50f), dp(19f))
+    // ChatScreen.tsx: padding 16, the 2.5 × 34 line, 12 to the words; two 15-point lines 1 apart, centred.
+    put(stripe, dp(16f), (height - dp(34f)) / 2, Math.round(2.5f * d), dp(34f))
+    headingLabel.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    val line = headingLabel.measuredHeight.coerceAtLeast(1)
+    val top = (height - 2 * line - dp(1f)) / 2
+    put(headingLabel, Math.round(30.5f * d), top, width - Math.round(30.5f * d) - dp(50f), line)
+    put(wordsLabel, Math.round(30.5f * d), top + line + dp(1f), width - Math.round(30.5f * d) - dp(50f), line)
     put(openButton, 0, 0, width - dp(50f), height)
     put(unpinButton, width - dp(50f), dp(6f), dp(44f), dp(44f))
   }
@@ -336,8 +345,9 @@ class DownButton(context: Context) : View(context) {
     // The view is taller than the disc by the badge that stands over its upper edge.
     val over = height - side * d
     glass.draw(canvas, 0f, over, width.toFloat(), height.toFloat(), side * d / 2)
-    ChatIcons.draw(canvas, "chevron.down", width / 2f, over + side * d / 2, 20f * d, if (isPressed) Theme.alpha(Theme.text, 0.5f) else Theme.text)
-    val words = badge
+    // ChatScreen.tsx: <Icon name="chevron-down" size={26} color={t.text}>; the reference's button shows no count.
+    ChatIcons.draw(canvas, "ion:chevron-down", width / 2f, over + side * d / 2, 26f * d, if (isPressed) Theme.alpha(Theme.text, 0.5f) else Theme.text)
+    val words = ""
     if (words.isEmpty()) return
     val wide = maxOf(18f * d, badgeText.measureText(words) + 10f * d)
     fill.color = Theme.accent

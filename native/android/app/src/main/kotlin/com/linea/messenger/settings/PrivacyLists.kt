@@ -32,7 +32,7 @@ import java.util.Locale
 class PersonListRow(context: Context, person: Map<String, Any?>, base: String, adding: Boolean) : LinearLayout(context) {
   var onPress: (() -> Unit)? = null
   private val name = person["displayName"] as? String ?: ""
-  private val button = SymbolButton(context, if (adding) "plus" else "xmark", 18f, if (adding) Theme.accent else Theme.muted)
+  private val button = SymbolButton(context, if (adding) "ion:add-circle" else "ion:close-circle", 22f, if (adding) Theme.accent else Theme.muted)
   private val spinner = ProgressBar(context)
 
   init {
@@ -177,7 +177,7 @@ class LastSeenExceptionsScreen(context: Context, private val account: SettingsAc
       if (candidates.size >= 50) break
     }
     val search = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    search.addView(com.linea.messenger.design.SymbolView(context, "magnifyingglass", 16f, Theme.muted), LinearLayout.LayoutParams(context.px(18f), context.px(18f)))
+    search.addView(com.linea.messenger.design.SymbolView(context, "ion:search", 18f, Theme.muted), LinearLayout.LayoutParams(context.px(18f), context.px(18f)))
     (field.parent as? android.view.ViewGroup)?.removeView(field)
     search.addView(field, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(10f) })
     val addRows = ArrayList<View>()
@@ -268,7 +268,7 @@ class CallRulesScreen(context: Context, private val account: SettingsAccount) : 
     line.addView(context.words("@", 15f, Theme.muted))
     line.addView(field, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(8f); rightMargin = context.px(8f) })
     val plus = FrameLayout(context).apply { background = context.plate(ThemeStore.look.accentSoft, 11f) }
-    plus.addView(SymbolButton(context, "plus", 18f, Theme.accent).apply { isClickable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO })
+    plus.addView(SymbolButton(context, "ion:add", 20f, Theme.accent).apply { isClickable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO })
     plus.contentDescription = "Добавить в «$title»"
     plus.isClickable = true
     plus.isEnabled = !busy

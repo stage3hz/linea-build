@@ -11,6 +11,18 @@ import android.view.View
 /** The small pictures of the sign-in screen and the settings (where the iPhone app uses the system's symbols):
  *  lines in a box of 24 units, as `Icons`. Used on the main thread only. */
 object Symbols {
+  private val chevronInk = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+  private val chevronPath = Path()
+
+  /** The reference's back chevron: h 0.78, w 0.39, stroke max(1.6 pt, 0.095) of the box, its point 5% left of centre. */
+  fun backChevron(canvas: Canvas, cx: Float, cy: Float, size: Float, color: Int) {
+    val density = android.content.res.Resources.getSystem().displayMetrics.density
+    val h = size * 0.78f; val w = size * 0.39f; val x = cx - size * 0.05f
+    chevronInk.color = color; chevronInk.strokeWidth = maxOf(1.6f * density, size * 0.095f)
+    chevronPath.reset()
+    chevronPath.moveTo(x + w / 2, cy - h / 2); chevronPath.lineTo(x - w / 2, cy); chevronPath.lineTo(x + w / 2, cy + h / 2)
+    canvas.drawPath(chevronPath, chevronInk)
+  }
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val letters = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
@@ -19,6 +31,10 @@ object Symbols {
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). An unknown name draws nothing. */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph in a box `size` square (design/IonIcon.kt); «ion:chevron-back» is
+    // the reference's drawn back chevron (components.tsx `BackChevron`).
+    if (name == "ion:chevron-back") return backChevron(canvas, cx, cy, size, color)
+    if (name.startsWith("ion:")) return IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     // Channels: the pictures of «Каналы» (channels/ChannelIcons.kt), so that its rows of settings can show them.
     if (com.linea.messenger.channels.ChannelIcons.adds(name)) return com.linea.messenger.channels.ChannelIcons.draw(canvas, name, cx, cy, size, color)
     // Settings: the pictures of «Оформление», «Уведомления и звуки», «Данные и память» (settings/SettingsIcons.kt).

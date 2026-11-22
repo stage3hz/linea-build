@@ -113,9 +113,10 @@ final class MutedChatRow: UIControl {
 /// «Уведомления и звуки»: the switches of this device, and the chats whose sound is off.
 /// (The previous app: `mobile/src/notifications/NotificationsSection.tsx`.)
 ///
-/// This app does not deliver notifications yet — not when it is closed, not when it is in the background — and
-/// the page says so. The switches are kept for the moment it does; nothing here pretends to work. The sound of a
-/// chat is real already: it is the server's setting and follows the account to its other devices.
+/// The page starts with the push state of this device, said out loud (the reference's `pushStatusText` /
+/// `usePushStatus`, Shell/Push.swift): a notice when push does not work, otherwise a line of what to expect. The
+/// switches decide what shows while the app is running; the sound of a chat is the server's setting and follows the
+/// account to its other devices.
 final class NotificationsViewController: SettingsPage {
     private let messenger: Messenger
     private var chats: [Messenger.ChatSummary] = []
@@ -130,8 +131,20 @@ final class NotificationsViewController: SettingsPage {
 
     override func build() {
         messenger.prepareSettingsAvatars()
+        NotificationCenter.default.removeObserver(self, name: Push.changed, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(pushChanged), name: Push.changed, object: nil)
         fill()
         load()
+    }
+
+    @objc private func pushChanged() { fill() }
+
+    /// The push state line, word for word the reference's (NotificationsSection.tsx): a notice when push does not work.
+    static func pushLine(_ status: Push.Status) -> (text: String, notice: Bool) {
+        let problem = Push.text(status)
+        if !problem.isEmpty { return (problem, true) }
+        if status == .on { return ("Когда приложение закрыто, уведомления показывает система. Переключатели ниже действуют, пока приложение запущено. В уведомлении только имя отправителя: текст остаётся зашифрованным.", false) }
+        return ("Разрешение на уведомления ещё не запрошено.", false)
     }
 
     private func load() {
@@ -167,11 +180,13 @@ final class NotificationsViewController: SettingsPage {
 
     private func fill() {
         clear()
-        add(SettingsNotice("Приложение пока не показывает уведомления: ни когда оно закрыто, ни когда свёрнуто. Переключатели ниже только сохраняются на этом устройстве — приложение их ещё не учитывает. Звук чата выключается на сервере уже сейчас."))
+        let line = NotificationsViewController.pushLine(Push.shared.status)
+        let head: UIView = line.notice ? SettingsNotice(line.text) : SettingsLook.foot(line.text)
+        add(head)
 
         let showChats = NotificationPrefs.flag("chats", "show")
         addGroup("Личные чаты", rows: [
-            toggle("chats", "show", label: "Показывать уведомления", words: "Новые сообщения и реакции в личных чатах."),
+            toggle("chats", "show", label: "Показывать уведомления", words: "Новые сообщения и реакции в личных чатах, пока приложение свёрнуто. Когда оно закрыто, уведомления показывает система."),
             toggle("chats", "sound", label: "Звук", words: "Короткий сигнал при новом сообщении.", enabled: showChats),
         ])
         let showCommunities = NotificationPrefs.flag("communities", "show")

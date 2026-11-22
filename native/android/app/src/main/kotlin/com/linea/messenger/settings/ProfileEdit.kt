@@ -37,14 +37,14 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
   // background pattern and «Рамки и анимации» (profile/, platina/).
   private val top = com.linea.messenger.profile.ProfileEditTop(context)
   private var pattern: String? = account.ownProfile["profilePattern"] as? String
-  private val patternRow = SettingsRow(context, symbol = "gift", label = "Узор фона")
+  private val patternRow = SettingsRow(context, symbol = "ion:sparkles", label = "Узор фона")
   private val media: com.linea.messenger.profile.ProfilePhotoChange? = account.messenger?.let { com.linea.messenger.profile.ProfilePhotoChange(context, it) }
   private val noticeBox = LinearLayout(context)
   private val nameField = SettingsField(context, "", "Имя")
   private val bioArea = SettingsTextArea(context, "О себе")
-  private val handleRow = SettingsRow(context, symbol = "at", label = "Имя пользователя")
-  private val birthdayRow = SettingsRow(context, symbol = "gift", label = "День рождения")
-  private val genderRow = SettingsRow(context, symbol = "person", label = "Пол")
+  private val handleRow = SettingsRow(context, symbol = "ion:at", label = "Имя пользователя")
+  private val birthdayRow = SettingsRow(context, symbol = "ion:gift", label = "День рождения")
+  private val genderRow = SettingsRow(context, symbol = "ion:person", label = "Пол")
   private val saveButton = SettingsButton(context, "Сохранить")
   private val swatches = ArrayList<View>()
   private val profileChanged: () -> Unit = { showValues() }
@@ -168,22 +168,11 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
 
   private fun chooseGender() {
     if (busy) return
-    val box = LinearLayout(context)
-    box.orientation = LinearLayout.VERTICAL
-    box.setPadding(dp(24f), dp(8f), dp(24f), 0)
-    box.addView(context.words("Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", 14f, Theme.muted))
-    val made = AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Пол").setView(box).setNegativeButton("Отмена", null)
-    var shown: AlertDialog? = null
-    for ((label, value) in listOf("Мужской" to "male", "Женский" to "female", "Не указан" to null)) {
-      val item = context.words(label, 16f, Theme.text)
-      item.gravity = Gravity.CENTER_VERTICAL
-      item.minHeight = dp(48f)
-      item.isClickable = true
-      item.isFocusable = true
-      item.setOnClickListener { shown?.dismiss(); setGender(value) }
-      box.addView(item, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4f) })
+    // The reference's Sheet «Пол»: SheetActions with «checkmark-circle» on the chosen one, «ellipse-outline» on the others.
+    val choices = listOf("male" to "Мужской", "female" to "Женский", null to "Не указан").map { (value, label) ->
+      com.linea.messenger.chatactions.ChoiceSheet.Choice(if (gender == value) "ion:checkmark-circle" else "ion:ellipse-outline", label) { setGender(value) }
     }
-    shown = ask(made)
+    com.linea.messenger.chatactions.ChoiceSheet(context, "Пол", "Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", choices).show()
   }
 
   private fun setGender(value: String?) {
@@ -388,7 +377,7 @@ class UsernameScreen(context: Context, private val account: SettingsAccount) : S
   private var busy = false
   private var request = 0
   private val field = SettingsField(context, "Публичное имя пользователя", "@username")
-  private val change = SettingsButton(context, "Изменить публичное имя", SettingsButton.Kind.SECONDARY)
+  private val change = SettingsButton(context, "Изменить публичное имя", SettingsButton.Kind.SECONDARY, icon = "at-outline")
 
   override fun build() {
     field.limit = 25

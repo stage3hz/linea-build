@@ -100,17 +100,14 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
   private val dot = View(context)
   private val heading = context.words("", 13f, Theme.muted, 700)
   private val words = context.words("", 12f, Theme.muted)
-  private val micButton = RoomIconView(context, "mic.fill", 20f, Theme.text)
-  private val leaveButton = RoomIconView(context, "phone.down.fill", 18f, 0xFFFFFFFF.toInt())
+  private val micButton = RoomIconView(context, "ion:mic", 21f, Theme.text).apply { background = com.linea.messenger.design.GlassDrawable(this) }
+  private val leaveButton = RoomIconView(context, "ion:call", 18f, 0xFFFFFFFF.toInt())
   /** ScreenShare: «Остановить демонстрацию» while this phone shares its screen (the reference's VoiceBar). */
   private val stopShareButton = object : View(context) {
-    private val ring = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE }
-    private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    init { background = com.linea.messenger.design.GlassDrawable(this) }
     override fun onDraw(canvas: android.graphics.Canvas) {
-      val d = resources.displayMetrics.density
-      ring.color = Theme.danger; ring.strokeWidth = 1.8f * d; fill.color = Theme.danger
-      canvas.drawCircle(width / 2f, height / 2f, 10 * d, ring)
-      canvas.drawRoundRect(width / 2f - 4 * d, height / 2f - 4 * d, width / 2f + 4 * d, height / 2f + 4 * d, 1.5f * d, 1.5f * d, fill)
+      // `IconButton` «stop-circle-outline» 23 in the danger colour, on clear glass.
+      com.linea.messenger.design.IonIcon.draw(canvas, "stop-circle-outline", width / 2f, height / 2f, 23f * resources.displayMetrics.density, Theme.danger)
     }
   }
   private var roomId = ""
@@ -151,7 +148,7 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
     heading.setTextColor(if (connected) green else Theme.muted)
     words.text = RoomRules.barLine(voice)
     opener.contentDescription = "Комната " + voice.name
-    micButton.symbol = if (voice.muted) "mic.slash.fill" else "mic.fill"
+    micButton.symbol = if (voice.muted) "ion:mic-off" else "ion:mic"
     micButton.color = if (voice.muted) Theme.danger else Theme.text
     micButton.ink = Theme.surface2
     micButton.contentDescription = if (voice.muted) "Включить микрофон" else "Выключить микрофон"
@@ -161,14 +158,15 @@ class RoomBarView(context: Context) : RoomGlassView(context, 18f) {
 
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
     val width = r - l; val height = b - t
-    val leaveLeft = width - dp(44f)
+    // paddingRight 4, gap 8: the way out (40), the microphone and the stop button (`IconButton`, 44 each).
+    val leaveLeft = width - dp(4f) - dp(40f)
     put(leaveButton, leaveLeft, (height - dp(40f)) / 2, dp(40f), dp(40f))
-    val micLeft = leaveLeft - dp(44f)
-    put(micButton, micLeft, (height - dp(40f)) / 2, dp(40f), dp(40f))
+    val micLeft = leaveLeft - dp(8f) - dp(44f)
+    put(micButton, micLeft, (height - dp(44f)) / 2, dp(44f), dp(44f))
     // ScreenShare: the stop button left of the microphone while sharing.
-    val stopLeft = micLeft - dp(44f)
-    put(stopShareButton, stopLeft, (height - dp(40f)) / 2, dp(40f), dp(40f))
-    put(opener, 0, 0, (if (stopShareButton.visibility == VISIBLE) stopLeft else micLeft) - dp(4f), height)
+    val stopLeft = micLeft - dp(8f) - dp(44f)
+    put(stopShareButton, stopLeft, (height - dp(44f)) / 2, dp(44f), dp(44f))
+    put(opener, 0, 0, (if (stopShareButton.visibility == VISIBLE) stopLeft else micLeft) - dp(8f), height)
   }
 
   companion object {

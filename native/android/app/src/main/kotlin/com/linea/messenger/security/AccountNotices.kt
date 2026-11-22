@@ -196,12 +196,12 @@ class NoticeCards(context: Context) : LinearLayout(context) {
     removeAllViews()
     fun put(line: View) = addView(line, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { if (childCount > 0) topMargin = context.px(8f) })
     if (recovery.isNotEmpty()) {
-      put(NoticeLine(context, "shield", "Запрошено восстановление аккаунта", "Если это не ты — открой запрос и отмени смену пароля.").apply {
+      put(NoticeLine(context, "ion:shield-outline", "Запрошено восстановление аккаунта", "Если это не ты — открой запрос и отмени смену пароля.").apply {
         contentDescription = "Запрошено восстановление аккаунта. Проверить запрос"
         setOnClickListener { onOpen?.invoke("recovery") }
       })
     } else if (error.isNotEmpty()) {
-      put(NoticeLine(context, "info", "Не удалось проверить запросы на восстановление аккаунта.", "Коснись, чтобы повторить.").apply { setOnClickListener { AccountNotices.refreshRecovery() } })
+      put(NoticeLine(context, "ion:alert-circle-outline", "Не удалось проверить запросы на восстановление аккаунта.", "Коснись, чтобы повторить.").apply { setOnClickListener { AccountNotices.refreshRecovery() } })
     }
     logins.firstOrNull()?.let { latest ->
       val more = if (logins.size > 1) "Ещё входов: ${logins.size - 1}. " else ""
@@ -225,12 +225,12 @@ class NoticeLine(context: Context, symbol: String, title: String, words: String)
     minimumHeight = context.px(54f)
     setPadding(context.px(13f), context.px(13f), context.px(13f), context.px(13f))
     setWillNotDraw(false)
-    addView(SymbolView(context, symbol, 18f, Theme.danger), LayoutParams(context.px(20f), context.px(20f)))
+    addView(SymbolView(context, symbol, 22f, Theme.danger), LayoutParams(context.px(22f), context.px(22f))) // Ionicons 22
     val texts = LinearLayout(context).apply { orientation = VERTICAL }
     texts.addView(context.words(title, 14f, Theme.text, 700).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
     texts.addView(context.words(words, 12f, Theme.muted), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
     addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(12f); rightMargin = context.px(12f) })
-    addView(SymbolView(context, "chevron.right", 13f, Theme.muted), LayoutParams(context.px(14f), context.px(14f)))
+    addView(SymbolView(context, "ion:chevron-forward", 18f, Theme.muted), LayoutParams(context.px(18f), context.px(18f)))
     isClickable = true
     isFocusable = true
   }
@@ -256,18 +256,18 @@ private fun Context.rimmed(): android.graphics.drawable.GradientDrawable = andro
 class NewLoginSheet(context: Context, private val login: AccountNotices.NewLogin) : SettingsPage(context, "Новый вход в аккаунт", large = true) {
   private var ended = false
   private var failure = ""
-  private val endButton = SettingsButton(context, "Это был не я — завершить сеанс", SettingsButton.Kind.DANGER)
+  private val endButton = SettingsButton(context, "Это был не я — завершить сеанс", SettingsButton.Kind.DANGER, icon = "log-out-outline")
 
   companion object {
     fun symbol(session: Map<String, Any?>): String {
       val platform = session["platform"] as? String ?: ""
       val model = (session["deviceModel"] as? String ?: "").lowercase()
       val device = (session["deviceName"] as? String ?: "").lowercase()
-      if (platform == "ios" || platform == "android") return if (model.contains("ipad") || model.contains("tablet")) "tablet" else "phone"
-      if (platform == "web") return "globe"
-      if (platform == "windows") return "desktop"
-      for (word in listOf("android", "iphone", "ipad", "ios", "pixel", "galaxy")) if (device.contains(word)) return "phone"
-      return "desktop"
+      if (platform == "ios" || platform == "android") return if (model.contains("ipad") || model.contains("tablet")) "ion:tablet-portrait-outline" else "ion:phone-portrait-outline"
+      if (platform == "web") return "ion:globe-outline"
+      if (platform == "windows") return "ion:desktop-outline"
+      for (word in listOf("android", "iphone", "ipad", "ios", "pixel", "galaxy")) if (device.contains(word)) return "ion:phone-portrait-outline"
+      return "ion:desktop-outline"
     }
   }
 
@@ -300,7 +300,7 @@ class NewLoginSheet(context: Context, private val login: AccountNotices.NewLogin
     }
     endButton.onPress = { notMe() }
     add(endButton, 16f)
-    val me = SettingsButton(context, "Это был я", SettingsButton.Kind.SECONDARY)
+    val me = SettingsButton(context, "Это был я", SettingsButton.Kind.SECONDARY, icon = "checkmark-outline")
     me.onPress = { AccountNotices.dismissLogin(login.id); goBack() }
     add(me, 8f)
     val all = context.words("Все сеансы и устройства", 13f, Theme.accent, 700).apply {
@@ -342,7 +342,7 @@ class RecoverySheet(context: Context) : SettingsPage(context, "Восстано�
       val device = (request["deviceName"] as? String)?.takeIf { it.isNotEmpty() } ?: "Новое устройство"
       val asked = SettingsLook.longMomentWords(request["createdAt"] as? String)
       val ready = Messenger.date(request["readyAt"] as? String)?.atZone(ZoneId.systemDefault())?.let { String.format("%02d:%02d", it.hour, it.minute) } ?: ""
-      val cancel = SettingsButton(context, "Это не я — отменить", SettingsButton.Kind.DANGER)
+      val cancel = SettingsButton(context, "Это не я — отменить", SettingsButton.Kind.DANGER, icon = "close-circle-outline")
       cancel.onPress = { cancel(id) }
       val card = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setPadding(context.px(14f), context.px(14f), context.px(14f), context.px(14f)); background = context.rimmed() }
       card.addView(context.words(device, 16f, Theme.text, 700))

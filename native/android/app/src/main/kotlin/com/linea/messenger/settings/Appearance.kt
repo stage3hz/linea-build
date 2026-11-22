@@ -65,7 +65,7 @@ class ThemeCard(context: Context, val label: String, spoken: String, val chosen:
       if (locked) {
         paint.color = 0x8C000000.toInt()
         canvas.drawCircle(16f * d, h - 16f * d, 10f * d, paint)
-        Symbols.draw(canvas, "lock", 16f * d, h - 16f * d, 11f * d, 0xFFE8ECF4.toInt())
+        Symbols.draw(canvas, "ion:lock-closed", 16f * d, h - 16f * d, 10f * d, 0xFFE8ECF4.toInt())
       }
       canvas.restore()
       paint.style = Paint.Style.STROKE; paint.strokeWidth = d; paint.color = edge
@@ -91,7 +91,7 @@ class ThemeCard(context: Context, val label: String, spoken: String, val chosen:
     foot.orientation = HORIZONTAL
     foot.gravity = Gravity.CENTER
     foot.addView(name, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
-    if (chosen) foot.addView(SymbolView(context, "check.circle", 13f, Theme.accent), LayoutParams(context.px(13f), context.px(13f)).apply { leftMargin = context.px(4f) })
+    if (chosen) foot.addView(SymbolView(context, "ion:checkmark-circle", 14f, Theme.accent), LayoutParams(context.px(14f), context.px(14f)).apply { leftMargin = context.px(4f) })
     addView(foot, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(8f) })
 
     isClickable = true
@@ -249,7 +249,7 @@ class AppearanceScreen(context: Context, private val account: SettingsAccount?) 
     }
     val kind = state["kind"] as? String ?: "off"
     val kindName = Core.map(ThemeStore.rules["nightLabels"])?.get(kind) as? String ?: ""
-    val nightRule = SettingsRow(context, symbol = "moon", label = "Ночная тема", value = kindName)
+    val nightRule = SettingsRow(context, symbol = "ion:moon", label = "Ночная тема", value = kindName)
     nightRule.onPress = { open(NightThemeScreen(context)) }
     addGroup(rows = listOf(nightNow, nightRule))
     // Effects: «Иконка приложения» (settings/AppearanceEffects.kt).
@@ -358,9 +358,9 @@ class NightThemeScreen(context: Context) : SettingsPage(context, "Ночная �
     if (kind == "schedule") {
       val from = DevicePreferences.word("nightFrom") ?: "22:00"
       val until = DevicePreferences.word("nightTo") ?: "07:00"
-      val start = SettingsRow(context, symbol = "moon", label = "Начало", value = from)
+      val start = SettingsRow(context, symbol = "ion:moon", label = "Начало", value = from)
       start.onPress = { askClock("Начало", "nightFrom", from) }
-      val end = SettingsRow(context, symbol = "sun", label = "Конец", value = until)
+      val end = SettingsRow(context, symbol = "ion:sunny", label = "Конец", value = until)
       end.onPress = { askClock("Конец", "nightTo", until) }
       addGroup("Время использования", listOf(start, end))
     }
@@ -521,7 +521,7 @@ class AccentColorScreen(context: Context) : SettingsPage(context, "Цвет ин
         setColor(ThemeLook.color(color) ?: 0xFF808080.toInt())
         if (on) setStroke(dp(3f), Theme.text)
       }
-      if (on) ball.addView(SymbolView(context, "check", 16f, 0xFFFFFFFF.toInt()), FrameLayout.LayoutParams(dp(16f), dp(16f), Gravity.CENTER))
+      if (on) ball.addView(SymbolView(context, "ion:checkmark", 20f, 0xFFFFFFFF.toInt()), FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.CENTER))
       ball.isClickable = true
       ball.isFocusable = true
       ball.isSelected = on

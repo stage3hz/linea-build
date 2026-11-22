@@ -466,18 +466,12 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         }
         if (today != day && today.isNotEmpty()) {
           day = today
-          rows.add(linkedMapOf("key" to "d$key", "kind" to 1, "text" to today))
+          rows.add(linkedMapOf("key" to "d$key", "kind" to 1, "text" to today, "label" to "day")) // MessageRow.tsx DayChip
           missingRow = -1
         }
         val after = input.unreadAfter
-        if (after != null && !unreadShown && !mine && id > after && id < localBase) {
-          unreadShown = true
-          // Not before the very first row of the page: there it would say nothing.
-          if (rows.any { (it["kind"] as? Int) == 0 }) {
-            rows.add(linkedMapOf("key" to "unread", "kind" to 1, "text" to "Непрочитанные сообщения"))
-            missingRow = -1
-          }
-        }
+        // The reference's chat (ChatScreen.tsx) draws no «Непрочитанные сообщения» line: none here either.
+        if (after != null && !unreadShown && !mine && id > after && id < localBase) unreadShown = true
         // A run of messages this device has no key for is one line.
         if (message["cryptoState"] as? String == "no-key") {
           noKey.add(client)
@@ -494,7 +488,15 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
           if (own["step"] == "end") calls[key] = own // ChatsPlus: «Перезвонить»
           // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
           val words = Core.view("callServiceText", listOf(own, sender, input.userId)) as? String ?: Core.view("chatListText", listOf(message)) as? String ?: (message["text"] as? String ?: "")
-          rows.add(linkedMapOf("key" to key, "kind" to 1, "text" to (if (clock.isEmpty()) words else "$words · $clock")))
+          if (own["step"] == "end") {
+            // MessageRow.tsx CallServiceRow: the round icon, the words and the time under them; red for a missed or
+            // declined call. "call", then "!" when red and "v" for a video call.
+            val red = words.startsWith("Пропущенный") || words.startsWith("Отклонённый")
+            val video = own["video"] as? Boolean == true
+            rows.add(linkedMapOf("key" to key, "kind" to 1, "text" to words, "time" to clock, "label" to "call" + (if (red) "!" else "") + (if (video) "v" else "")))
+          } else {
+            rows.add(linkedMapOf("key" to key, "kind" to 1, "text" to (if (clock.isEmpty()) words else "$words · $clock")))
+          }
           return@forEachIndexed
         }
         val next = messages.getOrNull(index + 1)

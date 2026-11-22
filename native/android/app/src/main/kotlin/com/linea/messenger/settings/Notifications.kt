@@ -53,7 +53,7 @@ object NotificationPrefs {
 class MutedChatRow(context: Context, person: Map<String, Any?>, base: String, val name: String, val status: String) : LinearLayout(context) {
   var onPress: (() -> Unit)? = null
   var onBell: (() -> Unit)? = null
-  val bell = SymbolButton(context, "bell", 18f, Theme.accent)
+  val bell = SymbolButton(context, "ion:notifications-outline", 20f, Theme.accent)
 
   init {
     orientation = HORIZONTAL
@@ -102,10 +102,23 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
   private var chats: List<Messenger.ChatSummary> = emptyList()
   private var failure = ""
 
+  /** Push: the state line follows what this device managed (push/Push.kt). */
+  private val pushWatch: (Unit) -> Unit = { if (isAttachedToWindow) fill() }
+
   override fun build() {
     account.prepareSettingsAvatars()
     fill()
     load()
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    com.linea.messenger.push.Push.changed.watch(pushWatch)
+  }
+
+  override fun onDetachedFromWindow() {
+    com.linea.messenger.push.Push.changed.unwatch(pushWatch)
+    super.onDetachedFromWindow()
   }
 
   private fun load() {
@@ -128,11 +141,14 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
 
   private fun fill() {
     clear()
-    add(SettingsNotice(context, notice))
+    // The push state of this device, said out loud (the reference's NotificationsSection): a notice when push does
+    // not work, otherwise a line of what to expect.
+    val line = pushLine(com.linea.messenger.push.Push.status)
+    add(if (line.second) SettingsNotice(context, line.first) else SettingsLook.foot(context, line.first))
 
     val showChats = NotificationPrefs.flag("chats", "show")
     addGroup("Личные чаты", listOf(
-      toggle("chats", "show", "Показывать уведомления", "Новые сообщения и реакции в личных чатах."),
+      toggle("chats", "show", "Показывать уведомления", "Новые сообщения и реакции в личных чатах, пока приложение свёрнуто. Когда оно закрыто, уведомления показывает система."),
       toggle("chats", "sound", "Звук", "Короткий сигнал при новом сообщении.", enabled = showChats),
     ))
     val showCommunities = NotificationPrefs.flag("communities", "show")
@@ -142,7 +158,7 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
     ))
 
     val melody = ThemeStore.list("ringtones").firstOrNull { it["id"] == NotificationPrefs.ringtone }?.get("label") as? String ?: ""
-    val melodyRow = SettingsRow(context, symbol = "music", label = "Мелодия", value = melody)
+    val melodyRow = SettingsRow(context, symbol = "ion:musical-notes", label = "Мелодия", value = melody)
     melodyRow.onPress = { askMelody() }
     addGroup("Звонки", listOf(
       melodyRow,
@@ -168,7 +184,7 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
     if (quiet.isNotEmpty()) addGroup("Чаты без звука", quiet)
     if (failure.isNotEmpty()) add(SettingsNotice(context, failure, error = true), 12f)
 
-    val reset = SettingsRow(context, symbol = "refresh", label = "Сбросить настройки", danger = true)
+    val reset = SettingsRow(context, symbol = "ion:refresh", label = "Сбросить настройки", danger = true)
     reset.onPress = { askReset() }
     addGroup(rows = listOf(reset))
     add(SettingsLook.foot(context, "Переключатели хранятся только на этом устройстве. Выключенный звук чата действует на всех твоих устройствах: сервер просто не отправляет уведомление, пока он выключен."), 10f)
@@ -230,8 +246,14 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
   }
 
   companion object {
-    /** What the page says first: nothing here is delivered yet. */
-    const val notice = "Приложение пока не показывает уведомления: ни когда оно закрыто, ни когда свёрнуто. Переключатели ниже только сохраняются на этом устройстве — приложение их ещё не учитывает. Звук чата выключается на сервере уже сейчас."
+    /** What the page says first: the push state line, word for word the reference's (NotificationsSection.tsx) — the
+     *  text, and whether it is a notice (push does not work). */
+    fun pushLine(status: com.linea.messenger.push.Push.Status): Pair<String, Boolean> {
+      val problem = com.linea.messenger.push.Push.text(status)
+      if (problem.isNotEmpty()) return problem to true
+      if (status == com.linea.messenger.push.Push.Status.ON) return "Когда приложение закрыто, уведомления показывает система. Переключатели ниже действуют, пока приложение запущено. В уведомлении только имя отправителя: текст остаётся зашифрованным." to false
+      return "Разрешение на уведомления ещё не запрошено." to false
+    }
 
     /** The sound of a chat right now (the core's `settingsMuteState`): `muted`, `until`, `status`. */
     fun muteState(settings: Map<String, Any?>, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): Map<String, Any?> {

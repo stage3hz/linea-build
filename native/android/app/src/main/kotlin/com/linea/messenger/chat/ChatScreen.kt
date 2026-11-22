@@ -106,7 +106,8 @@ class ChatScreen(
     actions.onRows = { made -> showRows(made) }
     actions.onLoaded = { newestTheirs -> loaded(newestTheirs) }
     // Voice/Video: the microphone in the send button's place, the rows of what is being sent, playing.
-    media.install(list, composer, field, send, attachments, actions)
+    media.install(list, composer, field, send, attachments, actions, page)
+    media.onRecordShift = { value -> pills.recordShift = value } // Record: the pills make room for a take
     media.onPendingChanged = { showPendingMedia() }
     // ChatLook: the header's views go into glass pills; the avatar on the right; the swipe to answer.
     look.installHeader(page, header, heading, back, callButton, actions.statusView, list, actions)
@@ -205,7 +206,7 @@ class ChatScreen(
     val composerTop = floor - composerHeight
     put(composer, dp(8f), composerTop, width - dp(16f), composerHeight) // Composer: 8 from the sides
     // Voice/Video: the microphone or the send button, the lock of a take, the words over the chat.
-    media.place(width, top, dp(8f), composerTop, width - dp(16f))
+    media.place(width, top, dp(8f), composerTop, width - dp(16f), composerHeight)
     pills.microphoneShown = send.visibility != View.VISIBLE // Composer: the microphone's round glass only while the record button stands there
     // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
     actions.keyboardUp = edges.keyboard > 0

@@ -155,20 +155,20 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   private var field: ComposerField? = null
   private var sendButton: SendButton? = null
   private var actions: ChatScreenActions? = null
-  private val control = RecordControl(context)
-  private val recorder = VoiceRecorder(context)
+  /** Record: the record button, its takes, the preview and the round camera (voice/MediaRecording.kt). */
+  private val recording = MediaRecording(context)
+  private val control: RecordControl get() = recording.control
+  private var attachments: ChatAttachments? = null
   private val voice = VoicePlayer(context, messenger?.server)
   private var notes: NotePlayback? = null
   private var outgoing: List<Outgoing> = emptyList()
   private val toast = TextView(context)
-  private var noteScreen: NoteRecorder? = null
   private var sampleRows: List<Map<String, Any?>> = emptyList()
   private var watching = false
   /** Called on the main thread when the rows of what is on its way out changed. */
   var onPendingChanged: (() -> Unit)? = null
 
   private val toastHide = Runnable { toast.visibility = View.GONE }
-  private val hintBack = Runnable { field?.hint = "Сообщение" }
   private val watch = object : Runnable {
     override fun run() {
       if (!watching) return
@@ -179,13 +179,16 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
 
   // The screen
 
-  fun install(list: MsgListView, composer: FrameLayout, field: ComposerField, send: SendButton, attachments: ChatAttachments, actions: ChatScreenActions) {
+  fun install(list: MsgListView, composer: FrameLayout, field: ComposerField, send: SendButton, attachments: ChatAttachments, actions: ChatScreenActions, source: com.linea.messenger.design.GlassSource? = null) {
+    this.attachments = attachments
     this.list = list
     this.field = field
     this.actions = actions
     sendButton = send
-    control.edgeInset = 0f; control.barRadius = 20f // Composer: the microphone on its round glass at the row's end
-    control.install(composer, host)
+    recording.install(composer, host, source)
+    control.clipView = attachments.clipButton
+    control.clipSlides = true
+    control.fieldViews = listOfNotNull(field, actions.extras.emojiView)
     val notes = NotePlayback(context, messenger?.server, list)
     this.notes = notes
 
@@ -218,23 +221,20 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     notes.onReadyChanged = { key -> list.redrawRow(key) }
     notes.onWillPlay = { voice.pause() }
     // Also while the round video recorder stands over the chat (it uses the microphone).
-    notes.holdsSilence = { recorder.isRecording || voice.isPlaying || noteScreen != null }
+    notes.holdsSilence = { recording.isRecording || voice.isPlaying }
 
-    control.timeWords = { FileCore.call("voiceTimeFine", listOf(recorder.elapsedMs)) as? String ?: "0:00,00" }
-    control.onModeChanged = { mode -> modeChanged(mode) }
-    control.onHoldStart = { startVoice() }
-    control.onFinish = { send -> finishVoice(send) }
-    control.onPause = {
-      recorder.togglePause()
-      control.setPaused(recorder.isPaused)
+    recording.canStart = { if (messenger == null) "" else null }
+    recording.willStart = {
+      voice.pause()
+      notes.rest()
+      hideKeyboard()
     }
-    control.onVideo = { recordNote() }
-    control.onChanged = { relayout() }
-    recorder.onLevel = { level -> control.setLevel(level) }
-    recorder.onLimit = {
-      control.reset()
-      finishVoice(send = true)
-    }
+    recording.say = { words -> say(words) }
+    recording.sendVoice = { file, ms, waveform -> sendVoice(file, ms, waveform) }
+    recording.sendNote = { file -> sendNote(file) }
+    control.onPhase = { relayout() }
+    // The composer's pills make room for a take (the paperclip's glass slides off, the field's pill grows).
+    control.onShift = { value -> onRecordShift?.invoke(value) }
     val app = context.applicationContext
     sweeping.execute { VideoPrepare.sweep(app, 86_400_000L) }
     if (messenger == null) demo()
@@ -243,7 +243,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   /** Places the lock and the words over the chat (after the screen placed the composer) and decides between the
    *  microphone and the send button: the microphone stands in the send button's place while there is nothing to
    *  send. `safeTop`: what the system covers at the top, px. */
-  fun place(width: Int, safeTop: Int, composerLeft: Int, composerTop: Int, composerWidth: Int) {
+  fun place(width: Int, safeTop: Int, composerLeft: Int, composerTop: Int, composerWidth: Int, composerHeight: Int = 0) {
     val field = field ?: return
     val sendButton = sendButton ?: return
     val empty = field.text.isNullOrBlank()
@@ -254,7 +254,19 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
       control.setVisible(microphone)
       sendButton.visibility = if (microphone) View.INVISIBLE else View.VISIBLE
     }
-    control.place(composerLeft, composerTop, composerWidth)
+    // Record: the button in the send button's place, the field's pill (from the paperclip's gap at rest, from the
+    // composer's edge while a take runs), the trash in the paperclip's place.
+    val side = dp(com.linea.messenger.composer.ComposerPills.SIDE).toFloat()
+    val gap = dp(com.linea.messenger.composer.ComposerPills.GAP).toFloat()
+    val w = composerWidth.toFloat()
+    val h = (composerHeight.takeIf { it > 0 } ?: side.toInt()).toFloat()
+    control.place(
+      android.graphics.RectF(w - side, h - side, w, h),
+      android.graphics.RectF(side + gap, 0f, w - side - gap, h),
+      android.graphics.RectF(0f, 0f, w - side - gap, h),
+      android.graphics.RectF(0f, h - side, side, h),
+      host.width, host.height,
+    )
     if (toast.visibility == View.VISIBLE) placeToast(width, safeTop)
     lastWidth = width
     lastTop = safeTop
@@ -310,87 +322,47 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     watching = false
     main.removeCallbacks(watch)
     main.removeCallbacks(toastHide)
-    main.removeCallbacks(hintBack)
     toast.visibility = View.GONE
-    if (recorder.isRecording) recorder.finish(keep = false)
-    if (control.isBusy) control.reset()
-    control.detached()
+    recording.left()
     voice.left()
     notes?.left()
   }
 
   // Recording a voice message
 
-  private fun modeChanged(mode: RecordControl.Mode) {
-    // As the reference: the hint stands right in the field for a moment.
-    field?.hint = if (mode == RecordControl.Mode.VIDEO) MediaRows.hintVideo else MediaRows.hintVoice
-    main.removeCallbacks(hintBack)
-    main.postDelayed(hintBack, 2200)
-  }
-
-  private fun startVoice(): Boolean {
-    if (messenger == null) return false
-    if (!VoiceRecorder.allowed(context)) {
-      // The system asks; the finger has left the button by then, so the person holds it again.
-      val activity = activity() ?: return false
-      Permits.ask(activity, listOf(android.Manifest.permission.RECORD_AUDIO)) { granted -> if (!granted) say(VoiceRecorder.noAccess) }
-      return false
-    }
-    voice.pause()
-    notes?.rest()
-    if (MusicPlayer.shared.current != null) MusicPlayer.shared.stop()
-    hideKeyboard()
-    recorder.start()?.let { words ->
-      say(words)
-      return false
-    }
-    return true
-  }
-
-  private fun finishVoice(send: Boolean) {
+  /** Record: a voice message to send (a take, or a stopped take joined and trimmed): sealed and uploaded as any
+   *  other attachment. */
+  private fun sendVoice(file: File, durationMs: Long, waveform: String?) {
     relayout()
-    val take = recorder.finish(keep = send) ?: return
-    MediaRows.takeRefusal(take.durationMs, take.broken)?.let { words ->
-      refuse()
-      take.file.delete()
-      say(words)
-      return
-    }
-    if (take.silent) say(MediaRows.silentTake)
     val name = FileCore.call("voiceName", listOf(System.currentTimeMillis())) as? String
-    if (name == null) { take.file.delete(); return }
+    if (name == null) { file.delete(); return }
     val media = LinkedHashMap<String, Any?>()
-    media["durationMs"] = take.durationMs
-    take.waveform?.let { media["waveform"] = it }
+    media["durationMs"] = durationMs
+    waveform?.let { media["waveform"] = it }
     val item = Outgoing("voice")
     item.meta = actions?.takeReply()
-    item.wave = take.waveform ?: ""
-    item.mediaTime = FileCore.call("voiceTime", listOf(take.durationMs)) as? String ?: ""
-    item.payload = Payload(take.file, name, "audio/mp4", media, null, video = false)
+    item.wave = waveform ?: ""
+    item.mediaTime = FileCore.call("voiceTime", listOf(durationMs)) as? String ?: ""
+    item.payload = Payload(file, name, "audio/mp4", media, null, video = false)
     add(item)
     run(item)
   }
 
-  // A round video
-
-  private fun recordNote() {
-    if (messenger == null || noteScreen != null) return
-    val activity = activity() ?: return
-    voice.pause()
-    notes?.rest()
-    hideKeyboard()
-    val screen = NoteRecorder(activity, startAtOnce = true)
-    screen.onDone = { file ->
-      val item = Outgoing("note")
-      item.meta = actions?.takeReply()
-      item.source = file
-      add(item)
-      run(item)
-    }
-    noteScreen = screen
-    screen.setOnDismissListener { if (noteScreen === screen) noteScreen = null }
-    try { screen.show() } catch (_: Exception) { noteScreen = null }
+  /** Record: a recorded round video to send (written anew without metadata on the way). */
+  private fun sendNote(file: File) {
+    if (messenger == null) { file.delete(); return }
+    val item = Outgoing("note")
+    item.meta = actions?.takeReply()
+    item.source = file
+    add(item)
+    run(item)
   }
+
+  /** Record: the composer's transition for a take, 0…1 (ChatScreen moves the pills). */
+  var onRecordShift: ((Float) -> Unit)? = null
+  /** Record: a take is shown / its preview waits. */
+  val recordingTake: Boolean get() = control.phase == RecordControl.Phase.HOLDING || control.phase == RecordControl.Phase.LOCKED
+  val recordingPreview: Boolean get() = control.phase == RecordControl.Phase.PREVIEW
 
   // A video from the gallery
 
@@ -649,7 +621,6 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     sampleRows = MediaDemo.rows(activity.intent)
     MediaDemo.state(activity.intent)?.let { state -> host.postDelayed({ list?.setMediaState(state) }, 600) }
     if (MediaDemo.recording(activity.intent)) {
-      control.timeWords = { "0:04,63" }
       host.postDelayed({
         control.demoHolding()
         relayout()

@@ -27,14 +27,17 @@ final class ComposerPills {
     }
 
     /// `microphone`: the round glass of the record button is shown (not while the send button stands there).
-    func place(width: CGFloat, height: CGFloat, microphone shown: Bool, hidden: Bool) {
-        clip.frame = CGRect(x: 0, y: height - ComposerPills.side, width: ComposerPills.side, height: ComposerPills.side)
+    /// `recording`: a voice or video take runs — the paperclip's glass slides off to the left, the field's pill
+    /// reaches the composer's edge, the microphone's glass gives way to the blob (Sources/Voice/RecordControl.swift).
+    func place(width: CGFloat, height: CGFloat, microphone shown: Bool, hidden: Bool, recording: Bool = false) {
+        let clipX: CGFloat = recording ? -ComposerPills.side - ComposerPills.gap - 6 : 0
+        clip.frame = CGRect(x: clipX, y: height - ComposerPills.side, width: ComposerPills.side, height: ComposerPills.side)
         clip.shape(radius: ComposerPills.side / 2)
-        field.frame = ComposerPills.fieldPill(width: width, height: height)
+        field.frame = recording ? CGRect(x: 0, y: 0, width: max(0, width - ComposerPills.side - ComposerPills.gap), height: height) : ComposerPills.fieldPill(width: width, height: height)
         field.shape(radius: 20)
         microphone.frame = CGRect(x: width - ComposerPills.side, y: height - ComposerPills.side, width: ComposerPills.side, height: ComposerPills.side)
         microphone.shape(radius: ComposerPills.side / 2)
-        microphone.isHidden = hidden || !shown
+        microphone.isHidden = hidden || !shown || recording
         clip.isHidden = hidden
         field.isHidden = hidden
     }
