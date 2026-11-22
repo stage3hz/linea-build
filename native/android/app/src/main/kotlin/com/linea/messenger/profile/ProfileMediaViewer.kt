@@ -80,6 +80,7 @@ class ProfileMediaViewer(context: Context, private val person: Person, private v
       }
       pager.addView(page, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
       pages.add(page)
+      com.linea.messenger.effects.MotionBlur.attach(page) // MotionBlur: blurred along its move on screens below 90 Hz (paged sideways, pulled away up or down)
       fill(position)
     }
     val back = IconButton(context, "ion:chevron-back", 24f, Color.WHITE) // «chevron-back» 24

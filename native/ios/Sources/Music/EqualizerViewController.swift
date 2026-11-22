@@ -39,10 +39,11 @@ final class EqualizerViewController: UIViewController {
         view.addSubview(ambient)
 
         let back = UIButton(type: .system)
-        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        back.setImage(IonIcon.image("chevron-back", size: 23), for: .normal) // IconButton «chevron-back»
         back.tintColor = Theme.text
         back.accessibilityLabel = "Назад"
         back.addTarget(self, action: #selector(close), for: .touchUpInside)
+        GlassBacking.put(under: back) // the reference's IconButton: a round of clear glass
         let heading = AIKit.label("Эквалайзер", size: 17, weight: .semibold, lines: 1, align: .center)
         heading.accessibilityTraits = .header
         let top = UIView()
@@ -87,7 +88,7 @@ final class EqualizerViewController: UIViewController {
             let words = mode == "recommended" ? "Рекомендованный" : "Пользовательский"
             row.accessibilityLabel = words
             let label = AIKit.label(words, size: 17, lines: 1)
-            let check = UIImageView(image: UIImage(systemName: "checkmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)))
+            let check = UIImageView(image: IonIcon.image("checkmark", size: 22))
             check.tintColor = Theme.accent
             check.setContentHuggingPriority(.required, for: .horizontal)
             let line = UIStackView(arrangedSubviews: [label, check])
@@ -185,7 +186,7 @@ final class EqualizerViewController: UIViewController {
         cover.bind(player.current)
         trackTitle.text = player.current?.title ?? "Включи трек"
         trackArtist.text = player.current?.artist ?? "чтобы слышать изменения"
-        playButton.setImage(UIImage(systemName: player.playing ? "pause.fill" : "play.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 22, weight: .semibold)), for: .normal)
+        playButton.setImage(IonIcon.image(player.playing ? "pause" : "play", size: 24), for: .normal)
         playButton.accessibilityLabel = player.playing ? "Пауза" : "Слушать"
         playButton.isEnabled = player.current != nil
         playButton.alpha = player.current != nil ? 1 : 0.5

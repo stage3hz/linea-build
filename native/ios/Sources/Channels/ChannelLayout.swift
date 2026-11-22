@@ -403,8 +403,16 @@ private enum ChannelSymbols {
     static func image(_ name: String, side: CGFloat, color: UIColor) -> UIImage? {
         let key = name + "|" + String(Int(side * 10)) + "|" + String(color.hashValue)
         if let hit = made[key] { return hit }
-        let config = UIImage.SymbolConfiguration(pointSize: side * 0.82, weight: .semibold)
-        guard let image = UIImage(systemName: name, withConfiguration: config)?.withTintColor(color, renderingMode: .alwaysOriginal) else { return nil }
+        // The reference's glyphs (ChannelChat.tsx): `ribbon` 13, `return-down-forward` 13, `link-outline`.
+        let ion: [String: String] = ["rosette": "ribbon", "arrow.turn.down.right": "return-down-forward", "link": "link-outline"]
+        let drawn: UIImage?
+        if let glyph = ion[name] ?? (IonIcon.has(name) ? name : nil) {
+            drawn = IonIcon.image(glyph, size: name == "rosette" || name == "arrow.turn.down.right" ? 13 : side).withTintColor(color, renderingMode: .alwaysOriginal)
+        } else {
+            let config = UIImage.SymbolConfiguration(pointSize: side * 0.82, weight: .semibold)
+            drawn = UIImage(systemName: name, withConfiguration: config)?.withTintColor(color, renderingMode: .alwaysOriginal)
+        }
+        guard let image = drawn else { return nil }
         made[key] = image
         return image
     }

@@ -175,7 +175,8 @@ final class ChannelMenuView: UIView {
             let button = UIButton(type: .system)
             var look = UIButton.Configuration.plain()
             look.title = action.label
-            look.image = UIImage(systemName: action.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .medium))
+            // MenuItem's glyph (19): a name of the icon set, else a system symbol.
+            look.image = IonIcon.has(action.symbol) ? IonIcon.image(action.symbol, size: 19) : UIImage(systemName: action.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .medium))
             look.imagePadding = 12
             look.baseForegroundColor = action.danger ? Theme.danger : Theme.text
             look.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
@@ -268,7 +269,7 @@ final class ChannelPhotoViewer: UIViewController, UIScrollViewDelegate {
         scroll.addSubview(picture)
         spinner.color = .white
         view.addSubview(spinner)
-        closeButton.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)), for: .normal)
+        closeButton.setImage(IonIcon.image("close", size: 22), for: .normal)
         closeButton.tintColor = .white
         closeButton.backgroundColor = UIColor(white: 0, alpha: 0.4)
         closeButton.layer.cornerRadius = 20

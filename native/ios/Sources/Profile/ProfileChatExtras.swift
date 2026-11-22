@@ -384,6 +384,7 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
         pan.addTarget(self, action: #selector(panned(_:)))
         pan.delegate = self
         body.addGestureRecognizer(pan)
+        MotionBlur.attach(body, following: pan) // MotionBlur: smeared along its move below 90 Hz (Effects/MotionBlur.swift)
         NSLayoutConstraint.activate([
             column.topAnchor.constraint(equalTo: topAnchor),
             column.bottomAnchor.constraint(equalTo: bottomAnchor),

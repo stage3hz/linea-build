@@ -37,7 +37,7 @@ import java.lang.ref.WeakReference
 class StoryTileView(context: Context) : FrameLayout(context) {
   private val d = resources.displayMetrics.density
   private val picture = StoryPictureView(context)
-  private val playMark = StoryIconView(context, "play", 13f, Color.WHITE)
+  private val playMark = StoryIconView(context, "ion:play", 16f, Color.WHITE)
   var post: StoryPost? = null
     private set
   private var asked = false
@@ -112,7 +112,7 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
   private var giftCount = 0
   private val problemLabel = TextView(context)
   private val spinner = ProgressBar(context)
-  private val lockIcon = StoryIconView(context, "lock", 22f, Theme.muted)
+  private val lockIcon = StoryIconView(context, "ion:lock-closed-outline", 22f, Theme.muted)
   private val lockLabel = TextView(context)
   private val addButton = LinearLayout(context)
   private val addLabel = TextView(context)
@@ -166,7 +166,7 @@ class ProfilePostsBlock(context: Context) : ViewGroup(context) {
     addButton.gravity = Gravity.CENTER
     addButton.background = context.plate(Theme.surface2, 19f)
     addButton.setPadding(dp(16f), 0, dp(18f), 0)
-    addButton.addView(StoryIconView(context, "plus", 13f, Theme.accent), LinearLayout.LayoutParams(dp(14f), dp(14f)).apply { rightMargin = dp(6f) })
+    addButton.addView(StoryIconView(context, "ion:add", 18f, Theme.accent), LinearLayout.LayoutParams(dp(14f), dp(14f)).apply { rightMargin = dp(6f) })
     addLabel.textSize = 15f
     addLabel.typeface = Theme.weight(600)
     addLabel.setTextColor(Theme.accent)

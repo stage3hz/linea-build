@@ -21,7 +21,7 @@ private final class RoomSeatView: UIView {
         badge.layer.cornerRadius = 13
         badge.layer.borderWidth = 2
         badge.layer.borderColor = Theme.bg.cgColor
-        badgeIcon.image = UIImage(systemName: "mic.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))
+        badgeIcon.image = IonIcon.image("mic-off", size: 13)
         badgeIcon.tintColor = Theme.text
         badgeIcon.contentMode = .center
         badge.addSubview(badgeIcon)
@@ -136,11 +136,13 @@ private final class RoomRoundButton: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     func show(symbol: String, words: String, fill: UIColor, tint: UIColor, bordered: Bool) {
-        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: bounds.width * 0.38, weight: .medium))
+        // RoomScreen.tsx: the mic (28) on 74, the others (24, the close 26) on 60; the border is `glassBorder`.
+        let size: CGFloat = symbol == "mic" || symbol == "mic-off" ? 28 : (symbol == "close" ? 26 : 24)
+        icon.image = IonIcon.image(symbol, size: size)
         icon.tintColor = tint
         backgroundColor = fill
         layer.borderWidth = bordered ? 1 : 0
-        layer.borderColor = Theme.veil(0.18).cgColor
+        layer.borderColor = ThemeStore.look.glassBorder.cgColor
         accessibilityLabel = words
     }
 
@@ -217,7 +219,7 @@ final class RoomViewController: UIViewController {
         bar.clipsToBounds = true
         bar.layer.cornerRadius = 27
         view.addSubview(bar)
-        backButton.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        backButton.setImage(IonIcon.image("chevron-back", size: 23), for: .normal) // IconButton «chevron-back»
         backButton.tintColor = Theme.text
         backButton.accessibilityLabel = "Назад"
         backButton.addTarget(self, action: #selector(back), for: .touchUpInside)
@@ -228,7 +230,7 @@ final class RoomViewController: UIViewController {
         bar.contentView.addSubview(nameLabel)
         statusLabel.font = .systemFont(ofSize: 12, weight: .semibold)
         bar.contentView.addSubview(statusLabel)
-        moreButton.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .semibold)), for: .normal)
+        moreButton.setImage(IonIcon.image("ellipsis-horizontal", size: 23), for: .normal) // IconButton «ellipsis-horizontal»
         moreButton.tintColor = Theme.text
         moreButton.accessibilityLabel = "Действия с комнатой"
         moreButton.addTarget(self, action: #selector(openMenu), for: .touchUpInside)
@@ -258,13 +260,15 @@ final class RoomViewController: UIViewController {
         ringButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         ringButton.layer.cornerRadius = 18
         ringButton.layer.borderWidth = 1
-        ringButton.layer.borderColor = Theme.veil(0.18).cgColor
+        ringButton.layer.borderColor = ThemeStore.look.glassBorder.cgColor
         ringButton.accessibilityLabel = "Позвать всех"
         ringButton.addTarget(self, action: #selector(ringAll), for: .touchUpInside)
         view.addSubview(ringButton)
 
-        enterButton.setTitle("  Зайти", for: .normal)
-        enterButton.setImage(UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)), for: .normal)
+        // The reference's `Button` «Зайти» with `mic` (20), 10 between.
+        enterButton.setTitle("Зайти", for: .normal)
+        enterButton.setImage(IonIcon.image("mic", size: 20), for: .normal)
+        enterButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: -10)
         enterButton.tintColor = Theme.onAccent
         enterButton.setTitleColor(Theme.onAccent, for: .normal)
         enterButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
@@ -280,7 +284,7 @@ final class RoomViewController: UIViewController {
         speakerButton.onPress = { RoomVoice.shared.toggleSpeaker() }
         micButton.onPress = { RoomVoice.shared.toggleMute() }
         leaveButton.onPress = { Rooms.shared.exit() }
-        leaveButton.show(symbol: "xmark", words: "Выйти из комнаты", fill: UIColor(hex: 0xFF4D5E), tint: .white, bordered: false)
+        leaveButton.show(symbol: "close", words: "Выйти из комнаты", fill: UIColor(hex: 0xFF4D5E), tint: .white, bordered: false)
         for button in [speakerButton, micButton, leaveButton] { view.addSubview(button) }
         ScreenShareStrip.attach(to: view, roomId: roomId) // ScreenShare: who shows their screen here
 
@@ -417,11 +421,11 @@ final class RoomViewController: UIViewController {
         enterButton.isHidden = inRoom
         for button in [speakerButton, micButton, leaveButton] { button.isHidden = !inRoom }
         if let voice {
-            speakerButton.show(symbol: voice.speaker ? "speaker.wave.2.fill" : "ear", words: voice.speaker ? "Звук на динамике" : "Звук в трубке", fill: .clear, tint: Theme.text, bordered: true)
+            speakerButton.show(symbol: voice.speaker ? "volume-high" : "ear-outline", words: voice.speaker ? "Звук на динамике" : "Звук в трубке", fill: .clear, tint: Theme.text, bordered: true)
             if voice.muted {
-                micButton.show(symbol: "mic.slash.fill", words: "Включить микрофон", fill: Theme.surface2, tint: Theme.text, bordered: true)
+                micButton.show(symbol: "mic-off", words: "Включить микрофон", fill: ThemeStore.look.glassOpaque, tint: Theme.text, bordered: true)
             } else {
-                micButton.show(symbol: "mic.fill", words: "Выключить микрофон", fill: Theme.text, tint: Theme.bg, bordered: false)
+                micButton.show(symbol: "mic", words: "Выключить микрофон", fill: Theme.text, tint: Theme.bg, bordered: false)
             }
             let rowTop = bottom - 74
             micButton.frame = CGRect(x: (width - 74) / 2, y: rowTop, width: 74, height: 74)

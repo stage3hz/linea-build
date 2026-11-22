@@ -37,7 +37,7 @@ class StoryStripCell(context: Context) : ViewGroup(context) {
   private fun dp(value: Float) = Math.round(value * d)
   private val ring = StoryRingView(context)
   private val avatar = PersonAvatarView(context)
-  private val badge = StoryIconView(context, "plus", 12f, Theme.onAccent)
+  private val badge = StoryIconView(context, "ion:add", 14f, Theme.onAccent)
   private val spinner = ProgressBar(context)
   private val nameLabel = TextView(context)
   private val subLabel = TextView(context)
@@ -84,7 +84,7 @@ class StoryStripCell(context: Context) : ViewGroup(context) {
     badge.disc = Theme.accent
     badge.rim = Theme.bg
     badge.color = Theme.onAccent
-    badge.symbol = if (busy) "" else "plus"
+    badge.symbol = if (busy) "" else "ion:add"
     badge.contentDescription = StoryRules.word("addStory")
     badge.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
     spinner.indeterminateTintList = ColorStateList.valueOf(Theme.onAccent)
@@ -105,7 +105,7 @@ class StoryStripCell(context: Context) : ViewGroup(context) {
     badge.disc = Theme.surface2 or 0xFF000000.toInt()
     badge.rim = Theme.bg
     badge.color = Theme.muted
-    badge.symbol = "clock"
+    badge.symbol = "ion:time-outline"
     badge.contentDescription = null
     badge.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     spinner.visibility = View.GONE

@@ -167,6 +167,7 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
         // Without an account (the debug build's samples) the counters are the channel's own.
         val counts = if (messenger == null) ChannelsStore.Counts(item.channel.unread, item.channel.mentions, false, communityId) else ChannelsStore.channel(item.channel.id)
         show(item.channel, counts.unread, counts.mentions)
+        showInside(!item.channel.isText && com.linea.messenger.rooms.RoomVoice.state?.roomId == item.channel.id)
       }
       is Item.Member -> ((convertView as? VoiceMemberCell) ?: VoiceMemberCell(context)).apply {
         val actions = community?.let { CommunityVoice.hasActions(it, me, item.member.userId) } == true
@@ -179,7 +180,8 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     setBackgroundColor(Theme.bg)
     isClickable = true
     list.divider = null; list.dividerHeight = 0
-    list.selector = ColorDrawable(Theme.veil(0.07f)); list.cacheColorHint = Color.TRANSPARENT
+    // Each row draws its own pressed look (the soft accent on a rounded row, CommunityScreen.tsx).
+    list.selector = ColorDrawable(Color.TRANSPARENT); list.cacheColorHint = Color.TRANSPARENT
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     list.adapter = adapter
     list.setOnItemClickListener { _, _, position, _ ->
@@ -439,7 +441,37 @@ class ChannelCell(context: Context) : ViewGroup(context) {
   private val mentions = ChannelBadgeLabel(context)
   private val people = context.words("", 12f, Theme.muted)
 
+  private val wash = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private var inside = false
+
+  /** Voice channels: this phone is inside — a green wash (12 %), the icon and the name in green, bold. */
+  fun showInside(on: Boolean) {
+    inside = on
+    if (on) {
+      icon.color = 0xFF2FD27A.toInt()
+      name.setTextColor(0xFF2FD27A.toInt())
+      name.typeface = Theme.weight(700)
+    } else icon.color = Theme.muted
+    invalidate()
+  }
+
+  override fun drawableStateChanged() {
+    super.drawableStateChanged()
+    invalidate()
+  }
+
+  /** Pressed: the soft accent; inside a voice channel: the green wash — on the row 12 in from the list, radius 12. */
+  override fun dispatchDraw(canvas: android.graphics.Canvas) {
+    val fill = if (inside) 0x1F2FD27A else if (isPressed) com.linea.messenger.settings.ThemeStore.look.accentSoft else 0
+    if (fill != 0) {
+      wash.color = fill
+      canvas.drawRoundRect(12f * d, 0f, width - 12f * d, height.toFloat(), 12f * d, 12f * d, wash)
+    }
+    super.dispatchDraw(canvas)
+  }
+
   init {
+    setWillNotDraw(false)
     dot.background = context.plate(Theme.text, 3f)
     name.maxLines = 1; name.ellipsize = TextUtils.TruncateAt.END; name.gravity = Gravity.CENTER_VERTICAL
     people.gravity = Gravity.CENTER_VERTICAL or Gravity.END

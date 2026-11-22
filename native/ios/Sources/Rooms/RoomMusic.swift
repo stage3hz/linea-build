@@ -250,9 +250,9 @@ final class RoomMusicLine: UIControl {
                 by = members.first(where: { (member: Person) -> Bool in member.id == userId }).map { RoomRules.firstName($0) } ?? "кто-то"
             }
             icon.isHidden = false
-            icon.image = UIImage(systemName: "music.note", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular))
+            icon.image = IonIcon.image("musical-notes", size: 20)
             icon.tintColor = Theme.text
-            icon.backgroundColor = Theme.veil(0.08)
+            icon.backgroundColor = ThemeStore.look.accentSoft
             icon.layer.cornerRadius = 13
             icon.clipsToBounds = true
             heading.isHidden = false
@@ -269,7 +269,7 @@ final class RoomMusicLine: UIControl {
         let local = current?.source == "local"
         canLead = current != nil && !local
         icon.isHidden = false
-        icon.image = UIImage(systemName: "music.note", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular))
+        icon.image = IonIcon.image("musical-notes-outline", size: 17)
         icon.tintColor = Theme.muted
         icon.backgroundColor = .clear
         if local {

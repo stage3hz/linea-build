@@ -342,7 +342,7 @@ class WaitingChip(context: Context, text: String, state: String, failed: Boolean
     gravity = Gravity.CENTER_VERTICAL
     background = context.plate(Theme.surface2, 16f)
     setPadding(context.px(12f), context.px(3f), context.px(6f), context.px(3f))
-    addView(ChannelIconView(context, if (failed) "alert" else "clock", 14f, if (failed) Theme.danger else Theme.muted), LayoutParams(context.px(16f), context.px(28f)))
+    addView(ChannelIconView(context, if (failed) "ion:alert-circle-outline" else "ion:time-outline", 14f, if (failed) Theme.danger else Theme.muted), LayoutParams(context.px(16f), context.px(28f)))
     val words = context.words(text.replace("\n", " "), 14f, Theme.text)
     words.maxLines = 1; words.ellipsize = android.text.TextUtils.TruncateAt.END
     addView(words, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
@@ -350,12 +350,12 @@ class WaitingChip(context: Context, text: String, state: String, failed: Boolean
     note.maxLines = 1
     addView(note, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
     if (onRetry != null) {
-      val again = ChannelIconButton(context, "refresh", 15f, Theme.muted)
+      val again = ChannelIconButton(context, "ion:refresh-outline", 16f, Theme.muted)
       again.contentDescription = "Отправить ещё раз"
       again.setOnClickListener { onRetry() }
       addView(again, LayoutParams(context.px(28f), context.px(28f)).apply { leftMargin = context.px(8f) })
     }
-    val close = ChannelIconButton(context, "cross", 15f, Theme.muted)
+    val close = ChannelIconButton(context, "ion:close", 16f, Theme.muted)
     close.contentDescription = if (failed) "Убрать" else "Отменить отправку"
     close.setOnClickListener { onClose() }
     addView(close, LayoutParams(context.px(28f), context.px(28f)).apply { leftMargin = if (onRetry == null) context.px(8f) else 0 })

@@ -117,6 +117,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -storiesdemo strip|viewer|viewers|compose|posts|own / -stories viewer|own|ownstories|compose    stories and posts: samples with drawn pictures, no account; with an account, the strip's first person, the account's own page (Stories/StoriesSimulator.swift)
     ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
     ///   -profiledemo rings|code|art|list|marks|fonts|person|birthday|own|gifts|showcase|studio|confetti|offer|mini|mini-chat|media|cropper|banner|pattern|status|giftsheet    avatars, profiles, Platina, gifts, fonts with samples, no account (Profile/ProfileSimulator.swift)
+    ///   -motionblur 1|0|hold           motion blur of slides forced on / off / on with the strongest smear held for a still shot (Effects/MotionBlur.swift) // MotionBlur:
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }

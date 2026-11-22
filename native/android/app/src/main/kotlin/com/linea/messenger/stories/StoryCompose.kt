@@ -331,10 +331,10 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
   private var left = false
   private val main = Handler(Looper.getMainLooper())
 
-  private val backButton = StoryIconView(context, "back", 24f, Theme.text)
+  private val backButton = StoryIconView(context, "ion:chevron-back", 23f, Theme.text)
   private val heading = TextView(context)
   private val preview = ImageView(context)
-  private val playMark = StoryIconView(context, "play", 30f, Color.WHITE, 0x66000000)
+  private val playMark = StoryIconView(context, "ion:play", 26f, Color.WHITE, 0x66000000)
   private val spinner = ProgressBar(context)
   private val problemLabel = TextView(context)
   private val bar = View(context)

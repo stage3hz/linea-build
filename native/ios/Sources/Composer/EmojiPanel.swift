@@ -96,6 +96,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         closePan.addTarget(self, action: #selector(dragged(_:)))
         closePan.delegate = self
         addGestureRecognizer(closePan)
+        MotionBlur.attach(self, following: closePan) // MotionBlur: pulled down and let go, smeared along its fall below 90 Hz
 
         recent = (UserDefaults.standard.array(forKey: EmojiPanel.recentKey) as? [String] ?? []).prefix(32).map { $0 }
         if recent.isEmpty { chosen = "faces" }
@@ -192,6 +193,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
     func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
         // Pulling the grid down past its top (the bounce) and letting go closes the panel too.
         if scrollView.contentOffset.y < -scrollView.contentInset.top - 36 {
+            MotionBlur.kick(self) // MotionBlur: the panel falls away
             UIView.animate(withDuration: 0.16, animations: { self.transform = CGAffineTransform(translationX: 0, y: 320) }, completion: { _ in self.onClose?() })
         }
     }

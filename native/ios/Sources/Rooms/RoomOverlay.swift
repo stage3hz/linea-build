@@ -82,11 +82,11 @@ final class RoomRingBanner: RoomGlassView {
         lineLabel.font = .systemFont(ofSize: 13)
         lineLabel.textColor = RoomRules.talk
         content.addSubview(lineLabel)
-        laterButton.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)), for: .normal)
+        laterButton.setImage(IonIcon.image("close", size: 20), for: .normal)
         laterButton.tintColor = Theme.text
         laterButton.layer.cornerRadius = 21
         laterButton.layer.borderWidth = 1
-        laterButton.layer.borderColor = Theme.veil(0.18).cgColor
+        laterButton.layer.borderColor = ThemeStore.look.glassBorder.cgColor
         laterButton.accessibilityLabel = "Не сейчас"
         laterButton.addTarget(self, action: #selector(later), for: .touchUpInside)
         content.addSubview(laterButton)

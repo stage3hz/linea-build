@@ -110,7 +110,7 @@ class ChannelListView(context: Context) : FrameLayout(context) {
     })
   }
 
-  private val toEnd = ChannelIconButton(context, "chevron.down", 18f, Theme.text).apply {
+  private val toEnd = ChannelIconButton(context, "ion:chevron-down", 20f, Theme.text).apply {
     background = context.plate(Theme.surface2, 19f, Theme.veil(0.1f))
     contentDescription = "К новым сообщениям"
     alpha = 0f

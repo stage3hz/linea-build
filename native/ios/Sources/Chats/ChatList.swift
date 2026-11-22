@@ -759,6 +759,7 @@ extension ChatListView {
       view.autoresizingMask = [.flexibleWidth]
       table.addSubview(view)
       placePull()
+      MotionBlur.attach(view, kickedBy: table) // MotionBlur: «Архив» smeared along the pull and its snap, below 90 Hz
     }
   }
 

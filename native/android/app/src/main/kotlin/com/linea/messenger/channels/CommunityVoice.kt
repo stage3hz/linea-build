@@ -47,13 +47,13 @@ object CommunityVoice {
   private val slash = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeCap = android.graphics.Paint.Cap.ROUND }
 
   /** The pictures of the voice channels, drawn by the rooms' own icons: mic, mic.off, speaker, speaker.off, headphones, ear, hangup. */
+  /** The reference's glyphs (CommunityScreen.tsx `VoiceButton`, the members' marks), `size` px square. */
   fun icon(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
-    val drawn = when (name) { "mic" -> "mic.fill"; "mic.off" -> "mic.slash.fill"; "ear" -> "ear"; "hangup" -> "phone.down.fill"; else -> "speaker.fill" }
-    RoomIcons.draw(canvas, drawn, cx, cy, size, color, 0)
-    if (name == "speaker.off") {
-      slash.color = color; slash.strokeWidth = size * 0.08f
-      canvas.drawLine(cx - size * 0.32f, cy - size * 0.32f, cx + size * 0.32f, cy + size * 0.32f, slash)
+    val glyph = when (name) {
+      "mic" -> "mic"; "mic.off" -> "mic-off"; "ear" -> "ear"; "hangup" -> "call"; "speaker.off" -> "volume-mute"; "headphones" -> "headset"
+      else -> "volume-high"
     }
+    com.linea.messenger.design.IonIcon.draw(canvas, glyph, cx, cy, size, color)
   }
 
   /** Whether a touch on this person shows any action (`hasMemberActions`). */
@@ -187,7 +187,7 @@ class CommunityVoiceButton(context: Context) : LinearLayout(context) {
   private var symbol = ""
   private var tint = Theme.text
   private val icon = object : View(context) {
-    override fun onDraw(canvas: Canvas) = CommunityVoice.icon(canvas, symbol, width / 2f, height / 2f, 18 * resources.displayMetrics.density, tint)
+    override fun onDraw(canvas: Canvas) = CommunityVoice.icon(canvas, symbol, width / 2f, height / 2f, 20 * resources.displayMetrics.density, tint)
   }
   private val words = context.words("", 12f, Theme.text, 600).apply { gravity = Gravity.CENTER; maxLines = 1 }
 

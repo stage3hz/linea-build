@@ -227,7 +227,7 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
 
-        backButton.setImage(chatSymbol("chevron.left", 19, .semibold), for: .normal)
+        backButton.setImage(IonIcon.image("chevron-back", size: 23), for: .normal)
         backButton.tintColor = Theme.text
         backButton.accessibilityLabel = "Назад"
         backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
@@ -242,7 +242,7 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         preview.layer.cornerCurve = .continuous
         preview.backgroundColor = Theme.surface2
         preview.isAccessibilityElement = true
-        playMark.image = chatSymbol("play.fill", 26)
+        playMark.image = IonIcon.image("play", size: 26)
         playMark.tintColor = .white
         playMark.contentMode = .center
         playMark.isHidden = true

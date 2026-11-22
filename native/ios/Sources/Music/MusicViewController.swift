@@ -1,34 +1,92 @@
 import UIKit
 import UniformTypeIdentifiers
 
-/// A track's cover: the picture, or a note on a quiet square while there is none.
+/// A track's cover: the picture, or — while there is none — the reference's fallback.
+/// `.list` (MusicScreen.tsx `TrackArtwork`): the accent gradient with `musical-note` (25) in the on-accent colour.
+/// `.artwork` (PlayerControls.tsx `TrackArtwork`): radius max(12, min(36, size × 0.23)), the soft accent under a
+/// hairline, a three-colour gradient, a light ring and `musical-note(s)` (max(22, size × 0.31)).
 final class MusicCoverView: UIView {
+    enum Look { case list, artwork }
     private let picture = UIImageView()
-    private let note = UIImageView(image: UIImage(systemName: "music.note"))
+    private let gradient = CAGradientLayer()
+    private let ring = CALayer()
+    private let note = UIImageView()
     private var trackId = ""
+    private let look: Look
+    private let fixedRadius: CGFloat
+    private var source = ""
 
-    init(radius: CGFloat) {
+    init(radius: CGFloat, look: Look = .list) {
+        self.look = look
+        fixedRadius = radius
         super.init(frame: .zero)
-        backgroundColor = Theme.veil(0.07)
         layer.cornerRadius = radius
+        layer.cornerCurve = .continuous
         clipsToBounds = true
-        note.tintColor = Theme.muted
+        layer.addSublayer(gradient)
+        ring.borderWidth = 1
+        layer.addSublayer(ring)
         note.contentMode = .center
+        addSubview(note)
         picture.contentMode = .scaleAspectFill
-        [note, picture].forEach {
-            $0.frame = bounds
-            $0.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            addSubview($0)
-        }
+        addSubview(picture)
+        paint()
         NotificationCenter.default.addObserver(self, selector: #selector(arrived(_:)), name: MusicCovers.ready, object: nil)
     }
 
     required init?(coder: NSCoder) { return nil }
 
+    private func paint() {
+        switch look {
+        case .list:
+            backgroundColor = Theme.surface2
+            let colors = ThemeStore.look.accentGradient
+            gradient.colors = (colors.isEmpty ? [Theme.accent, Theme.accent] : colors).map { $0.cgColor }
+            gradient.startPoint = CGPoint(x: 0.5, y: 0)
+            gradient.endPoint = CGPoint(x: 0.5, y: 1)
+            ring.isHidden = true
+            note.tintColor = Theme.onAccent
+            layer.borderWidth = 0
+        case .artwork:
+            backgroundColor = ThemeStore.look.accentSoft
+            gradient.colors = (Theme.dark ? [0x253E70, 0x38334F, 0x172844] : [0xCDDEFF, 0xE1DCF6, 0xAECBF3]).map { UIColor(hex: UInt32($0)).cgColor }
+            gradient.startPoint = CGPoint(x: 0, y: 0)
+            gradient.endPoint = CGPoint(x: 1, y: 1)
+            ring.isHidden = false
+            ring.borderColor = ThemeStore.look.glassHighlight.cgColor
+            note.tintColor = Theme.dark ? UIColor(hex: 0xC5D9FF) : UIColor(hex: 0x4569A5)
+            layer.borderWidth = 1
+            layer.borderColor = ThemeStore.look.glassBorder.cgColor
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let size = bounds.width
+        if look == .artwork { layer.cornerRadius = max(12, min(36, size * 0.23)) } else { layer.cornerRadius = fixedRadius }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        gradient.frame = bounds
+        // The ring: 0.95 of the size, moved 0.24 right and 0.22 down.
+        ring.frame = CGRect(x: (size - size * 0.95) / 2 + size * 0.24, y: (bounds.height - size * 0.95) / 2 + size * 0.22, width: size * 0.95, height: size * 0.95)
+        ring.cornerRadius = size * 0.95 / 2
+        CATransaction.commit()
+        note.frame = bounds
+        picture.frame = bounds
+        let glyph = look == .list ? "musical-note" : (source == "local" ? "musical-note" : "musical-notes")
+        note.image = IonIcon.image(glyph, size: look == .list ? 25 : max(22, size * 0.31))
+    }
+
     func show(_ track: MusicTrack?) {
         trackId = track?.id ?? ""
+        source = track?.source ?? ""
         picture.image = track.flatMap { MusicCovers.image($0) }
+        let bare = picture.image == nil
+        gradient.isHidden = !bare
+        ring.isHidden = !bare || look == .list
+        note.isHidden = !bare
         isAccessibilityElement = false
+        setNeedsLayout()
     }
 
     private var shownTrack: MusicTrack?
@@ -39,7 +97,7 @@ final class MusicCoverView: UIView {
 
     @objc private func arrived(_ note: Notification) {
         guard let id = note.object as? String, id == trackId, let shownTrack else { return }
-        picture.image = MusicCovers.image(shownTrack)
+        show(shownTrack)
     }
 }
 
@@ -47,13 +105,15 @@ final class MusicCoverView: UIView {
 /// a swipe down stops the music and takes the strip away.
 final class MiniPlayerView: UIView {
     var onOpen: (() -> Void)?
-    private let cover = MusicCoverView(radius: 8)
+    private let cover = MusicCoverView(radius: 12, look: .artwork)
     private let heading = UILabel()
     private let line = UILabel()
-    private let back = UIButton(type: .system)
-    private let toggle = UIButton(type: .system)
-    private let forward = UIButton(type: .system)
-    private let close = UIButton(type: .system)
+    private let back = UIButton(type: .custom)
+    private let toggle = UIButton(type: .custom)
+    /// `PlaybackButton`: a 46 round of the accent gradient under the play / pause (23, on-accent).
+    private let toggleFill = CAGradientLayer()
+    private let forward = UIButton(type: .custom)
+    private let close = UIButton(type: .custom)
     private let track = UIView()
     private let done = UIView()
 
@@ -71,33 +131,45 @@ final class MiniPlayerView: UIView {
         words.axis = .vertical
         words.spacing = 4
         words.isUserInteractionEnabled = false
-        func set(_ button: UIButton, _ symbol: String, _ label: String, _ action: Selector, tint: UIColor = Theme.text) {
-            button.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold)), for: .normal)
+        // MiniPlayer (PlayerControls.tsx): the skips (20) on clear glass 36 × 44, the play disc 46, the close (20) 34 × 44.
+        func set(_ button: UIButton, _ symbol: String, _ label: String, _ action: Selector, tint: UIColor = Theme.text, wide: CGFloat = 36, high: CGFloat = 44, size: CGFloat = 20, glass: Bool = true) {
+            button.setImage(IonIcon.image(symbol, size: size), for: .normal)
             button.tintColor = tint
             button.accessibilityLabel = label
             button.addTarget(self, action: action, for: .touchUpInside)
-            button.widthAnchor.constraint(equalToConstant: 36).isActive = true
-            button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            button.frame = CGRect(x: 0, y: 0, width: wide, height: high)
+            if glass { GlassBacking.put(under: button) }
+            button.widthAnchor.constraint(equalToConstant: wide).isActive = true
+            button.heightAnchor.constraint(equalToConstant: high).isActive = true
         }
-        set(back, "backward.end.fill", "Предыдущий трек или начало текущего", #selector(goBack))
-        set(toggle, "play.fill", "Слушать", #selector(flip))
-        set(forward, "forward.end.fill", "Следующий трек", #selector(goForward))
-        set(close, "xmark", "Закрыть плеер и остановить музыку", #selector(shut), tint: Theme.muted)
+        set(back, "play-skip-back", "Предыдущий трек или начало текущего", #selector(goBack))
+        set(toggle, "play", "Слушать", #selector(flip), tint: Theme.onAccent, wide: 46, high: 46, size: 23, glass: false)
+        set(forward, "play-skip-forward", "Следующий трек", #selector(goForward))
+        set(close, "close", "Закрыть плеер и остановить музыку", #selector(shut), tint: Theme.muted, wide: 34)
+        let fill = ThemeStore.look.accentGradient
+        toggleFill.colors = (fill.isEmpty ? [Theme.accent, Theme.accent] : fill).map { $0.cgColor }
+        toggleFill.startPoint = CGPoint(x: 0, y: 0)
+        toggleFill.endPoint = CGPoint(x: 1, y: 1)
+        toggleFill.frame = CGRect(x: 0, y: 0, width: 46, height: 46)
+        toggleFill.cornerRadius = 23
+        toggle.layer.insertSublayer(toggleFill, at: 0)
+        Bouncy.attach(toggle, scale: 0.95)
         let row = UIStackView(arrangedSubviews: [cover, words, back, toggle, forward, close])
         row.axis = .horizontal
         row.alignment = .center
-        row.spacing = 6
+        row.spacing = 9
         row.setCustomSpacing(11, after: cover)
         row.translatesAutoresizingMaskIntoConstraints = false
         addSubview(row)
-        track.backgroundColor = Theme.veil(0.1)
+        track.backgroundColor = ThemeStore.look.border
         done.backgroundColor = Theme.accent
         addSubview(track)
         track.addSubview(done)
         NSLayoutConstraint.activate([
             cover.widthAnchor.constraint(equalToConstant: 46), cover.heightAnchor.constraint(equalToConstant: 46),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10), row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            row.topAnchor.constraint(equalTo: topAnchor, constant: 8), row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+            // padding 9, 12 under (the progress line lies there).
+            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 9), row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -9),
+            row.topAnchor.constraint(equalTo: topAnchor, constant: 9), row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
         ])
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
         let down = UISwipeGestureRecognizer(target: self, action: #selector(shut))
@@ -126,7 +198,7 @@ final class MiniPlayerView: UIView {
         heading.text = current.title
         line.text = !player.error.isEmpty ? "Есть сообщение · открыть" : (player.loading ? "Загружаем трек…" : current.artist)
         line.textColor = player.error.isEmpty ? Theme.muted : Theme.danger
-        toggle.setImage(UIImage(systemName: player.playing ? "pause.fill" : "play.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
+        toggle.setImage(IonIcon.image(player.playing ? "pause" : "play", size: 23), for: .normal)
         toggle.accessibilityLabel = player.playing ? "Пауза" : "Слушать"
         forward.isEnabled = player.queue.count >= 2
         setNeedsLayout()
@@ -139,28 +211,42 @@ final class MiniPlayerView: UIView {
     @objc private func shut() { MusicPlayer.shared.stop() }
 }
 
-/// One track of a list.
+/// One track of a list (MusicScreen.tsx `TrackRow`): the cover (52, radius 6), the title (15, semibold; the playing
+/// one in the accent after `stats-chart` / `pause` 12), the artist (12), the source and length (9, semibold, +0.2),
+/// then «в любимое» and «действия» (`IconButton`, 19). Rows 9 above and below, 4 apart.
 final class MusicTrackCell: UITableViewCell {
     private let cover = MusicCoverView(radius: 6)
+    private let mark = UIImageView()
     private let heading = UILabel()
     private let line = UILabel()
-    private let heart = UIButton(type: .system)
-    private let more = UIButton(type: .system)
+    private let badge = UILabel()
+    private let heart = UIButton(type: .custom)
+    private let more = UIButton(type: .custom)
     var onHeart: (() -> Void)?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
-        selectedBackgroundView = UIView()
-        selectedBackgroundView?.backgroundColor = Theme.veil(0.06)
+        selectionStyle = .none
         heading.font = .systemFont(ofSize: 15, weight: .semibold)
         line.font = .systemFont(ofSize: 12)
         line.textColor = Theme.muted
-        let words = UIStackView(arrangedSubviews: [heading, line])
+        mark.contentMode = .center
+        mark.tintColor = Theme.accent
+        mark.widthAnchor.constraint(equalToConstant: 12).isActive = true
+        let top = UIStackView(arrangedSubviews: [mark, heading])
+        top.axis = .horizontal
+        top.alignment = .center
+        top.spacing = 5
+        let words = UIStackView(arrangedSubviews: [top, line, badge])
         words.axis = .vertical
-        words.spacing = 3
+        words.spacing = 5
         heart.addTarget(self, action: #selector(liked), for: .touchUpInside)
-        more.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        for button in [heart, more] {
+            button.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
+            GlassBacking.put(under: button)
+        }
+        more.setImage(IonIcon.image("ellipsis-horizontal", size: 19), for: .normal)
         more.tintColor = Theme.muted
         more.showsMenuAsPrimaryAction = true
         let row = UIStackView(arrangedSubviews: [cover, words, heart, more])
@@ -172,29 +258,33 @@ final class MusicTrackCell: UITableViewCell {
         contentView.addSubview(row)
         NSLayoutConstraint.activate([
             cover.widthAnchor.constraint(equalToConstant: 52), cover.heightAnchor.constraint(equalToConstant: 52),
-            heart.widthAnchor.constraint(equalToConstant: 40), heart.heightAnchor.constraint(equalToConstant: 44),
-            more.widthAnchor.constraint(equalToConstant: 36), more.heightAnchor.constraint(equalToConstant: 44),
-            row.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18), row.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10),
-            row.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 7), row.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -7),
+            heart.widthAnchor.constraint(equalToConstant: 44), heart.heightAnchor.constraint(equalToConstant: 44),
+            more.widthAnchor.constraint(equalToConstant: 44), more.heightAnchor.constraint(equalToConstant: 44),
+            // marginHorizontal −7 with paddingHorizontal 7: the cover and the buttons on the page's 18 pt edge.
+            row.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 18), row.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -18),
+            row.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 9), row.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -13),
+            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 55),
         ])
     }
 
     required init?(coder: NSCoder) { return nil }
 
-    func show(_ track: MusicTrack, current: Bool, favorite: Bool, menu: UIMenu) {
+    func show(_ track: MusicTrack, current: Bool, favorite: Bool, menu: UIMenu, playing: Bool = true) {
         cover.bind(track)
         heading.text = track.title
-        heading.textColor = current ? Theme.onBlack(.white, otherwise: Theme.accent) : Theme.text
-        let badge = track.source == "local" ? "НА УСТРОЙСТВЕ" : (track.source == "soundcloud" ? "SOUNDCLOUD" : "AUDIUS")
-        var words = track.artist
-        if track.duration > 0 { words += " · " + MusicCatalog.time(track.duration) }
-        line.text = words + " · " + badge
-        heart.setImage(UIImage(systemName: favorite ? "heart.fill" : "heart"), for: .normal)
-        heart.tintColor = favorite ? Theme.text : Theme.muted
+        heading.textColor = current ? Theme.accent : Theme.text
+        mark.isHidden = !current
+        mark.image = IonIcon.image(playing ? "stats-chart" : "pause", size: 12)
+        line.text = track.artist
+        var source = track.source == "local" ? "НА УСТРОЙСТВЕ" : (track.source == "soundcloud" ? "SOUNDCLOUD" : "AUDIUS")
+        if track.duration > 0 { source += " · " + MusicCatalog.time(track.duration) }
+        badge.attributedText = NSAttributedString(string: source, attributes: [.font: UIFont.systemFont(ofSize: 9, weight: .semibold), .kern: 0.2, .foregroundColor: Theme.subtle])
+        heart.setImage(IonIcon.image(favorite ? "heart" : "heart-outline", size: 19), for: .normal)
+        heart.tintColor = favorite ? Theme.accent : Theme.muted
         heart.accessibilityLabel = favorite ? "Убрать из любимого: \(track.title)" : "В любимое: \(track.title)"
         more.accessibilityLabel = "Действия: \(track.title)"
         more.menu = menu
-        accessibilityLabel = "Слушать: \(track.title), \(track.artist)"
+        accessibilityLabel = "\(current && playing ? "Пауза" : "Слушать"): \(track.title), \(track.artist)"
     }
 
     @objc private func liked() { onHeart?() }
@@ -234,7 +324,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     private let headBox = UIView()
     private let headStack = UIStackView()
     private var headHeight: NSLayoutConstraint?
-    private let addButton = GlassRoundButton(symbol: "plus", label: "Добавить аудиофайлы", iconSize: 21)
+    private let addButton = GlassRoundButton(symbol: "ion:add", label: "Добавить аудиофайлы", iconSize: 23)
     private let tabRow = UIStackView()
     private var tabButtons: [UIButton] = []
     private let sourceBox = UIView()
@@ -442,17 +532,17 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
 
     private func menu(_ track: MusicTrack) -> UIMenu {
         var items: [UIMenuElement] = []
-        items.append(UIAction(title: "Слушать", image: UIImage(systemName: "play.fill")) { [weak self] _ in
+        items.append(UIAction(title: "Слушать", image: IonIcon.image("play", size: 20)) { [weak self] _ in
             guard let self else { return }
             self.player.play(track, queue: self.rows)
         })
         let favorite = player.isFavorite(track)
-        items.append(UIAction(title: favorite ? "Убрать из любимого" : "В любимое", image: UIImage(systemName: favorite ? "heart.fill" : "heart")) { [weak self] _ in self?.player.toggleFavorite(track) })
+        items.append(UIAction(title: favorite ? "Убрать из любимого" : "В любимое", image: IonIcon.image(favorite ? "heart" : "heart-outline", size: 20)) { [weak self] _ in self?.player.toggleFavorite(track) })
         if track.sourceUrl != nil {
-            items.append(UIAction(title: track.source == "soundcloud" ? "Открыть в SoundCloud" : "Открыть источник", image: UIImage(systemName: "arrow.up.right.square")) { [weak self] _ in self?.openLink(track.sourceUrl) })
+            items.append(UIAction(title: track.source == "soundcloud" ? "Открыть в SoundCloud" : "Открыть источник", image: IonIcon.image("open-outline", size: 20)) { [weak self] _ in self?.openLink(track.sourceUrl) })
         }
         if track.source == "audius", track.downloadable {
-            items.append(UIAction(title: "Скачать через Audius", subtitle: "Откроется официальная загрузка трека", image: UIImage(systemName: "arrow.down.circle")) { [weak self] _ in
+            items.append(UIAction(title: "Скачать через Audius", subtitle: "Откроется официальная загрузка трека", image: IonIcon.image("download-outline", size: 20)) { [weak self] _ in
                 MusicCatalog.resolveDownload(track) { result in
                     switch result {
                     case .failure(let failure): MusicPlayer.shared.report(failure.words)
@@ -464,11 +554,11 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             })
         }
         if track.source == "local" {
-            items.append(UIAction(title: "Поделиться файлом", image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
+            items.append(UIAction(title: "Поделиться файлом", image: IonIcon.image("share-outline", size: 20)) { [weak self] _ in
                 guard let self, let file = self.player.fileURL(track), FileManager.default.fileExists(atPath: file.path) else { return MusicPlayer.shared.report("Сохранённый файл не найден.") }
                 self.present(UIActivityViewController(activityItems: [file], applicationActivities: nil), animated: true)
             })
-            items.append(UIAction(title: "Убрать из приложения", subtitle: "Исходный файл на устройстве сохранится", image: UIImage(systemName: "trash"), attributes: [.destructive]) { [weak self] _ in self?.player.removeSaved(track) })
+            items.append(UIAction(title: "Убрать из приложения", subtitle: "Исходный файл на устройстве сохранится", image: IonIcon.image("trash-outline", size: 20), attributes: [.destructive]) { [weak self] _ in self?.player.removeSaved(track) })
         }
         return UIMenu(title: track.title, children: items)
     }
@@ -507,7 +597,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         table.separatorStyle = .none
         table.dataSource = self
         table.delegate = self
-        table.rowHeight = 66
+        table.rowHeight = 77 // 9 + max(55, the three lines) + 9, and 4 under (TrackRow)
         table.keyboardDismissMode = .onDrag
         table.register(MusicTrackCell.self, forCellReuseIdentifier: "track")
         view.addSubview(table)
@@ -546,7 +636,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         titleRow.axis = .horizontal
         titleRow.alignment = .center
         titleRow.spacing = 10
-        let info = GlassRoundButton(symbol: "info", label: "О музыкальном разделе", iconSize: 19, weight: .medium)
+        let info = GlassRoundButton(symbol: "ion:information-outline", label: "О музыкальном разделе", iconSize: 23)
         info.setTint(ink)
         info.onPress = { [weak self] () -> Void in self?.showInfo() }
         addButton.setTint(ink)
@@ -619,7 +709,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         mixRow.translatesAutoresizingMaskIntoConstraints = false
         mixButton.backgroundColor = Theme.dark ? .white : UIColor(hex: 0x14243D)
         mixButton.tintColor = Theme.dark ? .black : .white
-        mixButton.setImage(UIImage(systemName: "play.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 26, weight: .regular)), for: .normal)
+        mixButton.setImage(IonIcon.image("play", size: 30), for: .normal)
         mixButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 4, bottom: 0, right: 0)
         mixButton.layer.cornerRadius = 33
         mixButton.layer.shadowColor = UIColor.black.cgColor
@@ -670,7 +760,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         search.delegate = self
         search.accessibilityLabel = "Поиск музыки"
         let lens = UIView(frame: CGRect(x: 0, y: 0, width: 46, height: 48))
-        let glass = UIImageView(image: UIImage(systemName: "magnifyingglass", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)))
+        let glass = UIImageView(image: IonIcon.image("search-outline", size: 20))
         glass.tintColor = Theme.muted
         glass.contentMode = .center
         glass.frame = CGRect(x: 16, y: 0, width: 20, height: 48)
@@ -807,29 +897,9 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     }
     private var lastMark = ""
 
-    private func noticeBox(_ text: String, error: Bool, close: (() -> Void)?) -> UIView {
-        let box = UIView()
-        box.backgroundColor = Theme.veil(0.06)
-        box.layer.cornerRadius = 14
-        let label = AIKit.label(text, size: 13, color: error ? Theme.danger : Theme.text)
-        let shut = UIButton(type: .system)
-        shut.setImage(UIImage(systemName: "xmark"), for: .normal)
-        shut.tintColor = Theme.muted
-        shut.accessibilityLabel = "Закрыть сообщение"
-        shut.isHidden = close == nil
-        shut.widthAnchor.constraint(equalToConstant: 30).isActive = true
-        shut.addAction(UIAction { _ in close?() }, for: .touchUpInside)
-        let row = UIStackView(arrangedSubviews: [label, shut])
-        row.axis = .horizontal
-        row.alignment = .top
-        row.spacing = 6
-        row.translatesAutoresizingMaskIntoConstraints = false
-        box.addSubview(row)
-        NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: box.topAnchor, constant: 12), row.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -12),
-            row.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 14), row.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -8),
-        ])
-        return box
+    /// The reference's `Notice` (no close button: the words go when the cause does).
+    private func noticeBox(_ text: String, error: Bool, retry: (() -> Void)? = nil) -> UIView {
+        return NoticeView(text: text, error: error, retry: retry)
     }
 
     private func refresh() {
@@ -853,7 +923,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         }
         moodScroll.isHidden = !catalog
         moodRow.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        var chips: [(String?, String, String)] = [(nil, "Любое", "sparkles")]
+        var chips: [(String?, String, String)] = [(nil, "Любое", "sparkles-outline")]
         chips += MusicCatalog.moods.dropFirst().map { ($0.apiMood, $0.label, $0.symbol) }
         for chip in chips {
             let selected = chip.0 == mood
@@ -866,7 +936,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             button.isAccessibilityElement = true
             button.accessibilityLabel = chip.1
             button.accessibilityTraits = selected ? [.button, .selected] : .button
-            let icon = UIImageView(image: UIImage(systemName: chip.2, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)))
+            let icon = UIImageView(image: IonIcon.image(chip.2, size: 18))
             icon.tintColor = selected ? Theme.accent : Theme.muted
             icon.contentMode = .left
             let name = AIKit.label(chip.1, size: 11, weight: .semibold, color: selected ? Theme.accent : Theme.text, lines: 1)
@@ -903,10 +973,10 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         caption.text = query.isEmpty ? "ОТКРОЙ ДЛЯ СЕБЯ" : "РЕЗУЛЬТАТЫ"
 
         notices.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        if !player.error.isEmpty { notices.addArrangedSubview(noticeBox(player.error, error: true) { MusicPlayer.shared.clearError() }) }
-        if !player.notice.isEmpty { notices.addArrangedSubview(noticeBox(player.notice, error: false) { MusicPlayer.shared.clearNotice() }) }
-        if !sourceNotice.isEmpty, catalog { notices.addArrangedSubview(noticeBox(sourceNotice, error: false, close: nil)) }
-        if !failure.isEmpty, catalog { notices.addArrangedSubview(noticeBox(failure, error: true, close: nil)) }
+        if !player.error.isEmpty { notices.addArrangedSubview(noticeBox(player.error, error: true)) }
+        if !player.notice.isEmpty { notices.addArrangedSubview(noticeBox(player.notice, error: false)) }
+        if !sourceNotice.isEmpty, catalog { notices.addArrangedSubview(noticeBox(sourceNotice, error: false)) }
+        if !failure.isEmpty, catalog { notices.addArrangedSubview(noticeBox(failure, error: true) { [weak self] in self?.reloadCatalog() }) }
         notices.isHidden = notices.arrangedSubviews.isEmpty
 
         footer.arrangedSubviews.forEach { $0.removeFromSuperview() }
@@ -950,7 +1020,7 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
         let list = rows
         guard let row = cell as? MusicTrackCell, indexPath.row < list.count else { return cell }
         let track = list[indexPath.row]
-        row.show(track, current: player.current?.id == track.id, favorite: player.isFavorite(track), menu: menu(track))
+        row.show(track, current: player.current?.id == track.id, favorite: player.isFavorite(track), menu: menu(track), playing: player.playing)
         row.onHeart = { [weak self] in self?.player.toggleFavorite(track) }
         return row
     }

@@ -316,13 +316,13 @@ final class ScreenViewerController: UIViewController, UIScrollViewDelegate {
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center
         top.addSubview(titleLabel)
-        let symbols = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
-        closeButton.setImage(UIImage(systemName: "xmark", withConfiguration: symbols), for: .normal)
+        // The app's icon set (Ionicons); the reference shows the screen inline and has no viewer of its own.
+        closeButton.setImage(IonIcon.image("close", size: 22), for: .normal)
         closeButton.tintColor = .white
         closeButton.accessibilityLabel = "Закрыть"
         closeButton.addTarget(self, action: #selector(close), for: .touchUpInside)
         top.addSubview(closeButton)
-        turnButton.setImage(UIImage(systemName: "rotate.right", withConfiguration: symbols), for: .normal)
+        turnButton.setImage(IonIcon.image("phone-landscape-outline", size: 22), for: .normal)
         turnButton.tintColor = .white
         turnButton.accessibilityLabel = "Повернуть"
         turnButton.addTarget(self, action: #selector(turn), for: .touchUpInside)
@@ -464,7 +464,7 @@ final class ScreenShareStrip: UIView {
         let video = ScreenVideoView()
         video.layer.cornerRadius = 8
         video.isUserInteractionEnabled = false
-        let icon = UIImageView(image: UIImage(systemName: "rectangle.on.rectangle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)))
+        let icon = UIImageView(image: IonIcon.image("desktop-outline", size: 13))
         icon.tintColor = Theme.accent
         let label = UILabel()
         label.font = .systemFont(ofSize: 13, weight: .semibold)

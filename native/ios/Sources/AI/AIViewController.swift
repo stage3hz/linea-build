@@ -441,7 +441,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
             }, for: .touchUpInside)
             row.addArrangedSubview(openButton)
             let trash = UIButton(type: .system)
-            trash.setImage(UIImage(systemName: "trash"), for: .normal)
+            trash.setImage(IonIcon.image("trash-outline", size: 19), for: .normal)
             trash.tintColor = Theme.danger
             trash.accessibilityLabel = "Удалить беседу \(item.title)"
             trash.setContentHuggingPriority(.required, for: .horizontal)
@@ -469,7 +469,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         var entries: [(id: String, label: String, help: String?)] = [("auto", "Авто", "Бесплатная модель, которую подбирает сервер")]
         if router { entries = AIModel.strategies.map { item -> (id: String, label: String, help: String?) in (id: item.id, label: AIModel.modelLabel(item.id), help: item.help) } }
         func action(_ entry: (id: String, label: String, help: String?), lockedRow: Bool) -> UIAction {
-            let made = UIAction(title: entry.label, subtitle: entry.help, image: lockedRow ? UIImage(systemName: "lock.fill") : nil, state: value == entry.id ? .on : .off) { [weak self] _ in
+            let made = UIAction(title: entry.label, subtitle: entry.help, image: lockedRow ? IonIcon.image("lock-closed", size: 14) : nil, state: value == entry.id ? .on : .off) { [weak self] _ in
                 guard let self else { return }
                 if lockedRow { return self.showPlatina("Выбор модели") }
                 self.chosenModel = entry.id
@@ -482,7 +482,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         let more = models.filter { !known.contains($0) }
         if router, !more.isEmpty {
             if locked {
-                children.append(UIAction(title: "Другие модели", image: UIImage(systemName: "lock.fill")) { [weak self] _ in self?.showPlatina("Выбор модели") })
+                children.append(UIAction(title: "Другие модели", image: IonIcon.image("lock-closed", size: 14)) { [weak self] _ in self?.showPlatina("Выбор модели") })
             } else {
                 let rows: [UIMenuElement] = more.map { id -> UIMenuElement in
                     let parts = id.components(separatedBy: "/")
@@ -498,18 +498,18 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
 
     private func toolsMenu() -> UIMenu {
         let canTranscribe = router && status?.can("transcribe") == true
-        let audioAction = UIAction(title: "Аудиофайл → текст", image: UIImage(systemName: full ? "mic" : "lock.fill"), attributes: canTranscribe ? [] : [.disabled]) { [weak self] _ in
+        let audioAction = UIAction(title: "Аудиофайл → текст", image: full ? IonIcon.image("mic-outline", size: 22) : IonIcon.image("lock-closed", size: 14), attributes: canTranscribe ? [] : [.disabled]) { [weak self] _ in
             guard let self else { return }
             if !self.full { return self.showPlatina("Аудиофайл → текст") }
             self.transcribeFile()
         }
         // «Фото и видео» and «Документ» (with Platina; when the server allows them).
-        let photosAction = UIAction(title: "Фото и видео", image: UIImage(systemName: full ? "photo.on.rectangle" : "lock.fill"), attributes: vision ? [] : [.disabled]) { [weak self] _ in
+        let photosAction = UIAction(title: "Фото и видео", image: full ? IonIcon.image("images-outline", size: 22) : IonIcon.image("lock-closed", size: 14), attributes: vision ? [] : [.disabled]) { [weak self] _ in
             guard let self else { return }
             if !self.full { return self.showPlatina("Фото и видео") }
             self.pickPictures()
         }
-        let documentAction = UIAction(title: "Документ", image: UIImage(systemName: full ? "doc.text" : "lock.fill"), attributes: docs ? [] : [.disabled]) { [weak self] _ in
+        let documentAction = UIAction(title: "Документ", image: full ? IonIcon.image("document-text-outline", size: 22) : IonIcon.image("lock-closed", size: 14), attributes: docs ? [] : [.disabled]) { [weak self] _ in
             guard let self else { return }
             if !self.full { return self.showPlatina("Документ") }
             self.pickDocuments()
@@ -568,7 +568,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         [historyButton, gap, newButton, privateButton].forEach { topBar.addArrangedSubview($0) }
         if quick {
             // `AIQuickDialog`: «Закрыть» in place of the history.
-            historyButton.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
+            historyButton.setImage(IonIcon.image("close", size: 21), for: .normal)
             historyButton.accessibilityLabel = "Закрыть быстрый вопрос AI"
             historyButton.addTarget(self, action: #selector(closeQuick), for: .touchUpInside)
         } else {
@@ -778,7 +778,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         guard isViewLoaded, conversation != nil else { return }
         let turns = conversation.turns
         newButton.isHidden = turns.isEmpty
-        privateButton.setImage(UIImage(systemName: incognito ? "eye.slash.fill" : "eye.slash", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
+        privateButton.setImage(IonIcon.image(incognito ? "eye-off" : "eye-off-outline", size: 21), for: .normal)
         privateButton.backgroundColor = incognito ? Theme.veil(0.16) : Theme.surface2
         privateButton.accessibilityLabel = incognito ? "Приватная беседа включена: не сохраняется" : "Приватная беседа: не сохранять в историю"
 
@@ -795,14 +795,14 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
             emptyBox.addArrangedSubview(AIKit.label(statusError, size: 13, color: Theme.danger, align: .center))
             addRetry()
         } else if !ready && empty {
-            let mark = UIImageView(image: UIImage(systemName: "sparkles", withConfiguration: UIImage.SymbolConfiguration(pointSize: 30, weight: .regular)))
+            let mark = UIImageView(image: IonIcon.image("sparkles-outline", size: 34))
             mark.tintColor = Theme.muted
             emptyBox.addArrangedSubview(mark)
             emptyBox.addArrangedSubview(AIKit.label("AI пока не подключён на этом сервере", size: 18, weight: .bold, align: .center))
             emptyBox.addArrangedSubview(AIKit.label("Когда администратор подключит сервис, здесь можно будет задать вопрос.", size: 12, color: Theme.muted, align: .center))
             addRetry()
         } else if empty {
-            let mark = UIImageView(image: UIImage(systemName: "sparkles", withConfiguration: UIImage.SymbolConfiguration(pointSize: 36, weight: .regular)))
+            let mark = UIImageView(image: IonIcon.image("sparkles", size: 40))
             mark.tintColor = Theme.accent
             emptyBox.addArrangedSubview(mark)
             let hour = Calendar.current.component(.hour, from: Date())
@@ -863,7 +863,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     private func retryButton() -> UIButton {
         var look = UIButton.Configuration.plain()
         look.attributedTitle = AttributedString(NSAttributedString(string: "Проверить снова", attributes: [.font: UIFont.systemFont(ofSize: 16, weight: .bold), .foregroundColor: Theme.text]))
-        look.image = UIImage(systemName: "arrow.clockwise", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
+        look.image = IonIcon.image("refresh-outline", size: 20)
         look.imagePadding = 10
         look.baseForegroundColor = Theme.text
         look.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 21, bottom: 0, trailing: 21)
@@ -1105,7 +1105,7 @@ extension AIViewController: PHPickerViewControllerDelegate {
             face.frame = CGRect(x: 0, y: 4, width: 54, height: 54)
             box.addSubview(face)
             if item.video {
-                let mark = UIImageView(image: UIImage(systemName: "video.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .bold)))
+                let mark = UIImageView(image: IonIcon.image("videocam", size: 11))
                 mark.tintColor = .white
                 mark.backgroundColor = UIColor(white: 0, alpha: 0.55)
                 mark.layer.cornerRadius = 6
@@ -1114,7 +1114,7 @@ extension AIViewController: PHPickerViewControllerDelegate {
                 box.addSubview(mark)
             }
             let remove = UIButton(type: .system)
-            remove.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .bold)), for: .normal)
+            remove.setImage(IonIcon.image("close", size: 13), for: .normal)
             remove.tintColor = Theme.dark ? UIColor(hex: 0x111111) : .white
             remove.backgroundColor = Theme.text
             remove.layer.cornerRadius = 10
@@ -1139,14 +1139,14 @@ extension AIViewController: PHPickerViewControllerDelegate {
             chip.layer.cornerRadius = 12
             chip.isLayoutMarginsRelativeArrangement = true
             chip.layoutMargins = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 6)
-            let icon = UIImageView(image: UIImage(systemName: "doc.text", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)))
+            let icon = UIImageView(image: IonIcon.image("document-text-outline", size: 20))
             icon.tintColor = Theme.accent
             let title = AIKit.label(doc.name, size: 13, weight: .semibold, lines: 1)
             let state = AIKit.label((doc.pages.map { "\($0) стр. · " } ?? "") + (doc.truncated ? "прочитано начало" : "прочитан"), size: 10, color: Theme.muted, lines: 1)
             let words = UIStackView(arrangedSubviews: [title, state])
             words.axis = .vertical
             let remove = UIButton(type: .system)
-            remove.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)), for: .normal)
+            remove.setImage(IonIcon.image("close", size: 15), for: .normal)
             remove.tintColor = Theme.muted
             remove.accessibilityLabel = "Убрать документ \(doc.name)"
             let name = doc.name

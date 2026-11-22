@@ -48,14 +48,25 @@ final class PlayerViewController: UIViewController {
 
     required init?(coder: NSCoder) { return nil }
 
+    /// The reference's glyphs and sizes (PlayerControls.tsx `FullPlayer`) for the names this page asks by.
+    private static let glyphs: [String: (String, CGFloat)] = [
+        "chevron.down": ("chevron-down", 26), "xmark": ("close", 23), "heart": ("heart-outline", 22), "heart.fill": ("heart", 22),
+        "ellipsis": ("ellipsis-horizontal", 22), "backward.end.fill": ("play-skip-back", 36), "forward.end.fill": ("play-skip-forward", 36),
+        "repeat": ("repeat", 26), "repeat.1": ("repeat", 26), "pause.fill": ("pause", 52), "play.fill": ("play", 52), "shuffle": ("shuffle", 26),
+        "slider.horizontal.3": ("options-outline", 19),
+    ]
+
     private func symbol(_ button: UIButton, _ name: String, size: CGFloat, weight: UIImage.SymbolWeight = .semibold) {
+        if let glyph = PlayerViewController.glyphs[name] { button.setImage(IonIcon.image(glyph.0, size: glyph.1), for: .normal); return }
         button.setImage(UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight)), for: .normal)
     }
 
     private func chip(_ button: UIButton, _ words: String, _ name: String, on: Bool) {
         var config = UIButton.Configuration.filled()
         config.title = words
-        config.image = UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+        // The chips' glyphs (19): shuffle, heart(-outline), options-outline.
+        let glyph = PlayerViewController.glyphs[name]?.0 ?? name
+        config.image = IonIcon.image(glyph == "heart-outline" || glyph == "heart" || glyph == "options-outline" || glyph == "shuffle" ? glyph : name, size: 19)
         config.imagePadding = 6
         config.cornerStyle = .capsule
         config.baseBackgroundColor = on ? Theme.text : Theme.veil(0.08)
@@ -238,9 +249,9 @@ final class PlayerViewController: UIViewController {
         paintBackdrop(track)
         var actions: [UIMenuElement] = []
         if let address = track.sourceUrl, let url = URL(string: address), url.scheme?.lowercased() == "https" {
-            actions.append(UIAction(title: track.source == "soundcloud" ? "Открыть в SoundCloud" : "Открыть страницу трека", image: UIImage(systemName: "arrow.up.right.square")) { _ in UIApplication.shared.open(url) })
+            actions.append(UIAction(title: track.source == "soundcloud" ? "Открыть в SoundCloud" : "Открыть страницу трека", image: IonIcon.image("arrow-redo-outline", size: 20)) { _ in UIApplication.shared.open(url) })
         }
-        actions.append(UIAction(title: favorite ? "Убрать из любимого" : "В любимое", image: UIImage(systemName: favorite ? "heart.fill" : "heart")) { _ in MusicPlayer.shared.toggleFavorite(track) })
+        actions.append(UIAction(title: favorite ? "Убрать из любимого" : "В любимое", image: IonIcon.image(favorite ? "heart" : "heart-outline", size: 20)) { _ in MusicPlayer.shared.toggleFavorite(track) })
         extra.menu = UIMenu(title: track.title, children: actions)
 
         let length = player.duration
@@ -276,7 +287,8 @@ final class PlayerViewController: UIViewController {
                     let on = item.id == track.id
                     config.attributedTitle = AttributedString(item.title, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 15, weight: on ? .bold : .regular)]))
                     config.attributedSubtitle = AttributedString(item.artist, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 12), .foregroundColor: Theme.muted]))
-                    config.image = UIImage(systemName: on ? "speaker.wave.2.fill" : "music.note", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .regular))
+                    // The playing one: `volume-medium-outline` / `pause-outline` (17, accent); the others no glyph.
+                    config.image = on ? IonIcon.image(player.playing ? "volume-medium-outline" : "pause-outline", size: 17) : nil
                     config.imagePadding = 12
                     config.baseForegroundColor = Theme.text
                     config.titleLineBreakMode = .byTruncatingTail

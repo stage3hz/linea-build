@@ -1,3 +1,4 @@
+import CoreText
 import UIKit
 
 /// ChatsPlus: «Люди › Звонки» (the reference's calls/CallHistory.tsx over callLog.ts): recent calls grouped by day,
@@ -190,7 +191,11 @@ final class CallHistoryPanel: NSObject, UITableViewDataSource, UITableViewDelega
         callsTab.frame = CGRect(x: 8 + half, y: 4, width: half, height: 36)
         let badgeWidth = max(18, ceil(missedBadge.sizeThatFits(CGSize(width: 60, height: 18)).width) + 10)
         let wordsWidth = ceil(callsTab.titleLabel?.sizeThatFits(CGSize(width: half, height: 36)).width ?? 50)
-        missedBadge.frame = CGRect(x: (half + wordsWidth) / 2 + 6, y: 9, width: badgeWidth, height: 18)
+        // The word and the badge (6 apart) are centred together in the segment.
+        let pair = missedBadge.isHidden ? wordsWidth : wordsWidth + 6 + badgeWidth
+        let shift = missedBadge.isHidden ? 0 : (6 + badgeWidth) / 2
+        callsTab.titleEdgeInsets = UIEdgeInsets(top: 0, left: -shift * 2, bottom: 0, right: 0)
+        missedBadge.frame = CGRect(x: (half - pair) / 2 + wordsWidth + 6, y: 9, width: badgeWidth, height: 18)
         let below = switcher.frame.maxY
         page.frame = CGRect(x: 0, y: below + 14, width: width, height: max(0, view.bounds.height - below - 14))
         table.frame = page.bounds
@@ -267,7 +272,7 @@ final class CallHistoryPanel: NSObject, UITableViewDataSource, UITableViewDelega
         table.reloadData()
         empty.isHidden = !records.isEmpty
         if records.isEmpty {
-            empty.show(symbol: "phone", title: "Звонков пока не было", words: "Здесь появятся входящие, исходящие и пропущенные звонки. Позвонить можно из чата или из профиля человека.")
+            empty.show(symbol: "ion:call-outline", title: "Звонков пока не было", words: "Здесь появятся входящие, исходящие и пропущенные звонки. Позвонить можно из чата или из профиля человека.")
         }
         paintTabs()
     }
@@ -290,7 +295,8 @@ final class CallHistoryPanel: NSObject, UITableViewDataSource, UITableViewDelega
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        item(at: indexPath.row).day != nil ? 34 : 80
+        // A day: 8 + its line + 10; a call: 12 + the picture (50) + 12, and 6 under it.
+        item(at: indexPath.row).day != nil ? 8 + ceil(AppFont.text(10, .bold).lineHeight) + 10 : 80
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -364,7 +370,7 @@ final class CallDayCell: UITableViewCell {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        words.frame = CGRect(x: 26, y: 8, width: contentView.bounds.width - 52, height: 16)
+        words.frame = CGRect(x: 26, y: 8, width: contentView.bounds.width - 52, height: ceil(AppFont.text(10, .bold).lineHeight))
     }
 }
 
@@ -378,7 +384,9 @@ final class CallRowCell: UITableViewCell {
     private let arrow = UIImageView()
     private let words = UILabel()
     private let time = UILabel()
-    private let again = UIButton(type: .system)
+    private let again = UIButton(type: .custom)
+    /// The row's card: on a press the page's border and a light veil (radius 24, 14 in from the list).
+    private let card = UIView()
 
     private static let clock: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "ru_RU"); f.dateFormat = "HH:mm"; return f }()
 
@@ -386,8 +394,13 @@ final class CallRowCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectionStyle = .none
+        card.layer.cornerRadius = 24
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1
+        card.isUserInteractionEnabled = false
+        contentView.addSubview(card)
+        paintCard(false)
         contentView.addSubview(avatar)
-        name.font = AppFont.text(16, .semibold)
         contentView.addSubview(name)
         dot.backgroundColor = Theme.danger
         dot.layer.cornerRadius = 4
@@ -396,13 +409,17 @@ final class CallRowCell: UITableViewCell {
         contentView.addSubview(arrow)
         words.font = AppFont.text(13)
         contentView.addSubview(words)
-        time.font = UIFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+        // Montserrat with even digits (`fontVariant: tabular-nums`).
+        let even = AppFont.text(13).fontDescriptor.addingAttributes([.featureSettings: [[UIFontDescriptor.FeatureKey.type: kNumberSpacingType, UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector]]])
+        time.font = UIFont(descriptor: even, size: 13)
         time.textColor = Theme.muted
         time.textAlignment = .right
         contentView.addSubview(time)
         again.layer.cornerRadius = 19
         again.layer.borderWidth = 1
         again.addTarget(self, action: #selector(pressed), for: .touchUpInside)
+        again.addAction(UIAction { [weak self] _ in self?.again.alpha = 0.6 }, for: [.touchDown, .touchDragEnter])
+        again.addAction(UIAction { [weak self] _ in self?.again.alpha = 1 }, for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
         contentView.addSubview(again)
     }
 
@@ -412,22 +429,21 @@ final class CallRowCell: UITableViewCell {
         let red = call.kind == "missed" || call.kind == "declined"
         let person = FolderChat(summary: call.chat)
         avatar.show(person)
-        name.text = call.chat.title + (call.count > 1 ? " (\(call.count))" : "")
-        name.textColor = call.kind == "missed" ? Theme.danger : Theme.text
+        name.attributedText = NSAttributedString(string: call.chat.title + (call.count > 1 ? " (\(call.count))" : ""), attributes: [.font: AppFont.text(16, .semibold), .kern: -0.2, .foregroundColor: call.kind == "missed" ? Theme.danger : Theme.text])
         dot.isHidden = !call.unseen
         let symbol: String
         switch call.kind {
-        case "outgoing", "cancelled", "busy": symbol = "arrow.up.right"
-        case "incoming", "missed": symbol = "arrow.down.left"
-        case "declined": symbol = "nosign"
-        default: symbol = "exclamationmark.circle"
+        case "outgoing", "cancelled", "busy": symbol = "arrow-up-outline"
+        case "incoming", "missed": symbol = "arrow-down-outline"
+        case "declined": symbol = "ban-outline"
+        default: symbol = "alert-circle-outline"
         }
-        arrow.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold))
+        arrow.image = IonIcon.image(symbol, size: 14)
         arrow.tintColor = red ? Theme.danger : Theme.muted
         words.text = call.label
         words.textColor = red ? Theme.danger : Theme.muted
         time.text = CallRowCell.clock.string(from: call.at)
-        again.setImage(UIImage(systemName: call.video ? "video" : "phone", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .regular)), for: .normal)
+        again.setImage(IonIcon.image(call.video ? "videocam-outline" : "call-outline", size: 19), for: .normal)
         again.tintColor = Theme.accent
         again.backgroundColor = ThemeStore.look.accentSoft
         again.layer.borderColor = ThemeStore.look.border.cgColor
@@ -438,18 +454,34 @@ final class CallRowCell: UITableViewCell {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let w = contentView.bounds.width, h = contentView.bounds.height
+        // The card: 14 in from the list, 6 under it; inside 12, gap 14.
+        let w = contentView.bounds.width, h = contentView.bounds.height - 6
+        card.frame = CGRect(x: 14, y: 0, width: w - 28, height: h)
         avatar.frame = CGRect(x: 26, y: (h - 50) / 2, width: 50, height: 50)
         again.frame = CGRect(x: w - 26 - 38, y: (h - 38) / 2, width: 38, height: 38)
-        time.frame = CGRect(x: again.frame.minX - 14 - 50, y: (h - 18) / 2, width: 50, height: 18)
+        let timeWidth = ceil(time.sizeThatFits(CGSize(width: 80, height: 20)).width)
+        let timeLine = ceil(time.font.lineHeight)
+        time.frame = CGRect(x: again.frame.minX - 14 - timeWidth, y: (h - timeLine) / 2, width: timeWidth, height: timeLine)
         let left = avatar.frame.maxX + 14
-        let room = time.frame.minX - 8 - left
-        let nameWidth = min(room - (dot.isHidden ? 0 : 14), ceil(name.sizeThatFits(CGSize(width: room, height: 21)).width))
-        name.frame = CGRect(x: left, y: h / 2 - 22, width: max(0, nameWidth), height: 21)
+        let room = time.frame.minX - 14 - left
+        let nameLine = ceil(AppFont.text(16, .semibold).lineHeight), wordsLine = ceil(AppFont.text(13).lineHeight)
+        let top = (h - nameLine - 4 - wordsLine) / 2
+        let nameWidth = min(room - (dot.isHidden ? 0 : 14), ceil(name.sizeThatFits(CGSize(width: room, height: nameLine)).width))
+        name.frame = CGRect(x: left, y: top, width: max(0, nameWidth), height: nameLine)
         dot.frame = CGRect(x: name.frame.maxX + 6, y: name.frame.midY - 4, width: 8, height: 8)
-        arrow.frame = CGRect(x: left, y: h / 2 + 3, width: 14, height: 18)
-        words.frame = CGRect(x: left + 19, y: h / 2 + 3, width: max(0, room - 19), height: 18)
+        arrow.frame = CGRect(x: left, y: top + nameLine + 4 + (wordsLine - 14) / 2, width: 14, height: 14)
+        words.frame = CGRect(x: left + 19, y: top + nameLine + 4, width: max(0, room - 19), height: wordsLine)
     }
 
     @objc private func pressed() { onCall?() }
+
+    private func paintCard(_ pressed: Bool) {
+        card.backgroundColor = pressed ? (Theme.dark ? UIColor(white: 1, alpha: 0.07) : UIColor(white: 1, alpha: 0.5)) : .clear
+        card.layer.borderColor = pressed ? ThemeStore.look.border.cgColor : UIColor.clear.cgColor
+    }
+
+    override func setHighlighted(_ highlighted: Bool, animated: Bool) {
+        super.setHighlighted(highlighted, animated: animated)
+        paintCard(highlighted)
+    }
 }

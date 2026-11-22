@@ -47,7 +47,14 @@ enum AIKit {
     /// A 48-point round button with a symbol.
     static func round(_ symbol: String, _ words: String, active: Bool = false, size: CGFloat = 48) -> UIButton {
         let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal)
+        // The reference's glyphs (AIScreen.tsx): the header's 21, «+» 24, send 21, stop 18, the media play 22.
+        let glyphs: [String: (String, CGFloat)] = [
+            "line.3.horizontal": ("menu-outline", 21), "square.and.pencil": ("create-outline", 21), "eye.slash": ("eye-off-outline", 21),
+            "eye.slash.fill": ("eye-off", 21), "xmark": ("close", 21), "plus": ("add", 24), "arrow.up": ("arrow-up", 21), "checkmark": ("checkmark", 21),
+            "stop.fill": ("stop", 18), "play.fill": ("play", 22), "pause.fill": ("pause", 22), "play.rectangle.fill": ("play", 22),
+        ]
+        if let glyph = glyphs[symbol] { button.setImage(IonIcon.image(glyph.0, size: glyph.1), for: .normal) }
+        else { button.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)), for: .normal) }
         button.tintColor = Theme.text
         button.backgroundColor = active ? Theme.veil(0.16) : Theme.surface2
         button.layer.cornerRadius = size / 2
@@ -59,17 +66,21 @@ enum AIKit {
         return button
     }
 
-    /// A wide button: filled (the main action) or quiet.
+    /// A wide button (the reference's `Button`): 54 tall, radius 21, 21 inside, the glyph (20) 10 before the words
+    /// (16, bold, −0.15); filled with the accent (the main action) or quiet. `symbol`: a name of the icon set.
     static func wide(_ words: String, symbol: String? = nil, secondary: Bool = false) -> UIButton {
         var config = UIButton.Configuration.filled()
-        config.title = words
-        if let symbol { config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold)) }
-        config.imagePadding = 8
+        config.attributedTitle = AttributedString(words, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 16, weight: .bold), .kern: -0.15]))
+        let known: [String: String] = ["doc.text": "document-text-outline", "plus": "add", "arrow.clockwise": "refresh-outline", "arrow.up": "arrow-up-outline"]
+        if let symbol { config.image = IonIcon.image(known[symbol] ?? symbol, size: 20) }
+        config.imagePadding = 10
         config.baseBackgroundColor = secondary ? Theme.surface2 : Theme.accent
         config.baseForegroundColor = secondary ? Theme.text : Theme.onAccent
-        config.cornerStyle = .capsule
-        config.contentInsets = NSDirectionalEdgeInsets(top: 13, leading: 18, bottom: 13, trailing: 18)
+        config.background.cornerRadius = 21
+        config.cornerStyle = .fixed
+        config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 21, bottom: 0, trailing: 21)
         let button = UIButton(configuration: config)
+        button.heightAnchor.constraint(equalToConstant: 54).isActive = true
         return button
     }
 }
@@ -209,7 +220,7 @@ final class AITurnView: UIView {
         var seconds = "AI"
         if let ms = turn.ms { seconds = "Ответ за \(max(1, Int((ms / 1000).rounded()))) с" }
         config.attributedTitle = AttributedString(seconds, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 12, weight: .bold)]))
-        config.image = UIImage(systemName: details ? "chevron.up" : "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .semibold))
+        config.image = IonIcon.image(details ? "chevron-up" : "chevron-down", size: 13)
         config.imagePlacement = .trailing
         config.imagePadding = 6
         config.contentInsets = .zero
@@ -257,7 +268,7 @@ final class AITurnView: UIView {
                 let spacer = UIView()
                 row.addArrangedSubview(spacer)
                 let send = UIButton(type: .system)
-                send.setImage(UIImage(systemName: "square.and.arrow.up"), for: .normal)
+                send.setImage(IonIcon.image("share-outline", size: 20), for: .normal)
                 send.tintColor = Theme.accent
                 send.accessibilityLabel = "Сохранить или отправить"
                 send.addTarget(self, action: #selector(shareMedia), for: .touchUpInside)
@@ -280,15 +291,15 @@ final class AITurnView: UIView {
             inner.addArrangedSubview(body)
         }
         let copyButton = UIButton(type: .system)
-        copyButton.setImage(UIImage(systemName: "doc.on.doc", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)), for: .normal)
+        copyButton.setImage(IonIcon.image("copy-outline", size: 17), for: .normal)
         copyButton.tintColor = Theme.accent
         copyButton.accessibilityLabel = "Скопировать ответ AI"
         copyButton.contentHorizontalAlignment = .trailing
         copyButton.addAction(UIAction { [weak copyButton] _ in
             UIPasteboard.general.string = answer.text
-            copyButton?.setImage(UIImage(systemName: "checkmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)), for: .normal)
+            copyButton?.setImage(IonIcon.image("checkmark", size: 17), for: .normal)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                copyButton?.setImage(UIImage(systemName: "doc.on.doc", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)), for: .normal)
+                copyButton?.setImage(IonIcon.image("copy-outline", size: 17), for: .normal)
             }
         }, for: .touchUpInside)
         copyButton.heightAnchor.constraint(equalToConstant: 34).isActive = true
@@ -315,7 +326,7 @@ final class AITurnView: UIView {
         column.spacing = 8
         column.isLayoutMarginsRelativeArrangement = true
         column.layoutMargins = UIEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
-        let mark = UIImageView(image: UIImage(systemName: "checkmark.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .regular)))
+        let mark = UIImageView(image: IonIcon.image("checkmark-circle", size: 16))
         mark.tintColor = Theme.accent
         mark.isHidden = true
         let spin = UIActivityIndicatorView(style: .medium)

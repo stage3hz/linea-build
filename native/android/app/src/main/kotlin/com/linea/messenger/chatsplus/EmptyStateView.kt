@@ -27,8 +27,8 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
   private val titleLabel = TextView(context).apply { gravity = Gravity.CENTER; includeFontPadding = false }
   private val wordsLabel = TextView(context).apply { gravity = Gravity.CENTER; textSize = 15f; setLineSpacing(4f * d, 1f) }
   private val button = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; isClickable = true; isFocusable = true }
-  private val buttonIcon = PlusIconView(context, "plus", 15f, Theme.onAccent)
-  private val buttonWords = TextView(context).apply { textSize = 16f; typeface = Theme.weight(600) }
+  private val buttonIcon = PlusIconView(context, "ion:add", 20f, Theme.onAccent)
+  private val buttonWords = TextView(context).apply { textSize = 16f; typeface = Theme.weight(700); letterSpacing = -0.15f / 16f }
   private var action: (() -> Unit)? = null
 
   init {
@@ -36,7 +36,7 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
     titleLabel.titled(Theme.TypeSize.emptyTitle)
     addView(titleLabel)
     addView(wordsLabel)
-    button.addView(buttonIcon, LinearLayout.LayoutParams(dp(20f), dp(20f)).apply { marginEnd = dp(6f) })
+    button.addView(buttonIcon, LinearLayout.LayoutParams(dp(20f), dp(20f)).apply { marginEnd = dp(10f) })
     button.addView(buttonWords)
     button.setOnClickListener {
       it.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
@@ -53,7 +53,7 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
     wordsLabel.text = words
     button.visibility = if (buttonWords.isEmpty() || action == null) View.GONE else View.VISIBLE
     this.buttonWords.text = buttonWords
-    buttonIcon.symbol = buttonSymbol
+    buttonIcon.symbol = if (buttonSymbol == "plus") "ion:add" else buttonSymbol
     this.action = action
     contentDescription = "$title. $words"
     paint()
@@ -64,7 +64,7 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
   fun paint() {
     titleLabel.setTextColor(Theme.text)
     wordsLabel.setTextColor(Theme.muted)
-    button.background = context.plate(Theme.accent, 24f)
+    button.background = context.plate(Theme.accent, 21f)
     buttonWords.setTextColor(Theme.onAccent)
     buttonIcon.color = Theme.onAccent
     art.invalidate()
@@ -81,7 +81,7 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
   fun contentHeight(width: Int): Int {
     val inner = minOf(dp(310f), width - dp(56f)).coerceAtLeast(1)
     val title = measureText(titleLabel, inner); val words = measureText(wordsLabel, inner)
-    return dp(38f) + dp(126f) + dp(8f) + dp(13f) + title + dp(13f) + words + (if (button.visibility == View.GONE) 0 else dp(13f + 11f + 48f)) + dp(38f)
+    return dp(38f) + dp(126f) + dp(8f) + dp(13f) + title + dp(13f) + words + (if (button.visibility == View.GONE) 0 else dp(13f + 11f + 54f)) + dp(38f)
   }
 
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -100,8 +100,8 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
     wordsLabel.layout((width - inner) / 2, y, (width + inner) / 2, y + words)
     y += words + dp(13f + 11f)
     val wide = minOf(dp(270f), width - dp(56f))
-    button.measure(MeasureSpec.makeMeasureSpec(wide, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(48f), MeasureSpec.EXACTLY))
-    button.layout((width - wide) / 2, y, (width + wide) / 2, y + dp(48f))
+    button.measure(MeasureSpec.makeMeasureSpec(wide, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(54f), MeasureSpec.EXACTLY))
+    button.layout((width - wide) / 2, y, (width + wide) / 2, y + dp(54f))
   }
 
   /** The two tilted tiles and the icon. */

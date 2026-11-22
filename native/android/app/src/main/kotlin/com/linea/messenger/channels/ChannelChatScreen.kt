@@ -82,9 +82,9 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     override fun onDraw(canvas: Canvas) = glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 24f * d)
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) = placeComposer(right - left, bottom - top)
   }
-  private val attachButton = ChannelIconButton(context, "plus.circle", 26f, Theme.muted)
+  private val attachButton = ChannelIconButton(context, "ion:add-circle", 23f, Theme.muted)
   private val field = EditText(context)
-  private val sendButton = IconButton(context, "send", 30f, Theme.text)
+  private val sendButton = ChannelIconButton(context, "ion:arrow-up-circle", 34f, Theme.subtle)
   private val busy = ChannelSpinner(context)
   private val closedWords = context.words("", 13f, Theme.muted)
   private val contextBar = object : ViewGroup(context) {
@@ -96,9 +96,9 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
       contextClose.layout(width - dp(40f), 0, width, dp(30f))
     }
   }
-  private val contextIcon = ChannelIconView(context, "reply", 15f, Theme.text)
+  private val contextIcon = ChannelIconView(context, "ion:return-down-forward", 16f, Theme.text)
   private val contextWords = context.words("", 13f, Theme.muted)
-  private val contextClose = ChannelIconButton(context, "cross", 15f, Theme.muted)
+  private val contextClose = ChannelIconButton(context, "ion:close", 18f, Theme.muted)
   private val waitingStrip = LinearLayout(context)
   private var menu: ChannelMenuView? = null
 
@@ -246,7 +246,8 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
 
   private fun showSend() {
     val ready = field.text.toString().trim().isNotEmpty()
-    sendButton.alpha = if (ready) 1f else 0.4f
+    // ChannelChat.tsx: «arrow-up-circle» 34, the accent with words, subtle without.
+    sendButton.color = if (ready) Theme.accent else Theme.subtle
     sendButton.isEnabled = ready && !sending
     sendButton.visibility = if (sending) View.INVISIBLE else View.VISIBLE
     busy.visibility = if (sending) View.VISIBLE else View.GONE
@@ -439,11 +440,11 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
   private fun showContext() {
     val answered = reply
     if (editingMessage != null) {
-      contextIcon.symbol = "pencil"
+      contextIcon.symbol = "ion:create-outline"
       contextWords.text = "Редактирование"
       contextBar.visibility = View.VISIBLE
     } else if (answered != null) {
-      contextIcon.symbol = "reply"
+      contextIcon.symbol = "ion:return-down-forward"
       contextWords.text = "Ответ " + replyAuthor + ": " + answered.text.ifEmpty { "вложение" }.replace("\n", " ")
       contextBar.visibility = View.VISIBLE
     } else {
@@ -678,12 +679,12 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     val me = messenger?.userId ?: ""
     val mine = message.senderId == me
     val actions = ArrayList<ChannelMenuView.Action>()
-    if (canWrite) actions.add(ChannelMenuView.Action("answer", "Ответить", false) { startReply(message, author) })
-    if (message.text.isNotEmpty()) actions.add(ChannelMenuView.Action("copy", "Скопировать", false) {
+    if (canWrite) actions.add(ChannelMenuView.Action("ion:arrow-undo-outline", "Ответить", false) { startReply(message, author) })
+    if (message.text.isNotEmpty()) actions.add(ChannelMenuView.Action("ion:copy-outline", "Скопировать", false) {
       (context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.setPrimaryClip(ClipData.newPlainText("", message.text))
     })
-    if (mine && message.text.isNotEmpty()) actions.add(ChannelMenuView.Action("pencil", "Изменить", false) { startEdit(message) })
-    if (mine || canModerate) actions.add(ChannelMenuView.Action("trash", "Удалить", true) { remove(message) })
+    if (mine && message.text.isNotEmpty()) actions.add(ChannelMenuView.Action("ion:create-outline", "Изменить", false) { startEdit(message) })
+    if (mine || canModerate) actions.add(ChannelMenuView.Action("ion:trash-outline", "Удалить", true) { remove(message) })
     val reactions = ChannelWords.quickReactions.map { emoji -> Pair(emoji, message.reactions.any { it.emoji == emoji && it.userIds.contains(me) }) }
     menu?.let { removeView(it) }
     val shown = ChannelMenuView(context, reactions, actions, y) { emoji -> react(message, emoji) }

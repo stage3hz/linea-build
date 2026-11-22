@@ -40,6 +40,7 @@ final class NavigationController: UINavigationController, UINavigationController
         setNavigationBarHidden(true, animated: false)
         view.backgroundColor = Theme.bg
         delegate = self
+        MotionBlur.install() // MotionBlur: the app's sheets smeared as they slide, below 90 Hz (Effects/MotionBlur.swift)
         // The swipe below does what the system's edge swipe did, from anywhere on the screen.
         interactivePopGestureRecognizer?.isEnabled = false
         backPan.addTarget(self, action: #selector(panned(_:)))
@@ -144,6 +145,9 @@ final class NavigationController: UINavigationController, UINavigationController
             })
         case .changed:
             interaction?.update(progress)
+            // MotionBlur: both screens follow the finger; each frame of the drag keeps their smear watched.
+            MotionBlur.kick(transitionCoordinator?.view(forKey: .from))
+            MotionBlur.kick(transitionCoordinator?.view(forKey: .to))
             guard canHome else { return }
             let far = moved > width * 0.33
             if far && !farArmed {
@@ -333,6 +337,9 @@ final class StackAnimator: NSObject, UIViewControllerAnimatedTransitioning {
         let aside = CGAffineTransform(translationX: -width * 0.28, y: 0)
         top?.transform = pushing ? closed : open
         shadow.transform = pushing ? closed : open
+        // MotionBlur: the sliding screen and the one moving aside under it, smeared by their speed below 90 Hz.
+        MotionBlur.kick(top, fresh: true)
+        MotionBlur.kick(below, fresh: true)
         shadow.alpha = pushing ? 0 : 0.35
         below?.transform = pushing ? open : aside
         dim.alpha = pushing ? 0 : 0.38

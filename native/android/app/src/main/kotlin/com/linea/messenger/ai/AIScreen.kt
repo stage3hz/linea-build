@@ -74,18 +74,18 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
   }
 
   private val topBar = LinearLayout(context)
-  private val historyButton = AIRoundButton(context, "menu", "История AI-бесед")
-  private val newButton = AIRoundButton(context, "compose", "Начать новую AI-беседу")
-  private val privateButton = AIRoundButton(context, "eye.slash", "Приватная беседа: не сохранять в историю")
+  private val historyButton = AIRoundButton(context, "menu", "История AI-бесед", icon = 21f)
+  private val newButton = AIRoundButton(context, "compose", "Начать новую AI-беседу", icon = 21f)
+  private val privateButton = AIRoundButton(context, "eye.slash", "Приватная беседа: не сохранять в историю", icon = 21f)
   private val scroll = ScrollView(context)
   private val list = LinearLayout(context)
   private val emptyBox = LinearLayout(context)
   private val composer = LinearLayout(context)
   private val input = EditText(context)
   private val toolsRow = LinearLayout(context)
-  private val plusButton = AIRoundButton(context, "plus", "Режимы AI и вложения", size = 42f)
+  private val plusButton = AIRoundButton(context, "plus", "Режимы AI и вложения", size = 42f, icon = 24f)
   private val modelPill = TextView(context)
-  private val sendButton = AIRoundButton(context, "arrow.up", "Отправить вопрос AI", size = 42f)
+  private val sendButton = AIRoundButton(context, "arrow.up", "Отправить вопрос AI", size = 42f, icon = 21f)
   private val pendingRow = LinearLayout(context)
   // G: the reference's composer is one line while nothing is being written (AIScreen.tsx `expanded`): «+», the quiet
   // «Спроси что угодно» (a tap opens the field), the model, the send; the field and the tools row below it only once
@@ -674,7 +674,7 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
     pendingRow.orientation = LinearLayout.HORIZONTAL
     pendingRow.gravity = Gravity.CENTER_VERTICAL
     pendingRow.setPadding(dp(6f), dp(4f), dp(4f), dp(4f))
-    val stopButton = AIRoundButton(context, "stop", "Отменить ожидание", active = true, size = 42f)
+    val stopButton = AIRoundButton(context, "stop", "Отменить ожидание", active = true, size = 42f, icon = 18f)
     stopButton.fill = Theme.text
     stopButton.ink = Theme.onAccent
     stopButton.setOnClickListener { conversation.cancel() }
@@ -754,7 +754,7 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
       AIKit.add(emptyBox, AIKit.label(context, "Когда администратор подключит сервис, здесь можно будет задать вопрос.", 12f, color = Theme.muted, align = centre), 14f)
       AIKit.add(emptyBox, retryButton(), 14f)
     } else if (empty) {
-      emptyBox.addView(AIIconView(context, "sparkles", 40f, Theme.accent), LinearLayout.LayoutParams(dp(46f), dp(46f)))
+      emptyBox.addView(AIIconView(context, "ion:sparkles", 40f, Theme.accent), LinearLayout.LayoutParams(dp(46f), dp(46f)))
       val greeting = AIModel.greeting(LocalTime.now().hour, messenger?.user?.get("displayName") as? String ?: "")
       AIKit.add(emptyBox, AIKit.label(context, greeting, 28f, 500, align = centre), 14f)
       if (incognito) AIKit.add(emptyBox, AIKit.label(context, "Приватная беседа: она не сохранится в истории.", 12f, color = Theme.muted, align = centre), 14f)

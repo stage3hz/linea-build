@@ -22,7 +22,7 @@ final class StoryTileView: UIControl {
         picture.contentMode = .scaleAspectFill
         picture.isUserInteractionEnabled = false
         addSubview(picture)
-        playMark.image = chatSymbol("play.fill", 13)
+        playMark.image = IonIcon.image("play", size: 16)
         playMark.tintColor = .white
         playMark.contentMode = .center
         playMark.isUserInteractionEnabled = false
@@ -123,7 +123,7 @@ final class ProfilePostsBlock: UIView {
         spinner.color = Theme.muted
         spinner.hidesWhenStopped = true
         addSubview(spinner)
-        lockIcon.image = chatSymbol("lock", 20)
+        lockIcon.image = IonIcon.image("lock-closed-outline", size: 22)
         lockIcon.tintColor = Theme.muted
         lockIcon.contentMode = .center
         addSubview(lockIcon)
@@ -138,7 +138,7 @@ final class ProfilePostsBlock: UIView {
         addLook.baseBackgroundColor = Theme.surface2
         addLook.baseForegroundColor = Theme.accent
         addLook.cornerStyle = .capsule
-        addLook.image = chatSymbol("plus", 13, .semibold)
+        addLook.image = IonIcon.image("add", size: 18)
         addLook.imagePadding = 6
         addButton.configuration = addLook
         addButton.addTarget(self, action: #selector(addPressed), for: .touchUpInside)

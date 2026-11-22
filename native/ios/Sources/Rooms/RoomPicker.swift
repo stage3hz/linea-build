@@ -242,7 +242,7 @@ final class RoomPickerCell: UITableViewCell {
     required init?(coder: NSCoder) { return nil }
 
     func show(_ person: Person, address: String, checked: Bool) {
-        mark.image = UIImage(systemName: checked ? "checkmark.circle.fill" : "circle", withConfiguration: UIImage.SymbolConfiguration(pointSize: 22, weight: .regular))
+        mark.image = IonIcon.image(checked ? "checkmark-circle" : "ellipse-outline", size: 24)
         mark.tintColor = checked ? Theme.accent : Theme.subtle
         avatar.show(person, address: address)
         nameLabel.text = person.displayName

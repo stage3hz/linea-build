@@ -457,6 +457,7 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
         let slide = UIViewPropertyAnimator(duration: 0.26, controlPoint1: CGPoint(x: 0.2, y: 0.9), controlPoint2: CGPoint(x: 0.25, y: 1)) { () -> Void in
             self.sheet.transform = .identity
         }
+        MotionBlur.kick(sheet, fresh: true) // MotionBlur: smeared along its slide below 90 Hz (Effects/MotionBlur.swift)
         slide.startAnimation()
     }
 
@@ -1257,6 +1258,7 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
     // MARK: Pulling and closing
 
     @objc private func dragged(_ pan: UIPanGestureRecognizer) {
+        MotionBlur.kick(sheet) // MotionBlur: the sheet under the finger and its settling
         let half = halfHeight, full = fullHeight
         switch pan.state {
         case .began:
@@ -1307,6 +1309,7 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
         guard !closing else { return }
         closing = true
         let shift = view.bounds.height - sheet.frame.minY
+        MotionBlur.kick(sheet) // MotionBlur: smeared along its slide below 90 Hz (Effects/MotionBlur.swift)
         UIView.animate(withDuration: 0.22, animations: { () -> Void in
             self.backdrop.alpha = 0
             self.sheet.transform = CGAffineTransform(translationX: 0, y: shift)

@@ -170,8 +170,9 @@ class CallHistoryPanel(private val context: Context, private val messenger: Mess
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View = when (val row = rows[position]) {
       is CallRecord -> (convertView as? CallRowView ?: CallRowView(context)).also { it.show(row) { callBack(row) } }
       else -> (convertView as? TextView ?: context.words("", 10f, Theme.muted, 700).apply {
-        letterSpacing = 0.17f; setPadding(dp(26f), dp(8f), dp(26f), 0)
-        layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, dp(34f))
+        // 10, bold, 1.7 apart; 8 above, 10 under (CallHistory.tsx renderSectionHeader).
+        letterSpacing = 1.7f / 10f; setPadding(dp(26f), dp(8f), dp(26f), dp(10f))
+        layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, AbsListView.LayoutParams.WRAP_CONTENT)
       }).also { it.text = (row as String).uppercase() }
     }
   }
@@ -240,7 +241,10 @@ class CallHistoryPanel(private val context: Context, private val messenger: Mess
     val wordsWidth = callsWords.paint.measureText(callsWords.text.toString()).toInt()
     (missedBadge.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
       val wide = maxOf(dp(18f), missedBadge.paint.measureText(missedBadge.text.toString()).toInt() + dp(10f))
-      val left = (half + wordsWidth) / 2 + dp(6f)
+      // The word and the badge (6 apart) centred together in the segment.
+      val shift = if (missedBadge.visibility == View.VISIBLE) (dp(6f) + wide) / 2 else 0
+      callsWords.translationX = -shift.toFloat()
+      val left = (half - wordsWidth - (if (shift > 0) dp(6f) + wide else 0)) / 2 + wordsWidth + dp(6f)
       if (params.leftMargin != left || params.width != wide) { params.leftMargin = left; params.width = wide; missedBadge.layoutParams = params }
     }
     put(page, 0, below + dp(14f), width, maxOf(0, height - below - dp(14f)))
@@ -306,7 +310,7 @@ class CallHistoryPanel(private val context: Context, private val messenger: Mess
     rows = made
     adapter.notifyDataSetChanged()
     empty.visibility = if (records.isEmpty()) View.VISIBLE else View.GONE
-    if (records.isEmpty()) empty.show("phone", "Звонков пока не было", "Здесь появятся входящие, исходящие и пропущенные звонки. Позвонить можно из чата или из профиля человека.")
+    if (records.isEmpty()) empty.show("ion:call-outline", "Звонков пока не было", "Здесь появятся входящие, исходящие и пропущенные звонки. Позвонить можно из чата или из профиля человека.")
     paintTabs()
   }
 
@@ -336,51 +340,75 @@ private class CallRowView(context: Context) : LinearLayout(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     override fun onDraw(canvas: Canvas) { paint.color = Theme.danger; canvas.drawCircle(width / 2f, height / 2f, minOf(width, height) / 2f, paint) }
   }
-  private val arrow = PlusIconView(context, "arrow.up.right", 11f, Theme.muted)
+  private val arrow = PlusIconView(context, "ion:arrow-up-outline", 14f, Theme.muted)
   private val words = context.words("", 13f, Theme.muted).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
-  private val time = context.words("", 13f, Theme.muted).apply { typeface = Typeface.MONOSPACE; gravity = Gravity.END }
-  private val again = PlusIconView(context, "phone", 16f, Theme.accent)
+  // Montserrat with even digits (`fontVariant: tabular-nums`).
+  private val time = context.words("", 13f, Theme.muted).apply { fontFeatureSettings = "tnum"; gravity = Gravity.END }
+  private val again = PlusIconView(context, "ion:call-outline", 19f, Theme.accent)
+  private val card = Paint(Paint.ANTI_ALIAS_FLAG)
 
   init {
     orientation = HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
     layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, context.px(80f))
-    setPadding(context.px(26f), 0, context.px(26f), 0)
+    // The card is 14 in from the list with 12 inside, and 6 under it.
+    setPadding(context.px(26f), 0, context.px(26f), context.px(6f))
+    setWillNotDraw(false)
     addView(avatar, LayoutParams(context.px(50f), context.px(50f)).apply { rightMargin = context.px(14f) })
     val column = LinearLayout(context).apply { orientation = VERTICAL }
     val top = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     top.addView(name, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, 1f))
     top.addView(dot, LayoutParams(context.px(8f), context.px(8f)).apply { leftMargin = context.px(6f) })
     val bottom = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    bottom.addView(arrow, LayoutParams(context.px(14f), context.px(18f)).apply { rightMargin = context.px(5f) })
+    bottom.addView(arrow, LayoutParams(context.px(14f), context.px(14f)).apply { rightMargin = context.px(5f) })
     bottom.addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
     column.addView(top)
     column.addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(4f) })
-    addView(column, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = context.px(8f) })
-    addView(time, LayoutParams(context.px(50f), LayoutParams.WRAP_CONTENT).apply { rightMargin = context.px(14f) })
+    addView(column, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = context.px(14f) })
+    addView(time, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { rightMargin = context.px(14f) })
     again.background = context.plate(ThemeStore.look.accentSoft, 19f, ThemeStore.look.border)
     again.isClickable = true
     addView(again, LayoutParams(context.px(38f), context.px(38f)))
+  }
+
+  /** The row is pressed, not the call button with it. */
+  override fun dispatchSetPressed(pressed: Boolean) {}
+
+  override fun drawableStateChanged() {
+    super.drawableStateChanged()
+    invalidate()
+  }
+
+  /** Pressed: the page's border and a light veil on the card (radius 24). */
+  override fun onDraw(canvas: Canvas) {
+    if (!isPressed) return
+    val d = resources.displayMetrics.density
+    val l = 14f * d; val r = width - 14f * d; val b = height - 6f * d; val radius = 24f * d
+    card.style = Paint.Style.FILL; card.color = if (Theme.dark) 0x12FFFFFF else 0x80FFFFFF.toInt()
+    canvas.drawRoundRect(l, 0f, r, b, radius, radius, card)
+    card.style = Paint.Style.STROKE; card.strokeWidth = d; card.color = ThemeStore.look.border
+    canvas.drawRoundRect(l + d / 2, d / 2, r - d / 2, b - d / 2, radius, radius, card)
   }
 
   fun show(call: CallRecord, onCall: () -> Unit) {
     val red = call.kind == "missed" || call.kind == "declined"
     avatar.show(FolderChat(call.chat))
     name.text = call.chat.title + if (call.count > 1) " (${call.count})" else ""
+    name.letterSpacing = -0.2f / 16f
     name.setTextColor(if (call.kind == "missed") Theme.danger else Theme.text)
     dot.visibility = if (call.unseen) View.VISIBLE else View.GONE
     arrow.symbol = when (call.kind) {
-      "outgoing", "cancelled", "busy" -> "arrow.up.right"
-      "incoming", "missed" -> "arrow.down.left"
-      "declined" -> "nosign"
-      else -> "exclamation.circle"
+      "outgoing", "cancelled", "busy" -> "ion:arrow-up-outline"
+      "incoming", "missed" -> "ion:arrow-down-outline"
+      "declined" -> "ion:ban-outline"
+      else -> "ion:alert-circle-outline"
     }
     arrow.color = if (red) Theme.danger else Theme.muted
     arrow.invalidate()
     words.text = call.label
     words.setTextColor(if (red) Theme.danger else Theme.muted)
     time.text = Messenger.clock(call.at, ZoneId.systemDefault())
-    again.symbol = if (call.video) "video" else "phone"
+    again.symbol = if (call.video) "ion:videocam-outline" else "ion:call-outline"
     again.invalidate()
     again.contentDescription = "Перезвонить: " + call.chat.title
     again.setOnClickListener { onCall() }

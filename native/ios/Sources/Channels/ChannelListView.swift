@@ -78,7 +78,7 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
         hold.minimumPressDuration = 0.35
         table.addGestureRecognizer(hold)
 
-        toEnd.setImage(UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)), for: .normal)
+        toEnd.setImage(IonIcon.image("chevron-down", size: 20), for: .normal)
         toEnd.tintColor = Theme.text
         toEnd.backgroundColor = Theme.surface2
         toEnd.layer.cornerRadius = 19

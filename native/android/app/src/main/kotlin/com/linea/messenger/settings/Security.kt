@@ -126,7 +126,10 @@ class SecurityScreen(context: Context, private val account: SettingsAccount) : S
     // their lists are on their own pages (settings/Sessions.kt, settings/PrivacyLists.kt).
     val sessions = SettingsRow(context, symbol = "ion:phone-portrait-outline", label = "Активные сеансы")
     sessions.onPress = { open(SessionsScreen(context, account)) }
-    addGroup("Сеансы и устройства", listOf(sessions))
+    // Old chats on a new device: the copy from another own device and the encrypted backup (settings/HistorySettings.kt).
+    val history = SettingsRow(context, symbol = "ion:cloud-download-outline", label = "Переписки на новом устройстве")
+    history.onPress = { account.messenger?.let { open(HistoryScreen(context, it)) } }
+    addGroup("Сеансы и устройства", listOf(sessions, history))
     val blocked = SettingsRow(context, symbol = "ion:hand-left-outline", label = "Заблокированные")
     blocked.onPress = { open(BlockedScreen(context, account)) }
     addGroup(rows = listOf(blocked))

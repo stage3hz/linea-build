@@ -125,10 +125,14 @@ object Demo {
    *                                                avatars, profiles, Platina and gifts (profile/ProfileSamples.kt)
    *    --es chatsdemo waiting|connecting|updating|skeleton|empty|folders|folder|foldereditor|foldersettings|savedmenu|saved|savedsearch|calls|hint|select|mutecustom|archivepull
    *                                                the chat list's extras (chatsplus/ChatsPlusDemo.kt)
-   *    --es shelldemo mini|chatstrip|swipe|long|home / --es updatedemo required|optional    the shell (shell/ShellDemo.kt) */
+   *    --es shelldemo mini|chatstrip|swipe|long|home / --es updatedemo required|optional    the shell (shell/ShellDemo.kt)
+   *    --es motionblur 1|0|hold                    motion blur of slides forced on / off / on and held (effects/MotionBlur.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
+    // MotionBlur: `--es motionblur 1` on whatever the screen and the power, `0` off, `hold` on and the strongest blur kept
+    // on a view once it has moved (for a still shot mid-slide, e.g. with `--es shelldemo swipe`) (effects/MotionBlur.kt).
+    intent.getStringExtra("motionblur")?.let { com.linea.messenger.effects.MotionBlur.forced = it != "0"; com.linea.messenger.effects.MotionBlur.hold = it == "hold" }
     AttachmentsDemo.read(intent)
     // Settings: `settheme`, `setaccent`, `settextsize`, `setnight`, `setplatina` — the look for the shot (settings/SettingsDemo.kt).
     com.linea.messenger.settings.SettingsSimulator.look(intent)

@@ -65,6 +65,8 @@ struct ThemeLook {
     /// The reference's `glass` and `glassBorder` (theme.tsx).
     var glass = UIColor(red: 15 / 255, green: 16 / 255, blue: 17 / 255, alpha: 0.62)
     var glassBorder = UIColor(white: 1, alpha: 0.08)
+    /// The reference's `glassHighlight` (theme.tsx): the light ring of a cover without a picture.
+    var glassHighlight = UIColor(white: 1, alpha: 0.10)
     /// What the look was made from: two looks with the same words here are the same look.
     var source = "black|"
 
@@ -91,6 +93,7 @@ struct ThemeLook {
         incoming = ThemeLook.color(fields["incoming"] as? String) ?? incoming
         glass = ThemeLook.color(fields["glass"] as? String) ?? glass
         glassBorder = ThemeLook.color(fields["glassBorder"] as? String) ?? glassBorder
+        glassHighlight = ThemeLook.color(fields["glassHighlight"] as? String) ?? glassHighlight
         source = id + "|" + (fields["accent"] as? String ?? "")
     }
 

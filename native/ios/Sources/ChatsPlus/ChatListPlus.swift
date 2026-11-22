@@ -123,6 +123,7 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         folderSwipe.addTarget(self, action: #selector(swiped(_:)))
         folderSwipe.delegate = self
         list.addGestureRecognizer(folderSwipe)
+        MotionBlur.attach(list, following: folderSwipe) // MotionBlur: smeared along its move below 90 Hz (Effects/MotionBlur.swift)
 
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(lineChanged(_:)), name: Live.callEvent, object: nil)

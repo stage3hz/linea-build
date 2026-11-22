@@ -277,7 +277,7 @@ class NewLoginSheet(context: Context, private val login: AccountNotices.NewLogin
     clear()
     val session = login.session
     if (ended) add(SettingsNotice(context, "Сеанс завершён. На том устройстве понадобится снова ввести логин, пароль и слово подтверждения. Если пароль мог утечь — смени его в разделе «Безопасность»."), 4f)
-    else add(context.words("В твой аккаунт вошли с другого устройства. Данные об устройстве сообщает само приложение; адрес — такой, каким его увидел сервер.", 14f, Theme.muted), 4f)
+    else add(context.words("В твой аккаунт вошли с другого устройства. Данные об устройстве сообщает само приложение; адрес — такой, каким его увидел сервер. Через 10 минут после входа это устройство получит копию твоих переписок (зашифрованную только для него). Если это был не ты — заверши сеанс сейчас, и перенос не состоится.", 14f, Theme.muted), 4f)
     var device = session["deviceModel"] as? String ?: ""
     if (device.isEmpty()) device = value("deviceName")
     val app = session["appVersion"] as? String ?: ""

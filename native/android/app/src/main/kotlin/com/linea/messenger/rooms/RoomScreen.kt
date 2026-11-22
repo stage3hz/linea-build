@@ -198,10 +198,12 @@ class RoomRoundButton(context: Context, private val size: Float) : View(context)
     val radius = minOf(width, height) / 2f
     if (plate != 0) { fill.color = plate; canvas.drawCircle(width / 2f, height / 2f, radius, fill) }
     if (bordered) {
-      line.color = Theme.veil(0.18f); line.strokeWidth = maxOf(1f, d)
+      line.color = com.linea.messenger.settings.ThemeStore.look.glassBorder; line.strokeWidth = maxOf(1f, d)
       canvas.drawCircle(width / 2f, height / 2f, radius - line.strokeWidth / 2, line)
     }
-    RoomIcons.draw(canvas, symbol, width / 2f, height / 2f, size * d * 0.46f, tint, plate)
+    // RoomScreen.tsx: the mic 28, the close 26, the others 24.
+    val glyph = if (symbol == "mic.fill" || symbol == "mic.slash.fill") 28f else if (symbol == "xmark") 26f else 24f
+    RoomIcons.draw(canvas, symbol, width / 2f, height / 2f, glyph * d, tint, plate)
   }
 }
 
@@ -351,7 +353,7 @@ class RoomScreen(context: Context, val roomId: String) : Screen(context) {
     addView(musicLine)
 
     ringButton.gravity = Gravity.CENTER
-    ringButton.background = context.plate(0, 18f, Theme.veil(0.18f))
+    ringButton.background = context.plate(0, 18f, com.linea.messenger.settings.ThemeStore.look.glassBorder)
     ringButton.isClickable = true
     ringButton.contentDescription = "Позвать всех"
     ringButton.setOnClickListener { ringAll() }
@@ -501,7 +503,7 @@ class RoomScreen(context: Context, val roomId: String) : Screen(context) {
     for (button in listOf(speakerButton, micButton, leaveButton)) button.visibility = if (inRoom) VISIBLE else GONE
     if (voice != null) {
       speakerButton.show(if (voice.speaker) "speaker.wave.2.fill" else "ear", if (voice.speaker) "Звук на динамике" else "Звук в трубке", 0, Theme.text, bordered = true)
-      if (voice.muted) micButton.show("mic.slash.fill", "Включить микрофон", Theme.surface2, Theme.text, bordered = true)
+      if (voice.muted) micButton.show("mic.slash.fill", "Включить микрофон", com.linea.messenger.settings.ThemeStore.look.glassOpaque, Theme.text, bordered = true)
       else micButton.show("mic.fill", "Выключить микрофон", Theme.text, Theme.bg, bordered = false)
       val rowTop = bottom - dp(74f)
       val micLeft = (width - dp(74f)) / 2

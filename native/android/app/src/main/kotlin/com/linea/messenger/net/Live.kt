@@ -167,6 +167,8 @@ class Live(private val server: Server) {
     if (type == "ready" || type == "scheduled") scheduledEvent.post(data)
     // Security: a sign-in from another device, a recovery request (security/AccountNotices.kt).
     if (type == "session.new" || type.startsWith("recovery.")) securityEvent.post(data)
+    // Old chats on a new device: a request, a copy ready, the backup changed (security/HistoryTransfer.kt).
+    if (type.startsWith("history.")) historyEvent.post(data)
     when (type) {
       "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
@@ -241,5 +243,8 @@ class Live(private val server: Server) {
     val roomEvent = Signal<Map<String, Any?>>()
     /** Security: posted on the main thread for `session.new`, `recovery.requested`, `recovery.updated` (security/AccountNotices.kt). */
     val securityEvent = Signal<Map<String, Any?>>()
+    /** Old chats on a new device: posted on the main thread for `history.request`, `history.ready`, `history.backup`,
+     *  `history.cancelled` (security/HistoryTransfer.kt). */
+    val historyEvent = Signal<Map<String, Any?>>()
   }
 }

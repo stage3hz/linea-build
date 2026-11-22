@@ -12,10 +12,8 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
     private let table = UITableView(frame: .zero, style: .plain)
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let notice = UIButton(type: .system)
-    private let emptyIcon = UIImageView()
-    private let emptyHeading = UILabel()
-    private let emptyWords = UILabel()
-    private let emptyButton = UIButton(type: .system)
+    /// «Свои места для своих»: the reference's `Empty` with `planet-outline` and «Создать» (`add`).
+    private let emptyState = EmptyStateView()
     private var sections: [(name: String, items: [CommunitySummary])] = []
     private var loaded = false
     /// Rooms: «Комнаты», the first thing in the section (Sources/Rooms/RoomsSectionView.swift).
@@ -65,28 +63,9 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         notice.addTarget(self, action: #selector(retry), for: .touchUpInside)
         view.addSubview(notice)
 
-        emptyIcon.image = UIImage(systemName: "globe.europe.africa", withConfiguration: UIImage.SymbolConfiguration(pointSize: 40, weight: .regular))
-        emptyIcon.tintColor = Theme.subtle
-        emptyIcon.contentMode = .center
-        emptyHeading.text = "Свои места для своих"
-        emptyHeading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
-        emptyHeading.textColor = Theme.text
-        emptyHeading.textAlignment = .center
-        emptyWords.text = "Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно."
-        emptyWords.font = .systemFont(ofSize: 14)
-        emptyWords.textColor = Theme.muted
-        emptyWords.textAlignment = .center
-        emptyWords.numberOfLines = 0
-        emptyButton.setTitle("Создать", for: .normal)
-        emptyButton.setTitleColor(Theme.onAccent, for: .normal)
-        emptyButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
-        emptyButton.backgroundColor = Theme.accent
-        emptyButton.layer.cornerRadius = 22
-        emptyButton.addTarget(self, action: #selector(create), for: .touchUpInside)
-        for part in [emptyIcon, emptyHeading, emptyWords, emptyButton] as [UIView] {
-            part.isHidden = true
-            view.addSubview(part)
-        }
+        emptyState.show(symbol: "ion:planet-outline", title: "Свои места для своих", words: "Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно.", button: "Создать", buttonSymbol: "ion:add") { [weak self] in self?.create() }
+        emptyState.isHidden = true
+        view.addSubview(emptyState)
 
         if messenger != nil {
             NotificationCenter.default.addObserver(self, selector: #selector(storeChanged), name: ChannelsStore.changed, object: nil)
@@ -124,12 +103,9 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         spinner.center = CGPoint(x: width / 2, y: listTop + 83 + rooms.tall)
         notice.frame = CGRect(x: 20, y: listTop + 5 + rooms.tall, width: width - 40, height: 44)
         // Rooms: «Свои места для своих» stays under the rooms.
-        let middle = max(view.bounds.midY - 30, listTop + rooms.tall + 126)
-        emptyIcon.frame = CGRect(x: 0, y: middle - 110, width: width, height: 50)
-        emptyHeading.frame = CGRect(x: 24, y: middle - 50, width: width - 48, height: 26)
-        let wordsHeight = ceil(emptyWords.sizeThatFits(CGSize(width: width - 64, height: 200)).height)
-        emptyWords.frame = CGRect(x: 32, y: middle - 16, width: width - 64, height: wordsHeight)
-        emptyButton.frame = CGRect(x: (width - 150) / 2, y: emptyWords.frame.maxY + 18, width: 150, height: 44)
+        // Centred in what the list leaves under the rooms (`flex: 1, justifyContent: center`).
+        let emptyTop = listTop + rooms.tall
+        emptyState.frame = CGRect(x: 12, y: emptyTop, width: width - 24, height: max(0, view.bounds.height - emptyTop - BarMetrics.height - BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom)))
     }
 
     /// Rooms: gives the section of rooms the height it asks for (the table reads its header's size when it is set).
@@ -178,7 +154,7 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
     /// Rooms: as in the reference, the call to create something gives way to the rooms when there are any.
     private func showEmpty() {
         let empty = nothingListed && (Rooms.shared.rooms?.isEmpty ?? true)
-        for part in [emptyIcon, emptyHeading, emptyWords, emptyButton] as [UIView] { part.isHidden = !empty }
+        emptyState.isHidden = !empty
     }
 
     @objc private func retry() {
@@ -275,7 +251,7 @@ final class CommunityCell: UITableViewCell {
         name.textColor = Theme.text
         words.font = .systemFont(ofSize: 14)
         words.textColor = Theme.muted
-        quiet.image = UIImage(systemName: "speaker.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))
+        quiet.image = IonIcon.image("volume-mute", size: 14)
         quiet.tintColor = Theme.subtle
         quiet.contentMode = .center
         for part in [avatar, name, words, quiet, mentions, unread] as [UIView] { contentView.addSubview(part) }

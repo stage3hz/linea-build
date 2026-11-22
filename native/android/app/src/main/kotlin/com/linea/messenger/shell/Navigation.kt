@@ -83,6 +83,7 @@ class Navigation(context: Context) : FrameLayout(context) {
     page.translationX = 0f
     page.visibility = View.VISIBLE
     onDepthChange(stack.size)
+    com.linea.messenger.effects.MotionBlur.attach(page) // MotionBlur: blurred along its slide on screens below 90 Hz
   }
 
   fun push(page: View, animated: Boolean = true) {
@@ -90,6 +91,7 @@ class Navigation(context: Context) : FrameLayout(context) {
     settle()
     addView(page, indexOfChild(homeWords), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     stack.add(page)
+    com.linea.messenger.effects.MotionBlur.attach(page) // MotionBlur: blurred along its slide on screens below 90 Hz
     onDepthChange(stack.size)
     if (!animated || width == 0 || motionOff) { progress = 0f; apply(); cover(); return }
     progress = 1f

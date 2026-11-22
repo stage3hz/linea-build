@@ -143,7 +143,7 @@ final class HistoryViewController: SettingsPage {
 
     /// The key is shown only after the app lock (Face ID / Touch ID or the code) when the lock is on.
     private func showKey() {
-        let reveal = { [weak self] in
+        let reveal: () -> Void = { [weak self] in
             guard let self else { return }
             self.messenger.crypto.call("history.secret") { [weak self] (result: Result<Any, CryptoFailure>) -> Void in
                 guard let self else { return }
@@ -153,7 +153,7 @@ final class HistoryViewController: SettingsPage {
         }
         let settings = LockStore.shared.current
         guard settings.record != nil else { reveal(); return }
-        let askCode = { [weak self] in
+        let askCode: () -> Void = { [weak self] in
             guard let self else { return }
             let ask = UIAlertController(title: "Код-пароль", message: "Чтобы показать ключ резервной копии", preferredStyle: .alert)
             ask.addTextField { (field: UITextField) -> Void in field.isSecureTextEntry = true; field.keyboardType = .numberPad }
@@ -257,7 +257,7 @@ final class RestoreHistoryViewController: SettingsPage {
     }
 
     private func scan() {
-        let go = { [weak self] in
+        let go: () -> Void = { [weak self] in
             guard let self else { return }
             let scanner = QRScanViewController { [weak self] (text: String) -> Void in
                 self?.field.input.text = text

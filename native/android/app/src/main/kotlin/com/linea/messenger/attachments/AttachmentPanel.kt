@@ -421,6 +421,7 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
     // The reference: the backdrop fades in 160 ms while the sheet slides up 260 ms.
     root.post {
       backdrop.animate().alpha(1f).setDuration(160).start()
+      com.linea.messenger.effects.MotionBlur.attach(sheet) // MotionBlur: blurred along its slide up and down, below 90 Hz
       sheet.translationY = (root.height - sheet.top).toFloat()
       sheet.animate().translationY(0f).setDuration(260).setInterpolator(PathInterpolator(0.2f, 0.9f, 0.25f, 1f)).start()
       opened = true

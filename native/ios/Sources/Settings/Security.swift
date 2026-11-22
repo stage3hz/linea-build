@@ -146,7 +146,13 @@ final class SecurityViewController: SettingsPage {
             guard let self else { return }
             self.open(SessionsViewController(messenger: self.messenger))
         }
-        addGroup("Сеансы и устройства", rows: [sessions])
+        // Old chats on a new device: the copy from another own device and the encrypted backup (Settings/HistorySettings.swift).
+        let history = SettingsRow(symbol: "ion:cloud-download-outline", label: "Переписки на новом устройстве")
+        history.onPress = { [weak self] in
+            guard let self else { return }
+            self.open(HistoryViewController(messenger: self.messenger))
+        }
+        addGroup("Сеансы и устройства", rows: [sessions, history])
         let blocked = SettingsRow(symbol: "ion:hand-left-outline", label: "Заблокированные")
         blocked.onPress = { [weak self] in
             guard let self else { return }

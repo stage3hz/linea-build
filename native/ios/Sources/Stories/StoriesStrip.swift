@@ -61,7 +61,7 @@ final class StoryStripCell: UICollectionViewCell {
         badge.backgroundColor = Theme.accent
         badge.layer.borderColor = Theme.bg.cgColor
         badge.tintColor = Theme.onAccent
-        badge.setImage(busy ? nil : chatSymbol("plus", 11, .bold), for: .normal)
+        badge.setImage(busy ? nil : IonIcon.image("add", size: 14), for: .normal) // StoriesStrip.tsx: «add» 14
         badge.accessibilityLabel = StoryRules.word("addStory")
         if busy { spinner.color = Theme.onAccent; spinner.startAnimating() } else { spinner.stopAnimating() }
         nameLabel.text = StoryRules.word("mine")
@@ -80,7 +80,7 @@ final class StoryStripCell: UICollectionViewCell {
         badge.backgroundColor = Theme.surface2
         badge.layer.borderColor = Theme.bg.cgColor
         badge.tintColor = Theme.muted
-        badge.setImage(chatSymbol("clock", 10, .semibold), for: .normal)
+        badge.setImage(IonIcon.image("time-outline", size: 13), for: .normal) // «time-outline» 13
         badge.accessibilityLabel = nil
         spinner.stopAnimating()
         nameLabel.text = entry.name

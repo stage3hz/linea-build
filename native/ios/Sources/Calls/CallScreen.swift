@@ -626,11 +626,22 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
                 let target = max(height, superview?.bounds.height ?? 0) + 24
                 let left = max(0, target - max(0, offset))
                 let duration = max(120, min(280, (left / max(1200, speed)) * 1000)).rounded() / 1000
-                let curve = UICubicTimingParameters(controlPoint1: CGPoint(x: 0.25, y: 0.46), controlPoint2: CGPoint(x: 0.45, y: 0.94)) // Easing.out(Easing.quad)
-                let away = UIViewPropertyAnimator(duration: duration, timingParameters: curve)
-                away.addAnimations { self.transform = CGAffineTransform(translationX: 0, y: target) }
-                away.addCompletion { (_: UIViewAnimatingPosition) -> Void in Calls.shared.minimize() }
-                away.startAnimation()
+                // Exactly Easing.out(Easing.quad): the positions computed frame by frame (no cubic stand-in).
+                let from = offset
+                var steps: [NSValue] = []
+                for step in 0...60 {
+                    let t = CGFloat(step) / 60, v = 1 - (1 - t) * (1 - t)
+                    steps.append(NSValue(caTransform3D: CATransform3DMakeTranslation(0, from + (target - from) * v, 0)))
+                }
+                let slide = CAKeyframeAnimation(keyPath: "transform")
+                slide.values = steps
+                slide.duration = Double(duration)
+                slide.calculationMode = .linear
+                CATransaction.begin()
+                CATransaction.setCompletionBlock { Calls.shared.minimize() }
+                transform = CGAffineTransform(translationX: 0, y: target)
+                layer.add(slide, forKey: "slide")
+                CATransaction.commit()
             } else {
                 let spring = UISpringTimingParameters(mass: 0.8, stiffness: 260, damping: 22, initialVelocity: CGVector(dx: 0, dy: offset != 0 ? speed / -offset : 0))
                 let back = UIViewPropertyAnimator(duration: 0, timingParameters: spring)

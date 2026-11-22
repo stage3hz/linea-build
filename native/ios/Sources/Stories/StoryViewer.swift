@@ -198,7 +198,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
         spinner.color = .white
         spinner.hidesWhenStopped = true
         page.addSubview(spinner)
-        goneIcon.image = chatSymbol("video.slash", 30)
+        goneIcon.image = IonIcon.image("videocam-off-outline", size: 34)
         goneIcon.tintColor = .white
         goneIcon.contentMode = .center
         goneIcon.isHidden = true
@@ -222,7 +222,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
         chrome.addSubview(lineLabel)
         glass(closeGlass, radius: 20)
         chrome.addSubview(closeGlass)
-        closeButton.setImage(chatSymbol("xmark", 16, .semibold), for: .normal)
+        closeButton.setImage(IonIcon.image("close", size: 22), for: .normal)
         closeButton.tintColor = .white
         closeButton.accessibilityLabel = StoryRules.word("close")
         closeButton.addTarget(self, action: #selector(closeNow), for: .touchUpInside)
@@ -245,7 +245,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
 
         glass(viewsGlass, radius: 17)
         chrome.addSubview(viewsGlass)
-        viewsButton.setImage(chatSymbol("eye", 15, .medium), for: .normal)
+        viewsButton.setImage(IonIcon.image("eye-outline", size: 18), for: .normal)
         viewsButton.tintColor = .white
         viewsButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .semibold)
         viewsButton.setTitleColor(.white, for: .normal)
@@ -266,7 +266,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
         replyGlass.contentView.addSubview(replyField)
         glass(sendGlass, radius: 22)
         chrome.addSubview(sendGlass)
-        sendButton.setImage(chatSymbol("arrow.up", 17, .semibold), for: .normal)
+        sendButton.setImage(IonIcon.image("arrow-up", size: 22), for: .normal)
         sendButton.tintColor = .white
         sendButton.accessibilityLabel = StoryRules.word("sendReply")
         sendButton.addTarget(self, action: #selector(sendReply), for: .touchUpInside)
@@ -285,6 +285,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
         pan.maximumNumberOfTouches = 1
         pan.delegate = self
         view.addGestureRecognizer(pan)
+        MotionBlur.attach(page, following: pan) // MotionBlur: the story pulled away or swiped to the next person, smeared below 90 Hz
         hold.minimumPressDuration = StoryRules.number("holdMs", 220) / 1000
         hold.delegate = self
         view.addGestureRecognizer(hold)
@@ -481,6 +482,7 @@ final class StoryViewerController: UIViewController, UIGestureRecognizerDelegate
         backdrop.alpha = 1
         if from != 0 && !UIAccessibility.isReduceMotionEnabled {
             page.transform = CGAffineTransform(translationX: CGFloat(from) * view.bounds.width, y: 0)
+            MotionBlur.kick(page, fresh: true) // MotionBlur: the next person's story slides in
             UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseOut, .allowUserInteraction], animations: { self.page.transform = .identity }, completion: nil)
         } else {
             page.transform = .identity
@@ -856,7 +858,7 @@ final class StoryViewersSheet: UIViewController, UITableViewDataSource {
         spinner.color = Theme.muted
         spinner.hidesWhenStopped = true
         view.addSubview(spinner)
-        emptyIcon.image = chatSymbol("eye", 24)
+        emptyIcon.image = IonIcon.image("eye-outline", size: 26)
         emptyIcon.tintColor = Theme.muted
         emptyIcon.contentMode = .center
         view.addSubview(emptyIcon)

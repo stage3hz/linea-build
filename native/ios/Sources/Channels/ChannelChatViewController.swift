@@ -73,7 +73,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         view.backgroundColor = Theme.bg
         view.addSubview(list)
 
-        emptyIcon.image = UIImage(systemName: blog ? "megaphone" : "bubble.left.and.bubble.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 38, weight: .regular))
+        emptyIcon.image = IonIcon.image(blog ? "megaphone-outline" : "chatbubbles-outline", size: 40)
         emptyIcon.tintColor = Theme.subtle
         emptyIcon.contentMode = .center
         emptyHeading.font = Theme.title(Theme.TypeSize.emptyTitle) // Fonts
@@ -137,7 +137,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     private func buildComposer() {
         composer.clipsToBounds = true
         view.addSubview(composer)
-        attachButton.setImage(UIImage(systemName: "plus.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 24, weight: .regular)), for: .normal)
+        attachButton.setImage(IonIcon.image("add-circle", size: 23), for: .normal)
         attachButton.tintColor = Theme.muted
         attachButton.accessibilityLabel = "Прикрепить"
         attachButton.addTarget(self, action: #selector(attach), for: .touchUpInside)
@@ -156,7 +156,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         hint.textColor = Theme.subtle
         hint.isAccessibilityElement = false
         composer.contentView.addSubview(hint)
-        sendButton.setImage(UIImage(systemName: "arrow.up.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)), for: .normal)
+        sendButton.setImage(IonIcon.image("arrow-up-circle", size: 34), for: .normal)
         sendButton.accessibilityLabel = "Отправить"
         sendButton.addTarget(self, action: #selector(sendNow), for: .touchUpInside)
         composer.contentView.addSubview(sendButton)
@@ -176,7 +176,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         contextWords.font = .systemFont(ofSize: 13)
         contextWords.textColor = Theme.muted
         contextBar.addSubview(contextWords)
-        contextClose.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)), for: .normal)
+        contextClose.setImage(IonIcon.image("close", size: 18), for: .normal)
         contextClose.tintColor = Theme.muted
         contextClose.accessibilityLabel = "Отменить"
         contextClose.addTarget(self, action: #selector(dropContext), for: .touchUpInside)
@@ -221,7 +221,7 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
 
     private func showSend() {
         let ready = !(field.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        sendButton.tintColor = ready ? Theme.text : Theme.subtle
+        sendButton.tintColor = ready ? Theme.accent : Theme.subtle // ChannelChat.tsx: accent with words, subtle without
         sendButton.isEnabled = ready && !sending
         sendButton.isHidden = sending
         if sending { busy.startAnimating() } else { busy.stopAnimating() }
@@ -405,11 +405,11 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
 
     private func showContext() {
         if editingMessage != nil {
-            contextIcon.image = UIImage(systemName: "square.and.pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .medium))
+            contextIcon.image = IonIcon.image("create-outline", size: 16)
             contextWords.text = "Редактирование"
             contextBar.isHidden = false
         } else if let reply {
-            contextIcon.image = UIImage(systemName: "arrow.turn.down.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .medium))
+            contextIcon.image = IonIcon.image("return-down-forward", size: 16)
             contextWords.text = "Ответ " + replyAuthor + ": " + (reply.text.isEmpty ? "вложение" : reply.text.replacingOccurrences(of: "\n", with: " "))
             contextBar.isHidden = false
         } else {
@@ -653,16 +653,16 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         let mine = message.senderId == me
         var actions: [ChannelMenuView.Action] = []
         if canWrite {
-            actions.append(ChannelMenuView.Action(symbol: "arrowshape.turn.up.left", label: "Ответить", danger: false, run: { [weak self] in self?.startReply(message, author: author) }))
+            actions.append(ChannelMenuView.Action(symbol: "arrow-undo-outline", label: "Ответить", danger: false, run: { [weak self] in self?.startReply(message, author: author) }))
         }
         if !message.text.isEmpty {
-            actions.append(ChannelMenuView.Action(symbol: "doc.on.doc", label: "Скопировать", danger: false, run: { UIPasteboard.general.string = message.text }))
+            actions.append(ChannelMenuView.Action(symbol: "copy-outline", label: "Скопировать", danger: false, run: { UIPasteboard.general.string = message.text }))
         }
         if mine && !message.text.isEmpty {
-            actions.append(ChannelMenuView.Action(symbol: "square.and.pencil", label: "Изменить", danger: false, run: { [weak self] in self?.startEdit(message) }))
+            actions.append(ChannelMenuView.Action(symbol: "create-outline", label: "Изменить", danger: false, run: { [weak self] in self?.startEdit(message) }))
         }
         if mine || canModerate {
-            actions.append(ChannelMenuView.Action(symbol: "trash", label: "Удалить", danger: true, run: { [weak self] in self?.remove(message) }))
+            actions.append(ChannelMenuView.Action(symbol: "trash-outline", label: "Удалить", danger: true, run: { [weak self] in self?.remove(message) }))
         }
         let reactions = ChannelWords.quickReactions.map { (emoji: String) -> (emoji: String, chosen: Bool) in
             (emoji: emoji, chosen: message.reactions.contains { $0.emoji == emoji && $0.userIds.contains(me) })
@@ -720,7 +720,7 @@ final class WaitingChip: UIView {
         super.init(frame: .zero)
         backgroundColor = Theme.surface2
         layer.cornerRadius = 16
-        let icon = UIImageView(image: UIImage(systemName: failed ? "exclamationmark.circle" : "clock", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)))
+        let icon = UIImageView(image: IonIcon.image(failed ? "alert-circle-outline" : "time-outline", size: 14))
         icon.tintColor = failed ? Theme.danger : Theme.muted
         icon.setContentHuggingPriority(.required, for: .horizontal)
         let words = UILabel()
@@ -740,7 +740,7 @@ final class WaitingChip: UIView {
         row.spacing = 8
         if onRetry != nil {
             let again = UIButton(type: .system)
-            again.setImage(UIImage(systemName: "arrow.clockwise", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)), for: .normal)
+            again.setImage(IonIcon.image("refresh-outline", size: 16), for: .normal)
             again.tintColor = Theme.muted
             again.accessibilityLabel = "Отправить ещё раз"
             again.addTarget(self, action: #selector(retryPressed), for: .touchUpInside)
@@ -748,7 +748,7 @@ final class WaitingChip: UIView {
             row.addArrangedSubview(again)
         }
         let close = UIButton(type: .system)
-        close.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)), for: .normal)
+        close.setImage(IonIcon.image("close", size: 16), for: .normal)
         close.tintColor = Theme.muted
         close.accessibilityLabel = failed ? "Убрать" : "Отменить отправку"
         close.addTarget(self, action: #selector(closePressed), for: .touchUpInside)

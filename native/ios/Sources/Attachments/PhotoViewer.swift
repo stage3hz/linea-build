@@ -70,6 +70,7 @@ final class PhotoViewer: UIViewController, UIScrollViewDelegate, UIGestureRecogn
         view.addGestureRecognizer(once)
         drag.delegate = self
         view.addGestureRecognizer(drag)
+        MotionBlur.attach(scroll, following: drag) // MotionBlur: the picture dragged down and let go, smeared along its fall below 90 Hz
         begin()
     }
 

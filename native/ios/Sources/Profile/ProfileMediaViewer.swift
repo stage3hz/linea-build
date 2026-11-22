@@ -100,12 +100,14 @@ final class ProfileMediaViewer: UIViewController, UIScrollViewDelegate, UIGestur
             }
             pager.addSubview(page)
             pages.append(page)
+            MotionBlur.attach(page, kickedBy: pager) // MotionBlur: smeared along its move below 90 Hz (Effects/MotionBlur.swift): paged sideways
         }
         let tap = UITapGestureRecognizer(target: self, action: #selector(toggleChrome))
         view.addGestureRecognizer(tap)
         let pull = UIPanGestureRecognizer(target: self, action: #selector(pulled(_:)))
         pull.delegate = self
         view.addGestureRecognizer(pull)
+        for page in pages { MotionBlur.attach(page, following: pull) } // MotionBlur: pulled away up or down
 
         let back = UIButton(type: .system)
         back.setImage(BackChevronGlyph.image(size: 24), for: .normal) // «chevron-back» 24

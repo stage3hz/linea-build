@@ -20,7 +20,7 @@ final class CommunityAvatarView: UIView {
     private let picture = UIImageView()
     private let mark = UIImageView()
     private var pictureId = ""
-    private var markName = "gamecontroller.fill"
+    private var markName = "game-controller"
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -56,7 +56,7 @@ final class CommunityAvatarView: UIView {
         let pair = ChannelWords.gradient(id)
         gradient.colors = [UIColor(hex: pair.0).cgColor, UIColor(hex: pair.1).cgColor]
         letters.text = ChannelWords.initials(name)
-        markName = blog ? "megaphone.fill" : "gamecontroller.fill"
+        markName = blog ? "megaphone" : "game-controller"
         pictureId = avatarId
         loadPicture()
         setNeedsLayout()
@@ -89,7 +89,7 @@ final class CommunityAvatarView: UIView {
         let side = bounds.width * 0.3
         mark.frame = CGRect(x: bounds.width - side - 2, y: bounds.height - side - 2, width: side, height: side)
         mark.layer.cornerRadius = side / 2
-        mark.image = UIImage(systemName: markName, withConfiguration: UIImage.SymbolConfiguration(pointSize: max(5, bounds.width * 0.15), weight: .regular))
+        mark.image = IonIcon.image(markName, size: max(5, bounds.width * 0.17)) // the reference: size × 0.17
         layer.cornerRadius = min(bounds.width, bounds.height) / 2
         if picture.image == nil && !pictureId.isEmpty { loadPicture() }
     }

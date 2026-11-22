@@ -73,6 +73,7 @@ class EmojiPanel(context: Context, source: GlassSource?) : GlassPill(context, so
   }
 
   init {
+    com.linea.messenger.effects.MotionBlur.attach(this) // MotionBlur: blurred along its slide and its pull down, below 90 Hz
     placesChildren = true
     radius = 26 * d
     val column = LinearLayout(context)

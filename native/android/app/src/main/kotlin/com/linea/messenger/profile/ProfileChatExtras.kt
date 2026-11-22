@@ -484,6 +484,7 @@ class SharedMediaView(context: Context) : LinearLayout(context) {
     when (event.actionMasked) {
       MotionEvent.ACTION_MOVE -> {
         val shift = if (motion) dx * 0.35f else 0f
+        com.linea.messenger.effects.MotionBlur.attach(body) // MotionBlur: blurred along its move on screens below 90 Hz
         body.translationX = shift
         body.alpha = 1 - minOf(0.4f, Math.abs(shift) / (300 * resources.displayMetrics.density))
       }

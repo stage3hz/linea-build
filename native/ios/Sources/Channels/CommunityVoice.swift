@@ -88,8 +88,8 @@ enum CommunityVoice {
 final class VoiceMemberCell: UITableViewCell {
     private let avatar = PersonAvatarView()
     private let name = UILabel()
-    private let deafMark = UIImageView(image: UIImage(systemName: "speaker.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)))
-    private let micMark = UIImageView(image: UIImage(systemName: "mic.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)))
+    private let deafMark = UIImageView(image: IonIcon.image("volume-mute", size: 14))
+    private let micMark = UIImageView(image: IonIcon.image("mic-off", size: 14))
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -212,10 +212,10 @@ final class CommunityVoicePanel: UIView {
         screenPanel.show(voice) // ScreenShare
         problem.text = voice.error
         problem.isHidden = voice.error.isEmpty
-        micButton.show(symbol: voice.muted ? "mic.slash.fill" : "mic.fill", words: voice.muted ? "Микрофон выкл." : "Микрофон", active: !voice.muted, danger: false)
-        soundButton.show(symbol: voice.deafened ? "speaker.slash.fill" : "headphones", words: voice.deafened ? "Звук выкл." : "Звук", active: !voice.deafened, danger: false)
-        speakerButton.show(symbol: voice.speaker ? "speaker.wave.3.fill" : "ear", words: voice.speaker ? "Динамик" : "Телефон", active: voice.speaker, danger: false)
-        leaveButton.show(symbol: "phone.down.fill", words: "Выйти", active: false, danger: true)
+        micButton.show(symbol: voice.muted ? "mic-off" : "mic", words: voice.muted ? "Микрофон выкл." : "Микрофон", active: !voice.muted, danger: false)
+        soundButton.show(symbol: voice.deafened ? "volume-mute" : "headset", words: voice.deafened ? "Звук выкл." : "Звук", active: !voice.deafened, danger: false)
+        speakerButton.show(symbol: voice.speaker ? "volume-high" : "ear", words: voice.speaker ? "Динамик" : "Телефон", active: voice.speaker, danger: false)
+        leaveButton.show(symbol: "call", words: "Выйти", active: false, danger: true)
     }
 
     @objc private func clearProblem() { RoomVoice.shared.clearError() }
@@ -255,7 +255,7 @@ final class CommunityVoiceButton: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     func show(symbol: String, words text: String, active: Bool, danger: Bool) {
-        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium))
+        icon.image = IonIcon.image(symbol, size: 20) // VoiceButton: the glyph 20
         icon.tintColor = danger ? .white : (active ? Theme.accent : Theme.text)
         words.text = text
         words.textColor = danger ? .white : Theme.text

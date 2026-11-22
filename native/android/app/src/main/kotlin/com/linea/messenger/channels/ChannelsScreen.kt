@@ -41,10 +41,8 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
   private val list = ListView(context)
   private val spinner = ChannelSpinner(context)
   private val notice = context.words("", 13f, Theme.danger)
-  private val emptyIcon = ChannelIconView(context, "globe", 44f, Theme.subtle)
-  private val emptyHeading = context.words("Свои места для своих", 20f, Theme.text, 700)
-  private val emptyWords = context.words("Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно.", 14f, Theme.muted)
-  private val emptyButton = context.words("Создать", 15f, Theme.onAccent, 600)
+  /** «Свои места для своих»: the reference's `Empty` with `planet-outline` and «Создать» (`add`). */
+  private val emptyState = com.linea.messenger.chatsplus.EmptyStateView(context)
   private var items: List<Item> = emptyList()
   private var loaded = false
   private var showing = false
@@ -99,13 +97,9 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     notice.setOnClickListener { retry() }
     addView(notice)
 
-    emptyHeading.gravity = Gravity.CENTER
-    emptyWords.gravity = Gravity.CENTER
-    emptyButton.gravity = Gravity.CENTER
-    emptyButton.background = context.plate(Theme.accent, 22f)
-    emptyButton.isClickable = true; emptyButton.isFocusable = true
-    emptyButton.setOnClickListener { create() }
-    for (part in listOf(emptyIcon, emptyHeading, emptyWords, emptyButton)) { part.visibility = View.GONE; addView(part) }
+    emptyState.show("ion:planet-outline", "Свои места для своих", "Создай игровой сервер с текстовыми и голосовыми каналами или стандартный канал — блог, новости, музыку, что угодно.", "Создать", "ion:add") { create() }
+    emptyState.visibility = View.GONE
+    addView(emptyState)
 
     if (messenger != null) fromStore() else show(ChannelsDemo.summaries(), "")
   }
@@ -140,13 +134,9 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     put(listBox, 0, 0, width, height)
     put(spinner, width / 2 - dp(12f), listTop + dp(71f), dp(24f), dp(24f))
     put(notice, dp(20f), listTop + dp(5f), width - dp(40f), dp(44f))
-    val middle = height / 2 - dp(30f)
-    put(emptyIcon, 0, middle - dp(110f), width, dp(50f))
-    put(emptyHeading, dp(24f), middle - dp(50f), width - dp(48f), dp(26f))
-    emptyWords.measure(MeasureSpec.makeMeasureSpec(width - dp(64f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    val wordsHeight = emptyWords.measuredHeight
-    emptyWords.layout(dp(32f), middle - dp(16f), width - dp(32f), middle - dp(16f) + wordsHeight)
-    put(emptyButton, (width - dp(150f)) / 2, middle - dp(16f) + wordsHeight + dp(18f), dp(150f), dp(44f))
+    // Centred in what the list leaves (`flex: 1, justifyContent: center`), 12 in from the sides.
+    val emptyTop = listTop + rooms.height
+    put(emptyState, dp(12f), emptyTop, width - dp(24f), maxOf(0, height - emptyTop - barRoom))
   }
 
   // What is shown
@@ -177,7 +167,7 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
   /** Rooms: as in the reference, the call to create something gives way to the rooms when there are any. */
   private fun showEmpty() {
     val empty = nothingListed && com.linea.messenger.rooms.Rooms.rooms.isNullOrEmpty()
-    for (part in listOf(emptyIcon, emptyHeading, emptyWords, emptyButton)) part.visibility = if (empty) View.VISIBLE else View.GONE
+    emptyState.visibility = if (empty) View.VISIBLE else View.GONE
   }
 
   private fun retry() {
@@ -244,7 +234,7 @@ class CommunityCell(context: Context) : ViewGroup(context) {
   private val avatar = CommunityAvatarView(context)
   private val name = context.words("", 16f, Theme.text, 600)
   private val words = context.words("", 14f, Theme.muted)
-  private val quiet = ChannelIconView(context, "speaker.slash", 14f, Theme.subtle)
+  private val quiet = ChannelIconView(context, "ion:volume-mute", 14f, Theme.subtle)
   private val mentions = ChannelBadgeLabel(context)
   private val unread = ChannelBadgeLabel(context)
 

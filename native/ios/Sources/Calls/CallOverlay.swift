@@ -15,6 +15,8 @@ private final class CallHostController: UIViewController {
     /// Above the bar, under the status bar: the page's colour, so the status bar keeps its usual look (CallBarFrame).
     let strip = UIView()
     var callScreen: CallScreenView?
+    /// The page the call screen is presented in (CallOverlay.presentScreen).
+    fileprivate var callPage: UIViewController?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -33,7 +35,6 @@ private final class CallHostController: UIViewController {
         strip.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: view.safeAreaInsets.top)
         strip.backgroundColor = Theme.bg
         strip.isHidden = bar.isHidden
-        if let callScreen, callScreen.transform.isIdentity { callScreen.frame = view.bounds }
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
@@ -226,25 +227,56 @@ final class CallOverlay {
 
     private func presentScreen() -> CallScreenView {
         if let screen = host.callScreen { return screen }
+        // The reference's call screen is a <Modal animationType="slide">: the system's own modal presentation
+        // (cover vertical, over the whole screen), not an animation of our own.
+        let page = CallScreenPage()
         let screen = CallScreenView(frame: host.view.bounds)
+        screen.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        page.loadViewIfNeeded()
+        screen.frame = page.view.bounds
+        page.view.addSubview(screen)
         host.callScreen = screen
-        host.view.addSubview(screen)
-        // Slides up from the bottom, as the reference's call screen does.
-        screen.transform = CGAffineTransform(translationX: 0, y: host.view.bounds.height)
-        UIView.animate(withDuration: 0.3, delay: 0, options: [.curveEaseOut], animations: { screen.transform = .identity }, completion: nil)
+        host.callPage = page
+        // A page still on its way out (minimised a moment ago) goes at once, so this one can come.
+        if let leaving = host.presentedViewController { leaving.dismiss(animated: false, completion: nil) }
+        host.present(page, animated: true, completion: nil)
         return screen
     }
 
     private func dismissScreen(_ done: (() -> Void)?) {
         guard let screen = host.callScreen else { done?(); return }
         host.callScreen = nil
-        let away = CGAffineTransform(translationX: 0, y: host.view.bounds.height)
-        UIView.animate(withDuration: 0.25, delay: 0, options: [.beginFromCurrentState, .curveEaseIn], animations: { screen.transform = away }, completion: { (_: Bool) -> Void in
+        let page = host.callPage
+        host.callPage = nil
+        // Pulled down, the screen is already out of sight: the page goes without a second slide.
+        let pulledAway = !screen.transform.isIdentity
+        let finish: () -> Void = {
             screen.retire()
             screen.removeFromSuperview()
             done?()
-        })
+        }
+        guard let page = page, page.presentingViewController != nil else { finish(); return }
+        page.dismiss(animated: !pulledAway, completion: finish)
     }
+}
+
+/// The page the call screen is presented in (modally, over everything, cover vertical), portrait only.
+private final class CallScreenPage: UIViewController {
+    override init(nibName: String?, bundle: Bundle?) {
+        super.init(nibName: nibName, bundle: bundle)
+        modalPresentationStyle = .overFullScreen
+        modalTransitionStyle = .coverVertical
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .clear
+    }
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
 }
 
 /// Where a call is placed from: the chat's header and a person's profile.
@@ -265,13 +297,13 @@ enum CallEntry {
     /// (the reference keeps the second one in the header's menu).
     static func headerButton(messenger: Messenger?, chatId: String, peerId: String, name: String) -> UIButton {
         let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "phone", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)), for: .normal)
+        button.setImage(IonIcon.image("call-outline", size: 21), for: .normal)
         button.tintColor = Theme.muted
         button.accessibilityLabel = "Позвонить"
-        let audio = UIAction(title: "Позвонить", image: UIImage(systemName: "phone")) { [weak messenger] (_: UIAction) -> Void in
+        let audio = UIAction(title: "Позвонить", image: IonIcon.image("call-outline", size: 19)) { [weak messenger] (_: UIAction) -> Void in
             CallEntry.call(messenger: messenger, chatId: chatId, peerId: peerId, name: name, video: false)
         }
-        let video = UIAction(title: "Видеозвонок", image: UIImage(systemName: "video")) { [weak messenger] (_: UIAction) -> Void in
+        let video = UIAction(title: "Видеозвонок", image: IonIcon.image("videocam-outline", size: 19)) { [weak messenger] (_: UIAction) -> Void in
             CallEntry.call(messenger: messenger, chatId: chatId, peerId: peerId, name: name, video: true)
         }
         button.addAction(UIAction { [weak messenger] (_: UIAction) -> Void in

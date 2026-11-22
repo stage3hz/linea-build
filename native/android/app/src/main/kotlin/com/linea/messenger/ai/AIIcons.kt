@@ -20,7 +20,21 @@ object AIIcons {
   private val fromSymbols = setOf("lock", "trash", "refresh", "check", "info", "eye", "eye.slash", "check.circle")
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). An unknown name draws nothing. */
+  /** The reference's own glyphs (Ionicons) for the names this app asks by (AIScreen.tsx, MusicScreen.tsx). */
+  private val ion = mapOf(
+    "menu" to "menu-outline", "compose" to "create-outline", "plus" to "add", "xmark" to "close", "arrow.up" to "arrow-up", "stop" to "stop",
+    "chevron.down" to "chevron-down", "chevron.up" to "chevron-up", "copy" to "copy-outline", "play" to "play", "pause" to "pause", "play.rect" to "play",
+    "share" to "share-outline", "mic" to "mic-outline", "doc" to "document-text-outline", "heart" to "heart-outline", "heart.fill" to "heart",
+    "more" to "ellipsis-horizontal", "prev" to "play-skip-back", "next" to "play-skip-forward", "shuffle" to "shuffle", "sliders" to "options-outline",
+    "photo" to "images-outline", "note" to "musical-note", "search" to "search-outline", "drop" to "water-outline", "bolt" to "flash-outline",
+    "sun" to "sunny-outline", "moon" to "moon-outline", "speaker" to "volume-medium-outline", "link" to "open-outline", "download" to "download-outline",
+    "lock" to "lock-closed", "trash" to "trash-outline", "refresh" to "refresh-outline", "check" to "checkmark", "info" to "information-outline",
+    "eye" to "eye-outline", "eye.slash" to "eye-off-outline", "check.circle" to "checkmark-circle", "sparkles" to "sparkles-outline", "headphones" to "headset-outline",
+  )
+
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
+    ion[name]?.let { return com.linea.messenger.design.IonIcon.draw(canvas, it, cx, cy, size, color) }
     if (name in fromIcons) return Icons.draw(canvas, name, cx, cy, size, color)
     if (name in fromSymbols) return Symbols.draw(canvas, name, cx, cy, size, color)
     stroke.color = color; fill.color = color; letters.color = color; stroke.strokeWidth = 1.8f

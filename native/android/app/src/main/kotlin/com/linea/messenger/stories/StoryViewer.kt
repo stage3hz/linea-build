@@ -130,20 +130,20 @@ class StoryViewer(context: Context, private var group: StoryViewerGroup) : Dialo
   private val picture = StoryPictureView(context)
   private val video = StoryVideoView(context)
   private val spinner = ProgressBar(context)
-  private val goneIcon = StoryIconView(context, "video.off", 34f, Color.WHITE)
+  private val goneIcon = StoryIconView(context, "ion:videocam-off-outline", 34f, Color.WHITE)
   private val goneLabel = label(15f, Color.WHITE)
   private val bars = StoryBarsView(context)
   private val avatar = PersonAvatarView(context)
   private val nameLabel = label(15f, Color.WHITE, 700)
   private val lineLabel = label(13f, 0xD9FFFFFF.toInt())
-  private val closeButton = StoryIconView(context, "cross", 18f, Color.WHITE, GLASS)
+  private val closeButton = StoryIconView(context, "ion:close", 22f, Color.WHITE, GLASS)
   private val captionLabel = label(16f, Color.WHITE)
   private val problemLabel = label(14f, Theme.danger)
   private val viewsButton = LinearLayout(context)
   private val viewsCount = label(14f, Color.WHITE, 600)
   private val replyBox = FrameLayout(context)
   private val replyField = EditText(context)
-  private val sendButton = StoryIconView(context, "arrow.up", 20f, Color.WHITE, GLASS)
+  private val sendButton = StoryIconView(context, "ion:arrow-up", 22f, Color.WHITE, GLASS)
   private val sendSpinner = ProgressBar(context)
   private val sentLabel = label(13f, 0xD9FFFFFF.toInt())
   /** Everything but the picture: hidden while a finger holds the story. */
@@ -197,6 +197,7 @@ class StoryViewer(context: Context, private var group: StoryViewerGroup) : Dialo
     requestWindowFeature(Window.FEATURE_NO_TITLE)
     root.background = backdrop
     root.addView(page, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+    com.linea.messenger.effects.MotionBlur.attach(page) // MotionBlur: the story's slide to the next person and its pull away, below 90 Hz
     setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     page.setBackgroundColor(Color.BLACK)
     page.clipChildren = true
@@ -236,7 +237,7 @@ class StoryViewer(context: Context, private var group: StoryViewerGroup) : Dialo
     viewsButton.gravity = Gravity.CENTER
     viewsButton.background = glass(17f)
     viewsButton.setPadding(dp(12f), 0, dp(14f), 0)
-    viewsButton.addView(StoryIconView(context, "eye", 17f, Color.WHITE), LinearLayout.LayoutParams(dp(18f), dp(18f)).apply { rightMargin = dp(6f) })
+    viewsButton.addView(StoryIconView(context, "ion:eye-outline", 18f, Color.WHITE), LinearLayout.LayoutParams(dp(18f), dp(18f)).apply { rightMargin = dp(6f) })
     viewsButton.addView(viewsCount)
     viewsButton.isClickable = true
     viewsButton.isFocusable = true
@@ -860,7 +861,7 @@ class StoryViewersSheet(context: Context, private var found: StoryViewersData?) 
     body.addView(spinner, FrameLayout.LayoutParams(dp(26f), dp(26f), Gravity.CENTER_HORIZONTAL or Gravity.TOP).apply { topMargin = dp(30f) })
     empty.orientation = LinearLayout.VERTICAL
     empty.gravity = Gravity.CENTER_HORIZONTAL
-    empty.addView(StoryIconView(context, "eye", 26f, Theme.muted), LinearLayout.LayoutParams(dp(30f), dp(30f)))
+    empty.addView(StoryIconView(context, "ion:eye-outline", 26f, Theme.muted), LinearLayout.LayoutParams(dp(30f), dp(30f)))
     empty.addView(TextView(context).apply { text = StoryRules.word("nobodyWatched"); textSize = 14f; setTextColor(Theme.muted); gravity = Gravity.CENTER },
       LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(6f) })
     body.addView(empty, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP).apply { topMargin = dp(16f); leftMargin = dp(20f); rightMargin = dp(20f) })

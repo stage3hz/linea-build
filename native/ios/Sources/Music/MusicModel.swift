@@ -60,13 +60,13 @@ struct MusicMood {
 
 enum MusicCatalog {
     static let moods: [MusicMood] = [
-        MusicMood(id: "all", label: "Всё", symbol: "music.note", apiMood: nil),
-        MusicMood(id: "calm", label: "Спокойно", symbol: "drop", apiMood: "Peaceful"),
-        MusicMood(id: "energy", label: "Энергия", symbol: "bolt", apiMood: "Energizing"),
-        MusicMood(id: "focus", label: "Фокус", symbol: "headphones", apiMood: "Cool"),
-        MusicMood(id: "upbeat", label: "Настроение", symbol: "sun.max", apiMood: "Upbeat"),
-        MusicMood(id: "romantic", label: "Романтика", symbol: "heart", apiMood: "Romantic"),
-        MusicMood(id: "melancholy", label: "Меланхолия", symbol: "moon", apiMood: "Melancholy"),
+        MusicMood(id: "all", label: "Всё", symbol: "musical-notes-outline", apiMood: nil),
+        MusicMood(id: "calm", label: "Спокойно", symbol: "water-outline", apiMood: "Peaceful"),
+        MusicMood(id: "energy", label: "Энергия", symbol: "flash-outline", apiMood: "Energizing"),
+        MusicMood(id: "focus", label: "Фокус", symbol: "headset-outline", apiMood: "Cool"),
+        MusicMood(id: "upbeat", label: "Настроение", symbol: "sunny-outline", apiMood: "Upbeat"),
+        MusicMood(id: "romantic", label: "Романтика", symbol: "heart-outline", apiMood: "Romantic"),
+        MusicMood(id: "melancholy", label: "Меланхолия", symbol: "moon-outline", apiMood: "Melancholy"),
     ]
 
     private static let origin = "https://api.audius.co"

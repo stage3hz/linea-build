@@ -53,6 +53,9 @@ object StoryIcons {
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). An unknown name draws nothing. */
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt); «ion:chevron-back» its drawn chevron.
+    if (name == "ion:chevron-back") return com.linea.messenger.design.Symbols.draw(canvas, name, cx, cy, size, color)
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     stroke.color = color; fill.color = color; stroke.strokeWidth = 1.9f
     canvas.save()
     canvas.translate(cx - size / 2, cy - size / 2)

@@ -2097,6 +2097,7 @@
 "В быстром вопросе история очищается при закрытии окна.": "In a quick question the history is cleared when the window closes.",
 "В сохранённой на этом устройстве переписке такого нет.": "Nothing like that in the conversations saved on this device.",
 "В твой аккаунт вошли с другого устройства. Данные об устройстве сообщает само приложение; адрес — такой, каким его увидел сервер.": "Someone signed in to your account from another device. The device details come from the app itself; the address is as the server saw it.",
+"В твой аккаунт вошли с другого устройства. Данные об устройстве сообщает само приложение; адрес — такой, каким его увидел сервер. Через 10 минут после входа это устройство получит копию твоих переписок (зашифрованную только для него). Если это был не ты — заверши сеанс сейчас, и перенос не состоится.": "Someone signed in to your account from another device. The device details come from the app itself; the address is as the server saw it. 10 minutes after signing in, that device will receive a copy of your chats (encrypted for it alone). If it was not you, end the session now and the transfer will not happen.",
 "Введи код-пароль": "Enter passcode",
 "Введи код-пароль, чтобы открыть Инвиз": "Enter your passcode to open Invizent",
 "Введи новый код-пароль": "Enter new passcode",

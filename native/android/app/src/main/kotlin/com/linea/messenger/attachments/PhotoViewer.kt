@@ -173,6 +173,9 @@ class PhotoViewer(
     /** This touch began as something else than a drag down (a pinch, a sideways move). */
     private var notDrag = false
     private var settle: ValueAnimator? = null
+
+    // MotionBlur: the picture dragged down and let go is blurred along its fall on screens below 90 Hz.
+    init { com.linea.messenger.effects.MotionBlur.attach(this) { dragY } }
     private var speed: VelocityTracker? = null
 
     private val zoomed: Boolean get() = zoom > 1.01f

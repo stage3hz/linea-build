@@ -222,7 +222,7 @@ final class RoomsSectionView: UIView {
         hintDash.lineWidth = 1
         hintDash.lineDashPattern = [5, 4]
         hintBox.layer.addSublayer(hintDash)
-        hintIcon.image = UIImage(systemName: "mic", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .regular))
+        hintIcon.image = IonIcon.image("mic-outline", size: 21)
         hintIcon.tintColor = Theme.text
         hintIcon.contentMode = .center
         hintIcon.backgroundColor = Theme.veil(0.08)

@@ -14,6 +14,11 @@ import com.linea.messenger.design.Theme
 /** The small pictures of rooms (where the iPhone app uses the system's symbols): shapes in a box of 24 units, as
  *  `Icons`. The microphone, the loudspeaker and the cross are those of calls. Used on the main thread only. */
 object RoomIcons {
+  private val ion = mapOf(
+    "music.note" to "musical-notes-outline", "xmark" to "close", "circle" to "ellipse-outline", "checkmark.circle.fill" to "checkmark-circle",
+    "mic.slash.fill" to "mic-off", "mic.fill" to "mic", "mic" to "mic-outline", "chevron.left" to "chevron-back", "ellipsis" to "ellipsis-horizontal",
+    "speaker.wave.2.fill" to "volume-high", "ear" to "ear-outline", "phone.down.fill" to "call",
+  )
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val path = Path()
@@ -24,6 +29,8 @@ object RoomIcons {
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int, ink: Int = 0) {
     // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
     if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
+    // The reference's glyphs (RoomScreen.tsx, RoomsSection.tsx, roomMusic.tsx) for the names this app asks by.
+    ion[name]?.let { return com.linea.messenger.design.IonIcon.draw(canvas, it, cx, cy, size, color) }
     when (name) {
       "mic.fill", "mic.slash.fill", "xmark", "phone.fill" -> return CallIcons.draw(canvas, name, cx, cy, size, color, ink)
       "speaker.wave.2.fill" -> return CallIcons.draw(canvas, "speaker.fill", cx, cy, size, color, ink)

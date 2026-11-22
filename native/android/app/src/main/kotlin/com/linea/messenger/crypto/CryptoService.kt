@@ -47,7 +47,8 @@ class CryptoService(userId: String, private val vault: Vault, private val server
     val result = server.opAndWait(if (method == "cryptoInbox") "inboxPage" else method, list)
     val answer: Map<String, Any?> = when (val error = result.exceptionOrNull()) {
       null -> mapOf("ok" to result.getOrNull())
-      is ServerError.Refused -> mapOf("refused" to error.words)
+      // The status and the server's code ride along: the core's history steps decide by them (`e2ee::history_sync`).
+      is ServerError.Refused -> mapOf("refused" to error.words, "status" to error.status, "code" to error.code)
       is ServerError -> mapOf("network" to error.words)
       else -> mapOf("network" to "Нет связи с сервером.")
     }

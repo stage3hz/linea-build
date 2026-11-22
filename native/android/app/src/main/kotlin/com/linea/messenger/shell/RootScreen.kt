@@ -94,6 +94,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     com.linea.messenger.rooms.RoomOverlay.start(context)
     // Security: «Новый вход», the recovery requests; Links: the badge and a waiting invitation (security/AccountNotices.kt).
     com.linea.messenger.security.AccountNotices.start(context, messenger)
+    // Old chats on a new device: a copy from or to the account's other devices, the backup (security/HistoryTransfer.kt).
+    com.linea.messenger.security.HistoryTransfer.start(messenger)
   }
 
   /** People: the number of requests to be friends on the row of «Люди». */

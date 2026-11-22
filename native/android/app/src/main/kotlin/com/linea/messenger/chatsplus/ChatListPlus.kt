@@ -123,6 +123,7 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     edit.onChange = { actions.redraw(); refreshTitle() }
     people.onChange = { actions.redraw() }
     archivePullView.setOnClickListener { actions.pressed(ChatListActions.archiveRow) }
+    com.linea.messenger.effects.MotionBlur.attach(archivePullView) // MotionBlur: «Архив» blurred along the pull and its snap, below 90 Hz
     list.folderClaims = { startX, dx -> claims(startX, dx) }
     list.onFolderDrag = { dx -> dragged(dx) }
     list.onFolderRelease = { dx, velocity -> released(dx, velocity) }
@@ -391,6 +392,7 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     val width = maxOf(1f, list.width.toFloat())
     tabs.follow(pagePosition(folderIndex, folders.tabIds.size, dx, width), animated = false)
     val shift = if (motion) dx * 0.3f else 0f
+    com.linea.messenger.effects.MotionBlur.attach(list) // MotionBlur: blurred along its move on screens below 90 Hz
     list.translationX = shift
     list.alpha = 1f - minOf(0.35f, Math.abs(shift) / (400f * d))
   }
