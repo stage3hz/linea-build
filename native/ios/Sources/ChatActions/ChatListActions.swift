@@ -89,7 +89,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         searchButton.backgroundColor = Theme.surface2
         searchButton.layer.cornerRadius = 20
         searchButton.accessibilityLabel = "Поиск"
-        searchButton.addTarget(self, action: #selector(toggleSearch), for: .touchUpInside)
+        searchButton.addTarget(self, action: #selector(openSearchScreen), for: .touchUpInside) // ChatSearch
         host.view.addSubview(searchButton)
         searchBox.backgroundColor = Theme.surface2
         searchBox.layer.cornerRadius = 20
@@ -686,6 +686,38 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
 
     // MARK: The search
 
+    /// ChatSearch: the magnifier opens the search screen (Sources/ChatSearch/ChatSearchScreen.swift): the heading and
+    /// the bar give way to it, as in the reference (ChatSearch.tsx).
+    @objc private func openSearchScreen() {
+        showSearchScreen(query: "")
+    }
+
+    private func showSearchScreen(query: String) {
+        guard let host, let stack = host.navigationController, stack.topViewController === host || stack.topViewController === host.parent else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let screen = ChatSearchScreen(messenger: messenger, chats: chats.filter { !removed($0) }, query: query)
+        screen.openChat = { [weak self] (chatId: String, focus: String) -> Void in self?.open(chatId, focus: focus) }
+        screen.openPerson = { [weak self] (person: Person) -> Void in
+            guard let self, let host = self.host, let messenger = self.messenger else { return }
+            messenger.openChat(with: person, from: host) { [weak host] (error: ServerError?) -> Void in
+                guard let error, let host else { return }
+                let alert = UIAlertController(title: nil, message: error.words.isEmpty ? "Не удалось открыть чат." : error.words + " Нажми ещё раз, чтобы повторить.", preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "Понятно", style: .default, handler: nil))
+                host.present(alert, animated: true)
+            }
+        }
+        screen.openSaved = { [weak self] in self?.plus?.openSaved() }
+        screen.openCommunity = { [weak self] (communityId: String) -> Void in
+            guard let self, let host = self.host else { return }
+            let root = (host as? RootViewController) ?? (host.parent as? RootViewController)
+            root?.show("channels")
+            if let messenger = self.messenger, let page = root?.children.first(where: { $0 is ChannelsViewController }) {
+                ChannelsRoute.openCommunity(from: page, messenger: messenger, id: communityId)
+            }
+        }
+        stack.pushViewController(screen, animated: false)
+    }
+
     @objc private func toggleSearch() {
         searching.toggle()
         searchBox.isHidden = !searching
@@ -781,12 +813,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         simulatorDone = true
         let args = UserDefaults.standard
         if let wanted = args.string(forKey: "chatsearch"), !wanted.isEmpty {
+            // ChatSearch: the search screen with these words (the keyboard stays away for the picture).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self else { return }
-                if !self.searching { self.toggleSearch() }
-                self.searchField.text = wanted
-                self.searchField.resignFirstResponder()
-                self.setQuery(wanted)
+                self?.showSearchScreen(query: wanted)
             }
             return
         }

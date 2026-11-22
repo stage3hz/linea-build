@@ -277,6 +277,10 @@ jobs:
           shot 426-music-layout -musicdemo 1 -effects 1
           shot 427-ai-composer -aidemo 1
           shot 428-auth-glass -auth 1 -effects 1
+          shot 440-chat-inline-media -demo 1 -chat 1 -attachdemo 1
+          shot 441-chat-composer -demo 1 -chat 1
+          shot 442-chat-search -demo 1 -chatsearch Ма
+          shot 443-chat-search-people -demo 1 -chatsearch Мар -chatsearchscope people
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

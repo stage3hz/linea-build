@@ -135,7 +135,7 @@ final class Messenger {
                 ticks = read >= own ? 2 : 1
             }
         }
-        let color = Self.color(peer["avatarColor"] as? String)
+        let color = Self.color(peer["avatarColor"] as? String ?? "#4B73BB") // Avatars: the reference's colour for a person without one
         let orb = orbPair(color)
         let settings = chat["settings"] as? [String: Any]
         let avatarId = peer["avatarId"] as? String ?? ""
@@ -304,7 +304,8 @@ final class Messenger {
     }
 
     static func initials(_ name: String) -> String {
-        name.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined().uppercased()
+        // Avatars: as the reference — the first letters of the first two words, split on any white space.
+        name.split(whereSeparator: { $0.isWhitespace }).prefix(2).compactMap { $0.first }.map { String($0) }.joined().uppercased()
     }
 
     /// `#RRGGBB` → 0xRRGGBB; the app's blue when it is not a colour.
