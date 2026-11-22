@@ -63,13 +63,17 @@ const FORMATTED = (() => {
   return [text, [at('Жирный', 'bold'), at('курсив', 'italic'), at('подчёркнутый', 'underline'), at('зачёркнутый', 'strikethrough'), at('код', 'code'),
     at('спойлер', 'spoiler'), at('Цитата из письма', 'quote'), at('подробности тут', 'text_link', { url: 'https://example.com/details' })]];
 })();
-async function say(from, to, message) {
+// `extra`: more of the encrypted body's meta (a reply, a forward, a poll, an action…; tools/sim-seed-rich.mjs).
+// Gives the message's client id (what a reply, a reaction or an edit points at).
+async function say(from, to, message, extra) {
   const [text, entities] = Array.isArray(message) ? message : [message, null];
   if (!from.chatId) from.chatId = (await from.api.createChat(to)).chat.id;
   const clientId = randomUUID();
-  const encrypted = await from.service.encrypt(from.chatId, to, clientId, text, null, entities ? { entities } : undefined);
+  const meta = entities || extra ? { ...(entities ? { entities } : {}), ...(extra || {}) } : undefined;
+  const encrypted = await from.service.encrypt(from.chatId, to, clientId, text, null, meta);
   await from.api.sendEncrypted(from.chatId, clientId, encrypted);
   await from.service.delivered(from.chatId, clientId);
+  return clientId;
 }
 
 const stamp = Date.now().toString(36).slice(-5);
@@ -97,13 +101,22 @@ for (const [index, [name, colors]] of PEOPLE.entries()) people.push(await peer(`
 const found = (await people[0].api.users('@' + handle)).users[0];
 if (!found) { console.error(`the test account @${handle} was not found`); process.exit(1); }
 let sent = 0;
+// SIM_SEED_RICH=1: the comparison's realistic data (tools/sim-seed-rich.mjs); Тимур's rich chat goes before his texts.
+const rich = process.env.SIM_SEED_RICH === '1' ? await import(new URL('sim-seed-rich.mjs', import.meta.url)) : null;
+const forwardWanted = new Map();
+const { sha256hex, uploadSmall, uploadChunked, CHUNK } = await import(new URL('sim-files.mjs', import.meta.url));
+const richContext = () => ({ base, people, names: PEOPLE.map(([name]) => name), found, say, sayFile, support, nodeSignalBridge, uploadSmall, uploadChunked, Api,
+  dataDir: process.argv[4], login: process.argv[5], password: process.argv[6], word: process.argv[7] });
 // The extra people (SIM_SEED_RICH=1) write first; the order of the others is as listed.
 const sendOrder = [...PEOPLE.keys()].sort((a, b) => Number(!!PEOPLE[b][3]) - Number(!!PEOPLE[a][3]));
-for (const index of sendOrder) for (const text of PEOPLE[index][2]) { await say(people[index], found.id, text); sent++; }
+for (const index of sendOrder) {
+  if (rich && index === PEOPLE.length - 1) { try { sent += await rich.beforeTimur(richContext()); } catch (error) { console.log(`rich chat not sent: ${error.message}`); } }
+  for (const text of PEOPLE[index][2]) { await say(people[index], found.id, text); sent++; }
+}
 // An encrypted photo and an encrypted file from the last person (their chat is then the first in the list), sent
 // the way the app sends them: sealed with a fresh key, uploaded as ciphertext, the key travelling inside the
 // message. Not fatal: an older server without the files route just has no attachments to show.
-async function sayFile(from, to, bytes, { name, mimeType, media }, text = '') {
+async function sayFile(from, to, bytes, { name, mimeType, media }, text = '', extra) {
   const { randomBytes } = await import('node:crypto');
   if (!from.chatId) from.chatId = (await from.api.createChat(to)).chat.id;
   const fileKeyId = randomUUID(), key = randomBytes(32).toString('base64'), nonce = randomBytes(12).toString('base64');
@@ -115,16 +128,15 @@ async function sayFile(from, to, bytes, { name, mimeType, media }, text = '') {
   if (!response.ok) throw new Error(uploaded.error || String(response.status));
   const attachment = { id: uploaded.id, name, mimeType, size: bytes.length, encryption: { scheme: 'aes-256-gcm-siv', key, nonce, fileKeyId }, ...(media ? { media } : {}) };
   const clientId = randomUUID();
-  await from.api.sendEncrypted(from.chatId, clientId, await from.service.encrypt(from.chatId, to, clientId, text, attachment));
+  await from.api.sendEncrypted(from.chatId, clientId, await from.service.encrypt(from.chatId, to, clientId, text, attachment, extra));
   await from.service.delivered(from.chatId, clientId);
   forwardWanted.set(name, { sha256: sha256hex(bytes), id: attachment.id, key: attachment.encryption.key });
+  return clientId;
 }
 // SIM_SEED_FORWARD=<file>: the forward check (tools/sim-forward-check.mjs). Every attachment seeded here is noted
 // (its name, the SHA-256 of its bytes, its id and key), a small and two chunked videos are added, and what the
 // first person needs to open what reaches them later — their session and their device's keys, made up for this
 // run on the local server — is written to that file.
-const forwardWanted = new Map();
-const { sha256hex, uploadSmall, uploadChunked, CHUNK } = await import(new URL('sim-files.mjs', import.meta.url));
 try {
   const last = people[people.length - 1];
   await sayFile(last, found.id, Buffer.from('%PDF-1.4\n% a made-up file for the simulator\n', 'utf8'), { name: 'Договор.pdf', mimeType: 'application/pdf' }, 'Посмотри договор');
@@ -205,6 +217,12 @@ if (dataDir) {
       if (Object.keys(look).length) await people[index].api.profile(look);
     } catch (error) { console.log(`Platina look of person ${index} not set: ${error.message}`); }
   }
+}
+if (rich) { try { await rich.afterSeed(richContext()); } catch (error) { console.log(`rich account side not seeded: ${error.message}`); } }
+// SIM_SEED_SERVE=<port> (with SIM_SEED_RICH=1): the summary first, then this process stays (typing, online, rings).
+if (rich && process.env.SIM_SEED_SERVE) {
+  console.log(JSON.stringify({ people: people.length, messages: sent, to: found.id }));
+  await rich.serve(richContext(), Number(process.env.SIM_SEED_SERVE));
 }
 for (const person of people) await person.service.close();
 if (process.env.SIM_SEED_FORWARD) {
