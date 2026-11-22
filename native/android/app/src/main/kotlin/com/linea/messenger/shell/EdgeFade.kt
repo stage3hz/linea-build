@@ -101,7 +101,7 @@ object EdgeRamp {
  *  What it blurs: a [GlassSource] page (its recorded drawing is reused, nothing is drawn twice) or any other view
  *  (drawn again into a small node when the page scrolls or lays out). Either must NOT contain this view. It redraws
  *  only on a scroll, a layout or a change of its own; nothing runs per frame. The glass bars stay above it. */
-open class ProgressiveEdgeView(context: Context, val top: Boolean) : View(context) {
+open class ProgressiveEdgeView(context: Context, private val top: Boolean) : View(context) {
   /** The wash's colour (0xRRGGBB, any alpha ignored); null: the page's colour. */
   var color: Int? = null
     set(value) { field = value; invalidate() }

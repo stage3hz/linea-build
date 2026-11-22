@@ -32,6 +32,8 @@ class ShellExtras(private val root: RootScreen, private val bar: View, messenger
     root.addView(barEdge, at)
     root.addView(statusStrip, at + 1)
     root.addView(mini, at + 2)
+    // EdgeFade: the edges blur the section behind them (the stage the bar's glass shows, shell/EdgeFade.kt).
+    (bar as? TabBarView)?.behind?.let { stage -> barEdge.glass = stage; statusStrip.glass = stage }
     root.addView(hint)
     mini.onOpen = { openPlayer() }
     player.changed.watch(playerChanged)

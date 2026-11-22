@@ -154,7 +154,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private var keyboardTo = 0f
   /** The compact arrangement stays while a request is under way (the field is closed then and the keyboard leaves
    *  for a moment): nothing moves before the answer. */
-  private var held = false
+  private var holdCompact = false
   private var placed = false
   private var settle: ValueAnimator? = null
 
@@ -191,7 +191,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     statusPending = false
     checking = false
     entered = false
-    held = false
+    holdCompact = false
     settle?.cancel()
     clearSecrets()
     keyboard()?.hideSoftInputFromWindow(windowToken, 0)
@@ -207,13 +207,13 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   private val keyboardUp: Boolean get() = edges.keyboard > AuthFit.KEYBOARD * d
 
-  private val compactWanted: Boolean get() = keyboardUp || (held && keyboardHeight > 0)
+  private val compactWanted: Boolean get() = keyboardUp || (holdCompact && keyboardHeight > 0)
 
   override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
     val result = super.onApplyWindowInsets(insets)
     if (keyboardUp) {
       keyboardHeight = edges.keyboard
-      held = false
+      holdCompact = false
     }
     return result
   }
@@ -269,15 +269,15 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   /** Lets the compact arrangement go once a request has ended: right away when no field has the keyboard (the waiting
    *  period), or when the keyboard does not come back to the field. */
   private fun releaseHold() {
-    if (!held) return
+    if (!holdCompact) return
     if (findFocus() == null) {
-      held = false
+      holdCompact = false
       requestLayout()
       return
     }
     main.postDelayed({
-      if (held && !pending && !entered) {
-        held = false
+      if (holdCompact && !pending && !entered) {
+        holdCompact = false
         requestLayout()
       }
     }, 600)
@@ -820,7 +820,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     if (pending || entered) return null
     pending = true
     // The field is closed for the time of the request and the keyboard may leave: the arrangement stays.
-    held = compactGoal >= 1f
+    holdCompact = compactGoal >= 1f
     errorText = ""
     noticeText = ""
     generation += 1

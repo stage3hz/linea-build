@@ -270,6 +270,29 @@ shot 440-chat-inline-media --ez demo true --ez chat true --es attachdemo 1
 shot 441-chat-composer --ez demo true --ez chat true
 shot 442-chat-search --ez demo true --es chatsearch Ма
 shot 443-chat-search-people --ez demo true --es chatsearch Мар --es chatsearchscope people
+# Sign-in with the keyboard up: nothing scrolls; the step's title, the field with its caption, the hint and
+# «Продолжить» stand above the keyboard (auth/AuthFit.kt; the iPhone's 429–430). The on-screen keyboard is asked for
+# even with the emulator's hardware keyboard; then the smallest screen (360×640 dp), and the screen back as it was.
+adb shell settings put secure show_ime_with_hard_keyboard 1 >/dev/null 2>&1 || true
+shot 429-auth-keyboard-login --ez auth true --es authfocus 1
+shot 429b-auth-keyboard-register --ez auth true --es authmode register --es authfocus 1
+shot 429c-auth-keyboard-profile --ez auth true --es authmode profile --es authfocus 2
+shot 429d-auth-keyboard-recover --ez auth true --es authmode recover --es authfocus 2
+if adb shell wm size 720x1280 >/dev/null 2>&1 && adb shell wm density 320 >/dev/null 2>&1; then
+  sleep 3
+  shot 430-auth-small-keyboard-login --ez auth true --es authfocus 1
+  shot 430b-auth-small-keyboard-register --ez auth true --es authmode register --es authfocus 1
+  shot 430c-auth-small-keyboard-profile --ez auth true --es authmode profile --es authfocus 2
+  shot 430d-auth-small-keyboard-recover --ez auth true --es authmode recover --es authfocus 2
+fi
+adb shell wm size reset >/dev/null 2>&1 || true
+adb shell wm density reset >/dev/null 2>&1 || true
+sleep 3
+# EdgeFade: the progressive blurred and darkened edges under the headers and above the bars (shell/EdgeFade.kt).
+shot 450-edges-chatlist --ez demo true --es effects 1
+shot 451-edges-chat --ez demo true --ez chat true
+shot 452-edges-light --ez demo true --ez chat true --es settheme light
+shot 452b-reset --ez demo true --es settheme black
 # Last: on the runner's software-drawn emulator this page (eight frames drawn live) once took the emulator down.
 shot 101-avatar-code-frames --es profiledemo code
 

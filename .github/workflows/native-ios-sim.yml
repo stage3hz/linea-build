@@ -285,6 +285,35 @@ jobs:
           shot 451-edges-chat -demo 1 -chat 1
           shot 452-edges-light -demo 1 -chat 1 -settheme light
           shot 452b-reset -demo 1 -settheme black
+          # Sign-in with the keyboard up: nothing scrolls; the step's title, the field with its caption, the hint and
+          # «Продолжить» stand above the keyboard (Auth/AuthFit.swift). This phone, then the smallest screen (iPhone SE,
+          # 375×667) on a simulator made for these shots when the runtime has one.
+          shot 429-auth-keyboard-login -auth 1 -authfocus 1
+          shot 429b-auth-keyboard-register -auth 1 -authmode register -authfocus 1
+          shot 429c-auth-keyboard-profile -auth 1 -authmode profile -authfocus 2
+          shot 429d-auth-keyboard-recover -auth 1 -authmode recover -authfocus 2
+          SMALL_TYPE=$(xcrun simctl list devicetypes | grep -o -E 'com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-SE-3rd-generation|com\.apple\.CoreSimulator\.SimDeviceType\.iPhone-SE--2nd-generation-' | head -1 || true)
+          SMALL_RUNTIME=$(xcrun simctl list runtimes available | grep -o -E 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | sort -V | tail -1 || true)
+          SMALL=""
+          if [ -n "$SMALL_TYPE" ] && [ -n "$SMALL_RUNTIME" ]; then SMALL=$(limit 120 xcrun simctl create auth-small "$SMALL_TYPE" "$SMALL_RUNTIME" 2>/dev/null || true); fi
+          if [ -n "$SMALL" ]; then
+            MAIN_UDID="$UDID"; UDID="$SMALL"
+            limit 120 xcrun simctl boot "$UDID" || true
+            limit 600 xcrun simctl bootstatus "$UDID" -b || true
+            limit 60 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
+            limit 60 xcrun simctl ui "$UDID" appearance dark || true
+            if limit 600 xcrun simctl install "$UDID" "$APP"; then
+              shot 430-auth-small-keyboard-login -auth 1 -authfocus 1 || echo "no picture: 430"
+              shot 430b-auth-small-keyboard-register -auth 1 -authmode register -authfocus 1 || echo "no picture: 430b"
+              shot 430c-auth-small-keyboard-profile -auth 1 -authmode profile -authfocus 2 || echo "no picture: 430c"
+              shot 430d-auth-small-keyboard-recover -auth 1 -authmode recover -authfocus 2 || echo "no picture: 430d"
+            fi
+            limit 60 xcrun simctl shutdown "$UDID" || true
+            limit 60 xcrun simctl delete "$UDID" || true
+            UDID="$MAIN_UDID"
+          else
+            echo "no small iPhone simulator for the sign-in shots"
+          fi
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

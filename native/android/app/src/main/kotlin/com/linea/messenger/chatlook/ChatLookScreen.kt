@@ -46,6 +46,8 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
   private val wallpaper = WallpaperView(context)
   private val light = PeerLightView(context)
   private val edge = HeaderEdgeView(context)
+  /** The same progressive edge above the composer: messages passing behind it blur and dissolve. */
+  private val floorEdge = HeaderEdgeView(context, top = false)
   private lateinit var backPill: GlassPill
   private lateinit var namePill: GlassPill
   private lateinit var callPill: GlassPill
@@ -87,6 +89,8 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     header.setBackgroundColor(0)
     header.visibility = View.INVISIBLE
     host.addView(edge, host.indexOfChild(header))
+    host.addView(floorEdge, host.indexOfChild(page) + 1) // under the composer and everything placed after the page
+    edge.glass = page; floorEdge.glass = page // EdgeFade: the page behind, blurred progressively (shell/EdgeFade.kt)
 
     // «назад»: a glass pill; with unread messages in other chats, their number after the arrow.
     move(back, backPill)
@@ -228,6 +232,8 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     if (colors != null && colors.isNotEmpty()) { edge.color = colors[0]; edge.alphaOfEdge = 0.9f }
     else if (choice.isImage) { edge.color = 0; edge.alphaOfEdge = 0.5f }
     else { edge.color = Theme.bg and 0xFFFFFF; edge.alphaOfEdge = 0.96f }
+    floorEdge.color = if (colors != null && colors.isNotEmpty()) colors[colors.size - 1] else edge.color
+    floorEdge.alphaOfEdge = edge.alphaOfEdge
     host.requestLayout()
   }
 
@@ -236,6 +242,14 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
   private fun put(view: View, left: Int, top: Int, width: Int, height: Int) {
     view.measure(View.MeasureSpec.makeMeasureSpec(width.coerceAtLeast(0), View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(height.coerceAtLeast(0), View.MeasureSpec.EXACTLY))
     view.layout(left, top, left + width.coerceAtLeast(0), top + height.coerceAtLeast(0))
+  }
+
+  /** The edge above the composer, from the composer's top edge (`composerTop`, px) down to the screen's bottom. */
+  fun placeFloor(width: Int, height: Int, composerTop: Int) {
+    val size = maxOf(0, height - composerTop)
+    floorEdge.size = size.toFloat()
+    val total = size + dp(HeaderEdgeView.FADE)
+    put(floorEdge, 0, height - total, width, total)
   }
 
   /** Places the header after the screen and ChatActions placed theirs (`safeTop`: the status bar), px. */

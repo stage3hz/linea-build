@@ -37,18 +37,24 @@ class ChatRowView(context: Context) : View(context) {
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val matrix = Matrix()
   private val dst = android.graphics.RectF()
+  // The avatar's shader, kept in its own field while the picture stays: the `picture` paint is shared with the
+  // nameplate and the thumbnail, which reset its shader — keeping the avatar's shader only on the paint made a row
+  // with a nameplate draw its photo with no shader at all (a solid black circle) from its second frame on.
   private var shaderOf: Bitmap? = null
+  private var faceShader: BitmapShader? = null
   private var thumbOf = ""
   private var thumb: Bitmap? = null
 
   /** `bitmap` centre-cropped into the rounded rectangle (x, y, side, side). */
   private fun drawPicture(canvas: Canvas, bitmap: Bitmap, x: Float, y: Float, side: Float, radius: Float, own: Boolean) {
-    if (!own || shaderOf !== bitmap) { picture.shader = BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP); if (own) shaderOf = bitmap }
+    val shader = if (own && shaderOf === bitmap && faceShader != null) faceShader!!
+      else BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).also { if (own) { faceShader = it; shaderOf = bitmap } }
     val scale = maxOf(side / bitmap.width, side / bitmap.height)
     matrix.reset(); matrix.setScale(scale, scale); matrix.postTranslate(x + (side - bitmap.width * scale) / 2, y + (side - bitmap.height * scale) / 2)
-    picture.shader?.setLocalMatrix(matrix)
+    shader.setLocalMatrix(matrix)
+    picture.shader = shader
     canvas.drawRoundRect(x, y, x + side, y + side, radius, radius, picture)
-    if (!own) picture.shader = null
+    picture.shader = null
   }
 
   private var row: ChatRow? = null

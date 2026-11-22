@@ -106,7 +106,7 @@ final class AuthViewController: UIViewController {
     private var keyboardHeight: CGFloat = 0
     /// The compact arrangement stays while a request is under way (the field is closed then and the keyboard leaves
     /// for a moment): nothing moves before the answer.
-    private var held = false
+    private var holdCompact = false
     private var arrangedFor = ""
 
     private static let wordHelp = "От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются."
@@ -180,7 +180,7 @@ final class AuthViewController: UIViewController {
         ticker = nil
         generation += 1
         statusGeneration += 1
-        held = false
+        holdCompact = false
         pending = false
         statusPending = false
         checking = false
@@ -328,7 +328,8 @@ final class AuthViewController: UIViewController {
         // the keyboard the title stands at the top and the card reaches down to the keyboard.
         let top = column.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AuthFit.pillRow + AuthFit.topGap)
         let fill = card.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -AuthFit.compactEdge)
-        fill.priority = .defaultHigh
+        // Below the parts' own resistance: on a screen too small for them the card would rather pass the keyboard.
+        fill.priority = UILayoutPriority(740)
         columnTop = top
         cardFill = fill
         // A touch beside the card puts the keyboard away (there is nothing to scroll it away with).
@@ -488,7 +489,7 @@ final class AuthViewController: UIViewController {
     }
 
     private var compactWanted: Bool {
-        return keyboardOverlap > AuthFit.keyboard || (held && keyboardHeight > 0)
+        return keyboardOverlap > AuthFit.keyboard || (holdCompact && keyboardHeight > 0)
     }
 
     private var editing: Bool {
@@ -496,7 +497,12 @@ final class AuthViewController: UIViewController {
         return fields.contains(where: { (entry: AuthEntry) -> Bool in entry.field.isFirstResponder })
     }
 
+    /// The height a part takes at this width, whether it shows now or not.
     private static func measure(_ part: UIView, _ width: CGFloat) -> CGFloat {
+        if let label = part as? UILabel {
+            if (label.text ?? "").isEmpty { return 0 }
+            return ceil(label.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)).height)
+        }
         let size = part.systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
         return ceil(size.height)
@@ -525,7 +531,7 @@ final class AuthViewController: UIViewController {
         let extras: [UIView] = [recoveryExtra, back, forgot, manualNote]
         let links: [UIView] = [forgot, back]
         let messages: [UIView] = [recoveryLock, attemptsNote, notice, failure, loginLock]
-        let optional: [UIView] = helps + chrome + extras
+        let mayLeave: [UIView] = helps + chrome + extras
         func isIn(_ list: [UIView], _ part: UIView) -> Bool {
             return list.contains(where: { (other: UIView) -> Bool in other === part })
         }
@@ -551,7 +557,7 @@ final class AuthViewController: UIViewController {
         var core = height(proceed)
         var messageCost: CGFloat = 0
         for part in cardColumn.arrangedSubviews {
-            if part === spacer || part === proceed || !wants(part) || isIn(optional, part) { continue }
+            if part === spacer || part === proceed || !wants(part) || isIn(mayLeave, part) { continue }
             if isIn(messages, part) { messageCost += cost(part, false) } else { core += cost(part, false) }
         }
         let brandHeight = AuthViewController.measure(brand, columnWidth)
@@ -572,7 +578,7 @@ final class AuthViewController: UIViewController {
                                    helps: parts(helps, true), chrome: parts(chrome, true), extras: parts(extras, true))
 
         let keep: Set<Int> = compact ? kept : plan.kept
-        for part in optional {
+        for part in mayLeave {
             showPart(part, wants(part) && keep.contains(AuthViewController.key(part)))
         }
         showPart(brand, !compact && plan.brand)
@@ -604,7 +610,7 @@ final class AuthViewController: UIViewController {
         keyboardOverlap = overlap
         if overlap > AuthFit.keyboard {
             keyboardHeight = overlap
-            held = false
+            holdCompact = false
         }
         let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0.25
         let curve = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.uintValue ?? 7
@@ -627,15 +633,15 @@ final class AuthViewController: UIViewController {
     /// Lets the compact arrangement go once a request has ended: right away when no field has the keyboard (the
     /// waiting period), or when the keyboard does not come back to the field.
     private func releaseHold() {
-        guard held else { return }
+        guard holdCompact else { return }
         if !editing {
-            held = false
+            holdCompact = false
             relayout(duration: 0.3, options: .curveEaseInOut)
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            guard let screen = self, screen.held, !screen.pending, !screen.entered else { return }
-            screen.held = false
+            guard let screen = self, screen.holdCompact, !screen.pending, !screen.entered else { return }
+            screen.holdCompact = false
             screen.relayout(duration: 0.3, options: .curveEaseInOut)
         }
     }
@@ -897,7 +903,7 @@ final class AuthViewController: UIViewController {
         if pending || entered { return nil }
         pending = true
         // The field is closed for the time of the request and the keyboard may leave: the arrangement stays.
-        held = compactWanted
+        holdCompact = compactWanted
         errorText = ""
         noticeText = ""
         generation += 1

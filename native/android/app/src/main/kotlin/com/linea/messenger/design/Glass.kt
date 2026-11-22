@@ -26,6 +26,10 @@ open class GlassSource(context: Context) : FrameLayout(context) {
 
   /** The node with the children's drawing; null where glass is a plain fill. */
   internal fun node(): Any? = recorder
+
+  /** The same node typed, for the progressive edges behind bars (shell/EdgeFade.kt); null before Android 12. */
+  @TargetApi(31)
+  internal fun renderNode(): RenderNode? = (recorder as? SourceNode)?.node
 }
 
 @TargetApi(31)

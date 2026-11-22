@@ -214,6 +214,7 @@ class ChatScreen(
     list.setPad(room.first, room.second)
     put(page, 0, 0, width, height)
     look.place(width, height, top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
+    look.placeFloor(width, height, composerTop) // EdgeFade: the progressive edge above the composer
   }
 
   /** Attachments: shows the rows of what is being sent (they change while a file is prepared and uploaded). */

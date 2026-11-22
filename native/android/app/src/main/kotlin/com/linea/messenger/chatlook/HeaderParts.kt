@@ -22,36 +22,22 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.linea.messenger.chatactions.ChatIconView
 import com.linea.messenger.design.Theme
+import com.linea.messenger.shell.EdgeRamp
+import com.linea.messenger.shell.ProgressiveEdgeView
 
-/** The soft edge under the chat's header (the reference's tabInset.tsx `ScrollEdgeEffect` with ChatScreen.tsx's
- *  numbers: cover .78, a 16 dp fade past the pills): the messages that pass under the header are covered by the
- *  page's colour so they cannot be read through the glass, and dissolve just below it. */
-class HeaderEdgeView(context: Context) : View(context) {
-  companion object { const val FADE = 16f }
-  /** The page's colour at the top (0xRRGGBB) and how strongly it covers (the reference: the theme's background at
-   *  .96, a gradient wallpaper's top colour at .9, a picture's black at .5). */
-  var color = 0
-    set(value) { field = value; invalidate() }
+/** The soft edge under the chat's header and above its composer (the reference's tabInset.tsx `ScrollEdgeEffect` with
+ *  ChatScreen.tsx's numbers, drawn as the progressive edge of shell/EdgeFade.kt; iOS ChatLook/HeaderParts.swift): the
+ *  messages that pass under the glass are blurred hardest at the screen's edge (Android 12 and later) and covered by
+ *  the page's colour (the wallpaper's own colour at that edge), so they cannot be read through the glass, and dissolve
+ *  `FADE` dp past it. The owner lays it out and sets `size`, the bar's height from the screen's edge, px. */
+class HeaderEdgeView(context: Context, top: Boolean = true) : ProgressiveEdgeView(context, top) {
+  companion object { const val FADE = EdgeRamp.REACH }
+  /** How strongly the colour covers right at the edge (the reference: the theme's background at .96, a gradient
+   *  wallpaper's colour at .9, a picture's black at .5); capped at .85 as on the iPhone. */
   var alphaOfEdge = 0.96f
-    set(value) { field = value; invalidate() }
-  /** The header's height (the status bar included), px. */
-  var size = 0f
-    set(value) { field = value; invalidate() }
-  private val paint = Paint()
+    set(value) { field = value; peak = minOf(0.85f, value) }
 
-  override fun onDraw(canvas: Canvas) {
-    val total = height.toFloat()
-    if (total <= 0f) return
-    val d = resources.displayMetrics.density
-    // Fully covered up to 14 dp short of the header's lower edge, then a soft ramp.
-    val solid = ((size - 14 * d) / total).coerceIn(0f, 1f)
-    // Without the live blur of the iPhone's edge, the cover is a little denser so nothing reads through.
-    val peak = minOf(1f, minOf(0.85f, alphaOfEdge) * 0.78f + 0.2f)
-    paint.shader = LinearGradient(0f, 0f, 0f, total,
-      intArrayOf(LookColor.argb(color, peak), LookColor.argb(color, peak * 0.9f), LookColor.argb(color, peak * 0.45f), LookColor.argb(color, 0f)),
-      floatArrayOf(0f, solid, solid + (1 - solid) * 0.45f, 1f), Shader.TileMode.CLAMP)
-    canvas.drawRect(0f, 0f, width.toFloat(), total, paint)
-  }
+  init { peak = minOf(0.85f, alphaOfEdge) }
 }
 
 /** A long touch on the avatar in the header (the reference's ChatScreen.tsx avatar `ContextMenu`): a large card with

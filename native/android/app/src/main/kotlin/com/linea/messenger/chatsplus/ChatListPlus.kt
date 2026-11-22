@@ -118,6 +118,7 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     host.addView(tabs)
     // The floating header's edge: above the rows, under the title and the buttons.
     host.addView(headerEdge, host.indexOfChild(list) + 1)
+    headerEdge.source = list // EdgeFade: the rows behind the header, blurred progressively (shell/EdgeFade.kt)
     edit.install(host, actions)
     edit.onChange = { actions.redraw(); refreshTitle() }
     people.onChange = { actions.redraw() }
