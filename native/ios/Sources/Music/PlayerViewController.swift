@@ -311,7 +311,7 @@ final class PlayerViewController: UIViewController, UIGestureRecognizerDelegate 
                 let error = words.hasPrefix("e")
                 let made = NoticeView(text: String(words.dropFirst()), error: error)
                 made.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(clearNotice)))
-                view.addSubview(made)
+                view.insertSubview(made, belowSubview: panelDim)
                 noticeView = made
             }
         }

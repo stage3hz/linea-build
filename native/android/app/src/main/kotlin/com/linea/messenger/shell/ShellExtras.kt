@@ -88,7 +88,7 @@ class ShellExtras(private val root: RootScreen, private val bar: View, messenger
   private fun openPlayer() {
     val stack = root.pages() ?: return
     if (stack.top is PlayerScreen || player.current == null) return
-    stack.push(PlayerScreen(context, player))
+    stack.push(PlayerScreen(context, player), animated = false) // it slides up by itself
   }
 
   /** The bar, its edge and the mini-player give way (the chat list while choosing chats: its own actions stand there). */

@@ -699,7 +699,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val stack = pages() ?: return
     if (stack.top is PlayerScreen || player.current == null) return
     hideKeyboard()
-    stack.push(PlayerScreen(context, player))
+    stack.push(PlayerScreen(context, player), animated = false) // it slides up by itself
   }
 
   // The page

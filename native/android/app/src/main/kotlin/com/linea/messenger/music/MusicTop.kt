@@ -107,10 +107,11 @@ class MusicMoodChip(context: Context, label: String, symbol: String, selected: B
     gravity = Gravity.CENTER_VERTICAL or Gravity.START
     minimumWidth = context.px(100f)
     setPadding(context.px(16f), 0, context.px(16f), 0)
-    background = context.plate(if (selected) ThemeStore.look.accentSoft else Theme.veil(0.04f), 21f, if (selected) Theme.accent else ThemeStore.look.border).apply {
-      setStroke(context.px(1f), if (selected) Theme.accent else ThemeStore.look.border)
+    // MoodChip: the soft accent and the accent edge when chosen, else the clear glass and its edge; the icon 18.
+    background = context.plate(if (selected) ThemeStore.look.accentSoft else Theme.veil(0.04f), 21f, if (selected) Theme.accent else ThemeStore.look.glassBorder).apply {
+      setStroke(context.px(1f), if (selected) Theme.accent else ThemeStore.look.glassBorder)
     }
-    addView(AIIconView(context, symbol, 15f, if (selected) Theme.accent else Theme.muted), LayoutParams(context.px(18f), context.px(18f)))
+    addView(AIIconView(context, symbol, 18f, if (selected) Theme.accent else Theme.muted), LayoutParams(context.px(18f), context.px(18f)))
     addView(AIKit.label(context, label, 11f, 600, if (selected) Theme.accent else Theme.text, lines = 1), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(5f) })
     isClickable = true
     isFocusable = true

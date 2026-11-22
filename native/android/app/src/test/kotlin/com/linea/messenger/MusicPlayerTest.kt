@@ -486,7 +486,8 @@ class MusicPlayerTest {
     val list = find(page, "ListView") as android.widget.ListView
     list.setSelection(list.headerViewsCount)
     shadowOf(activity.mainLooper).idleFor(300, TimeUnit.MILLISECONDS)
-    assertTrue(texts(page).toString(), texts(page).contains("Лера Туман · 3:34 · AUDIUS"))
+    // TrackRow: the artist on its own line, then the source and the length.
+    assertTrue(texts(page).toString(), texts(page).containsAll(listOf("Лера Туман", "AUDIUS · 3:34")))
     assertTrue(spoken(page).containsAll(listOf("Убрать из любимого: Северное сияние", "В любимое: Полночь над рекой", "Слушать: Северное сияние, Лера Туман")))
   }
 
@@ -495,8 +496,9 @@ class MusicPlayerTest {
     val page = find(activity.window.decorView, "PlayerScreen")
     assertNotNull(page)
     val words = texts(page!!)
-    assertTrue(words.containsAll(listOf("Сейчас играет", "AUDIUS · ОНЛАЙН", "Полночь над рекой", "Квартал 9", "Перемешать", "В любимое", "1:14", "3:07", "Очередь · 6", "Текст")))
-    assertTrue(spoken(page).containsAll(listOf("Свернуть плеер", "Закрыть плеер и остановить музыку", "Добавить в избранное", "Ещё", "Позиция воспроизведения", "Повтор выключен", "Приостановить", "Показать очередь")))
+    // FullPlayer: the top bar, the title row, the chips, «Очередь N | Текст» (the times are drawn by the seek line).
+    assertTrue(words.toString(), words.containsAll(listOf("Сейчас играет", "Полночь над рекой", "Квартал 9", "Перемешать", "В любимое", "Эквалайзер", "Очередь", "6", "Текст")))
+    assertTrue(spoken(page).containsAll(listOf("Свернуть плеер", "В любимое", "Ещё", "Повтор выключен. Изменить", "Приостановить")))
     // Back folds the player away; the section and its strip are still there.
     @Suppress("DEPRECATION") activity.onBackPressed()
     shadowOf(activity.mainLooper).idleFor(600, TimeUnit.MILLISECONDS)

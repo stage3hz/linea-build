@@ -41,7 +41,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
   val avatar = CommunityAvatarView(context)
   private val d = resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
-  private val backButton = IconButton(context, "back", 24f, Theme.text)
+  private val backButton = IconButton(context, "ion:chevron-back", 23f, Theme.text) // IconButton «chevron-back», 23
   private val nameLabel = context.words("", 17f, Theme.text, 700)
   private val quietLabel = context.words("", 12f, Theme.muted)
   private val tools = ArrayList<View>()

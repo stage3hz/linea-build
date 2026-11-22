@@ -136,7 +136,7 @@ class ChatPlayerStrip(private val host: ViewGroup) {
       val player = MusicPlayer.shared
       if (stack != null && stack.top !is PlayerScreen && player.current != null) {
         (host.context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)?.hideSoftInputFromWindow(host.windowToken, 0)
-        stack.push(PlayerScreen(host.context, player))
+        stack.push(PlayerScreen(host.context, player), animated = false) // it slides up by itself (a <Modal animationType="slide">)
       }
     }
     bar.onShownChanged = { host.requestLayout() }
