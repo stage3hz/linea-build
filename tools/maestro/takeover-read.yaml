@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # The update check, after tools/sim-seed.mjs: the PREVIOUS app receives and decrypts the seeded messages and opens
 # two chats, so that its storage holds the decrypted history and the caches of the list and of the open chats —

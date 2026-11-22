@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # The paperclip: the attachment panel (gallery, files, poll). Photos access is granted by the workflow beforehand;
 # should iOS still ask, the question is answered.

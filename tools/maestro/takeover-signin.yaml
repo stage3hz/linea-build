@@ -1,7 +1,7 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # The update check (.github/workflows/native-takeover.yml): the PREVIOUS app (React Native, built with the
-# release identifier com.invizent.app for the simulator) signs in to the test account on the local test server,
+# preview identifier com.linea.messenger.preview for the simulator, as on the owner's phone) signs in to the test account on the local test server,
 # so that it makes its keys, its encrypted storage and its session exactly as on a phone. LOGIN, PASSWORD and WORD
 # come from the workflow (the made-up account of tools/native-sim-account.mjs).
 # Fields are left with Return (see register-and-screens.yaml for why); a step that did not advance taps the button.

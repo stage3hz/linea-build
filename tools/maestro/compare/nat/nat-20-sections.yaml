@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # Comparison shot 20-sections of the native app, started by the workflow with its launch arguments (no launchApp here).
 - runFlow: ../act/sections.yaml

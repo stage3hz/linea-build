@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # A plain hold on «Чаты» in the tab bar: the list of the other sections opens and stays.
 # The tab is found by its label when it carries the unread count («Чаты, 5»); otherwise by its place

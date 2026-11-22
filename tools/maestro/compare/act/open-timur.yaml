@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # The chat with Тимур (text with formatting, a file, a photo, a voice message, then «Как тебе фото»).
 - tapOn:

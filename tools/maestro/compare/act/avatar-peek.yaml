@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # A long touch on the avatar in the chat's header: the large picture with «Открыть профиль» and «Поиск».
 - longPressOn:

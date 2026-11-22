@@ -1,4 +1,4 @@
-appId: com.invizent.app
+appId: com.linea.messenger.preview
 ---
 # Comparison shot 06-chat-avatar-peek of the reference app (.github/workflows/native-compare.yml).
 - runFlow: act/ref-home.yaml
