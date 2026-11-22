@@ -1,3 +1,4 @@
+import CoreMotion
 import QuartzCore
 import Symbols
 import UIKit
@@ -6,11 +7,13 @@ import UIKit
 /// - The bar is the system's own glass (iOS 26: UIGlassEffect, clear and interactive; before: a thin blur).
 /// - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
 ///   faint second capsule follows a little late and fades — the trail.
-/// - A light lives in the bar (look 9, the default; the sketch «2. Сияние»): violet at the left, pink under the chosen
-///   tab (the bar's middle in a section without an icon), cyan at the right, rising from the lower edge, and a white
-///   line on the top edge above the chosen tab glowing pink; the hues keep turning together (`TabFlow`); while the player plays they rise, brighten and sway as
-///   a wave with the music's loudness (the equalizer's audio tap meters it; a smooth wave on the playback's beat when
-///   no level comes). Animations off or power saving: the gradient holds still. Looks 0…8 stay for comparison.
+/// - A light lives under the glass (look 9, the default; the sketch «2. Сияние»): violet at the left, pink under the
+///   chosen tab (the bar's middle in a section without an icon), cyan at the right, rising from the lower edge, and a
+///   white line on the top edge above the chosen tab glowing in the centre's colour. The hues drift on slowly and
+///   never repeat (kept across launches); with music the lights punch and sway by bands (bass the centre, mids the
+///   left, highs the right: the equalizer's audio tap meters them; a beat from the playback's position when no level
+///   comes); the phone's tilt slides them, a shake ripples them (`TabFlow`). Animations off or power saving: the
+///   gradient holds still and the sensor rests. Looks 0…8 stay for comparison.
 /// - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
 ///   above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
 ///   open: a tap on a row opens it, a tap beside closes the list.
@@ -80,12 +83,10 @@ private let badgeRed = UIColor(red: 1, green: 0.30, blue: 0.37, alpha: 1)
 /// Look 9's numbers (the same in Android's shell/TabBar.kt `TabFlow`): the sketch «2. Сияние» — three lights rising
 /// from the bar's lower edge (`.aur`: radial-gradient(46% 70% at 50% 100%, #ff5fb0cc, transparent 70%), the same
 /// 40% 60% at 34% #7a2cffaa and at 68% #35d6ffaa, blur 14px over a box 150 tall for a bar 96 tall), and a white
-/// 54×3 line on the top edge above the chosen tab with a glow of the centre light's colour. The hues then turn.
+/// 54×3 line on the top edge above the chosen tab with a glow of the centre light's colour. The hues then drift.
 enum TabFlow {
-  /// One full turn of the hue circle, seconds.
-  static let huePeriod: Double = 14
   /// The sketch's colours as hue, saturation, brightness — left (violet #7a2cff), centre (pink #ff5fb0, under the
-  /// chosen tab), right (cyan #35d6ff). All three turn together, so they keep the sketch's distances on the circle.
+  /// chosen tab), right (cyan #35d6ff): the very first state; from there the hues drift on for good (`hues`).
   static let hue0: [Double] = [0.7283, 0.9156, 0.5338]
   static let saturation: [CGFloat] = [0.827, 0.627, 0.792]
   static let brightness: CGFloat = 1
@@ -111,25 +112,76 @@ enum TabFlow {
   static let lineSpread: CGFloat = 5
   /// How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6).
   static let lineWhite: CGFloat = 0.3
-  /// One run of the music's wave along the three lights, seconds.
-  static let wavePeriod: Double = 2
   static let grain: CGFloat = 0.08
 
-  /// Hue (0…1) of light `light` (0 left, 1 centre, 2 right) at `time` seconds of the loop.
-  static func hue(_ time: Double, light: Int) -> CGFloat {
-    let turn = hue0[light] + time / huePeriod
-    return CGFloat(turn - floor(turn))
+  // The colours' drift: all three hues turn together at an uneven pace — one turn of the circle in about 3 minutes,
+  // the pace swinging ±40 % by three slow sines of incommensurate periods (so it never repeats) — and each light
+  // wanders ±0.07 of the circle around its place by two slow sines of its own; the lights stay at least 60° apart.
+  // The clock and the turn are kept on the device: the next launch goes on from them.
+  static let turnRate: Double = 1.0 / 180
+  static let paceSwing: Double = 0.4
+  static let pace: [(period: Double, weight: Double, phase: Double)] = [(71, 1, 0), (113, 0.6, 1.3), (29, 0.35, 0.4)]
+  static let wanderAmount: Double = 0.07
+  static let wander: [[(period: Double, weight: Double, phase: Double)]] = [
+    [(53, 1, 0), (89, 0.5, 0)],
+    [(67, 1, 0), (131, 0.5, 0)],
+    [(47, 1, 0), (101, 0.5, 0)],
+  ]
+  static let apart: Double = 1.0 / 6
+  static let storeKey = "linea.tabflow.v1"
+
+  /// A smooth value in −1…1: the weighted sum of sines (period s, weight, phase in turns).
+  static func noise(_ time: Double, _ parts: [(period: Double, weight: Double, phase: Double)]) -> Double {
+    var sum = 0.0, total = 0.0
+    for part in parts {
+      sum += part.weight * sin(2 * Double.pi * (time / part.period + part.phase))
+      total += part.weight
+    }
+    return total > 0 ? sum / total : 0
   }
 
-  /// Light `light`'s colour at `time`.
-  static func color(_ time: Double, light: Int) -> UIColor {
-    return UIColor(hue: hue(time, light: light), saturation: saturation[light], brightness: brightness, alpha: 1)
+  /// How fast the common turn goes at `time` (turns a second).
+  static func turnSpeed(_ time: Double) -> Double {
+    return turnRate * (1 + paceSwing * noise(time, pace))
   }
 
-  /// The wave's height at a light (0…1): a sine running from the left light to the right one.
-  static func wave(_ phase: Double, light: Int) -> CGFloat {
-    return CGFloat(0.5 + 0.5 * sin(2 * Double.pi * (phase - Double(light) / 3)))
+  /// The three hues (0…1: left, centre, right) at `time` seconds of the clock with the common turn at `turn`.
+  static func hues(_ time: Double, turn: Double) -> [Double] {
+    var hues = (0..<3).map { (light: Int) -> Double in hue0[light] + turn + wanderAmount * noise(time, wander[light]) }
+    // Never closer than 60°: two that come nearer are pushed apart, each half of the way.
+    for _ in 0..<3 {
+      for pair in [(0, 1), (1, 2), (0, 2)] {
+        var gap = hues[pair.1] - hues[pair.0]
+        gap -= floor(gap + 0.5)
+        if abs(gap) < apart {
+          let push = (apart - abs(gap)) / 2 * (gap < 0 ? -1 : 1)
+          hues[pair.0] -= push
+          hues[pair.1] += push
+        }
+      }
+    }
+    return hues.map { (hue: Double) -> Double in hue - floor(hue) }
   }
+
+  // The music, by bands: the left light follows the mids, the centre one the bass, the right one the highs.
+  /// How much the band's level gains before it is read as loudness (the highs and mids are quieter than the bass).
+  static let bandGain: [Float] = [1.5, 1, 2.5]
+  /// What a full level does to each light: brighter, taller, wider; and how far (× the bar's width) and how fast (Hz)
+  /// it sways — the mids slowly, the highs as a quick shimmer, the bass not at all (it punches).
+  static let punchAlpha: [CGFloat] = [0.45, 0.6, 0.45]
+  static let punchTall: [CGFloat] = [0.3, 0.4, 0.2]
+  static let punchWide: [CGFloat] = [0.12, 0.2, 0.1]
+  static let swayWidth: [CGFloat] = [0.04, 0, 0.015]
+  static let swayRate: [Double] = [0.5, 0, 6]
+
+  // The phone's movement: the lights slide against the tilt (at most 8 % of the bar's width, reached at a tilt of
+  // half the gravity), spring-smoothed; a shake (over 0.6 g) runs a brief ripple of light across them.
+  static let tiltMost: CGFloat = 0.08
+  static let tiltGain: CGFloat = 2
+  static let tiltSpring: Double = 9
+  static let shake: Double = 0.6
+  static let rippleFade: Double = 0.35
+  static let rippleAlpha: CGFloat = 0.4
 
   /// The music's loudness heard by the tap, as 0…1 (−40 dBFS … −6 dBFS).
   static func loudness(_ rms: Float) -> CGFloat {
@@ -137,12 +189,24 @@ enum TabFlow {
     return CGFloat(min(1, max(0, (db + 40) / 34)))
   }
 
-  /// A level without a meter: a soft kick on every beat at 120 a minute from the playback's position, over a slow swell.
-  static func synthetic(_ position: Double) -> CGFloat {
-    let beat = position * 2
-    let kick = exp(-(beat - floor(beat)) * 6)
-    let swell = 0.5 + 0.5 * sin(2 * Double.pi * position * 0.23)
-    return CGFloat(min(1, 0.25 + 0.5 * kick * (0.6 + 0.4 * swell) + 0.15 * swell))
+  /// A level without a meter, for light `light`, from the playback's position: the bass a kick on every beat (120 a
+  /// minute), the mids a hit on the off-beats over a slow swell, the highs a quick tick on every eighth, shimmering.
+  static func synthetic(_ position: Double, light: Int) -> CGFloat {
+    switch light {
+    case 1:
+      let beat = position * 2
+      return CGFloat(0.2 + 0.75 * exp(-(beat - floor(beat)) * 6))
+    case 0:
+      let beat = position + 0.5
+      let hit = exp(-(beat - floor(beat)) * 4)
+      let swell = 0.5 + 0.5 * sin(2 * Double.pi * position * 0.23)
+      return CGFloat(min(1, 0.2 + 0.5 * hit + 0.25 * swell))
+    default:
+      let beat = position * 4
+      let tick = exp(-(beat - floor(beat)) * 10)
+      let shimmer = 0.5 + 0.5 * sin(2 * Double.pi * position * 0.37)
+      return CGFloat(min(1, 0.15 + 0.45 * tick * (0.5 + 0.5 * shimmer) + 0.2 * shimmer))
+    }
   }
 }
 
@@ -380,17 +444,24 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   private var flowFast = false
   private var flowObservers: [NSObjectProtocol] = []
   private var appInFront = true
-  /// Seconds of the hue loop (stands still while the clock is off, so it goes on from the same colours).
+  /// The drift's clock (seconds) and the common turn of the hues; kept on the device across launches.
   private var flowTime: Double = 0
+  private var flowTurn: Double = 0
   private var flowLast: CFTimeInterval = 0
-  /// The music's wave: its level (0…1, smoothed), how much of it shows (eases in and out with playback), where it runs.
-  private var waveLevel: CGFloat = 0
+  /// The music's bands (left = mids, centre = bass, right = highs): their levels (0…1, smoothed), their slow means
+  /// (what stands out over them is the beat), and how much of the music shows (eases in and out with playback).
+  private var waveLevel: [CGFloat] = [0, 0, 0]
+  private var waveSlow: [CGFloat] = [0, 0, 0]
   private var waveAmount: CGFloat = 0
-  private var wavePhase: Double = 0
-  private var waveSlow: CGFloat = 0
   /// The playback's position as the wave keeps it (runs on by itself where the player's position stands still).
   private var waveClock: Double = 0
   private var waveSeen: Double = -1
+  /// The phone's movement: the lights' slide (× the bar's width) and its speed, and the shake's ripple (1 → 0).
+  private var tiltShift: Double = 0
+  private var tiltSpeed: Double = 0
+  private var ripple: CGFloat = 0
+  private var sensing = false
+  private static let motionSensor = CMMotionManager()
 
   override var alpha: CGFloat { didSet { refreshFlow() } }
   override var isHidden: Bool { didSet { refreshFlow() } }
@@ -444,7 +515,9 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     grain.layer.compositingFilter = "overlayBlendMode"
     grain.alpha = 0
     glowView.addSubview(grain)
-    glass.contentView.addSubview(glowView)
+    // The lights live under the glass: the glass (iOS 26's clear glass, or the thin blur) is seen over them, refracts
+    // and softens them, and keeps its own highlights and rim on top.
+    insertSubview(glowView, belowSubview: glass)
     trail.isUserInteractionEnabled = false
     trail.alpha = 0
     glass.contentView.addSubview(trail)
@@ -474,6 +547,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     paintChrome()
 
     flowProxy.bar = self
+    restoreFlow()
     let centre = NotificationCenter.default
     flowObservers.append(centre.addObserver(forName: Motion.changed, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
       self?.refreshFlow()
@@ -481,6 +555,10 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     flowObservers.append(centre.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
       self?.appInFront = false
       self?.refreshFlow()
+      self?.storeFlow()
+    })
+    flowObservers.append(centre.addObserver(forName: UIApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
+      self?.storeFlow()
     })
     flowObservers.append(centre.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
       self?.appInFront = true
@@ -495,6 +573,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     previewTimer?.invalidate()
     overlay?.removeFromSuperview()
     flowLink?.invalidate()
+    if sensing { TabBarView.motionSensor.stopDeviceMotionUpdates() }
     flowObservers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
@@ -593,6 +672,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     CATransaction.setDisableActions(true)
     glowView.frame = bounds
     glowView.layer.cornerRadius = radius
+    glowView.layer.cornerCurve = .continuous
     glowLeft.frame = CGRect(x: -bounds.width * 0.16, y: 0, width: bounds.width * 0.72, height: bounds.height)
     glowRight.frame = CGRect(x: bounds.width * 0.46, y: 0, width: bounds.width * 0.72, height: bounds.height)
     spotView.frame = spotFrame(activeIndex)
@@ -689,9 +769,21 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
 
   // MARK: Look 9: the turning colours and the music's wave
 
-  /// The display link runs only while it can be seen and animations are allowed; otherwise the gradient holds still.
+  /// The display link (and the motion sensor) run only while the bar can be seen and animations are allowed; otherwise
+  /// the gradient holds still. The sensor also rests in power saving.
   private func refreshFlow() {
     let run = look == TabBarView.flowLook && window != nil && !isHidden && alpha > 0.01 && appInFront && Motion.enabled
+    let sense = run && !Motion.saving && TabBarView.motionSensor.isDeviceMotionAvailable
+    if sense != sensing {
+      sensing = sense
+      if sense {
+        TabBarView.motionSensor.deviceMotionUpdateInterval = 1.0 / 30
+        TabBarView.motionSensor.startDeviceMotionUpdates()
+      } else {
+        TabBarView.motionSensor.stopDeviceMotionUpdates()
+        tiltShift = 0; tiltSpeed = 0; ripple = 0
+      }
+    }
     if run {
       guard flowLink == nil else { return }
       let made = CADisplayLink(target: flowProxy, selector: #selector(TabFlowLinkProxy.tick(_:)))
@@ -703,10 +795,22 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     } else if let link = flowLink {
       link.invalidate()
       flowLink = nil
-      // Still: the colours where they stood, no wave.
-      waveLevel = 0; waveAmount = 0; waveSlow = 0
+      storeFlow()
+      // Still: the colours where they stood, no wave, no slide.
+      waveLevel = [0, 0, 0]; waveSlow = [0, 0, 0]; waveAmount = 0
       paintGlow(animated: false)
     }
+  }
+
+  /// The drift's clock and turn, kept for the next launch.
+  private func storeFlow() {
+    UserDefaults.standard.set([flowTime, flowTurn], forKey: TabFlow.storeKey)
+  }
+
+  private func restoreFlow() {
+    guard let kept = UserDefaults.standard.array(forKey: TabFlow.storeKey) as? [Double], kept.count == 2, kept[0].isFinite, kept[1].isFinite else { return }
+    flowTime = max(0, kept[0])
+    flowTurn = kept[1] - floor(kept[1])
   }
 
   fileprivate func flowTick(_ link: CADisplayLink) {
@@ -714,11 +818,12 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     let dt = flowLast == 0 ? 1.0 / 60 : min(0.1, max(0, now - flowLast))
     flowLast = now
     flowTime += dt
-    wavePhase += dt / TabFlow.wavePeriod
-    if wavePhase > 1000 { wavePhase -= floor(wavePhase) }
+    flowTurn += TabFlow.turnSpeed(flowTime) * dt
+    flowTurn -= floor(flowTurn)
+    if flowTime > 1_000_000 { flowTime = 0 }
     let player = MusicPlayer.shared
     let playing = player.playing
-    var target: CGFloat = 0
+    var targets: [CGFloat] = [0, 0, 0]
     if playing {
       // The wave's own clock follows the playback: re-set when the player's position moves somewhere else (a seek, a
       // new track), runs on by itself between the player's updates and where its position stands still.
@@ -730,21 +835,40 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       }
       let reading = MusicEqualizer.state.meterReading()
       if CACurrentMediaTime() - reading.at < 0.25 {
-        // A live level: loudness, with what stands out over the last second or so made bigger (the beat, not the volume).
-        let loud = TabFlow.loudness(reading.rms)
-        waveSlow += (loud - waveSlow) * CGFloat(1 - exp(-dt / 1.2))
-        target = min(1, max(0, 0.3 + (loud - waveSlow) * 2.5 + 0.2 * loud))
+        // Live levels: each band's loudness, with what stands out over its last second or so made bigger (the beat,
+        // not the volume).
+        let bands: [Float] = [reading.mid, reading.low, reading.high]
+        for index in 0..<3 {
+          let loud = TabFlow.loudness(bands[index] * TabFlow.bandGain[index])
+          waveSlow[index] += (loud - waveSlow[index]) * CGFloat(1 - exp(-dt / 1.2))
+          targets[index] = min(1, max(0, 0.3 + (loud - waveSlow[index]) * 2.5 + 0.2 * loud))
+        }
       } else {
-        target = TabFlow.synthetic(waveClock)
+        for index in 0..<3 { targets[index] = TabFlow.synthetic(waveClock, light: index) }
       }
     }
     // Rises quickly, falls slowly; the whole wave fades in and out with playback.
-    let rate: Double = target > waveLevel ? 0.05 : 0.22
-    waveLevel += (target - waveLevel) * CGFloat(1 - exp(-dt / rate))
+    for index in 0..<3 {
+      let rate: Double = targets[index] > waveLevel[index] ? 0.05 : 0.22
+      waveLevel[index] += (targets[index] - waveLevel[index]) * CGFloat(1 - exp(-dt / rate))
+    }
     let shown: CGFloat = playing ? 1 : 0
     waveAmount += (shown - waveAmount) * CGFloat(1 - exp(-dt / 0.6))
-    // 30 frames a second for the slow colours alone, 60 while the music moves the lights.
-    let fast = waveAmount > 0.02
+    // The phone's tilt slides the lights against it (a damped spring); a shake starts a ripple.
+    var tiltTarget = 0.0
+    if sensing, let device = TabBarView.motionSensor.deviceMotion {
+      let most = Double(TabFlow.tiltMost)
+      tiltTarget = min(most, max(-most, -device.gravity.x * Double(TabFlow.tiltGain) * most))
+      let push = device.userAcceleration
+      if (push.x * push.x + push.y * push.y + push.z * push.z).squareRoot() > TabFlow.shake { ripple = 1 }
+    }
+    let spring = TabFlow.tiltSpring
+    tiltSpeed += ((tiltTarget - tiltShift) * spring * spring - 2 * spring * tiltSpeed) * dt
+    tiltShift += tiltSpeed * dt
+    ripple *= CGFloat(exp(-dt / TabFlow.rippleFade))
+    if ripple < 0.01 { ripple = 0 }
+    // 30 frames a second for the slow colours alone, 60 while the music or the hand moves the lights.
+    let fast = waveAmount > 0.02 || ripple > 0 || abs(tiltSpeed) > 0.002
     if fast != flowFast {
       flowFast = fast
       link.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: 60, preferred: fast ? 60 : 30)
@@ -753,38 +877,43 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   }
 
   /// Look 9: the sketch's three lights (violet left, pink under the chosen tab, cyan right) rising from the lower
-  /// edge in the colours of this moment, raised by the wave; the line on the top edge glows in the centre's colour.
+  /// edge under the glass in the colours of this moment, raised by the music's bands and slid by the tilt; the line
+  /// on the top edge glows in the centre's colour.
   private func paintFlow() {
     let width = bounds.width, height = bounds.height
     guard width > 0, height > 0 else { return }
-    let pulse = waveLevel * waveAmount
     let blur = TabFlow.blurReach * height
+    let hues = TabFlow.hues(flowTime, turn: flowTurn)
+    let slide = CGFloat(tiltShift) * width
     // Where each light's middle stands: the side ones in the bar's coordinates, the centre one in its view's.
     let mids: [CGFloat] = [width * TabFlow.sideAt[0], spotView.bounds.midX, width * TabFlow.sideAt[1]]
     let lows: [CGFloat] = [height, spotView.bounds.height, height]
     let layers: [CAGradientLayer] = [glowLeft, spot, glowRight]
+    let locations = TabFlow.stops.map { (stop: CGFloat) -> NSNumber in NSNumber(value: Double(stop)) }
+    var centreColor = UIColor.white
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     for index in 0..<3 {
       let layer = layers[index]
-      let shape = TabFlow.wave(wavePhase, light: index)
-      let push = pulse * (0.6 + 0.4 * shape)
-      let color = TabFlow.color(flowTime, light: index)
-      let strength = min(TabFlow.alphaMost, TabFlow.alpha[index] * (1 + 0.5 * push))
+      let push = waveLevel[index] * waveAmount
+      let color = UIColor(hue: CGFloat(hues[index]), saturation: TabFlow.saturation[index], brightness: TabFlow.brightness, alpha: 1)
+      if index == 1 { centreColor = color }
+      let wave = CGFloat(0.5 + 0.5 * sin(2 * Double.pi * (flowTime * 3 - Double(index) / 3)))
+      let lift = 1 + TabFlow.punchAlpha[index] * push + TabFlow.rippleAlpha * ripple * wave
+      let strength = min(TabFlow.alphaMost, TabFlow.alpha[index] * lift)
       layer.colors = TabFlow.fall.map { (part: CGFloat) -> CGColor in color.withAlphaComponent(strength * part).cgColor }
-      layer.locations = TabFlow.stops.map { (stop: CGFloat) -> NSNumber in NSNumber(value: Double(stop)) }
-      // The wave lifts the light, widens it a little and sways it along the bar.
-      let halfWide = (TabFlow.reachX[index] * width + blur) * (1 + 0.18 * push)
-      let tall = (TabFlow.reachY[index] * height + blur) * (1 + 0.35 * push)
-      let sway = (shape - 0.5) * 0.08 * width * pulse
-      layer.frame = CGRect(x: mids[index] - halfWide + sway, y: lows[index] - tall, width: halfWide * 2, height: tall)
+      layer.locations = locations
+      let halfWide = (TabFlow.reachX[index] * width + blur) * (1 + TabFlow.punchWide[index] * push)
+      let tall = (TabFlow.reachY[index] * height + blur) * (1 + TabFlow.punchTall[index] * push)
+      let sway = CGFloat(sin(2 * Double.pi * flowTime * TabFlow.swayRate[index])) * TabFlow.swayWidth[index] * width * push
+      layer.frame = CGRect(x: mids[index] - halfWide + sway + slide, y: lows[index] - tall, width: halfWide * 2, height: tall)
     }
     sheen.colors = [UIColor.white.withAlphaComponent(0).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
     gloss.colors = [UIColor.white.withAlphaComponent(0).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
     grain.alpha = TabFlow.grain
     // The line's glow: the centre light's colour, lightened as the sketch's #ff8cc6 is #ff5fb0.
     var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, opacity: CGFloat = 0
-    _ = TabFlow.color(flowTime, light: 1).getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+    _ = centreColor.getRed(&red, green: &green, blue: &blue, alpha: &opacity)
     let white = TabFlow.lineWhite
     flowLine.layer.shadowColor = UIColor(red: red + (1 - red) * white, green: green + (1 - green) * white, blue: blue + (1 - blue) * white, alpha: 1).cgColor
     CATransaction.commit()
