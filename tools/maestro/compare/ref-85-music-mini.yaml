@@ -1,0 +1,21 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 85-music-mini of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Музыка.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Слушать: .*"
+    timeout: 60000
+    optional: true
+- tapOn:
+    text: "Слушать: .*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 5000
+    optional: true
+- takeScreenshot: ref-85-music-mini

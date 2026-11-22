@@ -1,0 +1,39 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 72-lastseen-allow of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "Конфиденциальность.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Конфиденциальность.*"
+    index: 0
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Время захода.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Время захода.*"
+    index: 0
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Всегда показывать.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Всегда показывать.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: ref-72-lastseen-allow

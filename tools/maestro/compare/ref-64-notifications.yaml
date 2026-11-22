@@ -1,0 +1,21 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 64-notifications of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "Уведомления и звуки.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Уведомления и звуки.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: ref-64-notifications

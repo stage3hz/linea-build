@@ -1,20 +1,36 @@
 # The side-by-side comparison: the previous app (React Native, mobile/) and the native iPhone app (native/ios)
 # photographed on the SAME simulator with the SAME data, screen by screen, so every visual or behavioural difference
-# can be found by looking at two pictures next to each other.
+# can be found by looking at two pictures next to each other — and by a number: every pair gets a difference score
+# and a heat map, and compare/REPORT.md lists the pairs worst first.
 #
-# As in native-takeover.yml: the previous app is built for the simulator with the preview identifier
-# com.linea.messenger.preview, signs in to a test account on a LOCAL test server (HTTPS with a test CA trusted inside this
-# simulator only; TLS stays on), made-up people send it really encrypted messages (tools/sim-seed.mjs, here with
-# SIM_SEED_RICH=1 and the account's sign-in: more people, a friend and a request, a community with channels).
-# Then, BEFORE the native app exists on the simulator, Maestro walks the previous app through the screens listed in
-# tools/maestro/compare/names.txt (one flow per screen, tools/maestro/compare/ref-*.yaml) and photographs each:
-# compare/ref-NN-name.png. Then the native app is installed over it (the update keeps the session, the keys and the
-# storage) and is photographed on the same screens — started with its simulator launch arguments
-# (native/ios/Sources/App/SceneDelegate.swift) and, where no argument reaches the screen, moved there by the same
-# gestures (tools/maestro/compare/nat/*.yaml, sharing tools/maestro/compare/act/*.yaml with the reference flows):
-# compare/nat-NN-name.png. tools/compare-pairs.py puts each pair next to each other (compare/pair-NN-name.jpg)
-# and writes compare/INDEX.md (what was photographed, what was not and why). All of it goes to the branch
-# native-compare-output.
+# Three jobs:
+#   build   builds both apps for the simulator once (the previous app with the preview identifier
+#           com.linea.messenger.preview and the local test server baked in, as in native-takeover.yml; the native app
+#           with the same identifier) and hands them on as an artifact.
+#   shoot   three simulators in parallel (matrix shard 1..3), each photographing its share of the screens listed in
+#           tools/maestro/compare/plan.txt. On each: a LOCAL test server (HTTPS with a test CA trusted inside this
+#           simulator only; TLS stays on), the previous app signs in to a made-up account, made-up people send it
+#           really encrypted messages and set up the world around it (tools/sim-seed.mjs with SIM_SEED_RICH=1 →
+#           tools/sim-seed-rich.mjs: every kind of message, pinned / muted / archived / blocked chats, friends and
+#           requests, Platina with banner, frame, nameplate and emoji status, posts, stories, gifts, a community, a
+#           room; the seeding process then stays: a person keeps typing, people are online, a flow can ring the
+#           account). The previous app runs the shard's setup flows (its own messages, a reply, an edit, «Избранное»,
+#           a folder, a failed message) and is photographed screen by screen (ref-NAME.yaml, from its chat list:
+#           compare/ref-NAME.png). Then the native app is installed OVER it (the update keeps the session, the keys
+#           and the storage) and photographed on the same screens — started with its simulator launch arguments
+#           (native/ios/Sources/App/SceneDelegate.swift) and, where the plan has a flow for it, moved there by the
+#           same gestures (tools/maestro/compare/nat/nat-NAME.yaml, sharing tools/maestro/compare/act/*.yaml):
+#           compare/nat-NAME.png. Shard 3 finally removes the app and the simulator's keychain and photographs
+#           both apps signed out (sign-in steps, registration, recovery).
+#   report  puts each pair side by side (tools/compare-pairs.py: compare/pair-NAME.jpg, reference left, native
+#           right; compare/INDEX.md), scores every pair (tools/maestro/compare/diff.py: mean absolute difference and
+#           changed pixels with the status bar left out, compare/diff-NAME.jpg heat maps, compare/REPORT.md sorted by
+#           the worst difference) and pushes everything to the branch native-compare-output.
+#
+# Time: build about 60-90 min; each shard about 25 min of preparation (simulator, server, sign-in, seeding), up to
+# 10 min of setup flows (shard 1), then about 1.2 min per reference screen and 0.9 min per native screen (31-38 pairs:
+# 65-80 min) — 95-115 min per shard, all three at once; report a few minutes. About 3 hours from the push to the
+# pictures; the job limits below (150 / 210 / 30 min) leave room.
 #
 # Start: git push origin <commit>:native-compare
 # Nothing here talks to the real server: every address of the real service resolves to this Mac for the whole run,
@@ -28,20 +44,14 @@ permissions:
 concurrency:
   group: native-compare
   cancel-in-progress: true
+env:
+  EXPO_NO_TELEMETRY: '1'
+  CI: '1'
+  SERVER: https://localhost:8443
 jobs:
-  compare:
+  build:
     runs-on: macos-26
-    timeout-minutes: 240
-    env:
-      EXPO_NO_TELEMETRY: '1'
-      CI: '1'
-      MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
-      # The made-up account of tools/native-sim-account.mjs (lives for this run only, on the local server only).
-      TEST_LOGIN: nativetester
-      TEST_HANDLE: native_check
-      TEST_PASSWORD: 'Synthetic!Native.42'
-      TEST_WORD: ambergardenprism
-      SERVER: https://localhost:8443
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,20 +59,13 @@ jobs:
           node-version: 24
       - name: Keep the real service unreachable from this Mac
         run: |
-          # Belt and braces: the apps are pointed at localhost, but should anything try the real addresses, it gets this Mac.
           echo "127.0.0.1 api.invizent.com invizent.com invizent-api.invizent-8165e2.workers.dev 141-133-194-51.nip.io" | sudo tee -a /etc/hosts
           sudo route -n add -host 194.87.254.249 127.0.0.1 || true
           sudo dscacheutil -flushcache || true; sudo killall -HUP mDNSResponder || true
-      - name: Build both apps, photograph the previous app, install the native app over it, photograph it
-        id: work
-        continue-on-error: true
-        timeout-minutes: 225
+      - name: Build both apps for the simulator
         run: |
           set -euo pipefail
-          OUT="$RUNNER_TEMP/out"; CMP="$OUT/compare"; mkdir -p "$OUT/ref" "$CMP"
-          exec > >(tee "$OUT/log.txt") 2>&1
-          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
-          stage() { echo "$1" > "$OUT/STAGE.txt"; echo "== $1"; }
+          OUT="$RUNNER_TEMP/build"; APPS="$RUNNER_TEMP/apps"; mkdir -p "$OUT" "$APPS"
           XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
           sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
           pod --version || sudo gem install cocoapods
@@ -71,19 +74,17 @@ jobs:
           # Both apps are signed the same way for the simulator (ad hoc, no team), so both get the same keychain group.
           SIGN=(CODE_SIGNING_ALLOWED=YES CODE_SIGNING_REQUIRED=YES CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- CODE_SIGN_ENTITLEMENTS= CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES)
 
-          stage "build the native app"
+          echo "== the native app"
           which protoc || brew install protobuf
           which xcodegen || brew install xcodegen
           native/ios/build-core.sh "$SIM_RUST"
           (cd native/ios && xcodegen generate && xcodebuild -project Invizent.xcodeproj -scheme Invizent -configuration Release -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" INVIZENT_BUNDLE_ID=com.linea.messenger.preview build > "$OUT/native-build.log" 2>&1) \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd ARCHS="$ARCH" ONLY_ACTIVE_ARCH=YES "${SIGN[@]}" build > "$OUT/native-build.log" 2>&1) \
             || { grep -E "error:" "$OUT/native-build.log" | head -60; tail -60 "$OUT/native-build.log"; exit 1; }
           NATIVE_APP="$PWD/native/ios/build/dd/Build/Products/Release-iphonesimulator/Invizent.app"
 
-          stage "build the previous app (release identifier, local test server baked in)"
+          echo "== the previous app (release identifier, local test server baked in)"
           (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
-          (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
-          (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
           # APP_ENV=development gives the preview identifier com.linea.messenger.preview (mobile/app.config.js), the build
           # the owner has on his phone (ios-unsigned-ipa.yml) and the identifier the native app carries.
           # EXPO_PUBLIC_SIMULATOR_SERVER is accepted by that app only as https://localhost:<port> (src/serverConfig.ts):
@@ -102,8 +103,86 @@ jobs:
             [ "$id" = com.linea.messenger.preview ] || { echo "::error::$app has identifier $id, not com.linea.messenger.preview"; exit 1; }
             codesign -d --entitlements :- "$app" > "$OUT/entitlements-$(basename "$app" .app).plist" 2>/dev/null || true
           done
+          # Packed with tar: the bundles keep their symbolic links and signatures on the way to the other jobs.
+          tar -C "$(dirname "$REF_APP")" -czf "$APPS/reference.tgz" "$(basename "$REF_APP")"
+          tar -C "$(dirname "$NATIVE_APP")" -czf "$APPS/native.tgz" "$(basename "$NATIVE_APP")"
+          echo "$(basename "$REF_APP")" > "$APPS/reference-name.txt"
+          ls -la "$APPS"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apps
+          path: ${{ runner.temp }}/apps
+          retention-days: 2
+          compression-level: 0
+      - name: Keep the build logs
+        if: always()
+        run: |
+          OUT="$RUNNER_TEMP/build"; mkdir -p "$OUT"; cd "$OUT"
+          for f in native-build.log reference-build.log; do [ -f "$f" ] && { grep -nE "error:|ld: " "$f" | head -200 > "${f%.log}-errors.txt"; tail -200 "$f" > "${f%.log}-tail.txt"; rm "$f"; } || true; done
+          ls -la
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-logs
+          path: ${{ runner.temp }}/build
+          retention-days: 7
+
+  shoot:
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 210
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
+      # The made-up account of tools/native-sim-account.mjs (lives for this run only, on the local server only).
+      TEST_LOGIN: nativetester
+      TEST_HANDLE: native_check
+      TEST_PASSWORD: 'Synthetic!Native.42'
+      TEST_WORD: ambergardenprism
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Keep the real service unreachable from this Mac
+        run: |
+          # Belt and braces: the apps are pointed at localhost, but should anything try the real addresses, it gets this Mac.
+          echo "127.0.0.1 api.invizent.com invizent.com invizent-api.invizent-8165e2.workers.dev 141-133-194-51.nip.io" | sudo tee -a /etc/hosts
+          sudo route -n add -host 194.87.254.249 127.0.0.1 || true
+          sudo dscacheutil -flushcache || true; sudo killall -HUP mDNSResponder || true
+      - uses: actions/download-artifact@v4
+        with:
+          name: apps
+          path: ${{ runner.temp }}/apps
+      - name: Photograph the previous app, install the native app over it, photograph it (this shard's screens)
+        id: work
+        continue-on-error: true
+        timeout-minutes: 195
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/out"; CMP="$OUT/compare"; mkdir -p "$OUT/ref" "$CMP"
+          exec > >(tee "$OUT/log.txt") 2>&1
+          limit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
+          stage() { echo "$1" > "$OUT/STAGE.txt"; echo "== $(date -u +%H:%M:%S) $1"; }
+          XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
+          APPS="$RUNNER_TEMP/apps"
+          tar -C "$APPS" -xzf "$APPS/reference.tgz"; tar -C "$APPS" -xzf "$APPS/native.tgz"
+          REF_APP="$APPS/$(cat "$APPS/reference-name.txt")"; NATIVE_APP="$APPS/Invizent.app"
+          FLOWS="$GITHUB_WORKSPACE/tools/maestro/compare"; PLAN="$FLOWS/plan.txt"
+          # The rows of this shard in one phase: name, look, native wait, native launch arguments (tab-separated).
+          rows() { awk -F'|' -v s="$SHARD" -v p="$1" '/^[[:space:]]*(#|$)/ { next }
+            { for (i = 1; i <= NF; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i); if ($2 == s && $3 == p) print $1 "\t" $4 "\t" $5 "\t" $6 }' "$PLAN"; }
+          echo "shard $SHARD: $(rows main | wc -l | tr -d ' ') screens signed in, $(rows auth | wc -l | tr -d ' ') signed out, $(rows setup | wc -l | tr -d ' ') setup flows"
 
           stage "local test server"
+          (cd server && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd mobile && npm ci --no-audit --no-fund >/dev/null 2>&1)
+          (cd desktop && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm ci --no-audit --no-fund >/dev/null 2>&1)
           OSSL=$(brew --prefix openssl@3 2>/dev/null)/bin/openssl; [ -x "$OSSL" ] || OSSL=openssl
           mkdir -p tls && (cd tls \
             && "$OSSL" req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/CN=INVIZENT Simulator Test CA" -keyout ca.key -out ca.pem -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null \
@@ -117,8 +196,6 @@ jobs:
           ACCOUNT=$(node tools/native-sim-account.mjs http://127.0.0.1:3999 "$TEST_LOGIN" "$TEST_HANDLE")
           USER_ID=$(printf '%s' "$ACCOUNT" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).id))')
           echo "account $TEST_LOGIN id $USER_ID"; echo "$USER_ID" > "$OUT/user-id.txt"
-          SCOPE=$(node -e 'console.log(require("crypto").createHash("sha256").update(process.argv[1]+"\u0000"+process.argv[2]).digest("hex"))' "$SERVER" "$USER_ID")
-          echo "scope of the account's storage: $SCOPE"
 
           stage "simulator"
           xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
@@ -143,38 +220,60 @@ jobs:
           # A screen that could not be reached: what was on the screen instead is kept under another name, with the reason.
           miss() { echo "$1: $2" >> "$CMP/missing.txt"; echo "::warning::$1: $2"; }
           # Maestro writes a picture where it was started, or next to the flow in some versions: gathered here.
-          gather() { find "$GITHUB_WORKSPACE/tools/maestro" "$OUT/ref" "$HOME/.maestro" -maxdepth 5 \( -name 'ref-[0-9][0-9]-*.png' -o -name 'nat-[0-9][0-9]-*.png' \) -exec mv -f {} "$CMP/" \; 2>/dev/null || true; }
+          gather() { find "$GITHUB_WORKSPACE/tools/maestro" "$OUT/ref" "$HOME/.maestro" -maxdepth 5 \( -name 'ref-[0-9]*-*.png' -o -name 'nat-[0-9]*-*.png' \) -exec mv -f {} "$CMP/" \; 2>/dev/null || true; }
+          grant() { for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done; }
           export PATH="$HOME/.maestro/bin:$PATH"
+          MENV=(-e "LOGIN=$TEST_LOGIN" -e "PASSWORD=$TEST_PASSWORD" -e "WORD=$TEST_WORD")
+          # The simulator's appearance: the previous app follows it (its theme is «Как в системе»).
+          LOOK=dark
+          setlook() { [ "$1" = "$LOOK" ] && return 0; limit 60 xcrun simctl ui "$UDID" appearance "$1" || true; LOOK="$1"; sleep 2; }
 
           stage "the previous app signs in"
           limit 600 xcrun simctl install "$UDID" "$REF_APP"
-          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done
+          grant
           for attempt in 1 2 3; do curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break; [ "$attempt" = 3 ] && exit 1; rm -rf "$HOME/.maestro"; sleep 30; done
-          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test -e LOGIN="$TEST_LOGIN" -e PASSWORD="$TEST_PASSWORD" -e WORD="$TEST_WORD" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml") \
+          (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "${MENV[@]}" "$GITHUB_WORKSPACE/tools/maestro/takeover-signin.yaml") \
             || { shot ref-signin-failed; echo "::error::the previous app did not sign in"; exit 1; }
 
-          stage "people write to the account (more people, a friend, a community); the previous app decrypts them"
-          SIM_SEED_RICH=1 node tools/sim-seed.mjs http://127.0.0.1:3999 "$TEST_HANDLE" "$GITHUB_WORKSPACE/srvdata" "$TEST_LOGIN" "$TEST_PASSWORD" "$TEST_WORD" | tee "$OUT/seed.txt"
+          stage "people write to the account and set up its world; the previous app decrypts them"
+          # The seeding process stays running in the background for the whole job (SIM_SEED_SERVE): Ксюша types,
+          # Тимур and Анна are online, act/ring.js and act/hangup.js ring the account through 127.0.0.1:3998.
+          (SIM_SEED_RICH=1 SIM_SEED_SERVE=3998 nohup node tools/sim-seed.mjs http://127.0.0.1:3999 "$TEST_HANDLE" "$GITHUB_WORKSPACE/srvdata" "$TEST_LOGIN" "$TEST_PASSWORD" "$TEST_WORD" > "$OUT/seed.txt" 2>&1 &)
+          for i in $(seq 1 240); do
+            grep -q '"messages"' "$OUT/seed.txt" && break
+            pgrep -f tools/sim-seed.mjs >/dev/null || { echo "the seeding process ended early"; break; }
+            sleep 5
+          done
+          cat "$OUT/seed.txt"
+          grep -q '"messages"' "$OUT/seed.txt" || { echo "::error::the seeding did not finish"; exit 1; }
+          for i in $(seq 1 12); do curl -fsS http://127.0.0.1:3998/health >/dev/null && break; sleep 5; done || true
+          curl -fsS http://127.0.0.1:3998/health >/dev/null || miss "seed-serve" "the seeding process does not answer on 127.0.0.1:3998 (no ring for the call pairs)"
           (cd "$OUT/ref" && limit 1800 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/takeover-read.yaml") \
             || { shot ref-read-failed; echo "::error::the previous app did not show the chats"; exit 1; }
           gather
 
-          stage "the previous app, screen by screen"
-          NAMES="$GITHUB_WORKSPACE/tools/maestro/compare/names.txt"
-          while read -r name; do
-            case "$name" in ''|'#'*) continue;; esac
-            echo "-- ref-$name"
-            if ! (cd "$CMP" && limit 420 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/compare/ref-$name.yaml" < /dev/null); then
-              shot "compare/ref-$name-failed"; miss "ref-$name" "the Maestro flow did not reach the screen (what was shown instead: ref-$name-failed.png)"
+          # ref NAME PHASE: the reference flow of one pair (or of a setup step: nothing photographed).
+          ref() {
+            local name="$1" phase="$2" seconds=420; [ "$phase" = setup ] && seconds=1200
+            echo "-- $(date -u +%H:%M:%S) ref-$name"
+            if ! (cd "$CMP" && limit "$seconds" maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/ref-$name.yaml" < /dev/null); then
+              shot "compare/ref-$name-failed"
+              if [ "$phase" = setup ]; then miss "setup-$name" "the reference's setup flow stopped (the screen then: ref-$name-failed.png); later pairs may lack what it makes"
+              else miss "ref-$name" "the Maestro flow did not reach the screen (what was shown instead: ref-$name-failed.png)"; fi
             fi
             gather
-            [ -f "$CMP/ref-$name.png" ] || [ -f "$CMP/ref-$name-failed.png" ] || miss "ref-$name" "no picture"
-          done < "$NAMES"
+            [ "$phase" = setup ] || [ -f "$CMP/ref-$name.png" ] || [ -f "$CMP/ref-$name-failed.png" ] || miss "ref-$name" "no picture"
+          }
+          refs() { # phase
+            while IFS=$'\t' read -r -u 3 name look wait args; do setlook "$look"; ref "$name" "$1"; done 3< <(rows "$1")
+          }
+
+          stage "the previous app: setup flows, then screen by screen"
+          refs setup
+          refs main
+          setlook dark
           limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview || true
 
-          stage "the native app is installed OVER the previous one"
-          limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
-          for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done
           start() { # seconds, launch arguments… — always pointed at the local test server
             # -effects 1: «Снег» and «Ледяное стекло» on, as they are by default in the reference (the native app keeps
             # them off on the simulator unless asked), so the rime on the glass shows on both sides.
@@ -183,70 +282,135 @@ jobs:
             limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview -server "$SERVER" -effects 1 "$@"
             sleep "$wait"
           }
-          # nat NN-name seconds args…: a screen reached by launch arguments alone.
+          # nat NAME seconds args…: a screen reached by launch arguments alone.
           nat() {
-            local name="$1"; shift; echo "-- nat-$name"
+            local name="$1"; shift; echo "-- $(date -u +%H:%M:%S) nat-$name"
             start "$@" || miss "nat-$name" "the app did not start"
             shot "compare/nat-$name"
             [ -f "$CMP/nat-$name.png" ] || miss "nat-$name" "no picture"
           }
-          # natflow NN-name seconds args…: started by launch arguments, then moved by the same gestures as the reference.
+          # natflow NAME seconds args…: started by launch arguments, then moved by the same gestures as the reference.
           natflow() {
-            local name="$1"; shift; echo "-- nat-$name (launch arguments, then tools/maestro/compare/nat/nat-$name.yaml)"
+            local name="$1"; shift; echo "-- $(date -u +%H:%M:%S) nat-$name (launch arguments, then nat/nat-$name.yaml)"
             start "$@" || miss "nat-$name" "the app did not start"
-            if ! (cd "$CMP" && limit 420 maestro --device "$UDID" test "$GITHUB_WORKSPACE/tools/maestro/compare/nat/nat-$name.yaml" < /dev/null); then
+            if ! (cd "$CMP" && limit 420 maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/nat/nat-$name.yaml" < /dev/null); then
               shot "compare/nat-$name-failed"; miss "nat-$name" "the Maestro flow did not reach the screen (what was shown instead: nat-$name-failed.png)"
             fi
             gather
             [ -f "$CMP/nat-$name.png" ] || [ -f "$CMP/nat-$name-failed.png" ] || miss "nat-$name" "no picture"
           }
+          # The native app's own theme: -settheme light for a light pair, back to its default (black) after one.
+          NATLIGHT=0
+          nats() { # phase
+            while IFS=$'\t' read -r -u 3 name look wait args; do
+              setlook "$look"
+              THEME=()
+              if [ "$look" = light ]; then THEME=(-settheme light); NATLIGHT=1; elif [ "$NATLIGHT" = 1 ]; then THEME=(-settheme black); NATLIGHT=0; fi
+              eval "ARGS=($args)"
+              if [ -f "$FLOWS/nat/nat-$name.yaml" ]; then natflow "$name" "$wait" ${THEME[@]+"${THEME[@]}"} ${ARGS[@]+"${ARGS[@]}"}
+              else nat "$name" "$wait" ${THEME[@]+"${THEME[@]}"} ${ARGS[@]+"${ARGS[@]}"}; fi
+            done 3< <(rows "$1")
+          }
 
+          stage "the native app is installed OVER the previous one"
+          limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
+          grant
           stage "the native app, screen by screen"
-          # The first start reads what the previous app left (session, keys, storage): given more time, not photographed.
+          # The first start reads what the previous app left (session, keys, storage, its settings): given more
+          # time, not photographed.
           start 40
-          nat 01-chatlist 25
-          natflow 02-chatlist-scrolled 25
-          natflow 03-chat-text 30 -openchat 1
-          nat 04-chat-media 35 -openchat 1
-          nat 05-message-menu 40 -openchat 1 -chataction menu
-          natflow 06-chat-avatar-peek 30 -openchat 1
-          nat 07-profile 40 -profile chat
-          nat 08-settings 20 -settings root
-          nat 09-appearance 20 -settings appearance
-          nat 10-privacy 20 -settings privacy
-          nat 11-people 25 -tab people
-          nat 12-channels 25 -tab channels
-          nat 13-community 30 -channels community
-          nat 14-channel-chat 35 -channels chat
-          nat 15-music 25 -tab music
-          nat 16-ai 25 -tab ai
-          natflow 17-attach-panel 30 -openchat 1
-          natflow 18-emoji-panel 30 -openchat 1
-          nat 19-chatlist-search 30 -chatsearch "Тим"
-          natflow 20-sections 25
+          nats main
+          setlook dark
           limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview || true
 
-          stage "pairs"
-          python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install -q pillow
-          "$RUNNER_TEMP/venv/bin/python" tools/compare-pairs.py "$CMP" "$NAMES"
-          cat "$CMP/INDEX.md"
-          shots=$(ls "$CMP" | grep -E '^(ref|nat)-[0-9]{2}-[a-z-]+\.png$' | grep -vc -- '-failed\.png$' || true)
-          echo "pictures: $shots of $(( 2 * $(grep -cvE '^(#|$)' "$NAMES") ))" | tee "$OUT/VERDICT.txt"
+          if [ -n "$(rows auth)" ]; then
+            # Signed out: the app and the simulator's keychain (where the session lives) are removed, the test CA
+            # trusted again, and each app installed fresh in turn.
+            fresh() {
+              limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
+              limit 120 xcrun simctl uninstall "$UDID" com.linea.messenger.preview || true
+              limit 120 xcrun simctl keychain "$UDID" reset || true
+              limit 120 xcrun simctl keychain "$UDID" add-root-cert tls/ca.pem
+              limit 600 xcrun simctl install "$UDID" "$1"
+              grant
+            }
+            stage "signed out: the previous app"
+            fresh "$REF_APP"
+            refs auth
+            stage "signed out: the native app"
+            fresh "$NATIVE_APP"
+            nats auth
+          fi
+
+          stage "done"
+          shots=$(ls "$CMP" | grep -E '^(ref|nat)-[0-9]+-[a-z0-9-]+\.png$' | grep -vc -- '-failed\.png$' || true)
+          wanted=$(( 2 * ( $(rows main | wc -l) + $(rows auth | wc -l) ) ))
+          echo "shard $SHARD pictures: $shots of $wanted" | tee "$OUT/VERDICT.txt"
           [ "${shots:-0}" -gt 0 ]
-      - name: Publish the pictures (branch native-compare-output)
+      - name: Keep the shard's pictures and logs
         if: always()
         run: |
           OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT"; cd "$OUT"
-          [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 2h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
-          verdict=$(cat VERDICT.txt 2>/dev/null || echo "NOT REACHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
-          echo "$verdict ${{ steps.work.outcome }} $GITHUB_SHA $(date -u) $(uname -m)" > STATUS.txt
-          for f in native-build.log reference-build.log; do [ -f "$f" ] && { grep -nE "error:|ld: " "$f" | head -200 > "${f%.log}-errors.txt"; tail -200 "$f" > "${f%.log}-tail.txt"; rm "$f"; } || true; done
+          [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 3h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
+          verdict=$(cat VERDICT.txt 2>/dev/null || echo "shard $SHARD NOT FINISHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
+          echo "$verdict ${{ steps.work.outcome }}" > VERDICT.txt
           # The comparison pictures stay full-size PNG (compare/); every other picture becomes a smaller JPEG.
           find . -path ./compare -prune -o -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
           find . -name 'commands-*.json' -delete; find . -path ./compare -prune -o -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;
-          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
-          git add -A && git commit -qm "Native side-by-side comparison for $GITHUB_SHA: $verdict"
-          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-compare-output" && break; sleep 15; done
-      - name: Fail the job unless the comparison ran
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shot-${{ matrix.shard }}
+          path: ${{ runner.temp }}/out
+          retention-days: 7
+      - name: Fail the job unless the shard ran
         if: steps.work.outcome != 'success'
         run: exit 1
+
+  report:
+    needs: [build, shoot]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shot-*
+          path: ${{ runner.temp }}/shards
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: build-logs
+          path: ${{ runner.temp }}/final/build
+      - name: Pairs, difference scores, the report
+        run: |
+          set -uo pipefail
+          FINAL="$RUNNER_TEMP/final"; CMP="$FINAL/compare"; mkdir -p "$CMP"
+          for shard in "$RUNNER_TEMP"/shards/shot-*; do
+            [ -d "$shard" ] || continue
+            n="${shard##*-}"; mkdir -p "$FINAL/shard-$n"
+            if [ -d "$shard/compare" ]; then
+              cp "$shard"/compare/*.png "$CMP/" 2>/dev/null || true
+              [ -f "$shard/compare/missing.txt" ] && cat "$shard/compare/missing.txt" >> "$CMP/missing.txt"
+            fi
+            (cd "$shard" && find . -path ./compare -prune -o -type f -print | while read -r f; do mkdir -p "$FINAL/shard-$n/$(dirname "$f")"; cp "$f" "$FINAL/shard-$n/$f"; done)
+          done
+          PLAN=tools/maestro/compare/plan.txt
+          grep -vE '^[[:space:]]*(#|$)' "$PLAN" | awk -F'|' '{ for (i = 1; i <= NF; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i); if ($3 != "setup") print $1 }' > "$CMP/names.txt"
+          python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install -q pillow
+          "$RUNNER_TEMP/venv/bin/python" tools/compare-pairs.py "$CMP" "$CMP/names.txt" || echo "::warning::the side-by-side pictures were not made"
+          "$RUNNER_TEMP/venv/bin/python" tools/maestro/compare/diff.py "$CMP" "$PLAN" || echo "::warning::the difference scores were not made"
+          head -40 "$CMP/REPORT.md" 2>/dev/null || true
+          {
+            echo "build: ${{ needs.build.result }}, shards: ${{ needs.shoot.result }}, $GITHUB_SHA, $(date -u)"
+            cat "$FINAL"/shard-*/VERDICT.txt 2>/dev/null || echo "no shard finished"
+          } > "$FINAL/STATUS.txt"
+          cat "$FINAL/STATUS.txt"
+      - name: Publish the pictures (branch native-compare-output)
+        if: always()
+        run: |
+          FINAL="$RUNNER_TEMP/final"; mkdir -p "$FINAL"; cd "$FINAL"
+          git init -q -b out && git config user.name "linea-ci" && git config user.email "ci@localhost"
+          git add -A && git commit -qm "Native side-by-side comparison for $GITHUB_SHA: $(head -1 STATUS.txt 2>/dev/null)"
+          for attempt in 1 2 3; do git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "HEAD:native-compare-output" && break; sleep 15; done

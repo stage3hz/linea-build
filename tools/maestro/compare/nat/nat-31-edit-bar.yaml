@@ -1,0 +1,11 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 31-edit-bar of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow: ../act/wait-timur.yaml
+- longPressOn:
+    text: ".*Буду через десять минут.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Изменить"
+- waitForAnimationToEnd
+- takeScreenshot: nat-31-edit-bar

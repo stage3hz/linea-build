@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 76-people-search of the native app, started by the workflow with: -tab people; then these gestures.
+- tapOn:
+    text: "Ник или имя пользователя"
+- waitForAnimationToEnd
+- inputText: "Лар"
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: nat-76-people-search

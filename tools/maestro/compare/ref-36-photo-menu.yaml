@@ -1,0 +1,16 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 36-photo-menu of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- scrollUntilVisible:
+    element:
+      text: ".*Это мы на даче.*"
+    direction: UP
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- longPressOn:
+    text: ".*Это мы на даче.*"
+- waitForAnimationToEnd
+- takeScreenshot: ref-36-photo-menu

@@ -1,0 +1,8 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 80-channel-mini-profile of the native app, started by the workflow with: -channels chat; then these gestures.
+- tapOn:
+    text: "Профиль Dimas"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-80-channel-mini-profile

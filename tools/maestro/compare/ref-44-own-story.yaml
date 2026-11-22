@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 44-own-story of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Моя история"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
+- takeScreenshot: ref-44-own-story

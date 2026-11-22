@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 95-channels-light of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Каналы.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Клан «Север».*"
+    timeout: 60000
+    optional: true
+- takeScreenshot: ref-95-channels-light

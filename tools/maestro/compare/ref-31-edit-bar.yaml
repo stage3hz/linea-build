@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 31-edit-bar of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- longPressOn:
+    text: ".*Буду через десять минут.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Изменить"
+- waitForAnimationToEnd
+- takeScreenshot: ref-31-edit-bar

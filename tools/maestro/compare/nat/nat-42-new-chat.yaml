@@ -1,0 +1,8 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 42-new-chat of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- tapOn:
+    text: "Новый чат"
+- waitForAnimationToEnd
+- takeScreenshot: nat-42-new-chat

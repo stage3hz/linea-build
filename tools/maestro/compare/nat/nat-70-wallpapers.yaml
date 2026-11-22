@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 70-wallpapers of the native app, started by the workflow with: -settings appearance; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "Обои чатов.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Обои чатов.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-70-wallpapers

@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 99-call-history of the native app, started by the workflow with: -tab people; then these gestures.
+- tapOn:
+    text: "Звонки.*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 2000
+    optional: true
+- takeScreenshot: nat-99-call-history

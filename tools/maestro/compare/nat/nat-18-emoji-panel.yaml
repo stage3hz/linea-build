@@ -1,6 +1,6 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 18-emoji-panel of the native app, started by the workflow with its launch arguments (no launchApp here).
+# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1; then these gestures.
 - runFlow: ../act/wait-timur.yaml
 - runFlow: ../act/emoji.yaml
 - takeScreenshot: nat-18-emoji-panel

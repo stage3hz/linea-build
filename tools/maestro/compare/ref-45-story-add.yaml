@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 45-story-add of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Добавить историю"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 2500
+    optional: true
+- takeScreenshot: ref-45-story-add

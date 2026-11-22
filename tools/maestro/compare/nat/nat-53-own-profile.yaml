@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 53-own-profile of the native app, started by the workflow with: -settings root; then these gestures.
+- tapOn:
+    text: "Мой профиль"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Изменить.*"
+    timeout: 30000
+    optional: true
+- takeScreenshot: nat-53-own-profile

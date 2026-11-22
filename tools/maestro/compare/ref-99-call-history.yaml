@@ -1,0 +1,17 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 99-call-history of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Люди.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Звонки.*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 2000
+    optional: true
+- takeScreenshot: ref-99-call-history

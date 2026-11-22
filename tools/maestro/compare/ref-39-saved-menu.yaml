@@ -1,0 +1,16 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 39-saved-menu of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Избранное.*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Как тебе фото.*"
+    timeout: 30000
+    optional: true
+- longPressOn:
+    text: ".*Как тебе фото.*"
+- waitForAnimationToEnd
+- takeScreenshot: ref-39-saved-menu

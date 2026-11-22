@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 77-settings-light of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+    optional: true
+- takeScreenshot: ref-77-settings-light

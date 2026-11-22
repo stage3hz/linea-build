@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 59-editor-color of the native app, started by the workflow with: -settings profile; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "Персональный цвет.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Персональный цвет.*"
+- waitForAnimationToEnd
+- takeScreenshot: nat-59-editor-color

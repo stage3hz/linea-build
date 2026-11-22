@@ -1,0 +1,14 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 103-register of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "field-Логин"
+    timeout: 300000
+- tapOn:
+    text: "Создать аккаунт"
+    index: 0
+- waitForAnimationToEnd
+- hideKeyboard
+- takeScreenshot: ref-103-register

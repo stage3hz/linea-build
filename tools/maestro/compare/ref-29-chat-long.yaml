@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 29-chat-long of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Лариса Новикова.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Сообщение номер 24.*"
+    timeout: 60000
+    optional: true
+- takeScreenshot: ref-29-chat-long

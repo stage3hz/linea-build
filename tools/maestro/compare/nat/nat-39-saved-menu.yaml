@@ -1,0 +1,16 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 39-saved-menu of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- tapOn:
+    text: "Избранное.*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Как тебе фото.*"
+    timeout: 30000
+    optional: true
+- longPressOn:
+    text: ".*Как тебе фото.*"
+- waitForAnimationToEnd
+- takeScreenshot: nat-39-saved-menu

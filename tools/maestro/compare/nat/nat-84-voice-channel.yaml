@@ -1,0 +1,15 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 84-voice-channel of the native app, started by the workflow with: -channels community; then these gestures.
+- tapOn:
+    text: "Голосовой канал Игра.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Allow|Разрешить|OK"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 6000
+    optional: true
+- takeScreenshot: nat-84-voice-channel

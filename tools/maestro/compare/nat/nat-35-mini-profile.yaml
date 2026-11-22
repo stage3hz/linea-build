@@ -1,0 +1,9 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 35-mini-profile of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow: ../act/wait-timur.yaml
+- tapOn:
+    text: "Тимур Богданов"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-35-mini-profile

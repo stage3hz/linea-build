@@ -1,0 +1,8 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 56-editor-banner of the native app, started by the workflow with: -settings profile; then these gestures.
+- tapOn:
+    text: "Изменить баннер|Установить баннер"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-56-editor-banner

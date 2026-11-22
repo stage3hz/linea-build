@@ -1,0 +1,47 @@
+appId: com.linea.messenger.preview
+---
+# Comparison setup 00-setup-messages of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- tapOn:
+    id: "chat-composer"
+- inputText: "Буду через десять минут"
+- tapOn:
+    id: "chat-send"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: ".*Список покупок.*"
+    direction: UP
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- longPressOn:
+    text: ".*Список покупок.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Ответить"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chat-composer"
+- inputText: "Молоко уже купил"
+- tapOn:
+    id: "chat-send"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: ".*Буду через десять минут.*"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- longPressOn:
+    text: ".*Буду через десять минут.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Изменить"
+- waitForAnimationToEnd
+- inputText: " или пятнадцать"
+- tapOn:
+    id: "chat-send"
+- waitForAnimationToEnd

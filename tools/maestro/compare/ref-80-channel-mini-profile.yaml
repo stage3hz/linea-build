@@ -1,0 +1,30 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 80-channel-mini-profile of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Каналы.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Клан «Север».*"
+    timeout: 60000
+- tapOn:
+    text: "Клан «Север».*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Текстовый канал общий.*"
+    timeout: 60000
+    optional: true
+- tapOn:
+    text: "Текстовый канал общий.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*глянь, пожалуйста.*"
+    timeout: 60000
+    optional: true
+- tapOn:
+    text: "Профиль Dimas"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: ref-80-channel-mini-profile

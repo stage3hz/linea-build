@@ -1,0 +1,30 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 98-call-minimized of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- tapOn:
+    text: "Позвонить"
+    index: 0
+- waitForAnimationToEnd
+- tapOn:
+    text: "Allow|Разрешить|OK"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: "Свернуть звонок"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
+- takeScreenshot: ref-98-call-minimized
+- tapOn:
+    text: "Завершить звонок|Завершить"
+    index: 0
+    optional: true
+- waitForAnimationToEnd

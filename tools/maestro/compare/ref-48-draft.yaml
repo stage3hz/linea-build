@@ -1,0 +1,15 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 48-draft of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- tapOn:
+    id: "chat-composer"
+- inputText: "Не забыть спросить про проектор"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 4000
+    optional: true
+- runFlow: act/ref-home.yaml
+- takeScreenshot: ref-48-draft

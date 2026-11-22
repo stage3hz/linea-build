@@ -1,0 +1,7 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 57-status-sheet of the native app, started by the workflow with: -settings root; then these gestures.
+- tapOn:
+    text: "Сменить статус рядом с именем"
+- waitForAnimationToEnd
+- takeScreenshot: nat-57-status-sheet

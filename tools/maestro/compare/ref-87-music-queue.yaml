@@ -1,0 +1,29 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 87-music-queue of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Музыка.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Слушать: .*"
+    timeout: 60000
+    optional: true
+- tapOn:
+    text: "Слушать: .*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Открыть плеер.*"
+    timeout: 30000
+    optional: true
+- tapOn:
+    text: "Открыть плеер.*"
+    index: 0
+- waitForAnimationToEnd
+- tapOn:
+    text: "Ещё"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: ref-87-music-queue

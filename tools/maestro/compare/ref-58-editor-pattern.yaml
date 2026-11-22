@@ -1,0 +1,28 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 58-editor-pattern of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+    optional: true
+- tapOn:
+    text: "Изменить"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Имя пользователя.*"
+    timeout: 30000
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "Узор фона.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Узор фона.*"
+- waitForAnimationToEnd
+- takeScreenshot: ref-58-editor-pattern

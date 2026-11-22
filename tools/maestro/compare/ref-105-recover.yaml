@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 105-recover of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "field-Логин"
+    timeout: 300000
+- tapOn:
+    text: "Забыл пароль?"
+- waitForAnimationToEnd
+- hideKeyboard
+- takeScreenshot: ref-105-recover

@@ -1,0 +1,16 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 32-selection of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- longPressOn:
+    text: ".*Как тебе фото.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Выбрать"
+- waitForAnimationToEnd
+- tapOn:
+    text: ".*Молоко уже купил.*"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-32-selection

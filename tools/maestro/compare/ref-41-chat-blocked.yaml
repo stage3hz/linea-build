@@ -1,0 +1,17 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 41-chat-blocked of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Игорь.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Игорь.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: ref-41-chat-blocked

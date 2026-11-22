@@ -1,0 +1,11 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 96-call-incoming of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runScript: act/ring.js
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 7000
+    optional: true
+- takeScreenshot: ref-96-call-incoming
+- runScript: act/hangup.js

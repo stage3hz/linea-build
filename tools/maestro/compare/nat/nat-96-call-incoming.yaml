@@ -1,0 +1,11 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 96-call-incoming of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- runScript: ../act/ring.js
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 7000
+    optional: true
+- takeScreenshot: nat-96-call-incoming
+- runScript: ../act/hangup.js

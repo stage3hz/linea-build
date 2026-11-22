@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 63-platina-showcase of the native app, started by the workflow with: -settings root; then these gestures.
+- tapOn:
+    text: "Инвиз Platina"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 2000
+    optional: true
+- takeScreenshot: nat-63-platina-showcase

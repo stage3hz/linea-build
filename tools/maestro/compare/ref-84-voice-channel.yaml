@@ -1,0 +1,30 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 84-voice-channel of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Каналы.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Клан «Север».*"
+    timeout: 60000
+- tapOn:
+    text: "Клан «Север».*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Текстовый канал общий.*"
+    timeout: 60000
+    optional: true
+- tapOn:
+    text: "Голосовой канал Игра.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Allow|Разрешить|OK"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 6000
+    optional: true
+- takeScreenshot: ref-84-voice-channel

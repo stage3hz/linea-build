@@ -1,0 +1,17 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 40-chat-failed of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Вера.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Вера.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: nat-40-chat-failed

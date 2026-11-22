@@ -1,0 +1,20 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 37-photo-viewer of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- scrollUntilVisible:
+    element:
+      text: "Тимур Богданов: photo.png"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- tapOn:
+    text: "Тимур Богданов: photo.png"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: ref-37-photo-viewer

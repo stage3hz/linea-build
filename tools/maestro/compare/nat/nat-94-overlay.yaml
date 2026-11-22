@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 94-overlay of the native app, started by the workflow with: -settings root; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "Оверлей в играх.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Оверлей в играх.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-94-overlay

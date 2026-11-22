@@ -1,0 +1,8 @@
+appId: com.linea.messenger.preview
+---
+# The native app, started by the workflow (no launchApp here): wait for its chat list with the seeded people.
+- extendedWaitUntil:
+    visible: "Тимур Богданов.*"
+    timeout: 120000
+    optional: true
+- waitForAnimationToEnd

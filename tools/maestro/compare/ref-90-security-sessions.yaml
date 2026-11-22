@@ -1,0 +1,28 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 90-security-sessions of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+    optional: true
+- scrollUntilVisible:
+    element:
+      text: "Безопасность и устройства.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Безопасность и устройства.*"
+    index: 0
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Сеанс: .*"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-90-security-sessions

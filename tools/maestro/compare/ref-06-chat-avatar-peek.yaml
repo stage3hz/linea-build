@@ -1,6 +1,6 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 06-chat-avatar-peek of the reference app (.github/workflows/native-compare.yml).
+# Comparison shot 06-chat-avatar-peek of the reference app (.github/workflows/native-compare.yml, plan.txt).
 - runFlow: act/ref-home.yaml
 - runFlow: act/open-timur.yaml
 - runFlow: act/avatar-peek.yaml

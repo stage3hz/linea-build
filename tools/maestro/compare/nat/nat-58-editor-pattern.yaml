@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 58-editor-pattern of the native app, started by the workflow with: -settings profile; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "Узор фона.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Узор фона.*"
+- waitForAnimationToEnd
+- takeScreenshot: nat-58-editor-pattern

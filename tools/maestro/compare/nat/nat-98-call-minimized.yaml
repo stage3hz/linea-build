@@ -1,0 +1,29 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 98-call-minimized of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow: ../act/wait-timur.yaml
+- tapOn:
+    text: "Позвонить"
+    index: 0
+- waitForAnimationToEnd
+- tapOn:
+    text: "Allow|Разрешить|OK"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- tapOn:
+    text: "Свернуть звонок"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
+- takeScreenshot: nat-98-call-minimized
+- tapOn:
+    text: "Завершить звонок|Завершить"
+    index: 0
+    optional: true
+- waitForAnimationToEnd

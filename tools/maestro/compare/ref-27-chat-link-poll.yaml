@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 27-chat-link-poll of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/open-timur.yaml
+- scrollUntilVisible:
+    element:
+      text: ".*Куда идём в субботу.*"
+    direction: UP
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- takeScreenshot: ref-27-chat-link-poll

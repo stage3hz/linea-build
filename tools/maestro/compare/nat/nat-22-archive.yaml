@@ -1,0 +1,14 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 22-archive of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Архив.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Архив.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-22-archive

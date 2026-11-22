@@ -1,5 +1,5 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 20-sections of the native app, started by the workflow with its launch arguments (no launchApp here).
+# Comparison shot 20-sections of the native app, started by the workflow with: (no launch arguments); then these gestures.
 - runFlow: ../act/sections.yaml
 - takeScreenshot: nat-20-sections

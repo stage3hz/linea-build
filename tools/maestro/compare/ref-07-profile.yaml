@@ -1,10 +1,11 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 07-profile of the reference app (.github/workflows/native-compare.yml).
+# Comparison shot 07-profile of the reference app (.github/workflows/native-compare.yml, plan.txt).
 - runFlow: act/ref-home.yaml
 - runFlow: act/open-timur.yaml
 - tapOn:
     text: "Профиль Тимур Богданов.*"
+- waitForAnimationToEnd
 - extendedWaitUntil:
     notVisible: ".*Как тебе фото.*"
     timeout: 15000

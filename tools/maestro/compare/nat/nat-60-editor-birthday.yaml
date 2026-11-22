@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 60-editor-birthday of the native app, started by the workflow with: -settings profile; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "День рождения.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "День рождения.*"
+- waitForAnimationToEnd
+- takeScreenshot: nat-60-editor-birthday

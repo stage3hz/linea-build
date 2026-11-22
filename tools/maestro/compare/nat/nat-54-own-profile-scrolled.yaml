@@ -1,0 +1,17 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 54-own-profile-scrolled of the native app, started by the workflow with: -settings root; then these gestures.
+- tapOn:
+    text: "Мой профиль"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Изменить.*"
+    timeout: 30000
+    optional: true
+- swipe:
+    start: "50%,78%"
+    end: "50%,30%"
+    duration: 700
+- waitForAnimationToEnd
+- takeScreenshot: nat-54-own-profile-scrolled

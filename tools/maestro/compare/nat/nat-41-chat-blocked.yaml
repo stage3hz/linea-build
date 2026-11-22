@@ -1,0 +1,17 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 41-chat-blocked of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Игорь.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Игорь.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: nat-41-chat-blocked

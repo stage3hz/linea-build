@@ -1,0 +1,17 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 40-chat-failed of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Вера.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Вера.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: ref-40-chat-failed

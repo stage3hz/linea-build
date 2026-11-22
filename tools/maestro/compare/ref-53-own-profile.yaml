@@ -1,0 +1,20 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 53-own-profile of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Настройки"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
+    optional: true
+- tapOn:
+    text: "Мой профиль"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Изменить.*"
+    timeout: 30000
+    optional: true
+- takeScreenshot: ref-53-own-profile

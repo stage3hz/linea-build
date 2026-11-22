@@ -1,0 +1,45 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 102-signin-word of the native app, started by the workflow with: -auth 1; then these gestures.
+- runFlow:
+    when:
+      visible:
+        id: "field-Логин"
+    commands:
+      - tapOn:
+          id: "field-Логин"
+- inputText: "${LOGIN}"
+- pressKey: enter
+- tapOn:
+    text: "Продолжить"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "field-Пароль"
+    timeout: 30000
+    optional: true
+- extendedWaitUntil:
+    visible: "Пароль.*"
+    timeout: 5000
+    optional: true
+- tapOn:
+    text: "Показать: пароль"
+    optional: true
+- waitForAnimationToEnd
+- tapOn:
+    id: "field-Пароль"
+    optional: true
+- inputText: "${PASSWORD}"
+- pressKey: enter
+- tapOn:
+    text: "Продолжить"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "field-Слово подтверждения"
+    timeout: 30000
+    optional: true
+- hideKeyboard
+- takeScreenshot: nat-102-signin-word

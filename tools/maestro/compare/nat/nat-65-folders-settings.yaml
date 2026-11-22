@@ -1,0 +1,13 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 65-folders-settings of the native app, started by the workflow with: -settings root; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "Папки с чатами.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Папки с чатами.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-65-folders-settings

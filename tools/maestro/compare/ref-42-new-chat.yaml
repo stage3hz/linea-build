@@ -1,0 +1,8 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 42-new-chat of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Новый чат"
+- waitForAnimationToEnd
+- takeScreenshot: ref-42-new-chat

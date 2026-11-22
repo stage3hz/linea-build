@@ -1,0 +1,9 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 49-profile-scrolled of the native app, started by the workflow with: -profile chat; then these gestures.
+- swipe:
+    start: "50%,78%"
+    end: "50%,30%"
+    duration: 700
+- waitForAnimationToEnd
+- takeScreenshot: nat-49-profile-scrolled

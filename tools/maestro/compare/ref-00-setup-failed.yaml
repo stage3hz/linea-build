@@ -1,0 +1,21 @@
+appId: com.linea.messenger.preview
+---
+# Comparison setup 00-setup-failed of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Вера.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Вера.*"
+- waitForAnimationToEnd
+- tapOn:
+    id: "chat-composer"
+- inputText: "Это сообщение не дойдёт"
+- tapOn:
+    id: "chat-send"
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 6000
+    optional: true

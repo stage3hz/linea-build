@@ -1,0 +1,24 @@
+appId: com.linea.messenger.preview
+---
+# Comparison setup 00-setup-read of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- tapOn:
+    text: "Лариса Новикова.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Сообщение номер 24.*"
+    timeout: 60000
+    optional: true
+- runFlow: act/ref-home.yaml
+- scrollUntilVisible:
+    element:
+      text: "Игорь.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Игорь.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 4000
+    optional: true

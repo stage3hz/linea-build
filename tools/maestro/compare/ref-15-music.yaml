@@ -1,6 +1,6 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 15-music of the reference app (.github/workflows/native-compare.yml).
+# Comparison shot 15-music of the reference app (.github/workflows/native-compare.yml, plan.txt).
 - runFlow: act/ref-home.yaml
 - runFlow: act/sections.yaml
 - tapOn:

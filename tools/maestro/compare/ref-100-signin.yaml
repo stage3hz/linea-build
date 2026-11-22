@@ -1,0 +1,11 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 100-signin of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "field-Логин"
+    timeout: 300000
+- hideKeyboard
+- waitForAnimationToEnd
+- takeScreenshot: ref-100-signin

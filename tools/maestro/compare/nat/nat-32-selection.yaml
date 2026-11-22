@@ -1,0 +1,15 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 32-selection of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow: ../act/wait-timur.yaml
+- longPressOn:
+    text: ".*Как тебе фото.*"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Выбрать"
+- waitForAnimationToEnd
+- tapOn:
+    text: ".*Молоко уже купил.*"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: nat-32-selection

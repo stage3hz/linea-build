@@ -1,0 +1,10 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 100-signin of the native app, started by the workflow with: -auth 1; then these gestures.
+- extendedWaitUntil:
+    visible: "Логин.*|Войти.*"
+    timeout: 120000
+    optional: true
+- hideKeyboard
+- waitForAnimationToEnd
+- takeScreenshot: nat-100-signin

@@ -1,0 +1,7 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 75-passcode-entry of the native app, started by the workflow with: -settings passcode; then these gestures.
+- tapOn:
+    text: "Включить код-пароль"
+- waitForAnimationToEnd
+- takeScreenshot: nat-75-passcode-entry

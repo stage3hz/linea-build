@@ -1,0 +1,9 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 34-chat-header-menu of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow: ../act/wait-timur.yaml
+- tapOn:
+    text: "Ещё"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-34-chat-header-menu

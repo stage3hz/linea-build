@@ -1,0 +1,15 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 36-photo-menu of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow: ../act/wait-timur.yaml
+- scrollUntilVisible:
+    element:
+      text: ".*Это мы на даче.*"
+    direction: UP
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- longPressOn:
+    text: ".*Это мы на даче.*"
+- waitForAnimationToEnd
+- takeScreenshot: nat-36-photo-menu

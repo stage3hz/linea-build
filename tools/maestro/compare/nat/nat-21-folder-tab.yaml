@@ -1,0 +1,9 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 21-folder-tab of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- tapOn:
+    text: "Работа.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-21-folder-tab

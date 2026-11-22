@@ -1,0 +1,11 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 61-editor-studio of the native app, started by the workflow with: -settings profile; then these gestures.
+- scrollUntilVisible:
+    element:
+      text: "Рамки и анимации.*"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
+- takeScreenshot: nat-61-editor-studio

@@ -1,0 +1,12 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 29-chat-long of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- tapOn:
+    text: "Лариса Новикова.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Сообщение номер 24.*"
+    timeout: 60000
+    optional: true
+- takeScreenshot: nat-29-chat-long

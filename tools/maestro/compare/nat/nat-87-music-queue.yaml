@@ -1,0 +1,20 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 87-music-queue of the native app, started by the workflow with: -tab music; then these gestures.
+- tapOn:
+    text: "Слушать: .*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Открыть плеер.*"
+    timeout: 30000
+    optional: true
+- tapOn:
+    text: "Открыть плеер.*"
+    index: 0
+- waitForAnimationToEnd
+- tapOn:
+    text: "Ещё"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: nat-87-music-queue

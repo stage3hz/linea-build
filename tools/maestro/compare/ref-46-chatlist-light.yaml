@@ -1,0 +1,5 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 46-chatlist-light of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- takeScreenshot: ref-46-chatlist-light

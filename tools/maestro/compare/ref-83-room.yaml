@@ -1,0 +1,22 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 83-room of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow: act/ref-home.yaml
+- runFlow: act/sections.yaml
+- tapOn:
+    text: "Каналы.*"
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      text: "Вечерний созвон.*"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: "Вечерний созвон.*"
+    index: 0
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true
+- takeScreenshot: ref-83-room
