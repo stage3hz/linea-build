@@ -23,6 +23,7 @@ import com.linea.messenger.settings.NotificationPrefs
 import com.linea.messenger.settings.NotificationsScreen
 import com.linea.messenger.settings.OwnProfile
 import com.linea.messenger.settings.SettingsAccount
+import com.linea.messenger.settings.SettingsField
 import com.linea.messenger.settings.SettingsScreen
 import com.linea.messenger.settings.ThemeCard
 import com.linea.messenger.settings.ThemeLook
@@ -100,12 +101,38 @@ class SettingsLookPagesTest {
     ThemeStore.screenLevel = { 0.8 }
   }
 
+  @Test fun theBarGlowTurnsOffAndTakesAnOwnColour() {
+    launch()
+    activity.openSettings("appearance"); idle()
+    has("Свечение панели", "Свой цвет", "Переливается")
+    assertTrue(com.linea.messenger.shell.BarGlow.on)
+    assertNull(com.linea.messenger.shell.BarGlow.color)
+    // Off: the colour row goes with the lights.
+    toggles("Свечение панели").single().performClick(); idle()
+    assertFalse(com.linea.messenger.shell.BarGlow.on)
+    hasNot("Свой цвет")
+    toggles("Свечение панели").single().performClick(); idle()
+    assertTrue(com.linea.messenger.shell.BarGlow.on)
+    // The picker's code puts a colour on; «Переливается» takes it back to the drift.
+    press("Свой цвет")
+    assertEquals("Цвет свечения", sheet().heading)
+    (sheet().parts[1] as SettingsField).input.setText("#00ff88"); idle()
+    assertEquals("#00FF88", com.linea.messenger.shell.BarGlow.color)
+    sheet().dismiss(); idle()
+    has("#00FF88")
+    press("#00FF88")
+    (sheet().parts[2] as android.view.ViewGroup).getChildAt(0).performClick(); idle()
+    assertNull(com.linea.messenger.shell.BarGlow.color)
+    has("Переливается")
+  }
+
   @After fun backToTheAppsOwnLook() {
     ThemeStore.use(null)
     ThemeStore.systemLook = null
     ThemeStore.screenLevel = null
     AccentColorScreen.custom = false
     AccentColorScreen.sliders = null
+    com.linea.messenger.shell.BarGlow.tryColor(null)
   }
 
   /** The shell with the sample chats; `extras` are launch arguments of the emulator check. */

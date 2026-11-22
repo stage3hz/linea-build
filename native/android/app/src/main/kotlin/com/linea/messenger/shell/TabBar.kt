@@ -189,6 +189,22 @@ internal object TabFlow {
   val SWAY_RATE = doubleArrayOf(0.5, 0.0, 6.0)
 
 
+  /** The person's own colour («Свечение панели» › «Свой цвет», `BarGlow`): all three lights in it, no drift — the centre
+   *  the colour itself, the left a little deeper (more saturated, darker), the right a little paler and brighter, so the
+   *  one colour still reads as three lights. Written into `out` (left, centre, right), opaque. */
+  const val OWN_LEFT_SATURATION = 1.12f
+  const val OWN_LEFT_BRIGHTNESS = 0.78f
+  const val OWN_RIGHT_SATURATION = 0.72f
+  const val OWN_RIGHT_LIFT = 0.12f
+
+  fun ownTones(color: Int, out: IntArray) {
+    val hsv = FloatArray(3)
+    Color.colorToHSV(color, hsv)
+    out[0] = Color.HSVToColor(floatArrayOf(hsv[0], min(1f, hsv[1] * OWN_LEFT_SATURATION), hsv[2] * OWN_LEFT_BRIGHTNESS))
+    out[1] = color or 0xFF000000.toInt()
+    out[2] = Color.HSVToColor(floatArrayOf(hsv[0], hsv[1] * OWN_RIGHT_SATURATION, min(1f, hsv[2] + OWN_RIGHT_LIFT)))
+  }
+
   /** A level for light `light` from the playback's position: the bass a kick on every beat (120 a minute), the mids a
    *  hit on the off-beats over a slow swell, the highs a quick tick on every eighth, shimmering. */
   fun synthetic(position: Double, light: Int): Double = when (light) {
@@ -204,6 +220,46 @@ internal object TabFlow {
       min(1.0, 0.15 + 0.45 * exp(-(beat - floor(beat)) * 10) * (0.5 + 0.5 * shimmer) + 0.2 * shimmer)
     }
   }
+}
+
+/** «Свечение панели» in «Оформление» (settings/AppearanceEffects.kt): look 9's lights on or off, and the person's own
+ *  colour for them (null: the colours drift — «Переливается»). Kept on this device in the app's preferences store
+ *  (ThemeStore's), under keys of their own; every bar follows at once (`changed`). The same in iOS Shell/TabBar.swift. */
+object BarGlow {
+  const val ON_KEY = "linea.bar-glow.v1"
+  const val COLOR_KEY = "linea.bar-glow-color.v1"
+  /** Posted on the main thread after every change. */
+  val changed = com.linea.messenger.net.Live.Signal<Unit>()
+  /** Without a store (a check that gave none) the choices live in memory. */
+  private val memory = HashMap<String, String?>()
+  /** A colour being tried (the picker under the finger): shown by the bar, not kept yet. */
+  private var trying: String? = null
+
+  private fun read(key: String): String? { val store = com.linea.messenger.settings.ThemeStore.kept; return if (store != null) store.get(key) else memory[key] }
+  private fun write(key: String, value: String?) { val store = com.linea.messenger.settings.ThemeStore.kept; if (store != null) store.set(key, value) else memory[key] = value }
+
+  /** The lights are on (the default). Off: the bar is plain glass — no lights, no line, no clock, no sensor. */
+  var on: Boolean
+    get() = read(ON_KEY) != "off"
+    set(value) { write(ON_KEY, if (value) null else "off"); changed.post(Unit) }
+
+  /** The own colour as `#RRGGBB`, or null for the drift. */
+  var color: String?
+    get() = trying ?: read(COLOR_KEY)?.let { normal(it) }
+    set(value) { trying = null; write(COLOR_KEY, value?.let { normal(it) }); changed.post(Unit) }
+
+  /** Shows `value` on the bar without keeping it (null: back to what is kept). */
+  fun tryColor(value: String?) { trying = value?.let { normal(it) }; changed.post(Unit) }
+
+  /** `#RRGGBB` in capitals from «RRGGBB» or «#rrggbb»; null for anything else. */
+  fun normal(text: String): String? {
+    val digits = text.trim().removePrefix("#")
+    if (digits.length != 6 || digits.any { Character.digit(it, 16) < 0 }) return null
+    return "#" + digits.uppercase(java.util.Locale.ROOT)
+  }
+
+  /** `#RRGGBB` of a colour. */
+  fun hex(color: Int): String = String.format(java.util.Locale.ROOT, "#%06X", color and 0xFFFFFF)
 }
 
 /** Look 9's lights as a liquid sealed in the glass capsule (the same numbers in iOS Shell/TabBar.swift `TabLiquid`): each
@@ -528,7 +584,13 @@ class TabBarView(context: Context) : ViewGroup(context) {
   private val clock = DecorTicker.Link(this)
   /** Which glow look is on: 9 (`TabFlow`), the owner's choice; 0 and 6 stay for comparison (any other number draws 9). */
   var look: Int = normalLook(demoLook ?: TabFlow.LOOK)
-    set(value) { field = normalLook(value); flowKeys.fill(-1); paintGlow(); clock.want(field == TabFlow.LOOK); refreshSensors() }
+    set(value) { field = normalLook(value); flowKeys.fill(-1L); paintGlow(); clock.want(flowWanted); refreshSensors() }
+  /** «Свечение панели» (`BarGlow`): look 9's lights on, and the own colour of all three (null: the drift). */
+  private var glowOn = BarGlow.on
+  private var ownColor: Int? = BarGlow.color?.let { tabColor(it) }
+  /** Look 9 is drawn and moves: its clock and its sensor may run. */
+  private val flowWanted: Boolean get() = look == TabFlow.LOOK && glowOn
+  private val glowListener: (Unit) -> Unit = { readGlow() }
   // Look 9's state: the drift's clock (seconds) and the common turn (kept across launches); the music's bands (left =
   // mids, centre = bass, right = highs: levels 0…1 smoothed) and how much of the music shows; the wave's own copy of
   // the playback's position; the lights as a liquid moved by the phone, and the push along the bar (g, + right).
@@ -543,8 +605,10 @@ class TabBarView(context: Context) : ViewGroup(context) {
   private val liquidRest = DoubleArray(3)
   private var liquidForce = 0.0
   private val hues = DoubleArray(3)
-  /** The colour (hue in 1° steps) each light's gradient was made for (3: the line's glow): made again only when it changes. */
-  private val flowKeys = IntArray(4) { -1 }
+  /** The three lights' colours of this moment (left, centre, right). */
+  private val flowColors = IntArray(3)
+  /** The colour each light's gradient was made for (3: the line's glow; −1: none yet): made again only when it changes. */
+  private val flowKeys = LongArray(4) { -1L }
   private val lineGlow = Paint(Paint.ANTI_ALIAS_FLAG)
   private val lineFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = WHITE }
   private val stopColors = IntArray(5)
@@ -617,7 +681,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
     setWillNotDraw(false)
     clipChildren = false
     paintGlow()
-    clock.want(look == TabFlow.LOOK)
+    clock.want(flowWanted)
     restoreFlow()
   }
 
@@ -683,7 +747,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
   // MARK: Looks
 
   private fun paintGlow() {
-    if (look == TabFlow.LOOK) { flowKeys.fill(-1); invalidate(); return } // made as it is drawn (flowShader)
+    if (look == TabFlow.LOOK) { flowKeys.fill(-1L); invalidate(); return } // made as it is drawn (flowShader)
     // Calm: a cool silver. With colours (a track's cover): centre, left, right.
     val coloured = glow.size == 3
     val dark = Theme.dark
@@ -764,7 +828,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
   /** The accelerometer runs only while look 9 moves on the screen and power is not being saved. */
   private fun refreshSensors() {
-    val want = look == TabFlow.LOOK && attachedNow && shownNow && DecorTicker.allowed && !com.linea.messenger.effects.Motion.saving
+    val want = flowWanted && attachedNow && shownNow && DecorTicker.allowed && !com.linea.messenger.effects.Motion.saving
     if (want == sensing) return
     val manager = context.getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
     if (want) {
@@ -792,14 +856,36 @@ class TabBarView(context: Context) : ViewGroup(context) {
     flowTurn = parts[1] - floor(parts[1])
   }
 
-  /** Light `index`'s gradient in its colour of this moment, at the strongest alpha (the paint's alpha lowers it); 3:
-   *  the line's glow in the centre's colour, lightened. */
-  private fun flowShader(index: Int, hue: Double) {
-    val step = (hue * 360).toInt() % 360
-    if (flowKeys[index] == step) return
-    flowKeys[index] = step
-    val light = if (index == 3) 1 else index
-    val color = Color.HSVToColor(floatArrayOf(step.toFloat(), TabFlow.SATURATION[light], TabFlow.BRIGHTNESS))
+  /** «Свечение панели» changed in «Оформление»: the bar follows at once. */
+  private fun readGlow() {
+    val on = BarGlow.on
+    val own = BarGlow.color?.let { tabColor(it) }
+    if (on == glowOn && own == ownColor) return
+    glowOn = on; ownColor = own
+    flowKeys.fill(-1L)
+    clock.want(flowWanted)
+    refreshSensors()
+    invalidate()
+  }
+
+  /** The three lights' colours of this moment into `flowColors`: the person's own colour (`TabFlow.ownTones`), or the
+   *  drifting hues (in 1° steps, so a gradient is made again only when its colour moves). */
+  private fun flowColorsNow() {
+    val own = ownColor
+    if (own != null) { TabFlow.ownTones(own, flowColors); return }
+    TabFlow.hues(flowTime, flowTurn, hues)
+    for (light in 0 until 3) {
+      val step = (hues[light] * 360).toInt() % 360
+      flowColors[light] = Color.HSVToColor(floatArrayOf(step.toFloat(), TabFlow.SATURATION[light], TabFlow.BRIGHTNESS))
+    }
+  }
+
+  /** Light `index`'s gradient in `color`, at the strongest alpha (the paint's alpha lowers it); 3: the line's glow in
+   *  the centre's colour, lightened. */
+  private fun flowShader(index: Int, color: Int) {
+    val key = color.toLong() and 0xFFFFFFFFL
+    if (flowKeys[index] == key) return
+    flowKeys[index] = key
     if (index == 3) {
       val white = TabFlow.LINE_WHITE
       val r = Color.red(color); val g = Color.green(color); val b = Color.blue(color)
@@ -815,10 +901,10 @@ class TabBarView(context: Context) : ViewGroup(context) {
    *  in the colours of this moment, raised by the music's bands, moved as a liquid by the phone. */
   private fun drawFlow(canvas: Canvas, w: Float, h: Float) {
     stepFlow()
-    TabFlow.hues(flowTime, flowTurn, hues)
+    flowColorsNow()
     val blur = TabFlow.BLUR_REACH * h
     for (index in 0 until 3) {
-      flowShader(index, hues[index])
+      flowShader(index, flowColors[index])
       val push = (waveLevel[index] * waveAmount).toFloat()
       val alpha = min(TabFlow.ALPHA_MAX, TabFlow.ALPHA[index] * (1 + TabFlow.PUNCH_ALPHA[index] * push) * liquid.bright(index))
       lights[index].alpha = (255 * alpha / TabFlow.ALPHA_MAX).toInt().coerceIn(0, 255)
@@ -863,7 +949,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
   /** Look 9: the white line on the top edge above the chosen tab, its glow in the centre light's colour. */
   private fun drawLine(canvas: Canvas) {
     if (capsuleAlpha <= 0f) return
-    flowShader(3, hues[1])
+    flowShader(3, flowColors[1])
     val half = TabFlow.LINE_WIDTH / 2 * d; val tall = TabFlow.LINE_HEIGHT * d
     val reachX = (TabFlow.LINE_WIDTH / 2 + TabFlow.LINE_SPREAD + TabFlow.LINE_BLUR) * d
     val reachY = (TabFlow.LINE_HEIGHT / 2 + TabFlow.LINE_SPREAD + TabFlow.LINE_BLUR) * d
@@ -878,9 +964,10 @@ class TabBarView(context: Context) : ViewGroup(context) {
   override fun onDraw(canvas: Canvas) {
     val w = width.toFloat(); val h = height.toFloat()
     if (w <= 0f || h <= 0f) return
-    // The lights live in the glass: over its fill, under its rim.
-    glass.draw(canvas, 0f, 0f, w, h, h / 2, insideGlass)
-    if (look == TabFlow.LOOK) drawLine(canvas)
+    // The lights live in the glass: over its fill, under its rim. «Свечение панели» off: plain glass, no line.
+    if (look == TabFlow.LOOK && !glowOn) glass.draw(canvas, 0f, 0f, w, h, h / 2)
+    else glass.draw(canvas, 0f, 0f, w, h, h / 2, insideGlass)
+    if (flowWanted) drawLine(canvas)
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2
     if (trailAlpha > 0f) {
@@ -1095,6 +1182,8 @@ class TabBarView(context: Context) : ViewGroup(context) {
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     attachedNow = true
+    BarGlow.changed.watch(glowListener)
+    readGlow()
     clock.attached(true)
     refreshSensors()
   }
@@ -1109,6 +1198,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
   override fun onDetachedFromWindow() {
     attachedNow = false
+    BarGlow.changed.unwatch(glowListener)
     clock.attached(false)
     refreshSensors()
     storeFlow()

@@ -263,6 +263,8 @@ class AppearanceScreen(context: Context, private val account: SettingsAccount?) 
     addGroup("Свои цвета", listOf(accentRow, com.linea.messenger.chatlook.ChatLookSettings.colourRow(this)))
     // Effects: «Пиксельный след», «Снег», «Ледяное стекло» (settings/AppearanceEffects.kt).
     addEffectGroups()
+    // «Свечение панели»: the bottom bar's lights on or off, and their own colour (settings/BarGlowSettings.kt).
+    addBarGlowGroup { fill() }
 
     // «Размер текста в чатах»: a sample message, then the sizes.
     val chosenSize = DevicePreferences.word("textSize") ?: "medium"
