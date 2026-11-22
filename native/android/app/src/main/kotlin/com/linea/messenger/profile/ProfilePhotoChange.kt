@@ -18,6 +18,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.view.View
+import com.linea.messenger.design.Theme
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.attachments.FileCore
 import com.linea.messenger.attachments.Picks
@@ -77,15 +79,20 @@ class ProfilePhotoChange(private val context: Context, private val messenger: Me
     val hasAvatar = !(messenger.ownProfile["avatarId"] as? String).isNullOrEmpty() || own.avatarVideoId.isNotEmpty()
     val has = if (kind == "avatar") hasAvatar else own.bannerId.isNotEmpty() || own.bannerPreset.isNotEmpty()
     val note = if (platina) null else if (kind == "banner") "Баннер и видео доступны с Platina." else "Видео-аватар доступен с Platina."
-    val items = ArrayList<Pair<String, () -> Unit>>()
-    if (kind == "avatar" || platina) items.add((if (kind == "banner") "Фото или GIF" else "Выбрать фото или GIF") to { pickPhoto() })
-    if (platina) items.add("Видео до 10 секунд" to { pickVideo() })
-    if (has) items.add("Убрать" to { remove() })
-    val sheet = AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-      .setTitle(if (kind == "banner") "Баннер профиля" else "Фото профиля")
-      .setItems(items.map { it.first }.toTypedArray()) { _, which -> items[which].second() }
-      .setNegativeButton("Отмена", null)
-    if (note != null) sheet.setTitle((if (kind == "banner") "Баннер профиля" else "Фото профиля") + "\n" + note)
+    // The reference's Sheet «Баннер профиля» / «Фото профиля» (ProfileScreen.tsx): Buttons 10 apart — the main «(Выбрать)
+    // фото или GIF» (image-outline), the quiet «Видео до 10 секунд» (videocam-outline), «Убрать» (trash-outline, danger)
+    // when there is one, and without Platina the words (12, line 18, `muted`).
+    val photo = com.linea.messenger.settings.SettingsButton(context, if (kind == "banner") "Фото или GIF" else "Выбрать фото или GIF", icon = "image-outline")
+    photo.isEnabled = kind == "avatar" || platina
+    val video = com.linea.messenger.settings.SettingsButton(context, "Видео до 10 секунд", com.linea.messenger.settings.SettingsButton.Kind.SECONDARY, icon = "videocam-outline")
+    video.isEnabled = platina
+    val parts = arrayListOf<View>(photo, video)
+    val removeButton = if (has) com.linea.messenger.settings.SettingsButton(context, "Убрать", com.linea.messenger.settings.SettingsButton.Kind.DANGER, icon = "trash-outline").also { parts.add(it) } else null
+    if (note != null) parts.add(com.linea.messenger.settings.SettingsLook.para(context, note, 12f, Theme.muted, line = 18f))
+    val sheet = com.linea.messenger.chatactions.ChoiceSheet(context, if (kind == "banner") "Баннер профиля" else "Фото профиля", "", emptyList(), parts, 10f)
+    photo.onPress = { sheet.dismiss(); pickPhoto() }
+    video.onPress = { sheet.dismiss(); pickVideo() }
+    removeButton?.onPress = { sheet.dismiss(); remove() }
     sheet.show()
   }
 

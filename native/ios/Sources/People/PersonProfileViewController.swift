@@ -33,6 +33,8 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
     // Profile: the top as the reference's UserProfile.tsx — banner / festive colour, the decorated avatar, the
     // platinum name and emoji status, the effect (Sources/Profile/ProfileHead.swift).
     private let hero = ProfileHeroView()
+    /// The photo has grown out once (the reference's `avatarIn`).
+    private var grown = false
     private let topLayers = ProfileTopLayers()
     private let topShade = CAGradientLayer()
     private var avatar: DecoratedAvatarView { return hero.avatar }
@@ -218,6 +220,20 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         clock?.invalidate()
         // «был(а) 5 минут назад» grows old by itself.
         clock = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.refreshStatus() }
+        // UserProfile.tsx: the photo grows out as the profile opens — from 0.35 with a spring (damping 16, stiffness
+        // 180), its opacity min(1, growth × 1.6). Once, when the profile is first shown.
+        if !grown {
+            grown = true
+            if Motion.enabled {
+                avatar.transform = CGAffineTransform(scaleX: 0.35, y: 0.35)
+                avatar.alpha = 0.56
+                let spring = UIViewPropertyAnimator(duration: 0.8, timingParameters: UISpringTimingParameters(mass: 1, stiffness: 180, damping: 16, initialVelocity: .zero))
+                spring.addAnimations { [weak self] () -> Void in self?.avatar.transform = .identity }
+                spring.startAnimation()
+                // Opaque once the growth reaches 0.625 (42% of the rise): about 0.09 s into this spring.
+                UIView.animate(withDuration: 0.09, delay: 0, options: [.curveLinear], animations: { [weak self] () -> Void in self?.avatar.alpha = 1 })
+            }
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {

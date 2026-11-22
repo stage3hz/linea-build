@@ -500,7 +500,8 @@ class SelectionBar(context: Context) : GlassBar(context, 28f) {
 
 /** A sheet of a few choices, each with a line of explanation under it — «Выключить звук», «Удалить чат?», what
  *  can be done with a chat. A choice closes the sheet and is then carried out. */
-class ChoiceSheet(context: Context, val heading: String, val note: String = "", val choices: List<Choice>) : Dialog(context) {
+/** `parts`: content of its own instead of choices (the reference's `<Sheet>` holding Buttons and words), `partsGap` apart. */
+class ChoiceSheet(context: Context, val heading: String, val note: String = "", val choices: List<Choice>, parts: List<View> = emptyList(), partsGap: Float = 10f) : Dialog(context) {
   /** `selected`: one of several (the reference's `SheetAction selected`) — no chevron; null: an action. */
   class Choice(val symbol: String, val label: String, val note: String = "", val danger: Boolean = false, val selected: Boolean? = null, val run: () -> Unit)
 
@@ -558,6 +559,10 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
       if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = dp(19f)
     }, LinearLayout.LayoutParams(wide, wrap).apply { bottomMargin = dp(6f) })
     for (choice in choices) stack.addView(row(choice), LinearLayout.LayoutParams(wide, wrap))
+    parts.forEachIndexed { index, part ->
+      (part.parent as? ViewGroup)?.removeView(part)
+      stack.addView(part, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = if (index == 0) 0 else dp(partsGap) })
+    }
     val scroll = object : ScrollView(context) {
       override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val most = (context.resources.displayMetrics.heightPixels * 0.88f).toInt() - dp(22f + 4f + 17f + 44f + 13f + 25f)

@@ -341,7 +341,7 @@ class SharedMediaView(context: Context) : LinearLayout(context) {
       val on = tab == active
       val button = context.words(label, 14f, if (on) Theme.accent else Theme.text, 600)
       button.setPadding(context.px(14f), context.px(8f), context.px(14f), context.px(8f))
-      button.background = if (on) context.plate(Theme.alpha(Theme.accent, 0.16f), 14f) else null
+      button.background = if (on) context.plate(com.linea.messenger.settings.ThemeStore.look.accentSoft, 14f) else null
       button.isClickable = true; button.isSelected = on
       button.setOnClickListener { this.active = tab; rebuild() }
       stripRow.addView(button)
@@ -441,7 +441,7 @@ class SharedMediaView(context: Context) : LinearLayout(context) {
       val bare = item.url.replace(Regex("^https?://(www\\.)?", RegexOption.IGNORE_CASE), "")
       val icon = context.words(bare.firstOrNull()?.uppercase() ?: "?", 17f, Theme.accent, 700)
       icon.gravity = Gravity.CENTER
-      icon.background = context.plate(Theme.alpha(Theme.accent, 0.16f), 10f)
+      icon.background = context.plate(com.linea.messenger.settings.ThemeStore.look.accentSoft, 10f)
       val shown = item.url.replace(Regex("^https?://", RegexOption.IGNORE_CASE), "")
       stack.addView(row(icon, shown, Theme.accent, 14f, false, item.message["text"] as? String ?: "") {
         // As the reference (Linking.openURL): the link opens in the system's browser.

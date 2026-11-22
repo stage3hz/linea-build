@@ -73,7 +73,7 @@ class StatusPicker(context: Context, private val anchorY: Int, status: Map<Strin
     fun cellView(selected: Boolean, label: String, enabled: Boolean): FrameLayout = FrameLayout(c).apply {
       background = GradientDrawable().apply {
         cornerRadius = 12f * c.resources.displayMetrics.density
-        setColor(if (selected) Theme.alpha(Theme.accent, 0.16f) else Color.TRANSPARENT)
+        setColor(if (selected) com.linea.messenger.settings.ThemeStore.look.accentSoft else Color.TRANSPARENT)
         if (selected) setStroke(Math.round(1.5f * c.resources.displayMetrics.density), Theme.accent)
       }
       contentDescription = label

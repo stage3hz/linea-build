@@ -447,6 +447,17 @@ final class ChoiceSheet: UIViewController {
     private let noteLabel = UILabel()
     private var rows: [ChoiceRow] = []
     private var dragStart: CGFloat = 0
+    /// Content of its own instead of choices (the reference's `<Sheet>` holding Buttons and words), `partsGap` apart.
+    private var parts: [UIView] = []
+    private var partsGap: CGFloat = 10
+    private let partsStack = UIStackView()
+
+    /// The same sheet holding `parts` one under another, `gap` apart (ProfileScreen.tsx: the media sheet's Buttons, 10).
+    convenience init(heading: String, parts: [UIView], gap: CGFloat) {
+        self.init(heading: heading, note: "", choices: [])
+        self.parts = parts
+        partsGap = gap
+    }
 
     /// The reference's `Sheet` (components.tsx) holding `SheetAction`s: a floating card over a dim (fading in, as the
     /// reference's Modal `animationType="fade"`), 12 from the sides and max(12, the safe area) from the bottom, at most
@@ -516,6 +527,12 @@ final class ChoiceSheet: UIViewController {
             row.addTarget(self, action: #selector(chosen(_:)), for: .touchUpInside)
             scroll.addSubview(row)
             rows.append(row)
+        }
+        if !parts.isEmpty {
+            partsStack.axis = .vertical
+            partsStack.spacing = partsGap
+            for part in parts { partsStack.addArrangedSubview(part) }
+            scroll.addSubview(partsStack)
         }
     }
 
@@ -594,6 +611,11 @@ final class ChoiceSheet: UIViewController {
             let height = ChoiceSheet.rowHeight(choices[index])
             row.frame = CGRect(x: 0, y: y, width: inner, height: height)
             y += height
+        }
+        if !parts.isEmpty {
+            let fitted = partsStack.systemLayoutSizeFitting(CGSize(width: inner, height: 0), withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
+            partsStack.frame = CGRect(x: 0, y: y, width: inner, height: fitted.height)
+            y += fitted.height
         }
         scroll.contentSize = CGSize(width: inner, height: y)
         let titleHeight = max(44, min(50, headingLabel.sizeThatFits(CGSize(width: inner - 44 - 12, height: 50)).height))

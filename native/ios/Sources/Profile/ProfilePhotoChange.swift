@@ -53,17 +53,25 @@ final class ProfilePhotoChange: NSObject, PHPickerViewControllerDelegate, UIImag
         let hasAvatar = !((messenger.ownProfile["avatarId"] as? String) ?? "").isEmpty || !own.avatarVideoId.isEmpty
         let has = kind == "avatar" ? hasAvatar : (!own.bannerId.isEmpty || !own.bannerPreset.isEmpty)
         let note = platina ? nil : (kind == "banner" ? "Баннер и видео доступны с Platina." : "Видео-аватар доступен с Platina.")
-        let sheet = UIAlertController(title: kind == "banner" ? "Баннер профиля" : "Фото профиля", message: note, preferredStyle: .actionSheet)
-        let photo = UIAlertAction(title: kind == "banner" ? "Фото или GIF" : "Выбрать фото или GIF", style: .default) { [weak self] (_: UIAlertAction) -> Void in self?.pickPhoto() }
+        // The reference's Sheet «Баннер профиля» / «Фото профиля» (ProfileScreen.tsx): Buttons 10 apart — the main «(Выбрать)
+        // фото или GIF» (image-outline), the quiet «Видео до 10 секунд» (videocam-outline), «Убрать» (trash-outline, danger)
+        // when there is one, and without Platina the words (12, line 18, `muted`).
+        let photo = SettingsButton(label: kind == "banner" ? "Фото или GIF" : "Выбрать фото или GIF", kind: .primary, icon: "image-outline")
         photo.isEnabled = kind == "avatar" || platina
-        sheet.addAction(photo)
-        let video = UIAlertAction(title: "Видео до 10 секунд", style: .default) { [weak self] (_: UIAlertAction) -> Void in self?.pickVideo() }
+        let video = SettingsButton(label: "Видео до 10 секунд", kind: .secondary, icon: "videocam-outline")
         video.isEnabled = platina
-        sheet.addAction(video)
+        var parts: [UIView] = [photo, video]
+        var removeButton: SettingsButton?
         if has {
-            sheet.addAction(UIAlertAction(title: "Убрать", style: .destructive) { [weak self] (_: UIAlertAction) -> Void in self?.remove() })
+            let made = SettingsButton(label: "Убрать", kind: .danger, icon: "trash-outline")
+            parts.append(made)
+            removeButton = made
         }
-        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
+        if let note { parts.append(SettingsLook.para(note, size: 12, color: Theme.muted, line: 18)) }
+        let sheet = ChoiceSheet(heading: kind == "banner" ? "Баннер профиля" : "Фото профиля", parts: parts, gap: 10)
+        photo.onPress = { [weak self, weak sheet] in sheet?.dismiss(animated: true) { self?.pickPhoto() } }
+        video.onPress = { [weak self, weak sheet] in sheet?.dismiss(animated: true) { self?.pickVideo() } }
+        removeButton?.onPress = { [weak self, weak sheet] in sheet?.dismiss(animated: true) { self?.remove() } }
         host.present(sheet, animated: true, completion: nil)
     }
 

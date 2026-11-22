@@ -162,7 +162,7 @@ final class ProfileHeroView: UIView {
         setPresence(presenceWords)
         party.isHidden = !person.look.birthdayToday
         party.textColor = tinted ? .white : Theme.text
-        party.backgroundColor = tinted ? UIColor(white: 1, alpha: 0.22) : Theme.accent.withAlphaComponent(0.16)
+        party.backgroundColor = tinted ? UIColor(white: 1, alpha: 0.22) : ThemeStore.look.accentSoft
     }
 
     func setPresence(_ words: String?) {

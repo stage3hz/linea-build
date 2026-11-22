@@ -169,7 +169,7 @@ class ProfileHeroView(context: Context) : ViewGroup(context) {
     setPresence(presenceWords)
     party.visibility = if (person.look.birthdayToday()) VISIBLE else GONE
     party.setTextColor(if (tinted) 0xFFFFFFFF.toInt() else Theme.text)
-    party.background = context.plate(if (tinted) 0x38FFFFFF else Theme.alpha(Theme.accent, 0.16f), 14f)
+    party.background = context.plate(if (tinted) 0x38FFFFFF else com.linea.messenger.settings.ThemeStore.look.accentSoft, 14f)
     requestLayout()
   }
 

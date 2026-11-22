@@ -248,7 +248,7 @@ final class PlatinaStudioView: UIView {
 
     private func section(_ title: String, _ hint: String, _ body: UIView) -> UIView {
         let heading = SettingsLook.words(title, size: 15, color: Theme.text, weight: .semibold)
-        let words = SettingsLook.words(hint, size: 12, color: Theme.muted)
+        let words = SettingsLook.para(hint, size: 12, color: Theme.muted, line: 17) // `lineHeight: 17`
         let column = UIStackView(arrangedSubviews: [heading, words, body])
         column.axis = .vertical
         column.spacing = 3
@@ -334,6 +334,9 @@ final class PlatinaStudioView: UIView {
             name.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
         ])
         holder.addAction(UIAction { (_: UIAction) -> Void in action() }, for: .touchUpInside)
+        // The reference's Choice: 0.7 while pressed, at once.
+        holder.addAction(UIAction { [weak holder] (_: UIAction) -> Void in holder?.alpha = 0.7 }, for: [.touchDown, .touchDragEnter])
+        holder.addAction(UIAction { [weak holder] (_: UIAction) -> Void in holder?.alpha = 1 }, for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
         return holder
     }
 
@@ -395,12 +398,15 @@ final class PlatinaStudioView: UIView {
 
     private func frameTile(_ id: String, _ label: String, selected: Bool) -> UIView {
         let tile = UIControl()
+        // The reference's tile: 0.94 while pressed, at once.
+        tile.addAction(UIAction { [weak tile] (_: UIAction) -> Void in tile?.transform = CGAffineTransform(scaleX: 0.94, y: 0.94) }, for: [.touchDown, .touchDragEnter])
+        tile.addAction(UIAction { [weak tile] (_: UIAction) -> Void in tile?.transform = .identity }, for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
         tile.isEnabled = active
         tile.alpha = !active && !selected ? 0.55 : 1
         tile.layer.cornerRadius = 18
         tile.layer.borderWidth = 1.5
         tile.layer.borderColor = selected ? Theme.accent.cgColor : UIColor.clear.cgColor
-        tile.backgroundColor = selected ? Theme.accent.withAlphaComponent(0.16) : .clear
+        tile.backgroundColor = selected ? ThemeStore.look.accentSoft : .clear // the reference: `accentSoft`
         tile.isAccessibilityElement = true
         tile.accessibilityLabel = label
         tile.accessibilityTraits = selected ? [.button, .selected] : [.button]

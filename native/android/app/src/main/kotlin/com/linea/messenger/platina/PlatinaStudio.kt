@@ -136,7 +136,7 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     if (!active) {
       val lock = LinearLayout(context).apply {
         orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-        background = context.plate(Theme.alpha(Theme.accent, 0.16f), 14f)
+        background = context.plate(com.linea.messenger.settings.ThemeStore.look.accentSoft, 14f)
         setPadding(context.px(12f), context.px(12f), context.px(12f), context.px(12f))
         addView(ProfileIconView(context, "ion:lock-closed", 15f, Theme.accent), LayoutParams(context.px(15f), context.px(15f)))
         addView(context.words("Оформление доступно с Platina.", 13f, Theme.text), LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(8f) })
@@ -201,7 +201,7 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
   private fun section(title: String, hint: String, body: View): View = LinearLayout(context).apply {
     orientation = VERTICAL
     addView(context.words(title, 15f, Theme.text, 600))
-    addView(context.words(hint, 12f, Theme.muted), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
+    addView(context.words(hint, 12f, Theme.muted).apply { if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = context.px(17f) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
     addView(body, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(9f) })
   }
 
@@ -231,6 +231,11 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     holder.isSelected = selected
     holder.contentDescription = label
     holder.setOnClickListener { action() }
+    // The reference's Choice: 0.7 while pressed, at once.
+    holder.setOnTouchListener { view, event ->
+      when (event.actionMasked) { android.view.MotionEvent.ACTION_DOWN -> view.alpha = 0.7f; android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> view.alpha = 1f }
+      false
+    }
     return LinearLayout(context).apply { addView(holder); setPadding(0, 0, context.px(10f), 0) }
   }
 
@@ -276,7 +281,7 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     tile.clipChildren = false
     tile.isEnabled = active
     tile.alpha = if (!active && !selected) 0.55f else 1f
-    tile.background = GradientDrawable().apply { cornerRadius = 18f * resources.displayMetrics.density; setColor(if (selected) Theme.alpha(Theme.accent, 0.16f) else 0); setStroke(Math.round(1.5f * resources.displayMetrics.density), if (selected) Theme.accent else 0) }
+    tile.background = GradientDrawable().apply { cornerRadius = 18f * resources.displayMetrics.density; setColor(if (selected) com.linea.messenger.settings.ThemeStore.look.accentSoft else 0); setStroke(Math.round(1.5f * resources.displayMetrics.density), if (selected) Theme.accent else 0) }
     tile.contentDescription = label
     tile.isSelected = selected
     val box = FrameLayout(context).apply { clipChildren = false }
@@ -295,6 +300,11 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
       tile.addView(check, FrameLayout.LayoutParams(context.px(20f), context.px(20f), Gravity.END or Gravity.TOP).apply { topMargin = context.px(6f); rightMargin = context.px(8f) })
     }
     tile.isClickable = true
+    // The reference's tile: 0.94 while pressed, at once.
+    tile.setOnTouchListener { view, event ->
+      when (event.actionMasked) { android.view.MotionEvent.ACTION_DOWN -> { view.scaleX = 0.94f; view.scaleY = 0.94f }; android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> { view.scaleX = 1f; view.scaleY = 1f } }
+      false
+    }
     tile.setOnClickListener { apply(mapOf("avatarFrame" to id.ifEmpty { null }), if (id.isEmpty()) "Рамка убрана." else "Выбрано: «$label».") }
     return tile
   }

@@ -209,7 +209,21 @@ class PersonProfileScreen(
     clock.run()
     // Profile: on the birthday, the confetti once.
     post { topLayers.celebrate(this) }
+    // UserProfile.tsx: the photo grows out as the profile opens — from 0.35 with a spring (damping 16, stiffness 180:
+    // ratio 0.596, settled in 0.86 s), its opacity min(1, growth × 1.6), opaque about 0.09 s in. Once.
+    if (!grown) {
+      grown = true
+      if (com.linea.messenger.effects.Motion.enabled) {
+        val photo = hero.avatar
+        photo.scaleX = 0.35f; photo.scaleY = 0.35f; photo.alpha = 0.56f
+        photo.animate().scaleX(1f).scaleY(1f).setDuration(860).setInterpolator(com.linea.messenger.shell.SpringCurve(0.596f)).start()
+        photo.animate().alpha(1f).setDuration(90).setInterpolator(android.view.animation.LinearInterpolator()).start()
+      }
+    }
   }
+
+  /** The photo has grown out once (the reference's `avatarIn`). */
+  private var grown = false
 
   override fun onDetachedFromWindow() {
     Live.presenceChanged.unwatch(presenceChanged)

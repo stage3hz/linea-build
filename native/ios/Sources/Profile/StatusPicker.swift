@@ -96,7 +96,7 @@ final class StatusPickerViewController: UIViewController {
         button.layer.cornerRadius = 12
         button.layer.borderWidth = selected ? 1.5 : 0
         button.layer.borderColor = Theme.accent.cgColor
-        button.backgroundColor = selected ? Theme.accent.withAlphaComponent(0.16) : .clear
+        button.backgroundColor = selected ? ThemeStore.look.accentSoft : .clear
         button.accessibilityLabel = label
         button.isEnabled = enabled
         button.alpha = enabled ? 1 : 0.4
