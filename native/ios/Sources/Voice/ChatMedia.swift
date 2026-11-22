@@ -129,6 +129,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         self.composer = composer
         self.actions = actions
         sendButton = send
+        control.edgeInset = 0 // Composer: the microphone on its round glass at the row's end
         control.install(composer: composer, host: host.view)
         notes = NotePlayback(server: messenger?.server, list: list)
 

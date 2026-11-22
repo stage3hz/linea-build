@@ -83,10 +83,9 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
         view.addSubview(bar)
         back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
         back.tintColor = Theme.text
-        back.backgroundColor = Theme.surface2
-        back.layer.cornerRadius = 22
         back.accessibilityLabel = "Назад"
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
+        GlassBacking.put(under: back) // C: the reference's IconButton — a round of clear glass
         var look = UIButton.Configuration.filled()
         look.attributedTitle = AttributedString(NSAttributedString(string: "Изменить", attributes: [.font: UIFont.systemFont(ofSize: 16, weight: .semibold)]))
         look.baseBackgroundColor = Theme.surface2

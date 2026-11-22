@@ -4,9 +4,11 @@ import UIKit
 /// create one and a way to join one by an invite link. Reference: mobile/src/communities/CommunitiesScreen.tsx.
 final class ChannelsViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
     private let messenger: Messenger?
-    private let heading = UILabel()
-    private let joinButton = UIButton(type: .system)
-    private let createButton = UIButton(type: .system)
+    // B: the reference's header (CommunitiesScreen.tsx): «Каналы» and «Комнаты, серверы и каналы» in a glass pill
+    // (GlassSurface lens «clear», radius 27, 14 from the sides, 12 under the safe area, 10 inside, at least 64 tall),
+    // with a round glass «Вступить по ссылке» and the accent round «Создать» (42) on the right.
+    private let header = GlassHeaderView(title: "Каналы", subtitle: "Комнаты, серверы и каналы", titleSize: 26, lineHeight: 32,
+                                         subtitleSize: 12, padding: 10, minHeight: 64, clear: true)
     private let table = UITableView(frame: .zero, style: .plain)
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let notice = UIButton(type: .system)
@@ -49,26 +51,9 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
         rooms.onResize = { [weak self] in self?.placeRooms() }
         table.tableHeaderView = rooms
 
-        heading.text = "Каналы"
-        heading.font = Theme.title(Theme.TypeSize.sectionTitle) // Fonts: the reference's TITLE, 26
-        heading.textColor = Theme.text
-        heading.accessibilityTraits = .header
-        view.addSubview(heading)
-
-        joinButton.setImage(UIImage(systemName: "link", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold)), for: .normal)
-        joinButton.tintColor = Theme.text
-        joinButton.backgroundColor = Theme.surface2
-        joinButton.layer.cornerRadius = 20
-        joinButton.accessibilityLabel = "Вступить по ссылке"
-        joinButton.addTarget(self, action: #selector(join), for: .touchUpInside)
-        view.addSubview(joinButton)
-        createButton.setImage(UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)), for: .normal)
-        createButton.tintColor = Theme.onAccent
-        createButton.backgroundColor = Theme.accent
-        createButton.layer.cornerRadius = 20
-        createButton.accessibilityLabel = "Создать"
-        createButton.addTarget(self, action: #selector(create), for: .touchUpInside)
-        view.addSubview(createButton)
+        header.addTool(symbol: "link", label: "Вступить по ссылке", iconSize: 19) { [weak self] () -> Void in self?.join() }
+        header.addTool(symbol: "plus", label: "Создать", filled: true) { [weak self] () -> Void in self?.create() }
+        view.addSubview(header)
 
         spinner.color = Theme.muted
         view.addSubview(spinner)
@@ -124,22 +109,22 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let top = view.safeAreaInsets.top, width = view.bounds.width
-        heading.frame = CGRect(x: 20, y: top + 8, width: width - 40 - 100, height: 41)
-        createButton.frame = CGRect(x: width - 20 - 40, y: top + 8, width: 40, height: 40)
-        joinButton.frame = CGRect(x: width - 20 - 40 - 10 - 40, y: top + 8, width: 40, height: 40)
+        header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: 64)
+        // Where the list starts: 10 under the pill (the rooms' caption carries its own room above it).
+        let listTop = header.frame.maxY + 10
         table.frame = view.bounds
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
-        let insets = UIEdgeInsets(top: top + 8 + 41 + 8, left: 0, bottom: barRoom, right: 0)
+        let insets = UIEdgeInsets(top: listTop, left: 0, bottom: barRoom, right: 0)
         if table.contentInset != insets {
             table.contentInset = insets
             table.contentOffset = CGPoint(x: 0, y: -insets.top)
         }
         placeRooms()
         showEmpty()
-        spinner.center = CGPoint(x: width / 2, y: top + 140 + rooms.tall)
-        notice.frame = CGRect(x: 20, y: top + 62 + rooms.tall, width: width - 40, height: 44)
+        spinner.center = CGPoint(x: width / 2, y: listTop + 83 + rooms.tall)
+        notice.frame = CGRect(x: 20, y: listTop + 5 + rooms.tall, width: width - 40, height: 44)
         // Rooms: «Свои места для своих» stays under the rooms.
-        let middle = max(view.bounds.midY - 30, top + 57 + rooms.tall + 126)
+        let middle = max(view.bounds.midY - 30, listTop + rooms.tall + 126)
         emptyIcon.frame = CGRect(x: 0, y: middle - 110, width: width, height: 50)
         emptyHeading.frame = CGRect(x: 24, y: middle - 50, width: width - 48, height: 26)
         let wordsHeight = ceil(emptyWords.sizeThatFits(CGSize(width: width - 64, height: 200)).height)

@@ -239,7 +239,7 @@ final class MiniProfileViewController: UIViewController {
         if let on {
             let toggle = UISwitch()
             toggle.isOn = on
-            toggle.onTintColor = Theme.accent
+            SettingsLook.paint(toggle)
             toggle.isUserInteractionEnabled = false
             line.addArrangedSubview(toggle)
         }

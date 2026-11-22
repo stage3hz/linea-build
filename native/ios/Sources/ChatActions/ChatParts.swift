@@ -13,8 +13,9 @@ func chatSymbol(_ name: String, _ size: CGFloat, _ weight: UIImage.SymbolWeight 
 /// The field a message is written in: several lines, growing with the text up to a height and scrolling past it
 /// (the reference's composer: one line at first, at most 136 pt of text).
 final class ComposerField: UITextView {
-    static let lowest: CGFloat = 48
-    static let highest: CGFloat = 148
+    // Composer: the reference's field — at least 40 pt, at most 140 (ChatScreen.tsx `minHeight 40, maxHeight 140`).
+    static let lowest: CGFloat = 40
+    static let highest: CGFloat = 140
     private let hintLabel = UILabel()
 
     /// The quiet words shown while the field is empty.
@@ -29,7 +30,7 @@ final class ComposerField: UITextView {
         textColor = Theme.text
         tintColor = Theme.text
         keyboardAppearance = Theme.dark ? .dark : .light
-        textContainerInset = UIEdgeInsets(top: 14, left: 0, bottom: 13, right: 0)
+        textContainerInset = UIEdgeInsets(top: 10, left: 0, bottom: 9, right: 0) // Composer: 17 pt text in a 40 pt pill
         textContainer.lineFragmentPadding = 0
         isScrollEnabled = false
         showsVerticalScrollIndicator = false

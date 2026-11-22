@@ -40,6 +40,9 @@ final class RecordControl: NSObject {
     private var paused = false
     private var hold: UILongPressGestureRecognizer?
 
+    /// Composer: how far the button stands from the composer's right and lower edges (0 in a chat: on its own
+    /// round glass at the row's end, Sources/Composer/ComposerPills.swift).
+    var edgeInset: CGFloat = 4
     /// A tap: the mode was switched (the owner shows the hint in the field).
     var onModeChanged: ((Mode) -> Void)?
     /// The finger is down long enough in the microphone mode: the take must start. False: it did not.
@@ -54,6 +57,7 @@ final class RecordControl: NSObject {
 
     func install(composer: UIView, host: UIView) {
         bar.backgroundColor = Theme.bg
+        bar.layer.cornerRadius = 20 // Composer: the strip has the field's rounded shape
         bar.isHidden = true
         composer.addSubview(bar)
         dot.backgroundColor = Theme.danger
@@ -127,7 +131,7 @@ final class RecordControl: NSObject {
         if phase != .holding { button.transform = .identity }
         let saved = button.transform
         button.transform = .identity
-        button.frame = CGRect(x: width - 44, y: height - 44, width: 40, height: 40)
+        button.frame = CGRect(x: width - 40 - edgeInset, y: height - 40 - edgeInset, width: 40, height: 40)
         icon.frame = button.bounds
         button.transform = saved
         let middle = height - 24
@@ -137,7 +141,7 @@ final class RecordControl: NSObject {
         slideLabel.frame = CGRect(x: 126, y: middle - 12, width: max(0, rightEdge - 126), height: 24)
         cancelButton.frame = CGRect(x: 126, y: middle - 22, width: max(0, rightEdge - 126), height: 44)
         pauseButton.frame = CGRect(x: width - 92, y: middle - 20, width: 40, height: 40)
-        lockPill.frame = CGRect(x: composerFrame.maxX - 44, y: composerFrame.minY - 76, width: 40, height: 66)
+        lockPill.frame = CGRect(x: composerFrame.maxX - 40 - edgeInset, y: composerFrame.minY - 76, width: 40, height: 66)
         lockHint.frame = CGRect(x: lockPill.frame.minX - 140, y: lockPill.frame.minY + 18, width: 132, height: 28)
     }
 

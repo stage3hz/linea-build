@@ -220,7 +220,7 @@ final class PowerRow: UIView {
         texts.axis = .vertical
         texts.spacing = 2
         toggle.isOn = value
-        toggle.onTintColor = SettingsLook.switchOn
+        SettingsLook.paint(toggle)
         toggle.accessibilityLabel = title
         toggle.setContentHuggingPriority(.required, for: .horizontal)
         toggle.setContentCompressionResistancePriority(.required, for: .horizontal)

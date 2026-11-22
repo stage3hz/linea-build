@@ -73,6 +73,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         self.chatId = chatId
         self.peerId = peerId
         super.init()
+        InlineMedia.shared.use(messenger?.server) // Attachments: photos and files brought inside their rows
         DispatchQueue.global(qos: .utility).async { DecryptedFiles.sweep() }
     }
 
@@ -81,19 +82,18 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     /// Puts the paperclip into the composer.
     func install(host: UIViewController, composer: UIView) {
         self.host = host
-        button.setImage(UIImage(systemName: "paperclip", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .regular)), for: .normal)
+        button.setImage(UIImage(systemName: "paperclip", withConfiguration: UIImage.SymbolConfiguration(pointSize: 21, weight: .regular)), for: .normal)
         button.tintColor = Theme.text
         button.accessibilityLabel = "Вложения: галерея, файлы, опрос"
         button.addTarget(self, action: #selector(choose), for: .touchUpInside)
         composer.addSubview(button)
     }
 
-    /// Places the paperclip at the composer's leading edge and moves the text field next to it.
+    /// Places the paperclip at the composer's leading edge, on its own round glass (Sources/Composer/ComposerPills.swift);
+    /// the screen has already placed the field in its pill beside it.
     func place(field: UIView, height: CGFloat) {
         // At the composer's lower edge: the field grows upwards with its text (ChatActions).
-        button.frame = CGRect(x: 4, y: height - 46, width: 44, height: 44)
-        let right = field.frame.maxX
-        field.frame = CGRect(x: 50, y: field.frame.minY, width: max(0, right - 50), height: field.frame.height)
+        button.frame = CGRect(x: 0, y: height - ComposerPills.side, width: ComposerPills.side, height: ComposerPills.side)
     }
 
     @objc private func choose() {
@@ -479,7 +479,9 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     // MARK: A touch on a row
 
     /// A row of the chat was touched: an unsent attachment offers to try again, a received one is opened.
-    func pressed(_ key: String) {
+    /// Attachments: `inRow` false — opened from elsewhere (an album's tile, the profile's media): straight to the
+    /// viewer, not brought inside a row.
+    func pressed(_ key: String, inRow: Bool = true) {
         // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
         if mediaPressed?(key) == true { return }
         if let item = pending.first(where: { $0.key == key }) {
@@ -493,10 +495,21 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             return
         }
         guard let attachment = AttachmentStore.shared.attachment(key) else { return }
-        open(attachment)
+        // Attachments: a photo is brought inside its row and a file inside its card first (MediaBubble.tsx); a touch
+        // while it comes stops it; once here, the photo opens on the whole screen and the file in the system's preview.
+        if inRow {
+            let opened = InlineMedia.shared.pressed(key, attachment: attachment, openPhoto: { [weak self] in
+                self?.open(attachment, key: key)
+            }, openFile: { [weak self] (data: Data) -> Void in
+                guard let self, let host = self.host else { return }
+                if !InlineFilePreview.show(data, fileName: FileCore.describe(attachment).fileName, over: host) { self.say("Не удалось открыть файл.") }
+            })
+            if opened { return }
+        }
+        open(attachment, key: key)
     }
 
-    private func open(_ attachment: [String: Any]) {
+    private func open(_ attachment: [String: Any], key: String = "") {
         guard let host else { return }
         let about = FileCore.describe(attachment)
         if let refusal = about.refusal { return say(refusal) }
@@ -504,7 +517,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         let load = AttachmentLoad(server: messenger.server, attachment: attachment, cipherSize: cipherSize)
         host.view.endEditing(true)
         if about.kind == "photo" {
-            let small = ((attachment["preview"] as? [String: Any])?["base64"] as? String).flatMap { Data(base64Encoded: $0) }.flatMap { UIImage(data: $0) }
+            let small = InlineMedia.shared.picture(key) ?? ((attachment["preview"] as? [String: Any])?["base64"] as? String).flatMap { Data(base64Encoded: $0) }.flatMap { UIImage(data: $0) }
             host.present(PhotoViewer(small: small, load: load), animated: true)
         } else {
             host.present(FileOpenController(title: attachment["name"] as? String ?? "Файл", fileName: about.fileName, load: load, presenter: host), animated: true)
@@ -567,17 +580,24 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             let photo = FileCore.describe(attachment).kind == "photo"
             if photo != (wanted == "photo") { continue }
             simulatorOpened = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.pressed(key) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.pressed(key, inRow: false) }
             return
         }
     }
 
-    /// `-attachdemo 1` with `-demo 1 -chat 1`: sample rows with a photo, a file, a big file and an upload on its way.
+    /// `-attachdemo 1` with `-demo 1 -chat 1`: sample rows with a photo that is here, a photo and a file on their
+    /// way, a file to bring, a big file and an upload on its way (Sources/Attachments/InlineMedia.swift).
     static func demoRows() -> [[String: Any]] {
         let picture = demoPicture(width: 240, height: 160).jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? ""
+        let small = demoPicture(width: 24, height: 16).jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? ""
+        InlineMedia.shared.demo(ready: "sample-attach-1", picture: demoPicture(width: 900, height: 600))
+        InlineMedia.shared.demo(loading: "sample-attach-5", progress: 0.4, size: 2_202_009, photo: true)
+        InlineMedia.shared.demo(loading: "sample-attach-6", progress: 0.35, size: 1_258_291, photo: false)
         return [
-            ["key": "sample-attach-1", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "thumb": picture, "thumbWide": 1.5],
-            ["key": "sample-attach-2", "kind": 0, "mine": false, "text": "Договор и приложение к нему", "time": "09:39", "tail": false, "label": "📎 Договор № 7.pdf\n" + FileCore.sizeText(1_258_291)],
+            ["key": "sample-attach-1", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "media": "photo", "thumb": small, "thumbWide": 1.5, "mediaTime": FileCore.sizeText(184_320)],
+            ["key": "sample-attach-5", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "media": "photo", "thumb": small, "thumbWide": 0.75, "mediaTime": FileCore.sizeText(2_202_009)],
+            ["key": "sample-attach-2", "kind": 0, "mine": false, "text": "Договор и приложение к нему", "time": "09:39", "tail": false, "media": "file", "label": "Договор № 7.pdf\n" + FileCore.sizeText(1_258_291) + " · PDF"],
+            ["key": "sample-attach-6", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": false, "media": "file", "label": "Смета.xlsx\n" + FileCore.sizeText(1_258_291) + " · XLSX"],
             ["key": "sample-attach-3", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": true, "label": "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)],
             ["key": "sample-attach-4", "kind": 0, "mine": true, "text": "", "time": "09:41", "ticks": 3, "tail": true, "thumb": picture, "thumbWide": 1.5, "label": FileCore.sizeText(2_202_009) + " из " + FileCore.sizeText(5_505_024)],
         ]

@@ -11,6 +11,8 @@ final class ChatViewController: UIViewController {
     /// ChatActions: several lines, growing with the text (Sources/ChatActions/ChatParts.swift).
     private let field = ComposerField()
     private let send = UIButton(type: .system)
+    /// Composer: the round glass paperclip, the field's glass pill, the round glass microphone (Sources/Composer/ComposerPills.swift).
+    private let pills = ComposerPills()
     private var rows: [[String: Any]] = []
 
     private let messenger: Messenger?
@@ -113,11 +115,16 @@ final class ChatViewController: UIViewController {
         heading.accessibilityTraits = .button
         heading.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(openProfile)))
 
-        composer.clipsToBounds = true
+        // Composer: no glass of its own — three separate glass shapes under its buttons and field, as in the reference.
+        composer.clipsToBounds = false
         view.addSubview(composer)
+        pills.install(in: composer.contentView)
         composer.contentView.addSubview(field)
-        send.setImage(UIImage(systemName: "arrow.up.circle.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)), for: .normal)
-        send.tintColor = Theme.text
+        // Composer: an accent circle of 40 pt with the arrow (ChatScreen.tsx «Отправить сообщение»).
+        send.setImage(UIImage(systemName: "arrow.up", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
+        send.tintColor = Theme.onAccent
+        send.backgroundColor = Theme.accent
+        send.layer.cornerRadius = ComposerPills.side / 2
         send.accessibilityLabel = "Отправить"
         send.addTarget(self, action: #selector(sendNow), for: .touchUpInside)
         composer.contentView.addSubview(send)
@@ -185,19 +192,21 @@ final class ChatViewController: UIViewController {
         callButton.frame = CGRect(x: width - 50, y: top + 2, width: 44, height: 44)
         // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
         // the paperclip stay at its lower edge.
-        let composerHeight = actions.composerHeight(fieldWidth: width - 24 - 100)
+        // Composer: the row is 8 pt from the screen's sides; the field's pill leaves 40 + 8 pt on each side for the
+        // paperclip and the microphone, and its text stands 14 pt in from the pill's edges (ChatScreen.tsx).
+        let pill = ComposerPills.fieldPill(width: width - 16, height: 0)
+        let composerHeight = actions.composerHeight(fieldWidth: pill.width - 28)
         var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
         // Composer: the emoji panel stands where the keyboard was (Sources/Composer/EmojiPanel.swift).
         if keyboardTop == nil, let panelTop = actions.extras.panelTop(in: view) { floor = panelTop - 8 }
-        composer.frame = CGRect(x: 12, y: floor - composerHeight, width: width - 24, height: composerHeight)
-        composer.layer.cornerRadius = min(24, composerHeight / 2)
-        composer.layer.cornerCurve = .continuous
-        if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark) }
-        field.frame = CGRect(x: 18, y: 0, width: composer.bounds.width - 18 - 50, height: composerHeight)
-        send.frame = CGRect(x: composer.bounds.width - 46, y: composerHeight - 46, width: 44, height: 44)
+        composer.frame = CGRect(x: 8, y: floor - composerHeight, width: width - 16, height: composerHeight)
+        field.frame = CGRect(x: pill.minX + 14, y: 0, width: max(0, pill.width - 28), height: composerHeight)
+        send.frame = CGRect(x: composer.bounds.width - ComposerPills.side, y: composerHeight - ComposerPills.side, width: ComposerPills.side, height: ComposerPills.side)
         attachments.place(field: field, height: composerHeight)
         // Voice/Video: the record button and the strip of a take.
         media.place(composerFrame: composer.frame, in: view)
+        // Composer: the microphone's round glass only while the record button stands there.
+        pills.place(width: composer.bounds.width, height: composerHeight, microphone: send.isHidden, hidden: false)
         list.frame = view.bounds
         // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
         // Music: the player strip under the header; what ChatActions places there moves down by its room.

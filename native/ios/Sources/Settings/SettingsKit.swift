@@ -9,7 +9,27 @@ enum SettingsLook {
     static var chip: UIColor { Theme.veil(0.07) }
     static var dangerChip: UIColor { Theme.danger.withAlphaComponent(0.14) }
     static var pressed: UIColor { Theme.veil(0.07) }
-    static let switchOn = UIColor(hex: 0x5E7BFF)
+    /// The reference's ThemeSwitch (components.tsx): the track is the theme's accent when on, green (#34C77B) when the
+    /// accent is pale (every channel above 190: «Чёрная», «Графит» …), and the theme's `subtle` when off.
+    static var switchOn: UIColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        let accent = Theme.accent
+        if accent.getRed(&r, green: &g, blue: &b, alpha: &a), a > 0.99, r * 255 > 190, g * 255 > 190, b * 255 > 190 {
+            return UIColor(hex: 0x34C77B)
+        }
+        return accent
+    }
+    static var switchOff: UIColor { Theme.subtle }
+
+    /// A switch in the reference's colours (on: `switchOn`, off: the `subtle` track, white thumb).
+    static func paint(_ toggle: UISwitch) {
+        toggle.onTintColor = switchOn
+        toggle.thumbTintColor = .white
+        toggle.backgroundColor = switchOff
+        toggle.layer.cornerRadius = toggle.intrinsicContentSize.height / 2
+        toggle.layer.cornerCurve = .continuous
+        toggle.clipsToBounds = false
+    }
 
     static func symbol(_ name: String, size: CGFloat, weight: UIImage.SymbolWeight = .regular) -> UIImage? {
         return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))
@@ -88,11 +108,16 @@ class SettingsPage: UIViewController {
     let scroll = UIScrollView()
     let column = UIStackView()
     private let heading = UILabel()
-    private let backButton = UIButton(type: .system)
-    private let sideButton = UIButton(type: .system)
     private let pageName: String
     private let large: Bool
     private var sideAction: (() -> Void)?
+    // B: the pages with a back button have the reference's header (SettingsScreen.tsx `Page`): a glass pill
+    // (radius 27, 12 from the edges, at least 60 tall, 8 inside) with a round glass back button and the name; the
+    // list scrolls under it, with the scroll-edge effect behind (tabInset.tsx `FloatingHeader`).
+    private var header: GlassHeaderView?
+    private var sideButton: GlassRoundButton?
+    private let headerEdge = ScrollEdgeView(edge: .top)
+    private var columnTop: NSLayoutConstraint?
 
     init(name: String, large: Bool = false) {
         self.pageName = name
@@ -101,6 +126,10 @@ class SettingsPage: UIViewController {
     }
 
     required init?(coder: NSCoder) { return nil }
+
+    /// D: false — a large page without its big name (the root of Settings: the profile head is its top, as in the
+    /// reference's `Root`). The column keeps its place under the status bar; the list runs up under it.
+    var showsHeading: Bool { return true }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -112,7 +141,7 @@ class SettingsPage: UIViewController {
         heading.minimumScaleFactor = 0.7
         heading.accessibilityTraits = .header
         heading.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(heading)
+        if large && showsHeading { view.addSubview(heading) }
 
         scroll.alwaysBounceVertical = true
         scroll.keyboardDismissMode = .interactive
@@ -126,47 +155,41 @@ class SettingsPage: UIViewController {
         scroll.addSubview(column)
 
         let safe = view.safeAreaLayoutGuide
+        let top = column.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 8)
+        columnTop = top
         var rules: [NSLayoutConstraint] = [
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            column.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 8),
+            top,
             column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -28),
             column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 16),
             column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -16),
             column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -32),
         ]
         if large {
-            rules.append(heading.topAnchor.constraint(equalTo: safe.topAnchor, constant: 8))
-            rules.append(heading.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20))
-            rules.append(heading.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20))
-            rules.append(heading.heightAnchor.constraint(equalToConstant: 41))
-            rules.append(scroll.topAnchor.constraint(equalTo: heading.bottomAnchor, constant: 8))
+            if showsHeading {
+                rules.append(heading.topAnchor.constraint(equalTo: safe.topAnchor, constant: 8))
+                rules.append(heading.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20))
+                rules.append(heading.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20))
+                rules.append(heading.heightAnchor.constraint(equalToConstant: 41))
+                rules.append(scroll.topAnchor.constraint(equalTo: heading.bottomAnchor, constant: 8))
+            } else {
+                // D: the column starts where it did under the big name (8 + 41 + 8 + 8 under the safe area).
+                rules.append(scroll.topAnchor.constraint(equalTo: view.topAnchor))
+            }
             // The list goes under the bar at the bottom; the room for the bar is left in `viewDidLayoutSubviews`.
             rules.append(scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor))
         } else {
-            backButton.setImage(SettingsLook.symbol("chevron.left", size: 19, weight: .semibold), for: .normal)
-            backButton.tintColor = Theme.text
-            backButton.accessibilityLabel = "Назад"
-            backButton.addTarget(self, action: #selector(goBack), for: .touchUpInside)
-            backButton.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(backButton)
-            sideButton.tintColor = Theme.text
-            sideButton.isHidden = true
-            sideButton.addTarget(self, action: #selector(sidePressed), for: .touchUpInside)
-            sideButton.translatesAutoresizingMaskIntoConstraints = false
-            view.addSubview(sideButton)
-            rules.append(backButton.topAnchor.constraint(equalTo: safe.topAnchor, constant: 4))
-            rules.append(backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 6))
-            rules.append(backButton.widthAnchor.constraint(equalToConstant: 44))
-            rules.append(backButton.heightAnchor.constraint(equalToConstant: 44))
-            rules.append(heading.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 2))
-            rules.append(heading.centerYAnchor.constraint(equalTo: backButton.centerYAnchor))
-            rules.append(heading.trailingAnchor.constraint(lessThanOrEqualTo: sideButton.leadingAnchor, constant: -8))
-            rules.append(sideButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -6))
-            rules.append(sideButton.centerYAnchor.constraint(equalTo: backButton.centerYAnchor))
-            rules.append(sideButton.widthAnchor.constraint(equalToConstant: 44))
-            rules.append(sideButton.heightAnchor.constraint(equalToConstant: 44))
-            rules.append(scroll.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 4))
+            view.addSubview(headerEdge)
+            let made = GlassHeaderView(title: pageName, titleSize: Theme.TypeSize.pageTitleSize(pageName), lineHeight: 28,
+                                       padding: 8, minHeight: 60, back: { [weak self] () -> Void in self?.goBack() })
+            made.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(made)
+            header = made
+            rules.append(made.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12))
+            rules.append(made.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12))
+            rules.append(made.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12))
+            rules.append(scroll.topAnchor.constraint(equalTo: view.topAnchor))
             // The page ends where the keyboard begins, so a field is never under it.
             rules.append(scroll.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor))
         }
@@ -174,27 +197,47 @@ class SettingsPage: UIViewController {
         build()
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let safeTop = view.safeAreaInsets.top
+        if let header {
+            // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below).
+            let below = header.frame.maxY + 7
+            let wanted = below + 16 - 8
+            if let columnTop, columnTop.constant != wanted { columnTop.constant = wanted }
+            if scroll.verticalScrollIndicatorInsets.top != below { scroll.verticalScrollIndicatorInsets.top = below }
+            headerEdge.color = Theme.bg
+            headerEdge.place(width: view.bounds.width, size: below)
+            view.bringSubviewToFront(headerEdge)
+            view.bringSubviewToFront(header)
+        } else if large && !showsHeading {
+            let wanted = safeTop + 8 + 41 + 8 + 8
+            if let columnTop, columnTop.constant != wanted { columnTop.constant = wanted }
+        }
+    }
+
     /// Subclasses put their content into `column` here.
     func build() {}
 
-    @objc private func goBack() {
+    private func goBack() {
         navigationController?.popViewController(animated: true)
     }
 
-    @objc private func sidePressed() {
-        sideAction?()
-    }
-
-    /// An icon on the right of the header (pages with a back button only).
+    /// An icon on the right of the header (pages with a back button only): a round glass button in the pill.
     func setSide(symbol: String, label: String, action: @escaping () -> Void) {
-        sideButton.setImage(SettingsLook.symbol(symbol, size: 17, weight: .medium), for: .normal)
-        sideButton.accessibilityLabel = label
-        sideButton.isHidden = false
         sideAction = action
+        if let sideButton {
+            sideButton.setSymbol(symbol, size: 17, weight: .medium)
+            sideButton.accessibilityLabel = label
+            return
+        }
+        sideButton = header?.addTool(symbol: symbol, label: label, iconSize: 17) { [weak self] () -> Void in
+            self?.sideAction?()
+        }
     }
 
     func setSideEnabled(_ enabled: Bool) {
-        sideButton.isEnabled = enabled
+        sideButton?.isEnabled = enabled
     }
 
     /// Takes everything out of the column (before it is filled again).
@@ -426,7 +469,7 @@ final class SettingsSwitchRow: UIView {
         if !words.isEmpty { texts.addArrangedSubview(SettingsLook.words(words, size: 12, color: Theme.muted)) }
         toggle.isOn = value
         toggle.isEnabled = enabled
-        toggle.onTintColor = SettingsLook.switchOn
+        SettingsLook.paint(toggle)
         toggle.accessibilityLabel = label
         toggle.setContentHuggingPriority(.required, for: .horizontal)
         toggle.setContentCompressionResistancePriority(.required, for: .horizontal)

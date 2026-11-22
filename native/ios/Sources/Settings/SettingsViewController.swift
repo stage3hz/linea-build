@@ -17,6 +17,9 @@ final class SettingsViewController: SettingsPage {
 
     required init?(coder: NSCoder) { return nil }
 
+    // D: no big «Настройки» — the reference's `Root` starts with the profile head and «Изменить» on glass.
+    override var showsHeading: Bool { return false }
+
     deinit { NotificationCenter.default.removeObserver(self) }
 
     override func viewDidLoad() {
@@ -64,13 +67,9 @@ final class SettingsViewController: SettingsPage {
 
         let profile = SettingsRow(symbol: "person", label: "Мой профиль")
         profile.onPress = { [weak self] in self?.openProfile() }
-        // Stories: the account's own posts and stories (Sources/Stories/ProfilePosts.swift).
-        let posts = SettingsRow(symbol: "square.grid.2x2", label: "Публикации и истории")
-        posts.onPress = { [weak self] in
-            guard let self, let messenger = self.messenger else { return }
-            self.open(OwnPostsViewController(messenger: messenger))
-        }
-        addGroup(rows: [profile, posts])
+        // M: the reference's `Root` has «Мой профиль» alone in its group (no «Публикации и истории» row: the posts
+        // are on the profile).
+        addGroup(rows: [profile])
 
         // How it sounds and looks. (The reference also has «Папки с чатами» here: not built in this app yet.)
         let notifications = SettingsRow(symbol: "bell", label: "Уведомления и звуки")

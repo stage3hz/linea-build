@@ -51,6 +51,12 @@ final class AuthViewController: UIViewController {
 
     private let scroll = UIScrollView()
     private let column = UIStackView()
+    // L: the reference's sign-in (AuthScreen.tsx, App.tsx `ThemeAccess`): the steps live on a glass card (GlassSurface
+    // «regular», radius 32, 22 inside), and a glass pill at the top right names the theme on screen and opens the choice.
+    private let card = GlassPill(interactive: false)
+    private let cardColumn = UIStackView()
+    private let themePill = GlassPill(interactive: false)
+    private let themeButton = UIButton(type: .custom)
     private let brand = WordmarkView(size: 60) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (Auth/AuthBackdrop.swift)
     private let motto = UILabel()
     private let heading = AppearingTextView() // Effects: the title's words rise in one after another (AppearingText)
@@ -229,18 +235,43 @@ final class AuthViewController: UIViewController {
         column.axis = .vertical
         column.spacing = 12
         column.translatesAutoresizingMaskIntoConstraints = false
-        let parts: [UIView] = [brand, motto, heading, hint, switcher, progress, nameEntry, loginWarning, displayEntry, handleEntry, profileHelp,
+        for part in [brand, motto, heading, hint] as [UIView] { column.addArrangedSubview(part) }
+        // L: everything from the switch down is on the glass card (`gap: 18`, 22 inside).
+        cardColumn.axis = .vertical
+        cardColumn.spacing = 12
+        cardColumn.translatesAutoresizingMaskIntoConstraints = false
+        let parts: [UIView] = [switcher, progress, nameEntry, loginWarning, displayEntry, handleEntry, profileHelp,
                                passwordEntry, confirmationEntry, confirmationHelp, recoveryEntry, recoveryHelp, recoveryExtra, waitingBox, resetValidity,
                                recoveryLock, attemptsNote, manualNote, notice, failure, loginLock, proceed, forgot, back]
-        for part in parts { column.addArrangedSubview(part) }
+        for part in parts { cardColumn.addArrangedSubview(part) }
+        card.shape(radius: 32)
+        card.contentView.addSubview(cardColumn)
+        NSLayoutConstraint.activate([
+            cardColumn.topAnchor.constraint(equalTo: card.contentView.topAnchor, constant: 22),
+            cardColumn.bottomAnchor.constraint(equalTo: card.contentView.bottomAnchor, constant: -22),
+            cardColumn.leadingAnchor.constraint(equalTo: card.contentView.leadingAnchor, constant: 22),
+            cardColumn.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -22),
+        ])
+        column.addArrangedSubview(card)
         column.setCustomSpacing(4, after: brand)
         column.setCustomSpacing(28, after: motto)
         column.setCustomSpacing(8, after: heading)
-        column.setCustomSpacing(20, after: hint)
-        column.setCustomSpacing(16, after: switcher)
-        column.setCustomSpacing(18, after: progress)
-        column.setCustomSpacing(4, after: proceed)
-        column.setCustomSpacing(0, after: forgot)
+        column.setCustomSpacing(24, after: hint)
+        cardColumn.setCustomSpacing(18, after: switcher)
+        cardColumn.setCustomSpacing(18, after: progress)
+        cardColumn.setCustomSpacing(4, after: proceed)
+        cardColumn.setCustomSpacing(0, after: forgot)
+
+        // L: the theme pill (GlassSurface «clear», radius 24, 44 tall, 14 inside): the moon / sun / half circle (17),
+        // the theme's name (12, semibold), a small chevron (12, quiet); 20 from the right, 7 under the safe area.
+        themePill.effect = TabGlass.effect(clear: true, interactive: false, dark: Theme.dark)
+        themePill.shape(radius: 24)
+        themePill.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(themePill)
+        themeButton.translatesAutoresizingMaskIntoConstraints = false
+        themeButton.addTarget(self, action: #selector(themePressed), for: .touchUpInside)
+        themePill.contentView.addSubview(themeButton)
+        paintThemePill()
 
         scroll.keyboardDismissMode = .interactive
         scroll.alwaysBounceVertical = true
@@ -249,16 +280,87 @@ final class AuthViewController: UIViewController {
         view.addSubview(scroll)
         scroll.addSubview(column)
         NSLayoutConstraint.activate([
-            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            // L: the row of the theme pill (at least 58 tall) stands above the page; the page starts 64 under it.
+            themePill.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 7),
+            themePill.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            themePill.heightAnchor.constraint(equalToConstant: 44),
+            themeButton.topAnchor.constraint(equalTo: themePill.contentView.topAnchor),
+            themeButton.bottomAnchor.constraint(equalTo: themePill.contentView.bottomAnchor),
+            themeButton.leadingAnchor.constraint(equalTo: themePill.contentView.leadingAnchor),
+            themeButton.trailingAnchor.constraint(equalTo: themePill.contentView.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 58),
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
-            column.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 28),
-            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -24),
-            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 24),
-            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -24),
-            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -48),
+            column.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 64),
+            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -28),
+            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 22),
+            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -22),
+            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -44),
         ])
+        view.bringSubviewToFront(themePill)
+    }
+
+    // MARK: L: the theme pill
+
+    /// The pill names the theme on screen (the night theme at night), as the «Оформление» row in the settings does.
+    private func paintThemePill() {
+        let state = ThemeStore.nightState()
+        let shown = state["shown"] as? String ?? "black"
+        let night = state["night"] as? Bool ?? false
+        let symbol = ThemeStore.mode == "system" && !night ? "circle.lefthalf.filled" : (shown == "light" ? "sun.max" : "moon")
+        let words = NSMutableAttributedString(string: ThemeStore.themeName(shown), attributes: [.font: UIFont.systemFont(ofSize: 12, weight: .semibold), .foregroundColor: Theme.text])
+        // The small chevron after the name (`chevron-down`, 12, quiet), 8 after it.
+        let chevron = NSTextAttachment()
+        chevron.image = UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 9, weight: .semibold))?.withTintColor(Theme.muted, renderingMode: .alwaysOriginal)
+        words.append(NSAttributedString(string: "  "))
+        words.append(NSAttributedString(attachment: chevron))
+        themeButton.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)), for: .normal)
+        themeButton.tintColor = Theme.text
+        themeButton.setAttributedTitle(words, for: .normal)
+        themeButton.contentEdgeInsets = UIEdgeInsets(top: 0, left: 14, bottom: 0, right: 22)
+        themeButton.titleEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: -8)
+        themeButton.accessibilityLabel = "Оформление: " + ThemeStore.themeName(shown)
+    }
+
+    /// «Оформление»: the four built-in themes (the palettes belong to Platina, which needs an account). The choice
+    /// follows the settings' theme cards (`settingsThemeTap`); the screen is drawn again in the new look.
+    @objc private func themePressed() {
+        let state = ThemeStore.nightState()
+        let shown = state["shown"] as? String ?? "black"
+        let sheet = UIAlertController(title: "Оформление", message: nil, preferredStyle: .actionSheet)
+        for item in ThemeStore.list("appearances") {
+            guard let id = item["value"] as? String, let label = item["label"] as? String else { continue }
+            sheet.addAction(UIAlertAction(title: id == shown ? label + " ✓" : label, style: .default, handler: { [weak self] (_: UIAlertAction) -> Void in
+                self?.chooseTheme(id)
+            }))
+        }
+        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
+        sheet.popoverPresentationController?.sourceView = themePill
+        present(sheet, animated: true)
+    }
+
+    private func chooseTheme(_ id: String) {
+        let state = ThemeStore.nightState()
+        let night = state["night"] as? Bool ?? false
+        let known = state["known"] as? Bool ?? true
+        let auto = state["auto"] as? Bool ?? false
+        guard let plan = Core.view("settingsThemeTap", [id, night]) as? [String: Any] else { return }
+        if plan["nightOff"] as? Bool == true {
+            DevicePreferences.set(["nightForced": false, "nightForcedAt": known ? auto : true])
+        }
+        if let dark = plan["darkTheme"] as? String { ThemeStore.darkTheme = dark }
+        if let mode = plan["mode"] as? String {
+            if DevicePreferences.word("nightMode") == nil {
+                DevicePreferences.set(["nightMode": ThemeStore.mode == "system" ? "system" : "off"])
+            }
+            ThemeStore.mode = mode
+        }
+        guard ThemeStore.refresh(), let window = view.window else { return }
+        // The sign-in screen is not part of the app's shell: it is made again in the new colours.
+        let fresh = AuthViewController(server: server)
+        fresh.onSignedIn = onSignedIn
+        window.rootViewController = fresh
     }
 
     /// A recovery request kept from an earlier launch brings the screen back to its waiting period.

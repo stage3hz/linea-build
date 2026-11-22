@@ -98,10 +98,11 @@ final class ComposerExtras: NSObject {
         if let field, let composer {
             let height = composer.bounds.height
             if let sendButton {
-                emojiButton.frame = CGRect(x: sendButton.frame.minX - ComposerExtras.emojiRoom + 4, y: height - 46, width: ComposerExtras.emojiRoom, height: 44)
+                // Composer: inside the field's pill at its right end, 38 × 40 (ChatScreen.tsx «Стикеры и эмодзи»).
+                emojiButton.frame = CGRect(x: sendButton.frame.minX - ComposerPills.gap - ComposerExtras.emojiRoom, y: height - ComposerPills.side, width: ComposerExtras.emojiRoom, height: ComposerPills.side)
             }
             var frame = field.frame
-            frame.size.width = max(0, emojiButton.frame.minX - frame.minX)
+            frame.size.width = max(0, emojiButton.frame.minX - 14 - frame.minX)
             field.frame = frame
         }
         emojiButton.isHidden = hidden

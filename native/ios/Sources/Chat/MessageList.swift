@@ -289,6 +289,10 @@ struct MsgLayout {
   var poll = MsgPollLayout()
   /// Attachments: the album's mosaic (zero size: none).
   var album = MsgAlbumLayout()
+  /// Attachments: a photo without words — the picture alone, the time in its corner (Sources/Attachments/InlineMedia.swift).
+  var photoBare = false
+  /// Attachments: a file's card with the round button (zero size: none).
+  var fileSize = CGSize.zero
   var height: CGFloat = 0
 
   static func make(_ row: MsgRow, width: CGFloat, fontSize: CGFloat, hasThumb: Bool) -> MsgLayout {
@@ -330,9 +334,17 @@ struct MsgLayout {
       layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
     } else if row.media == "voice" {
       layout.voiceSize = CGSize(width: min(inner, 236), height: 50)
+    } else if row.media == "photo" {
+      // Attachments: a photo shown whole, a file as a card (MediaBubble.tsx; Sources/Attachments/InlineMedia.swift).
+      layout.thumbSize = InlineMediaArt.photoSize(row, width: width)
+      layout.labelSize = .zero
+    } else if row.media == "file" {
+      layout.fileSize = InlineMediaArt.fileSize(row, inner: inner)
+      layout.labelSize = .zero
     }
     let timeWidth = ceil(NSAttributedString(string: row.time, attributes: [.font: msgMetaFont]).size().width) + (row.mine ? 22 : 0) + (row.silent ? 15 : 0) // Composer: the bell of «без звука»
     var w = max(max(layout.textSize.width, timeWidth, layout.thumbSize.width, layout.labelSize.width), max(layout.reactSize.width, layout.voiceSize.width))
+    w = max(w, layout.fileSize.width) // Attachments
     if layout.quoteSize != .zero {
       let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgSmallBold]).size().width)
       w = max(w, min(inner, max(layout.quoteSize.width, author) + 12))
@@ -364,12 +376,20 @@ struct MsgLayout {
         w = max(w, ceil(last.maxX) + 8 + timeWidth)
       }
     }
+    // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
+    if row.media == "photo" && row.text.isEmpty && row.quoteText.isEmpty && row.quoteAuthor.isEmpty && row.forward.isEmpty && layout.reactSize == .zero {
+      layout.photoBare = true
+      layout.bubble = layout.thumbSize
+      layout.height = layout.thumbSize.height + (row.tail ? 7 : 2)
+      return layout
+    }
     var h: CGFloat = 9
     if !row.forward.isEmpty { h += 18 }
     if layout.quoteSize != .zero { h += 17 + layout.quoteSize.height + 8 }
     if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
     if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
+    if layout.fileSize != .zero { h += layout.fileSize.height + 4 } // Attachments
     if layout.album.size != .zero { h += layout.album.size.height + 6 } // Attachments
     if layout.poll.size != .zero { h += layout.poll.size.height + 4 } // Polls
     h += layout.textSize.height
@@ -548,11 +568,23 @@ final class MsgRowCanvas: UIView {
     // The corner by the sender's edge is tight on the last bubble of a run (the «tail»).
     // ChatLook: «Углы сообщений» (8, 14, 20), the tail corner 6 at most (Sources/ChatLook/BubbleLook.swift).
     let shape = ChatBubbleLook.shape(box, mine: item.mine, tail: item.tail)
-    if !msgOpenLook {
+    // Attachments: a photo alone — the picture with the time in its corner, no plate and no line.
+    if layoutInfo.photoBare {
+      let outline = UIBezierPath(roundedRect: box, cornerRadius: 15)
+      InlineMediaArt.drawPhoto(context, row: item, box: box, palette: palette, small: thumbImage, radius: 15, alone: true)
+      if pressed || flash {
+        context.setFillColor(Theme.veil(pressed ? 0.08 : 0.14).cgColor)
+        context.addPath(outline.cgPath)
+        context.fillPath()
+      }
+      return
+    }
+    // Attachments: a photo with words keeps its card in the open look too («a picture with a caption keeps its card»).
+    if !msgOpenLook || item.media == "photo" {
       context.setFillColor((item.mine ? palette.mine : palette.theirs).cgColor)
       context.addPath(shape.cgPath)
       context.fillPath()
-    } else if !item.mine && item.checked < 0 && item.thumb.isEmpty && item.media != "note" && item.media != "video" {
+    } else if !item.mine && item.checked < 0 && item.thumb.isEmpty && item.media != "note" && item.media != "video" && item.media != "photo" {
       // ChatLook: the open look — the other side's words carry a thin line in their colour.
       ChatBubbleLook.drawPeerLine(context, box: box, fallback: palette.accent)
     }
@@ -605,7 +637,13 @@ final class MsgRowCanvas: UIView {
         y += mediaPicture.height + 6
       }
     }
-    if let image = thumbImage, layoutInfo.thumbSize != .zero, image.size.width > 0, image.size.height > 0 {
+    // Attachments: a photo with words, shown whole above them.
+    if item.media == "photo" && layoutInfo.thumbSize != .zero {
+      let picture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
+      InlineMediaArt.drawPhoto(context, row: item, box: picture, palette: palette, small: thumbImage, radius: 12, alone: false)
+      y += picture.height + 6
+    }
+    if let image = thumbImage, item.media != "photo", layoutInfo.thumbSize != .zero, image.size.width > 0, image.size.height > 0 {
       let picture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
       context.saveGState()
       UIBezierPath(roundedRect: picture, cornerRadius: item.thumbRound ? min(picture.width, picture.height) / 2 : 12).addClip()
@@ -624,6 +662,11 @@ final class MsgRowCanvas: UIView {
     if layoutInfo.labelSize != .zero {
       draw(item.label, msgSmallFont, markColor, CGRect(x: x, y: y, width: inner, height: layoutInfo.labelSize.height), lines: true)
       y += layoutInfo.labelSize.height + 4
+    }
+    // Attachments: a file's card with the round button.
+    if layoutInfo.fileSize != .zero {
+      InlineMediaArt.drawFile(context, row: item, box: CGRect(x: x, y: y, width: layoutInfo.fileSize.width, height: layoutInfo.fileSize.height), palette: palette)
+      y += layoutInfo.fileSize.height + 4
     }
     // Polls: the question, the options and the results.
     if layoutInfo.poll.size != .zero, let poll = item.poll {
@@ -765,6 +808,7 @@ final class MsgRowCell: UITableViewCell {
       thumbOf = row.thumb
       canvas.thumbImage = row.thumb.isEmpty ? nil : Data(base64Encoded: row.thumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
     }
+    if row.media == "photo" { InlineMedia.shared.want(row.key) } // Attachments: a photo up to 10 MB comes by itself
     // LinkPreview: the card's picture is decoded once per cell, not on every drawing.
     // Attachments: the small pictures of an album are decoded once per cell.
     let albumKeys = row.album?.parts.map { $0.key }.joined(separator: ",") ?? ""
@@ -778,7 +822,7 @@ final class MsgRowCell: UITableViewCell {
       canvas.cardImage = row.linkCard?.picture()
     }
     BigEmojiPop.shown(self, row) // Avatars: big emoji pop in as on the reference's iPhone
-    accessibilityLabel = [MediaRowArt.spoken(row), row.album.map { "Альбом · \($0.parts.count)" } ?? "", row.poll?.spoken ?? "", row.label, row.text, row.linkCard?.spoken ?? "", row.silent ? "без звука" : "", row.time].filter { !$0.isEmpty }.joined(separator: ". ")
+    accessibilityLabel = [row.media == "photo" ? "Фото" : "", MediaRowArt.spoken(row), row.album.map { "Альбом · \($0.parts.count)" } ?? "", row.poll?.spoken ?? "", row.label, row.text, row.linkCard?.spoken ?? "", row.silent ? "без звука" : "", row.time].filter { !$0.isEmpty }.joined(separator: ". ")
     canvas.setNeedsDisplay()
   }
 
@@ -863,6 +907,16 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     linkTap.delegate = self
     table.addGestureRecognizer(linkTap)
     lookInstall() // ChatLook
+    NotificationCenter.default.addObserver(self, selector: #selector(inlineMediaChanged(_:)), name: InlineMedia.changed, object: nil) // Attachments
+  }
+
+  /// Attachments: a photo or a file of a row came, is coming or stopped — only that row is drawn again.
+  @objc private func inlineMediaChanged(_ note: Notification) {
+    guard let key = note.object as? String else { return }
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? MsgRowCell, rowCell.canvas.row?.key == key else { continue }
+      rowCell.canvas.setNeedsDisplay()
+    }
   }
 
   private func run(atTablePoint point: CGPoint) -> (path: IndexPath, key: String, hit: (flags: Int, url: String, shown: String))? {

@@ -198,7 +198,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             guard let self else { return }
             let key = event["key"] as? String ?? ""
             if self.selecting { self.toggle(key); return }
-            self.attachments?.pressed(event["part"] as? String ?? "")
+            self.attachments?.pressed(event["part"] as? String ?? "", inRow: false) // Attachments: an album's tile opens at once
         }
         // ChatActions: «Поиск в этом чате».
         searchBar.isHidden = true
@@ -741,8 +741,9 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     /// The send button: a tick while editing (greyed over an empty field), the arrow otherwise.
     private func showSend() {
         guard let sendButton else { return }
-        let symbol = editing != nil ? "checkmark.circle.fill" : "arrow.up.circle.fill"
-        sendButton.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)), for: .normal)
+        // Composer: the arrow (a tick while editing) on the button's accent circle (ChatScreen.tsx).
+        let symbol = editing != nil ? "checkmark" : "arrow.up"
+        sendButton.setImage(UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)), for: .normal)
         let empty = (field?.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let off = editing != nil && empty
         sendButton.isEnabled = !off
@@ -1094,7 +1095,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
 
     /// Profile: an attachment of the shared media (the profile's tabs) opens as a touch on its row would.
     func openAttachment(key: String) {
-        attachments?.pressed(key)
+        attachments?.pressed(key, inRow: false) // Attachments: not brought inside a row that is not on screen
     }
 
     func closeSearch() {

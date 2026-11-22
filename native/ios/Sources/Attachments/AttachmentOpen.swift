@@ -39,11 +39,30 @@ enum AttachmentRows {
         if let media = MediaRows.fields(attachment) { return fields.merging(media) { _, new in new } }
         let about = FileCore.describe(attachment)
         let name = attachment["name"] as? String ?? "Файл"
-        // The small picture was checked by the core when the message was opened (`photo::valid_preview`).
-        if about.kind == "photo", about.refusal == nil, let preview = attachment["preview"] as? [String: Any], let picture = preview["base64"] as? String,
-           let width = (preview["width"] as? NSNumber)?.doubleValue, let height = (preview["height"] as? NSNumber)?.doubleValue, width > 0, height > 0 {
-            fields["thumb"] = picture
-            fields["thumbWide"] = width / height
+        // Attachments: a photo is shown whole in its row (MediaBubble.tsx `MediaTile`, Sources/Attachments/InlineMedia.swift):
+        // its proportions from the photo itself, else from the small picture, else 4:3; the small picture (checked by
+        // the core when the message was opened, `photo::valid_preview`) stands blurred until the photo has arrived.
+        if about.kind == "photo", about.refusal == nil {
+            fields["media"] = "photo"
+            var wide = 4.0 / 3.0
+            let preview = attachment["preview"] as? [String: Any]
+            let shape = attachment["media"] as? [String: Any]
+            if let width = (shape?["width"] as? NSNumber)?.doubleValue, let height = (shape?["height"] as? NSNumber)?.doubleValue, width > 0, height > 0 {
+                wide = width / height
+            } else if let width = (preview?["width"] as? NSNumber)?.doubleValue, let height = (preview?["height"] as? NSNumber)?.doubleValue, width > 0, height > 0 {
+                wide = width / height
+            }
+            fields["thumbWide"] = wide
+            // The size in the pill at the upper left until the photo is here («2 КБ»).
+            fields["mediaTime"] = about.sizeText
+            if let picture = preview?["base64"] as? String, !picture.isEmpty { fields["thumb"] = picture }
+            return fields
+        }
+        // Attachments: any other file is a card with the round button (MediaBubble.tsx `FileBubble`): the name, then
+        // «44 Б · PDF».
+        if about.kind != "video" {
+            fields["media"] = "file"
+            fields["label"] = name + "\n" + InlineMedia.sizeLine(attachment, sizeText: about.sizeText)
             return fields
         }
         let heading = about.kind == "photo" ? "🖼 Фотография" : about.kind == "video" ? "🎬 Видео" : "📎 " + name
@@ -65,6 +84,8 @@ final class AttachmentLoad {
     private var run = 0
     /// «1.2 МБ из 3.4 МБ», on the main queue.
     var onProgress: ((String) -> Void)?
+    /// Attachments: how much has arrived, 0…1, on the main queue (the ring of a photo or a file in its row).
+    var onFraction: ((CGFloat) -> Void)?
 
     init(server: Server, attachment: [String: Any], cipherSize: Int) {
         self.server = server
@@ -89,6 +110,7 @@ final class AttachmentLoad {
                 guard let self, !self.cancelled, self.run == current, percent != self.shownPercent else { return }
                 self.shownPercent = percent
                 self.onProgress?(FileCore.sizeText(size * percent / 100) + " из " + whole)
+                self.onFraction?(CGFloat(percent) / 100)
             }
         }
         let (server, attachment, cipherSize) = (self.server, self.attachment, self.cipherSize)

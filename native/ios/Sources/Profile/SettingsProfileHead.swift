@@ -111,10 +111,9 @@ final class SettingsProfileChrome {
 
     /// «Твой профиль — заметнее любого другого» (SettingsScreen.tsx `PlatinaOffer`), for Settings without Platina.
     func offer() -> UIView {
-        let card = UIView()
-        card.backgroundColor = Theme.surface2
-        card.layer.cornerRadius = 22
-        card.layer.cornerCurve = .continuous
+        // D: on glass, as the reference's `GlassSurface radius={22}` (so «Ледяное стекло» frosts its rim).
+        let card = GlassPill(interactive: false)
+        card.shape(radius: 22)
         let brand = PlatinaNameLabel()
         brand.font = .systemFont(ofSize: 11, weight: .heavy)
         brand.kern = 2.4
@@ -135,12 +134,12 @@ final class SettingsProfileChrome {
         stack.setCustomSpacing(8, after: brand)
         stack.setCustomSpacing(14, after: words)
         stack.translatesAutoresizingMaskIntoConstraints = false
-        card.addSubview(stack)
+        card.contentView.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 16),
-            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -16),
-            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
+            stack.topAnchor.constraint(equalTo: card.contentView.topAnchor, constant: 16),
+            stack.bottomAnchor.constraint(equalTo: card.contentView.bottomAnchor, constant: -16),
+            stack.leadingAnchor.constraint(equalTo: card.contentView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -16),
         ])
         return card
     }

@@ -34,6 +34,7 @@ final class ChannelHeaderView: UIView {
         backButton.accessibilityLabel = "Назад"
         backButton.addTarget(self, action: #selector(backPressed), for: .touchUpInside)
         addSubview(backButton)
+        GlassBacking.put(under: backButton) // B: the reference's IconButton — a round of clear glass
         avatar.isHidden = true
         addSubview(avatar)
         nameLabel.font = .systemFont(ofSize: 17, weight: .bold)
@@ -66,6 +67,7 @@ final class ChannelHeaderView: UIView {
             button.tag = index
             button.addTarget(self, action: #selector(toolPressed(_:)), for: .touchUpInside)
             addSubview(button)
+            GlassBacking.put(under: button) // B
             tools.append(button)
             toolActions.append(item.action)
         }
@@ -96,7 +98,7 @@ final class ChannelHeaderView: UIView {
         var right = pill.frame.maxX - 8
         for button in tools.reversed() {
             button.frame = CGRect(x: right - 44, y: top, width: 44, height: 44)
-            right -= 44 + 4
+            right -= 44 + 9 // B: `gap: 9`
         }
         let wide = max(0, right - left - 4)
         let alone = (quietLabel.text ?? "").isEmpty

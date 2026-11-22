@@ -13,10 +13,13 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
 
     /// The account whose people are shown; nil shows the simulator's samples (or nothing on a phone).
     private let messenger: Messenger?
-    private let heading = UILabel()
-    private let caption = UILabel()
-    private let searchBox = UIView()
-    private let searchIcon = UIImageView()
+    // B: the reference's header — «Люди» and its quiet line in a glass pill (GlassSurface «clear», radius 27, 14 from the
+    // sides, 12 under the safe area, 10 inside, at least 72 tall; the name 26 on a 32 line, the line 11) — and the
+    // search on glass (radius 24, at least 54 tall).
+    private let header = GlassHeaderView(title: "Люди", subtitle: "Друзья, заявки и поиск по @имени", titleSize: 26, lineHeight: 32,
+                                         subtitleSize: 11, padding: 10, minHeight: 72, clear: true)
+    private var caption: UILabel { header.subtitleLabel }
+    private let searchBox = GlassSearchField()
     private let field = UITextField()
     private let clearButton = UIButton(type: .system)
     private let spinner = UIActivityIndicatorView(style: .medium)
@@ -72,23 +75,8 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
         table.register(PeopleEmptyCell.self, forCellReuseIdentifier: "empty")
         view.addSubview(table)
 
-        heading.text = "Люди"
-        heading.font = Theme.title(Theme.TypeSize.sectionTitle) // Fonts: the reference's TITLE, 26
-        heading.textColor = Theme.text
-        view.addSubview(heading)
-        caption.text = "Друзья, заявки и поиск по @имени"
-        caption.font = .systemFont(ofSize: 13)
-        caption.textColor = Theme.muted
-        view.addSubview(caption)
-
-        searchBox.backgroundColor = Theme.surface2
-        searchBox.layer.cornerRadius = 24
-        searchBox.layer.cornerCurve = .continuous
+        view.addSubview(header)
         view.addSubview(searchBox)
-        searchIcon.image = UIImage(systemName: "magnifyingglass", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
-        searchIcon.tintColor = Theme.accent
-        searchIcon.contentMode = .center
-        searchBox.addSubview(searchIcon)
         field.attributedPlaceholder = NSAttributedString(string: "@имя или имя", attributes: [.foregroundColor: Theme.muted])
         field.font = .systemFont(ofSize: 15)
         field.textColor = Theme.text
@@ -138,15 +126,13 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let top = view.safeAreaInsets.top, width = view.bounds.width
-        heading.frame = CGRect(x: 20, y: top + 8, width: width - 40, height: 41)
-        caption.frame = CGRect(x: 20, y: heading.frame.maxY + 2, width: width - 40, height: 17)
-        // ChatsPlus: the switch «Друзья | Звонки» stands between the caption and the search.
-        searchBox.frame = CGRect(x: 17, y: calls.place(in: view, top: caption.frame.maxY) + 14, width: width - 34, height: 52)
-        searchIcon.frame = CGRect(x: 12, y: 0, width: 28, height: 52)
-        clearButton.frame = CGRect(x: searchBox.bounds.width - 46, y: 4, width: 44, height: 44)
+        header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: 72)
+        // ChatsPlus: the switch «Друзья | Звонки» stands between the header and the search (14 under the pill).
+        searchBox.frame = CGRect(x: 17, y: calls.place(in: view, top: header.frame.maxY + 2) + 14, width: width - 34, height: 54)
+        clearButton.frame = CGRect(x: searchBox.bounds.width - 46, y: 5, width: 44, height: 44)
         spinner.center = clearButton.center
-        field.frame = CGRect(x: 46, y: 0, width: searchBox.bounds.width - 46 - 48, height: 52)
-        let listTop = searchBox.frame.maxY + 12
+        field.frame = CGRect(x: searchBox.wordsLeft, y: 0, width: searchBox.bounds.width - searchBox.wordsLeft - 48, height: 54)
+        let listTop = searchBox.frame.maxY + 17
         table.frame = CGRect(x: 0, y: listTop, width: width, height: view.bounds.height - listTop)
         let barRoom = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
         let bottom = max(barRoom, keyboardHeight + 12)

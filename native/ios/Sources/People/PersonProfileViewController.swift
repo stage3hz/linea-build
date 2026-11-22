@@ -134,18 +134,20 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topLayers.front)
         view.addSubview(topBar)
-        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        back.setImage(UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .medium)), for: .normal)
         back.tintColor = Theme.text
         back.accessibilityLabel = "Назад"
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         back.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(back)
-        more.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .semibold)), for: .normal)
+        GlassBacking.put(under: back) // C: the reference's IconButton — a round of clear glass
+        more.setImage(UIImage(systemName: "ellipsis", withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .medium)), for: .normal)
         more.tintColor = Theme.text
         more.accessibilityLabel = "Ещё"
         more.showsMenuAsPrimaryAction = true
         more.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(more)
+        GlassBacking.put(under: more) // C
 
         let safe = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
@@ -173,11 +175,11 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             topBar.bottomAnchor.constraint(equalTo: safe.topAnchor, constant: 48),
-            back.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 6),
+            back.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 10), // C: `paddingHorizontal: 10`
             back.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -2),
             back.widthAnchor.constraint(equalToConstant: 44),
             back.heightAnchor.constraint(equalToConstant: 44),
-            more.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -6),
+            more.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -10),
             more.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -2),
             more.widthAnchor.constraint(equalToConstant: 44),
             more.heightAnchor.constraint(equalToConstant: 44),

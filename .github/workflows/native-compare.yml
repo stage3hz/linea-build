@@ -175,9 +175,11 @@ jobs:
           limit 600 xcrun simctl install "$UDID" "$NATIVE_APP"
           for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
           start() { # seconds, launch arguments… — always pointed at the local test server
+            # -effects 1: «Снег» and «Ледяное стекло» on, as they are by default in the reference (the native app keeps
+            # them off on the simulator unless asked), so the rime on the glass shows on both sides.
             local wait="$1"; shift
             limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server "$SERVER" "$@"
+            limit 120 xcrun simctl launch "$UDID" com.invizent.app -server "$SERVER" -effects 1 "$@"
             sleep "$wait"
           }
           # nat NN-name seconds args…: a screen reached by launch arguments alone.

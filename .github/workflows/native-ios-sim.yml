@@ -268,6 +268,15 @@ jobs:
           shot 384-screen-error -screendemo error
           shot 385-screen-room -screendemo room
           shot 386-screen-bar -screendemo bar
+          shot 420-glass-header-appearance -demo 1 -effects 1 -settings appearance
+          shot 421-switches-power -demo 1 -settings power
+          shot 422-settings-root-head -demo 1 -effects 1 -settings root
+          shot 423-people-glass -demo 1 -effects 1 -tab people
+          shot 424-channels-glass -demo 1 -effects 1 -tab channels
+          shot 425-person-profile-glass -demo 1 -effects 1 -profile chat
+          shot 426-music-layout -musicdemo 1 -effects 1
+          shot 427-ai-composer -aidemo 1
+          shot 428-auth-glass -auth 1 -effects 1
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light

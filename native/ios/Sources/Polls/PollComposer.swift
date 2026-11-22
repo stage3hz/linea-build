@@ -58,7 +58,7 @@ final class PollComposerController: UIViewController, UITextFieldDelegate {
         multipleLabel.font = .systemFont(ofSize: 14)
         multipleLabel.textColor = Theme.text
         scroll.addSubview(multipleLabel)
-        multipleSwitch.onTintColor = Theme.accent
+        SettingsLook.paint(multipleSwitch)
         multipleSwitch.accessibilityLabel = "Несколько ответов"
         scroll.addSubview(multipleSwitch)
         sendButton.backgroundColor = Theme.accent

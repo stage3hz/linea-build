@@ -137,7 +137,8 @@ final class CallHistoryPanel: NSObject, UITableViewDataSource, UITableViewDelega
     func install(host: UIViewController, caption: UILabel) {
         self.host = host
         self.caption = caption
-        switcher.effect = UIBlurEffect(style: Theme.dark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight)
+        // B: the reference's switch is glass (GlassSurface «regular», radius 22): the same glass as the app's other pills.
+        switcher.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark)
         switcher.layer.cornerRadius = 22
         switcher.layer.cornerCurve = .continuous
         switcher.clipsToBounds = true

@@ -51,6 +51,13 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
     private let plusButton = AIKit.round("plus", "Режимы AI и вложения", size: 42)
     private let modelPill = UIButton(type: .system)
     private let sendButton = AIKit.round("arrow.up", "Отправить вопрос AI", size: 42)
+    // G: the reference's composer is one line while nothing is being written (AIScreen.tsx `expanded`): «+», the
+    // quiet «Спроси что угодно» (a tap opens the field), the model, the send; the field and the tools row below it
+    // only once the person writes, has a draft or attachments.
+    private let collapsedWords = UIButton(type: .system)
+    private let toolsSpacer = UIView()
+    private var focused = false
+    private var expanded: Bool { focused || !draft.isEmpty || !pictures.isEmpty || !documents.isEmpty || reading > 0 }
     private let pendingRow = UIStackView()
     private var barClearance: NSLayoutConstraint?
     private var inputHeight: NSLayoutConstraint?
@@ -639,8 +646,24 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         modelPill.titleLabel?.lineBreakMode = .byTruncatingTail
         modelPill.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         sendButton.addTarget(self, action: #selector(submit), for: .touchUpInside)
-        let toolsGap = UIView()
-        [plusButton, modelPill, toolsGap, sendButton].forEach { toolsRow.addArrangedSubview($0) }
+        var words = UIButton.Configuration.plain()
+        words.attributedTitle = AttributedString(NSAttributedString(string: "Спроси что угодно", attributes: [.font: UIFont.systemFont(ofSize: 17), .foregroundColor: Theme.muted]))
+        words.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
+        words.titleLineBreakMode = .byTruncatingTail
+        collapsedWords.configuration = words
+        collapsedWords.contentHorizontalAlignment = .leading
+        collapsedWords.accessibilityLabel = "Написать вопрос AI"
+        collapsedWords.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        collapsedWords.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        collapsedWords.heightAnchor.constraint(equalToConstant: 42).isActive = true
+        collapsedWords.addAction(UIAction { [weak self] (_: UIAction) -> Void in
+            guard let self else { return }
+            self.focused = true
+            self.applyExpanded()
+            self.input.becomeFirstResponder()
+        }, for: .touchUpInside)
+        toolsSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        [plusButton, collapsedWords, modelPill, toolsSpacer, sendButton].forEach { toolsRow.addArrangedSubview($0) }
         column.addArrangedSubview(toolsRow)
 
         pendingRow.axis = .horizontal
@@ -701,6 +724,25 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         barClearance?.constant = quick ? -12 : -(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 10)
     }
 
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        focused = true
+        applyExpanded()
+    }
+
+    func textViewDidEndEditing(_ textView: UITextView) {
+        focused = false
+        applyExpanded()
+    }
+
+    /// G: one line, or the field over the tools row.
+    private func applyExpanded() {
+        let pending = conversation?.pending ?? false
+        let open = expanded
+        input.isHidden = pending || !open
+        collapsedWords.isHidden = open
+        toolsSpacer.isHidden = !open
+    }
+
     func textViewDidChange(_ textView: UITextView) {
         if (textView.text as NSString).length > AILimits.message { textView.text = (textView.text as NSString).substring(to: AILimits.message) }
         placeholder.isHidden = !textView.text.isEmpty
@@ -708,6 +750,7 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         inputHeight?.constant = min(160, max(44, fitted))
         textView.isScrollEnabled = fitted > 160
         paintSend()
+        applyExpanded()
     }
 
     private func paintSend() {
@@ -750,14 +793,14 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
             emptyBox.addArrangedSubview(AIKit.label("Проверяем доступность AI…", size: 12, color: Theme.muted))
         } else if !statusError.isEmpty {
             emptyBox.addArrangedSubview(AIKit.label(statusError, size: 13, color: Theme.danger, align: .center))
-            emptyBox.addArrangedSubview(retryButton())
+            addRetry()
         } else if !ready && empty {
             let mark = UIImageView(image: UIImage(systemName: "sparkles", withConfiguration: UIImage.SymbolConfiguration(pointSize: 30, weight: .regular)))
             mark.tintColor = Theme.muted
             emptyBox.addArrangedSubview(mark)
             emptyBox.addArrangedSubview(AIKit.label("AI пока не подключён на этом сервере", size: 18, weight: .bold, align: .center))
             emptyBox.addArrangedSubview(AIKit.label("Когда администратор подключит сервис, здесь можно будет задать вопрос.", size: 12, color: Theme.muted, align: .center))
-            emptyBox.addArrangedSubview(retryButton())
+            addRetry()
         } else if empty {
             let mark = UIImageView(image: UIImage(systemName: "sparkles", withConfiguration: UIImage.SymbolConfiguration(pointSize: 36, weight: .regular)))
             mark.tintColor = Theme.accent
@@ -797,8 +840,8 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         privateButton.isHidden = quick
 
         let pending = conversation.pending
-        input.isHidden = pending
         toolsRow.isHidden = pending
+        applyExpanded()
         pendingRow.isHidden = !pending
         modelPill.isHidden = !ready
         let value = router && full ? chosenModel : "auto"
@@ -815,10 +858,29 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
         }
     }
 
+    /// G: the reference's `Button secondary` — a wide glass button (GlassSurface «regular», radius 21, 54 tall), the
+    /// icon (20) 10 before the bold words (16); it springs to 0.96 under the finger.
     private func retryButton() -> UIButton {
-        let again = AIKit.wide("Проверить снова", symbol: "arrow.clockwise", secondary: true)
+        var look = UIButton.Configuration.plain()
+        look.attributedTitle = AttributedString(NSAttributedString(string: "Проверить снова", attributes: [.font: UIFont.systemFont(ofSize: 16, weight: .bold), .foregroundColor: Theme.text]))
+        look.image = UIImage(systemName: "arrow.clockwise", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium))
+        look.imagePadding = 10
+        look.baseForegroundColor = Theme.text
+        look.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 21, bottom: 0, trailing: 21)
+        let again = UIButton(configuration: look)
+        again.translatesAutoresizingMaskIntoConstraints = false
+        again.heightAnchor.constraint(equalToConstant: 54).isActive = true
+        let glass = GlassBacking.put(under: again, side: 54, scale: 0.96, clear: false)
+        glass.radius = 21
         again.addAction(UIAction { [weak self] _ in self?.refreshStatus() }, for: .touchUpInside)
         return again
+    }
+
+    /// The retry button stretches across the empty page (`alignSelf: 'stretch'`).
+    private func addRetry() {
+        let again = retryButton()
+        emptyBox.addArrangedSubview(again)
+        again.widthAnchor.constraint(equalTo: emptyBox.widthAnchor).isActive = true
     }
 
     #if targetEnvironment(simulator)

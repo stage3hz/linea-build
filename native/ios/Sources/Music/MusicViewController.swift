@@ -227,15 +227,30 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     private let table = UITableView(frame: .zero, style: .plain)
     private let header = UIView()
     private let column = UIStackView()
-    private let addButton = UIButton(type: .system)
-    private let tabs = UISegmentedControl(items: ["Главная", "Любимое", "Мои файлы"])
+    // F: the reference's top (MusicScreen.tsx): on the cold ambient, «Музыка» with round glass «+» and «i», the tabs as
+    // a plain row with an `ink` pill on the chosen one, the source switch, and the large centred «Слушать микс»; it
+    // is `headHeight` tall from the screen's top (most of the top half on «Главная» without a search, 132 otherwise).
+    // Then the search on glass, the shelves, the moods (tall chips), «ОТКРОЙ ДЛЯ СЕБЯ».
+    private let headBox = UIView()
+    private let headStack = UIStackView()
+    private var headHeight: NSLayoutConstraint?
+    private let addButton = GlassRoundButton(symbol: "plus", label: "Добавить аудиофайлы", iconSize: 21)
+    private let tabRow = UIStackView()
+    private var tabButtons: [UIButton] = []
+    private let sourceBox = UIView()
+    private var sourceButtons: [UIButton] = []
+    private let searchPill = GlassPill(interactive: false)
     private let search = UITextField()
-    private let sources = UISegmentedControl(items: ["SoundCloud", "Audius"])
     private let moodScroll = UIScrollView()
     private let moodRow = UIStackView()
     private let mixRow = UIStackView()
-    private let mixButton = UIButton(type: .system)
+    private let mixButton = UIButton(type: .custom)
     private let mixLine = AIKit.label("", size: 14, color: Theme.muted, lines: 1)
+    private let sectionWords = AIKit.label("", size: 12, color: Theme.muted)
+    /// The reference's `ink` (titles and the chosen tab on the ambient), `inkInverse` (the chosen tab's words) and `soft`.
+    private var ink: UIColor { Theme.dark ? .white : UIColor(hex: 0x14243D) }
+    private var inkInverse: UIColor { Theme.dark ? UIColor(hex: 0x0A1529) : .white }
+    private var soft: UIColor { Theme.dark ? UIColor(hex: 0xD2DEF2) : UIColor(hex: 0x4A5D7D) }
     private let caption = AIKit.label("", size: 11, weight: .bold, color: Theme.muted, lines: 1)
     private let notices = UIStackView()
     private let footer = UIStackView()
@@ -359,14 +374,18 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
 
     // MARK: Actions
 
-    @objc private func tabChanged() {
-        section = ["catalog", "favorites", "saved"][max(0, tabs.selectedSegmentIndex)]
+    @objc private func tabChanged(_ sender: UIButton) {
+        let picked = ["catalog", "favorites", "saved"][max(0, min(2, sender.tag))]
+        if picked == section { return }
+        section = picked
         reloadCatalog()
         refresh()
     }
 
-    @objc private func sourceChanged() {
-        chosen = sources.selectedSegmentIndex == 0 ? "soundcloud" : "audius"
+    @objc private func sourceChanged(_ sender: UIButton) {
+        let picked = sender.tag == 0 ? "soundcloud" : "audius"
+        if picked == source { return }
+        chosen = picked
         sourceNotice = ""
         UserDefaults.standard.set(chosen, forKey: MusicViewController.sourceKey)
         reloadCatalog()
@@ -515,65 +534,170 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             column.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 18), column.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -18),
         ])
 
+        column.spacing = 16 // F: `gap: 16`
+        headBox.clipsToBounds = false
+        headStack.axis = .vertical
+        headStack.alignment = .fill
+        headStack.spacing = 0
+        headStack.translatesAutoresizingMaskIntoConstraints = false
+        headBox.addSubview(headStack)
+
         let titleRow = UIStackView()
         titleRow.axis = .horizontal
         titleRow.alignment = .center
-        titleRow.spacing = 6
-        let info = UIButton(type: .system)
-        info.setImage(UIImage(systemName: "info.circle"), for: .normal)
-        info.tintColor = Theme.text
-        info.accessibilityLabel = "О музыкальном разделе"
-        info.addTarget(self, action: #selector(showInfo), for: .touchUpInside)
-        addButton.setImage(UIImage(systemName: "plus"), for: .normal)
-        addButton.tintColor = Theme.text
-        addButton.accessibilityLabel = "Добавить аудиофайлы"
-        addButton.addTarget(self, action: #selector(addFiles), for: .touchUpInside)
+        titleRow.spacing = 10
+        let info = GlassRoundButton(symbol: "info", label: "О музыкальном разделе", iconSize: 19, weight: .medium)
+        info.setTint(ink)
+        info.onPress = { [weak self] () -> Void in self?.showInfo() }
+        addButton.setTint(ink)
+        addButton.onPress = { [weak self] () -> Void in self?.addFiles() }
         [addButton, info].forEach {
-            $0.widthAnchor.constraint(equalToConstant: 40).isActive = true
-            $0.heightAnchor.constraint(equalToConstant: 40).isActive = true
+            $0.widthAnchor.constraint(equalToConstant: 44).isActive = true
+            $0.heightAnchor.constraint(equalToConstant: 44).isActive = true
         }
         // TITLE: Unbounded 26, line 32, as the reference's section titles.
         let heading = UILabel()
-        heading.attributedText = Theme.titleWords("Музыка", size: Theme.TypeSize.sectionTitle, color: Theme.text, lineHeight: Theme.TypeSize.sectionTitleLine)
+        heading.attributedText = Theme.titleWords("Музыка", size: Theme.TypeSize.sectionTitle, color: ink, lineHeight: Theme.TypeSize.sectionTitleLine)
         heading.accessibilityTraits = .header
+        heading.setContentHuggingPriority(.defaultLow, for: .horizontal)
         [heading, addButton, info].forEach { titleRow.addArrangedSubview($0) }
-        column.addArrangedSubview(titleRow)
+        headStack.addArrangedSubview(titleRow)
 
-        tabs.selectedSegmentIndex = 0
-        tabs.addTarget(self, action: #selector(tabChanged), for: .valueChanged)
-        column.addArrangedSubview(tabs)
+        // The tabs: a plain row (gap 6), the chosen one on an `ink` pill (radius 12, 14 × 7 inside), 16 pt words.
+        tabRow.axis = .horizontal
+        tabRow.alignment = .center
+        tabRow.spacing = 6
+        tabRow.accessibilityTraits = .tabBar
+        for (index, words) in ["Главная", "Любимое", "Мои файлы"].enumerated() {
+            let button = UIButton(type: .custom)
+            button.tag = index
+            button.layer.cornerRadius = 12
+            button.layer.cornerCurve = .continuous
+            button.contentEdgeInsets = UIEdgeInsets(top: 7, left: 14, bottom: 7, right: 14)
+            button.setTitle(words, for: .normal)
+            button.addTarget(self, action: #selector(tabChanged(_:)), for: .touchUpInside)
+            tabButtons.append(button)
+            tabRow.addArrangedSubview(button)
+        }
+        tabRow.addArrangedSubview(UIView())
+        headStack.addArrangedSubview(tabRow)
+        headStack.setCustomSpacing(10, after: titleRow)
 
-        search.backgroundColor = Theme.veil(0.08)
-        search.layer.cornerRadius = 14
+        // The source: SoundCloud | Audius on a quiet well (radius 16, 3 inside), the chosen one lighter (radius 13).
+        sourceBox.backgroundColor = Theme.dark ? UIColor(white: 1, alpha: 0.08) : UIColor(red: 20 / 255, green: 36 / 255, blue: 61 / 255, alpha: 0.06)
+        sourceBox.layer.cornerRadius = 16
+        sourceBox.layer.cornerCurve = .continuous
+        sourceBox.accessibilityLabel = "Источник музыки"
+        let sourceRow = UIStackView()
+        sourceRow.axis = .horizontal
+        sourceRow.distribution = .fillEqually
+        sourceRow.translatesAutoresizingMaskIntoConstraints = false
+        sourceBox.addSubview(sourceRow)
+        NSLayoutConstraint.activate([
+            sourceRow.topAnchor.constraint(equalTo: sourceBox.topAnchor, constant: 3), sourceRow.bottomAnchor.constraint(equalTo: sourceBox.bottomAnchor, constant: -3),
+            sourceRow.leadingAnchor.constraint(equalTo: sourceBox.leadingAnchor, constant: 3), sourceRow.trailingAnchor.constraint(equalTo: sourceBox.trailingAnchor, constant: -3),
+            sourceRow.heightAnchor.constraint(equalToConstant: 40),
+        ])
+        for (index, words) in ["SoundCloud", "Audius"].enumerated() {
+            let button = UIButton(type: .custom)
+            button.tag = index
+            button.layer.cornerRadius = 13
+            button.layer.cornerCurve = .continuous
+            button.setTitle(words, for: .normal)
+            button.addTarget(self, action: #selector(sourceChanged(_:)), for: .touchUpInside)
+            sourceButtons.append(button)
+            sourceRow.addArrangedSubview(button)
+        }
+        headStack.addArrangedSubview(sourceBox)
+        headStack.setCustomSpacing(12, after: tabRow)
+
+        // «Слушать микс»: centred in what is left of the top (gap 9, 10 above its lower edge): a plain round play (66,
+        // white on dark themes, #14243D on light ones, with a soft shadow), the name (21 bold) and its quiet line (14).
+        mixRow.axis = .vertical
+        mixRow.alignment = .center
+        mixRow.spacing = 9
+        mixRow.translatesAutoresizingMaskIntoConstraints = false
+        mixButton.backgroundColor = Theme.dark ? .white : UIColor(hex: 0x14243D)
+        mixButton.tintColor = Theme.dark ? .black : .white
+        mixButton.setImage(UIImage(systemName: "play.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 26, weight: .regular)), for: .normal)
+        mixButton.imageEdgeInsets = UIEdgeInsets(top: 0, left: 4, bottom: 0, right: 0)
+        mixButton.layer.cornerRadius = 33
+        mixButton.layer.shadowColor = UIColor.black.cgColor
+        mixButton.layer.shadowOpacity = 0.3
+        mixButton.layer.shadowRadius = 12
+        mixButton.layer.shadowOffset = CGSize(width: 0, height: 6)
+        mixButton.accessibilityLabel = "Слушать микс"
+        mixButton.widthAnchor.constraint(equalToConstant: 66).isActive = true
+        mixButton.heightAnchor.constraint(equalToConstant: 66).isActive = true
+        mixButton.addTarget(self, action: #selector(mix), for: .touchUpInside)
+        Bouncy.attach(mixButton, scale: 0.94)
+        let mixName = AIKit.label("Слушать микс", size: 21, weight: .bold, color: ink, lines: 1, align: .center)
+        mixLine.textColor = soft
+        mixLine.textAlignment = .center
+        [mixButton, mixName, mixLine].forEach { mixRow.addArrangedSubview($0) }
+        headBox.addSubview(mixRow)
+        let heroSpace = UILayoutGuide()
+        headBox.addLayoutGuide(heroSpace)
+        let tall = headBox.heightAnchor.constraint(equalToConstant: 300)
+        tall.priority = UILayoutPriority(999)
+        headHeight = tall
+        NSLayoutConstraint.activate([
+            headStack.topAnchor.constraint(equalTo: headBox.topAnchor),
+            headStack.leadingAnchor.constraint(equalTo: headBox.leadingAnchor),
+            headStack.trailingAnchor.constraint(equalTo: headBox.trailingAnchor),
+            headBox.bottomAnchor.constraint(greaterThanOrEqualTo: headStack.bottomAnchor),
+            tall,
+            heroSpace.topAnchor.constraint(equalTo: headStack.bottomAnchor),
+            heroSpace.bottomAnchor.constraint(equalTo: headBox.bottomAnchor, constant: -10),
+            mixRow.centerYAnchor.constraint(equalTo: heroSpace.centerYAnchor),
+            mixRow.centerXAnchor.constraint(equalTo: headBox.centerXAnchor),
+            mixRow.leadingAnchor.constraint(greaterThanOrEqualTo: headBox.leadingAnchor),
+        ])
+        column.addArrangedSubview(headBox)
+
+        // The search: a full pill on glass (radius 26, at least 48 tall, 16 inside), #1F1F1F on dark themes; the
+        // magnifier (20) in the quiet colour, 10 before the words (15).
+        searchPill.shape(radius: 26)
+        if Theme.dark { searchPill.contentView.backgroundColor = UIColor(hex: 0x1F1F1F) }
+        search.backgroundColor = .clear
         search.textColor = Theme.text
         search.tintColor = Theme.accent
-        search.font = .systemFont(ofSize: 16)
+        search.font = .systemFont(ofSize: 15)
         search.keyboardAppearance = Theme.dark ? .dark : .light
         search.returnKeyType = .search
         search.autocorrectionType = .no
         search.clearButtonMode = .whileEditing
         search.delegate = self
         search.accessibilityLabel = "Поиск музыки"
-        let glass = UIImageView(image: UIImage(systemName: "magnifyingglass"))
+        let lens = UIView(frame: CGRect(x: 0, y: 0, width: 46, height: 48))
+        let glass = UIImageView(image: UIImage(systemName: "magnifyingglass", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)))
         glass.tintColor = Theme.muted
         glass.contentMode = .center
-        glass.frame = CGRect(x: 0, y: 0, width: 40, height: 44)
-        search.leftView = glass
+        glass.frame = CGRect(x: 16, y: 0, width: 20, height: 48)
+        lens.addSubview(glass)
+        search.leftView = lens
         search.leftViewMode = .always
-        search.heightAnchor.constraint(equalToConstant: 46).isActive = true
         search.addTarget(self, action: #selector(typed), for: .editingChanged)
-        column.addArrangedSubview(search)
+        search.translatesAutoresizingMaskIntoConstraints = false
+        searchPill.contentView.addSubview(search)
+        NSLayoutConstraint.activate([
+            search.topAnchor.constraint(equalTo: searchPill.contentView.topAnchor),
+            search.bottomAnchor.constraint(equalTo: searchPill.contentView.bottomAnchor),
+            search.leadingAnchor.constraint(equalTo: searchPill.contentView.leadingAnchor),
+            search.trailingAnchor.constraint(equalTo: searchPill.contentView.trailingAnchor, constant: -8),
+            searchPill.heightAnchor.constraint(equalToConstant: 48),
+        ])
+        column.addArrangedSubview(searchPill)
         shelves.axis = .vertical
         shelves.spacing = 16
         column.addArrangedSubview(shelves)
 
-        sources.accessibilityLabel = "Источник музыки"
-        sources.addTarget(self, action: #selector(sourceChanged), for: .valueChanged)
-        column.addArrangedSubview(sources)
-
+        // The moods: tall chips (at least 62 × 100, radius 21, 16 × 11 inside), the icon (18) over the name (11).
         moodScroll.showsHorizontalScrollIndicator = false
-        moodScroll.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        moodScroll.clipsToBounds = false
+        moodScroll.heightAnchor.constraint(equalToConstant: 64).isActive = true
         moodRow.axis = .horizontal
+        moodRow.alignment = .top
         moodRow.spacing = 8
         moodRow.translatesAutoresizingMaskIntoConstraints = false
         moodScroll.addSubview(moodRow)
@@ -583,28 +707,13 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             moodRow.heightAnchor.constraint(equalTo: moodScroll.frameLayoutGuide.heightAnchor),
         ])
         column.addArrangedSubview(moodScroll)
-
-        mixRow.axis = .horizontal
-        mixRow.alignment = .center
-        mixRow.spacing = 16
-        mixButton.setImage(UIImage(systemName: "play.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 24, weight: .bold)), for: .normal)
-        mixButton.tintColor = Theme.onAccent
-        mixButton.backgroundColor = Theme.onBlack(.white, otherwise: Theme.accent)
-        mixButton.layer.cornerRadius = 33
-        mixButton.accessibilityLabel = "Слушать микс"
-        mixButton.widthAnchor.constraint(equalToConstant: 66).isActive = true
-        mixButton.heightAnchor.constraint(equalToConstant: 66).isActive = true
-        mixButton.addTarget(self, action: #selector(mix), for: .touchUpInside)
-        let mixWords = UIStackView(arrangedSubviews: [AIKit.label("Слушать микс", size: 21, weight: .bold, lines: 1), mixLine])
-        mixWords.axis = .vertical
-        mixWords.spacing = 4
-        [mixButton, mixWords].forEach { mixRow.addArrangedSubview($0) }
-        column.addArrangedSubview(mixRow)
+        column.addArrangedSubview(caption)
+        // «Любимое» and «Мои файлы»: a few words about the section in place of the moods.
+        column.addArrangedSubview(sectionWords)
 
         notices.axis = .vertical
         notices.spacing = 8
         column.addArrangedSubview(notices)
-        column.addArrangedSubview(caption)
 
         footer.axis = .vertical
         footer.spacing = 10
@@ -624,6 +733,10 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
             table.contentInset.bottom = inset
             table.verticalScrollIndicatorInsets.bottom = inset
         }
+        // F: the top is `headHeight` tall from the screen's top; the column starts 8 under the safe area.
+        let tall = (section == "catalog" && query.isEmpty ? min(430, view.bounds.height * 0.5) : 132) + view.safeAreaInsets.top
+        let wanted = max(0, tall - view.safeAreaInsets.top - 8)
+        if let headHeight, abs(headHeight.constant - wanted) > 0.5 { headHeight.constant = wanted }
         fit(header)
         fit(footer)
         placeAmbient()
@@ -722,29 +835,62 @@ final class MusicViewController: UIViewController, UITableViewDataSource, UITabl
     private func refresh() {
         guard isViewLoaded else { return }
         let catalog = section == "catalog"
-        addButton.isHidden = section != "saved"
+        for button in tabButtons {
+            let on = ["catalog", "favorites", "saved"][button.tag] == section
+            button.backgroundColor = on ? ink : .clear
+            button.setTitleColor(on ? inkInverse : soft, for: .normal)
+            button.titleLabel?.font = .systemFont(ofSize: 16, weight: on ? .bold : .semibold)
+            button.accessibilityTraits = on ? [.button, .selected] : .button
+        }
         search.attributedPlaceholder = NSAttributedString(string: section == "saved" ? "Поиск в моих файлах" : "Трек или исполнитель", attributes: [.foregroundColor: Theme.muted])
-        sources.isHidden = !(catalog && scReady)
-        sources.selectedSegmentIndex = source == "soundcloud" ? 0 : 1
+        sourceBox.isHidden = !(catalog && scReady)
+        for button in sourceButtons {
+            let on = (button.tag == 0 ? "soundcloud" : "audius") == source
+            button.backgroundColor = on ? (Theme.dark ? UIColor(white: 1, alpha: 0.16) : .white) : .clear
+            button.setTitleColor(on ? ink : soft, for: .normal)
+            button.titleLabel?.font = .systemFont(ofSize: 15, weight: on ? .bold : .semibold)
+            button.accessibilityTraits = on ? [.button, .selected] : .button
+        }
         moodScroll.isHidden = !catalog
         moodRow.arrangedSubviews.forEach { $0.removeFromSuperview() }
         var chips: [(String?, String, String)] = [(nil, "Любое", "sparkles")]
         chips += MusicCatalog.moods.dropFirst().map { ($0.apiMood, $0.label, $0.symbol) }
         for chip in chips {
-            var config = UIButton.Configuration.filled()
-            config.title = chip.1
-            config.image = UIImage(systemName: chip.2, withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .medium))
-            config.imagePadding = 6
-            config.cornerStyle = .capsule
             let selected = chip.0 == mood
-            config.baseBackgroundColor = selected ? Theme.text : Theme.veil(0.08)
-            config.baseForegroundColor = selected ? Theme.onAccent : Theme.text
-            config.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
-            let button = UIButton(configuration: config)
+            let button = UIControl()
+            button.layer.cornerRadius = 21
+            button.layer.cornerCurve = .continuous
+            button.layer.borderWidth = 1
+            button.layer.borderColor = (selected ? Theme.accent : ThemeStore.look.border).cgColor
+            button.backgroundColor = selected ? ThemeStore.look.accentSoft : Theme.veil(0.04)
+            button.isAccessibilityElement = true
+            button.accessibilityLabel = chip.1
+            button.accessibilityTraits = selected ? [.button, .selected] : .button
+            let icon = UIImageView(image: UIImage(systemName: chip.2, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)))
+            icon.tintColor = selected ? Theme.accent : Theme.muted
+            icon.contentMode = .left
+            let name = AIKit.label(chip.1, size: 11, weight: .semibold, color: selected ? Theme.accent : Theme.text, lines: 1)
+            let inner = UIStackView(arrangedSubviews: [icon, name])
+            inner.axis = .vertical
+            inner.alignment = .leading
+            inner.spacing = 5
+            inner.isUserInteractionEnabled = false
+            inner.translatesAutoresizingMaskIntoConstraints = false
+            button.addSubview(inner)
+            NSLayoutConstraint.activate([
+                inner.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 16),
+                inner.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -16),
+                inner.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+                icon.heightAnchor.constraint(equalToConstant: 18),
+                button.heightAnchor.constraint(equalToConstant: 62),
+                button.widthAnchor.constraint(greaterThanOrEqualToConstant: 100),
+            ])
             let value = chip.0
-            button.addAction(UIAction { [weak self] _ in self?.pickMood(value) }, for: .touchUpInside)
+            button.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.pickMood(value) }, for: .touchUpInside)
             moodRow.addArrangedSubview(button)
         }
+        sectionWords.isHidden = catalog
+        sectionWords.text = section == "saved" ? "Твои файлы на этом устройстве. Добавляй аудио через «+» и слушай без интернета." : "Треки, которые ты отметил сердцем. Для воспроизведения Audius нужен интернет."
         let list = rows
         refreshShelves(list)
         mixRow.isHidden = !(catalog && query.isEmpty)
