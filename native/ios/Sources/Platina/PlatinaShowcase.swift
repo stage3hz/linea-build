@@ -258,7 +258,8 @@ final class PlatinaShowcaseViewController: UIViewController, UIScrollViewDelegat
         metal.endPoint = CGPoint(x: 1, y: 1)
         metal.frame = CGRect(x: 0, y: 0, width: 34, height: 34)
         icon.layer.addSublayer(metal)
-        let symbol = UIImageView(image: UIImage(systemName: perk.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)))
+        // Platina: the reference's gem, not the system rhombus.
+        let symbol = UIImageView(image: perk.symbol == "diamond.fill" ? GemGlyph.image(size: 18) : UIImage(systemName: perk.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)))
         symbol.tintColor = UIColor(hex: 0x1A1F2A)
         symbol.contentMode = .center
         symbol.frame = CGRect(x: 0, y: 0, width: 34, height: 34)

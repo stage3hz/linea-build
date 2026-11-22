@@ -74,7 +74,14 @@ final class SettingsProfileChrome {
         status.isUserInteractionEnabled = true
         status.accessibilityHint = "Сменить статус рядом с именем"
         status.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(statusPressed)))
-        let nameRow = UIStackView(arrangedSubviews: [name, status])
+        // The status stands right after the name (the reference's row hugs its content), not at the far edge.
+        let rest = UIView()
+        rest.setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
+        name.setContentHuggingPriority(.required, for: .horizontal)
+        name.label.setContentHuggingPriority(.required, for: .horizontal)
+        status.setContentHuggingPriority(.required, for: .horizontal)
+        status.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let nameRow = UIStackView(arrangedSubviews: [name, status, rest])
         nameRow.axis = .horizontal
         nameRow.alignment = .center
         nameRow.spacing = 8

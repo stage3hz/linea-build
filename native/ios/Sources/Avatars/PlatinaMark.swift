@@ -196,7 +196,7 @@ final class PlatinaSealView: UIControl {
         layer.cornerRadius = small ? 6 : 7
         layer.cornerCurve = .continuous
         addSubview(metal)
-        gem.image = UIImage(systemName: "diamond.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: small ? 8 : 10, weight: .bold))
+        gem.image = GemGlyph.image(size: small ? 9 : 11)
         gem.tintColor = UIColor(hex: 0x1A1F2A)
         gem.contentMode = .center
         addSubview(gem)
@@ -261,7 +261,7 @@ final class PlatinaGemView: UIView {
         gradient.startPoint = CGPoint(x: 0, y: 0)
         gradient.endPoint = CGPoint(x: 1, y: 1)
         layer.addSublayer(gradient)
-        gem.image = UIImage(systemName: "diamond.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: size * 0.55, weight: .bold))
+        gem.image = GemGlyph.image(size: size * 0.62)
         gem.tintColor = UIColor(hex: 0x1A1F2A)
         gem.contentMode = .center
         addSubview(gem)
@@ -318,5 +318,50 @@ final class PlatinaButton: UIControl {
         super.layoutSubviews()
         gradient.frame = bounds
         words.frame = bounds
+    }
+}
+
+/// The gem of the reference's seal and list mark (its icon set's «diamond», MIT): the outline as drawn there, as a
+/// template image `size` points square (the icon's own box), tinted by the image view.
+enum GemGlyph {
+    /// The outline in a unit square (M/L/Q/Z, y down), 0.913 of the icon's box.
+    private static let outline = "M 0.3393 0.0209 L 0.4697 0.0209 L 0.4718 0.0274 Q 0.4740 0.0316 0.3927 0.1407 Q 0.3307 0.2219 0.3190 0.2369 Q 0.3072 0.2519 0.3029 0.2519 L 0.2986 0.2519 L 0.2516 0.1407 Q 0.2046 0.0316 0.2046 0.0284 Q 0.2046 0.0252 0.2067 0.0231 Q 0.2088 0.0209 0.3393 0.0209 Z M 0.6076 0.1418 Q 0.5210 0.0274 0.5210 0.0241 Q 0.5210 0.0209 0.6589 0.0209 Q 0.7969 0.0209 0.7969 0.0241 Q 0.7969 0.0274 0.7477 0.1418 Q 0.6985 0.2561 0.6964 0.2561 Q 0.6942 0.2561 0.6076 0.1418 Z M 0.1361 0.0744 Q 0.1447 0.0680 0.1490 0.0787 Q 0.1532 0.0872 0.1949 0.1845 Q 0.2366 0.2818 0.2366 0.2839 Q 0.2388 0.2882 0.2356 0.2914 Q 0.2324 0.2946 0.1233 0.2946 Q 0.0143 0.2946 0.0100 0.2925 Q 0.0057 0.2904 0.0057 0.2872 Q 0.0057 0.2839 0.0688 0.1813 Q 0.1319 0.0787 0.1361 0.0744 Z M 0.8525 0.0744 Q 0.8589 0.0701 0.8632 0.0723 Q 0.8653 0.0744 0.9284 0.1760 Q 0.9914 0.2775 0.9936 0.2829 Q 0.9957 0.2882 0.9914 0.2914 Q 0.9872 0.2946 0.8770 0.2946 Q 0.7669 0.2946 0.7637 0.2914 Q 0.7605 0.2882 0.7627 0.2839 Q 0.7648 0.2733 0.8086 0.1738 Q 0.8525 0.0744 0.8525 0.0744 Z M 0.3713 0.2861 Q 0.3713 0.2818 0.4334 0.2006 Q 0.4954 0.1193 0.4996 0.1193 Q 0.5039 0.1193 0.5659 0.2006 Q 0.6279 0.2818 0.6279 0.2861 Q 0.6279 0.2904 0.6237 0.2925 Q 0.6194 0.2946 0.4996 0.2946 Q 0.3799 0.2946 0.3756 0.2925 Q 0.3713 0.2904 0.3713 0.2861 Z M 0.1361 0.3631 L 0.2687 0.3631 L 0.2708 0.3673 Q 0.2730 0.3695 0.3703 0.6464 Q 0.4676 0.9233 0.4761 0.9511 Q 0.4847 0.9746 0.4761 0.9767 Q 0.4697 0.9789 0.4665 0.9778 Q 0.4633 0.9767 0.2324 0.6763 Q 0.0014 0.3759 0.0004 0.3716 Q -0.0007 0.3673 0.0014 0.3652 Q 0.0036 0.3631 0.1361 0.3631 Z M 0.6536 0.3695 Q 0.6536 0.3716 0.5809 0.5780 Q 0.5082 0.7843 0.5061 0.7886 Q 0.5039 0.7907 0.4996 0.7907 Q 0.4954 0.7907 0.4932 0.7886 Q 0.4911 0.7843 0.4184 0.5780 Q 0.3457 0.3716 0.3457 0.3695 Q 0.3457 0.3673 0.3489 0.3652 Q 0.3521 0.3631 0.4986 0.3631 Q 0.6450 0.3631 0.6493 0.3652 Q 0.6536 0.3673 0.6536 0.3695 Z M 0.7284 0.3673 Q 0.7284 0.3673 0.7284 0.3673 L 0.7306 0.3631 L 0.8632 0.3631 Q 0.9808 0.3631 0.9936 0.3652 Q 1.0000 0.3652 1.0000 0.3716 Q 0.9979 0.3738 0.7691 0.6720 Q 0.5403 0.9703 0.5339 0.9746 Q 0.5232 0.9853 0.5168 0.9703 Q 0.5168 0.9661 0.6215 0.6688 Q 0.7263 0.3716 0.7284 0.3673 Z"
+    private static var cache: [CGFloat: UIImage] = [:]
+
+    static func image(size: CGFloat) -> UIImage {
+        if let made = cache[size] { return made }
+        let side = size * 0.913
+        let inset = (size - side) / 2
+        let path = UIBezierPath()
+        let parts = outline.split(separator: " ")
+        var index = 0
+        func number() -> CGFloat {
+            let value = CGFloat(Double(parts[index]) ?? 0)
+            index += 1
+            return value
+        }
+        func point() -> CGPoint {
+            let x = number(), y = number()
+            return CGPoint(x: inset + x * side, y: inset + y * side)
+        }
+        while index < parts.count {
+            let command = parts[index]
+            index += 1
+            switch command {
+            case "M": path.move(to: point())
+            case "L": path.addLine(to: point())
+            case "Q":
+                let control = point()
+                path.addQuadCurve(to: point(), controlPoint: control)
+            case "Z": path.close()
+            default: break
+            }
+        }
+        let made = UIGraphicsImageRenderer(size: CGSize(width: size, height: size)).image { (_: UIGraphicsImageRendererContext) -> Void in
+            UIColor.black.setFill()
+            path.fill()
+        }.withRenderingMode(.alwaysTemplate)
+        cache[size] = made
+        return made
     }
 }
