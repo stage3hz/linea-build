@@ -318,3 +318,124 @@ class CallRulesScreen(context: Context, private val account: SettingsAccount) : 
     }
   }
 }
+
+/** CallPrivacy.tsx `RuleList`s, inline under «Кто может звонить» on «Конфиденциальность»: «Разрешить» (unless everyone may
+ *  call) and «Никогда», each a caption (11 Bold, letter spacing 1.1, `muted`, «· n»), a field (at least 42, radius 13,
+ *  a 1 `border`, «@» 15, the login 15, the add button 36 of `accentSoft`, radius 11, add 20), an error (12, `danger`)
+ *  and the people (avatar 32, 10 to the name 14 and @login 12, close-circle 20 at the right); 8 between the parts, 12
+ *  between the lists. The lists are the server's (`callRules`). */
+@SuppressLint("ViewConstructor")
+class CallRulesInline(context: Context, private val account: SettingsAccount, private val mode: String) : LinearLayout(context) {
+  private var rules: Map<String, Any?>? = null
+  private var failure = ""
+  private val fields = HashMap<String, EditText>()
+  private val errors = HashMap<String, String>()
+  private var busy = false
+
+  init {
+    orientation = VERTICAL
+    load()
+  }
+
+  private fun load() {
+    failure = ""
+    fill()
+    account.accountCall("callRules", emptyList()) { result ->
+      val body = result.getOrNull()
+      if (body != null) rules = body else failure = result.failureWords("Не удалось загрузить списки.")
+      fill()
+    }
+  }
+
+  private fun put(part: View) {
+    addView(part, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = if (childCount == 0) 0 else context.px(12f) })
+  }
+
+  private fun fill() {
+    removeAllViews()
+    if (failure.isNotEmpty()) put(SettingsNotice(context, failure, error = true, onRetry = { load() }))
+    val known = rules
+    if (known == null) {
+      if (failure.isEmpty()) put(ProgressBar(context).apply { isIndeterminate = true; indeterminateTintList = android.content.res.ColorStateList.valueOf(Theme.accent) })
+      return
+    }
+    if (mode != "everyone") put(list("Разрешить", "allow", (known["allow"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }))
+    put(list("Никогда", "deny", (known["deny"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }))
+  }
+
+  private fun list(title: String, rule: String, users: List<Map<String, Any?>>): View {
+    val box = LinearLayout(context).apply { orientation = VERTICAL }
+    fun part(view: View) = box.addView(view, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = if (box.childCount == 0) 0 else context.px(8f) })
+    part(context.words(title.uppercase(Locale.ROOT) + (if (users.isEmpty()) "" else " · ${users.size}"), 11f, Theme.muted, 700).apply { letterSpacing = 1.1f / 11f })
+    val field = fields.getOrPut(rule) { context.lineField("логин", "Добавить в список «$title» по логину") }
+    field.setHintTextColor(Theme.muted)
+    field.imeOptions = EditorInfo.IME_ACTION_DONE
+    field.setOnEditorActionListener { _, _, _ -> addLogin(rule); true }
+    (field.parent as? android.view.ViewGroup)?.removeView(field)
+    val line = LinearLayout(context).apply {
+      orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+      minimumHeight = context.px(42f)
+      setPadding(context.px(12f), 0, context.px(4f), 0)
+      background = context.plate(0, 13f).apply { setStroke(context.px(1f), ThemeStore.look.border) }
+    }
+    line.addView(context.words("@", 15f, Theme.muted))
+    line.addView(field, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(8f); rightMargin = context.px(8f) })
+    val plus = FrameLayout(context).apply { background = context.plate(ThemeStore.look.accentSoft, 11f); alpha = if (busy) 0.6f else 1f }
+    plus.addView(SymbolButton(context, "ion:add", 20f, Theme.accent).apply { isClickable = false; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO })
+    plus.contentDescription = "Добавить в «$title»"
+    plus.isClickable = true
+    plus.setOnClickListener { addLogin(rule) }
+    line.addView(plus, LayoutParams(context.px(36f), context.px(36f)))
+    part(line)
+    errors[rule]?.takeIf { it.isNotEmpty() }?.let { part(context.words(it, 12f, Theme.danger)) }
+    for (user in users) {
+      val id = user["id"] as? String ?: continue
+      val row = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+      val ball = SettingsAvatar(context)
+      ball.show(user, account.base)
+      row.addView(ball, LayoutParams(context.px(32f), context.px(32f)).apply { rightMargin = context.px(10f) })
+      val texts = LinearLayout(context).apply { orientation = VERTICAL }
+      texts.addView(context.words(user["displayName"] as? String ?: "", 14f, Theme.text).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+      texts.addView(context.words("@" + (user["username"] as? String ?: ""), 12f, Theme.muted).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+      row.addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+      val close = SymbolButton(context, "ion:close-circle", 20f, Theme.muted)
+      close.contentDescription = "Убрать @" + (user["username"] as? String ?: "") + " из «$title»"
+      close.setOnClickListener { remove(id, rule) }
+      row.addView(close, LayoutParams(context.px(20f), context.px(20f)).apply { leftMargin = context.px(10f) })
+      part(row)
+    }
+    return box
+  }
+
+  private fun addLogin(rule: String) {
+    val login = (fields[rule]?.text?.toString() ?: "").trim().lowercase(Locale.ROOT).removePrefix("@")
+    if (login.length < 2 || busy) return
+    busy = true
+    errors[rule] = ""
+    account.accountCall("users", listOf("@$login")) { result ->
+      val users = (result.getOrNull()?.get("users") as? List<*>).orEmpty().mapNotNull { Core.map(it) }
+      val person = users.firstOrNull { (it["username"] as? String ?: "").lowercase(Locale.ROOT) == login }
+      val id = person?.get("id") as? String
+      if (id == null) {
+        busy = false
+        errors[rule] = if (result.isFailure) result.failureWords("") else "Пользователь @$login не найден."
+        fill()
+        return@accountCall
+      }
+      account.accountCall("setCallRule", listOf(id, rule)) { answer ->
+        busy = false
+        val body = answer.getOrNull()
+        if (body != null) { rules = body; fields[rule]?.setText("") } else errors[rule] = answer.failureWords("Не удалось добавить.")
+        fill()
+      }
+    }
+  }
+
+  private fun remove(id: String, rule: String) {
+    account.accountCall("removeCallRule", listOf(id)) { result ->
+      val body = result.getOrNull()
+      if (body != null) rules = body else errors[rule] = result.failureWords("Не удалось убрать.")
+      fill()
+    }
+  }
+}

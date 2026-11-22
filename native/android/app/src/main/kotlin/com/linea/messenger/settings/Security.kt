@@ -31,18 +31,31 @@ internal fun beside(context: Context, symbol: String, symbolSize: Float, plateSi
   addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
 }
 
-/** «Безопасность»: the password and the two secret words, and deleting the account.
- *  (The previous app: `mobile/src/SecurityScreen.tsx` and `AccountZone.tsx`; the sessions and the blocked people
- *  of that screen have their own pages here.) */
+/** «Безопасность и устройства» — the reference's SecurityScreen.tsx with its HistorySection and AccountZone.tsx, on one
+ *  page: the header pill (clear glass, radius 27, the shield at the right), the intro card, the password and the two
+ *  secret words, the sessions and devices, the chats on a new device, the blocked people and «Удалить аккаунт», each on a
+ *  glass card of radius 28. */
 @SuppressLint("ViewConstructor")
 class SecurityScreen(context: Context, private val account: SettingsAccount) : SettingsPage(context, "Безопасность") {
   private var status: Map<String, Any?>? = null
   private var loading = true
   private var failure = ""
+  private var notice = ""
   private var request = 0
+  private var sessions: List<Map<String, Any?>> = emptyList()
+  private var busy = false
+  private var blocked: List<Map<String, Any?>>? = null
+  private var unblocking = ""
+
+  // `marginHorizontal: 14`, `padding: 10`, `minHeight: 68`, the name 20 Bold with letter spacing −0.5, the
+  // shield-checkmark-outline 23 in the accent with 10 to its right; the list 17 from the sides, 17 under the pill's 2.
+  override val ownLook: OwnLook? get() = OwnLook(side = 14f, padding = 10f, minHeight = 68f, clear = true, titleSize = 20f, titleWeight = 700, titleKern = -0.5f,
+    mark = "shield-checkmark-outline", markSize = 23f, markRoom = 10f, backLabel = "Назад в профиль", columnSide = 17f, columnTop = 17f, columnBottom = 36f)
 
   override fun build() {
+    account.prepareSettingsAvatars()
     load()
+    loadBlocked()
   }
 
   private fun load() {
@@ -51,94 +64,270 @@ class SecurityScreen(context: Context, private val account: SettingsAccount) : S
     loading = true
     failure = ""
     fill()
-    account.accountCall("security", emptyList()) { result ->
-      if (mine != request) return@accountCall
+    var security: Result<Map<String, Any?>>? = null
+    var list: Result<Map<String, Any?>>? = null
+    fun both() {
+      val first = security ?: return
+      val second = list ?: return
+      if (mine != request) return
       loading = false
-      val body = result.getOrNull()
-      if (body != null) {
+      val body = first.getOrNull(); val found = second.getOrNull()
+      if (body != null && found != null) {
         status = body
+        sessions = SessionWords.ordered((found["sessions"] as? List<*>).orEmpty().mapNotNull { com.linea.messenger.core.Core.map(it) })
       } else {
-        failure = if (result.refusalStatus == 404) "Сервер ещё не поддерживает настройки безопасности. Обнови сервер Инвиза до версии 0.3.0."
-          else result.failureWords("Не удалось загрузить настройки безопасности.")
-        if (result.refusalStatus == 401) return@accountCall closeAccount(account.sessionEndedHere("Сессия завершилась. Войди в аккаунт снова."))
+        val bad = if (body == null) first else second
+        if (bad.refusalStatus == 401) return closeAccount(account.sessionEndedHere("Сессия завершилась. Войди в аккаунт снова."))
+        failure = if (bad.refusalStatus == 404) "Сервер ещё не поддерживает настройки безопасности. Обнови сервер Инвиза до версии 0.3.0."
+          else bad.failureWords("Не удалось загрузить настройки безопасности.")
       }
       fill()
     }
+    account.accountCall("security", emptyList()) { result -> security = result; both() }
+    account.accountCall("sessions", emptyList()) { result -> list = result; both() }
   }
 
-  private fun card(parts: List<View>): View = SettingsLook.inset(stacked(context, parts, 13f), top = 16f, side = 16f, bottom = 16f)
+  private fun loadBlocked() {
+    account.accountCall("blocks", emptyList()) { result ->
+      blocked = (result.getOrNull()?.get("users") as? List<*>).orEmpty().mapNotNull { com.linea.messenger.core.Core.map(it) }
+      if (built) fill()
+    }
+  }
 
-  /** The name of a secret word and whether it is set up. */
+  /** The name of a secret word and whether it is set up (a 42 square of `accentSoft`, the glyph 25, 11 to the words). */
   private fun wordState(name: String, configured: Boolean): View = beside(context, if (configured) "ion:checkmark-circle-outline" else "ion:key-outline", 25f, 42f, stacked(context, listOf(
     context.words(name, 15f, Theme.text, 700),
     context.words(if (configured) "Настроено" else "Пока не настроено", 12f, if (configured) Theme.accent else Theme.muted),
   ), 4f), 11f)
 
+  private fun spinner(): View = android.widget.ProgressBar(context).apply {
+    isIndeterminate = true
+    indeterminateTintList = android.content.res.ColorStateList.valueOf(Theme.accent)
+  }
+
   private fun fill() {
     clear()
-    addGroup(rows = listOf(card(listOf(
-      context.words("Твой доступ.\nТвои устройства.", 23f, Theme.text, 800),
-      context.words("Вход по логину (тайному, не @имени), паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.", 13f, Theme.muted),
-    ))))
-    if (failure.isNotEmpty()) add(SettingsNotice(context, failure, error = true, onRetry = { load() }), 14f)
-    if (loading && status == null) add(SettingsLook.foot(context, "Загружаем настройки…"), 16f)
-    val status = status ?: return
+    add(SettingsLook.glassCard(context, listOf(
+      SettingsLook.para(context, "Твой доступ.\nТвои устройства.", 23f, Theme.text, 800, line = 28f, kern = -0.7f),
+      SettingsLook.para(context, "Вход по логину (тайному, не @имени), паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.", 13f, Theme.muted, line = 20f),
+    ), padding = 22f, gap = 11f, clear = true), 0f)
+    if (failure.isNotEmpty()) add(SettingsNotice(context, failure, error = true, onRetry = { if (!busy) load() }), 16f)
+    if (notice.isNotEmpty()) add(SettingsNotice(context, notice), 16f)
+    if (loading && status == null) {
+      // `padding: 30`, the spinner and «Загружаем настройки…» (13, `muted`) 12 apart, centred.
+      val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(context.px(30f), context.px(30f), context.px(30f), context.px(30f)) }
+      box.addView(spinner(), LinearLayout.LayoutParams(context.px(20f), context.px(20f)))
+      box.addView(context.words("Загружаем настройки…", 13f, Theme.muted), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(12f) })
+      add(box, 16f)
+    }
+    status?.let { fillStatus(it) }
+    // The closing words: 11, line 17, `subtle`, centred, 10 in from the sides.
+    add(SettingsLook.inset(SettingsLook.para(context, "Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, логина и пароля. Все значения здесь вводятся вручную.", 11f, Theme.subtle, line = 17f, centered = true), side = 10f), 16f)
+  }
+
+  private fun fillStatus(status: Map<String, Any?>) {
     val confirmationConfigured = status["confirmationConfigured"] as? Boolean ?: false
     val recoveryConfigured = status["recoveryConfigured"] as? Boolean ?: false
     if (!confirmationConfigured || !recoveryConfigured) {
-      add(SettingsNotice(context, "Заверши настройку двух слов. В старом аккаунте недостающие слова можно добавить, пока помнишь пароль."), 14f)
+      add(SettingsNotice(context, "Заверши настройку двух слов. В старом аккаунте недостающие слова можно добавить, пока помнишь пароль."), 16f)
     }
 
-    val password = SettingsButton(context, "Изменить пароль", SettingsButton.Kind.SECONDARY, icon = "key-outline")
-    password.onPress = { openForm(SecretChangeScreen.Form.PASSWORD, confirmationConfigured) }
-    // The reference: Ionicons «lock-closed-outline» 23 in the accent beside the words, 12 apart.
+    // «Пароль»: padding 20, gap 16; lock-closed-outline 23 in the accent beside the words, 12 apart.
     val passwordLine = LinearLayout(context).apply {
       orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
       addView(SymbolView(context, "ion:lock-closed-outline", 23f, Theme.accent), LinearLayout.LayoutParams(context.px(23f), context.px(23f)).apply { rightMargin = context.px(12f) })
-      addView(context.words("Можно использовать длинную фразу. После смены пароля все сеансы завершатся.", 13f, Theme.muted), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+      addView(SettingsLook.para(context, "Можно использовать длинную фразу. После смены пароля все сеансы завершатся.", 13f, Theme.muted, line = 20f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
     }
-    addGroup("Пароль", listOf(card(listOf(passwordLine, password))))
+    val password = SettingsButton(context, "Изменить пароль", SettingsButton.Kind.SECONDARY, icon = "key-outline")
+    password.isEnabled = !busy
+    password.onPress = { openForm(SecretChangeScreen.Form.PASSWORD, confirmationConfigured) }
+    add(SettingsLook.glassCard(context, listOf(SettingsLook.sectionLabel(context, "Пароль"), passwordLine, password), gap = 16f, labelled = true), 16f)
 
     val confirmation = SettingsButton(context, if (confirmationConfigured) "Изменить слово подтверждения" else "Настроить слово подтверждения", SettingsButton.Kind.SECONDARY, icon = "key-outline")
+    confirmation.isEnabled = !busy
     confirmation.onPress = { openForm(SecretChangeScreen.Form.CONFIRMATION, confirmationConfigured) }
-    addGroup("Подтверждение входа", listOf(card(listOf(
+    add(SettingsLook.glassCard(context, listOf(
+      SettingsLook.sectionLabel(context, "Подтверждение входа"),
       wordState("Слово подтверждения", confirmationConfigured),
-      context.words("Это слово нужно при каждом входе после пароля. Посмотреть его повторно нельзя.", 13f, Theme.muted),
+      SettingsLook.para(context, "Это слово нужно при каждом входе после пароля. Посмотреть его повторно нельзя.", 13f, Theme.muted, line = 20f),
       confirmation,
-    ))))
+    ), labelled = true), 16f)
 
+    // The limit: radius 17, padding 13, gap 5, `accentSoft`.
     val limit = SettingsLook.inset(stacked(context, listOf(
       context.words("3 попытки → 24 часа ожидания", 12f, Theme.text, 700),
-      context.words("Ограничение действует на сервере и относится только к восстановлению. Вход с паролем и словом подтверждения остаётся доступен.", 12f, Theme.muted),
+      SettingsLook.para(context, "Ограничение действует на сервере и относится только к восстановлению. Вход с паролем и словом подтверждения остаётся доступен.", 12f, Theme.muted, line = 18f),
     ), 5f), top = 13f, side = 13f, bottom = 13f)
-    limit.background = context.plate(SettingsLook.chip, 14f)
+    limit.background = context.plate(ThemeStore.look.accentSoft, 17f)
     val recovery = SettingsButton(context, if (recoveryConfigured) "Изменить слово восстановления" else "Настроить слово восстановления", SettingsButton.Kind.SECONDARY, icon = "key-outline")
+    recovery.isEnabled = !busy
     recovery.onPress = { openForm(SecretChangeScreen.Form.RECOVERY, confirmationConfigured) }
-    addGroup("Восстановление доступа", listOf(card(listOf(
+    add(SettingsLook.glassCard(context, listOf(
+      SettingsLook.sectionLabel(context, "Восстановление доступа"),
       wordState("Слово восстановления", recoveryConfigured),
-      context.words(if (recoveryConfigured) "Отдельное слово для случая, когда пароль забыт. После его проверки действует 10-минутное ожидание. Открытые сеансы могут отменить запрос."
-        else "Настрой слово сейчас, пока помнишь пароль. Без слова восстановления вернуть доступ через этот экран не получится.", 13f, Theme.muted),
+      SettingsLook.para(context, if (recoveryConfigured) "Отдельное слово для случая, когда пароль забыт. После его проверки действует 10-минутное ожидание. Открытые сеансы могут отменить запрос."
+        else "Настрой слово сейчас, пока помнишь пароль. Без слова восстановления вернуть доступ через этот экран не получится.", 13f, Theme.muted, line = 20f),
       limit,
       recovery,
-    ))))
+    ), labelled = true), 16f)
 
-    // «Сеансы и устройства» and «Заблокированные» stand here in the reference's SecurityScreen (before «Удалить аккаунт»);
-    // their lists are on their own pages (settings/Sessions.kt, settings/PrivacyLists.kt).
-    val sessions = SettingsRow(context, symbol = "ion:phone-portrait-outline", label = "Активные сеансы")
-    sessions.onPress = { open(SessionsScreen(context, account)) }
-    // Old chats on a new device: the copy from another own device and the encrypted backup (settings/HistorySettings.kt).
+    add(sessionsCard(), 16f)
+    // HistorySection.tsx stands here (between the sessions and AccountZone): its own page in this app
+    // (settings/HistorySettings.kt), reached from a card with the reference's section name.
     val history = SettingsRow(context, symbol = "ion:cloud-download-outline", label = "Переписки на новом устройстве")
     history.onPress = { account.messenger?.let { open(HistoryScreen(context, it)) } }
-    addGroup("Сеансы и устройства", listOf(sessions, history))
-    val blocked = SettingsRow(context, symbol = "ion:hand-left-outline", label = "Заблокированные")
-    blocked.onPress = { open(BlockedScreen(context, account)) }
-    addGroup(rows = listOf(blocked))
+    add(SettingsLook.glassCard(context, listOf(SettingsLook.inset(SettingsLook.sectionLabel(context, "Переписки на новом устройстве"), top = 14f, side = 14f), history), padding = 6f, gap = 13f), 16f)
+    add(blockedCard(), 16f)
+    add(deleteCard(confirmationConfigured), 16f)
+  }
 
-    val remove = SettingsRow(context, symbol = "ion:trash-outline", label = "Удалить аккаунт", danger = true)
-    remove.onPress = { open(DeleteAccountScreen(context, account, confirmationConfigured)) }
-    addGroup(rows = listOf(remove))
+  // «Сеансы и устройства»
 
-    add(SettingsLook.foot(context, "Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, логина и пароля. Все значения здесь вводятся вручную."), 16f)
+  private fun sessionsCard(): View {
+    // The label keeps its 13 of margin under it inside the row (as tall as the 44 refresh button, centred), 8 apart.
+    val head = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    head.addView(SettingsLook.inset(SettingsLook.sectionLabel(context, "Сеансы и устройства"), bottom = 13f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    val refresh = com.linea.messenger.design.GlassRoundButton(context, "ion:refresh-outline", "Обновить список сеансов", 19f)
+    refresh.isEnabled = !busy && !loading
+    refresh.onPress = { if (!busy && !loading) load() }
+    head.addView(refresh, LinearLayout.LayoutParams(context.px(44f), context.px(44f)).apply { leftMargin = context.px(8f) })
+    val parts = ArrayList<View>()
+    parts.add(head)
+    parts.add(SettingsLook.para(context, "Здесь показаны действующие входы: устройство, система, версия приложения и IP-адрес, с которого выполнен вход. Нажми на сеанс, чтобы увидеть подробности или завершить его.", 12f, Theme.muted, line = 18f))
+    val (current, others) = sessions.partition { SessionWords.isCurrent(it) }
+    for (session in current) parts.add(row(session, first = true))
+    // «Завершить все другие сеансы» sits between this device and the other sessions.
+    val endOthers = SettingsButton(context, "Завершить все другие сеансы", SettingsButton.Kind.DANGER, icon = "log-out-outline")
+    endOthers.isEnabled = !busy && others.isNotEmpty()
+    endOthers.onPress = { askToEndOthers() }
+    parts.add(endOthers)
+    var otherLabel: View? = null
+    if (others.isNotEmpty()) { otherLabel = SettingsLook.sectionLabel(context, "Другие устройства"); parts.add(otherLabel) }
+    others.forEachIndexed { index, session -> parts.add(row(session, first = index == 0)) }
+    if (sessions.isEmpty() && !loading) parts.add(context.words("Действующие сеансы не найдены.", 13f, Theme.muted))
+    if (loading && status != null) parts.add(spinner())
+    parts.add(SettingsLook.para(context, "Если ты видишь вход, которого не делал, заверши его и смени пароль. IP-адрес показан как есть, местоположение по нему не определяется.", 11f, Theme.subtle, line = 16f))
+    val card = SettingsLook.glassCard(context, parts)
+    // «Другие устройства» (a SectionLabel) keeps its 13 of margin under it on top of the card's gap.
+    otherLabel?.let { label ->
+      val index = card.indexOfChild(label)
+      if (index >= 0 && index + 1 < card.childCount) (card.getChildAt(index + 1).layoutParams as? LinearLayout.LayoutParams)?.let { it.topMargin += context.px(13f) }
+    }
+    return card
+  }
+
+  private fun row(session: Map<String, Any?>, first: Boolean): View {
+    val current = SessionWords.isCurrent(session)
+    val made = SessionRow(context, session, plain = true, first = first)
+    made.isEnabled = !busy
+    made.contentDescription = "Сеанс: " + SessionWords.loginLabel(session) + (if (current) ", это устройство" else "") + ". Подробности"
+    made.onPress = { open(SessionDetailScreen(context, session) { detail -> end(session, detail) }) }
+    return made
+  }
+
+  private fun askToEndOthers() {
+    if (busy) return
+    confirm("Завершить все другие сеансы?", "Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.", "Завершить") { endOthers() }
+  }
+
+  private fun endOthers() {
+    if (busy) return
+    busy = true; failure = ""; notice = ""
+    fill()
+    account.accountCall("revokeOtherSessions", emptyList()) { result ->
+      busy = false
+      if (result.isSuccess) { notice = "Все другие сеансы завершены."; load() }
+      else { failure = result.failureWords("Не удалось завершить сеанс."); fill() }
+    }
+  }
+
+  /** Ends one session, asked from its page of details. */
+  private fun end(session: Map<String, Any?>, detail: SessionDetailScreen) {
+    val id = session["id"] as? String
+    if (busy || id == null) return
+    val current = SessionWords.isCurrent(session)
+    busy = true; failure = ""; notice = ""
+    detail.setBusy(true)
+    account.accountCall("revokeSession", listOf(id)) { result ->
+      busy = false
+      detail.setBusy(false)
+      if (result.isSuccess) {
+        if (current) return@accountCall closeAccount(account.sessionEndedHere("Сеанс на этом устройстве завершён. Войди снова, чтобы продолжить."))
+        notice = "Выбранный сеанс завершён."
+        detail.goBack()
+        load()
+      } else {
+        failure = result.failureWords("Не удалось завершить сеанс.")
+        detail.goBack()
+        fill()
+      }
+    }
+  }
+
+  // AccountZone.tsx — «Заблокированные» and «Удалить аккаунт»
+
+  private fun blockedCard(): View {
+    val parts = ArrayList<View>()
+    parts.add(SettingsLook.sectionLabel(context, "Заблокированные"))
+    val people = blocked
+    when {
+      people == null -> parts.add(spinner())
+      people.isEmpty() -> parts.add(context.words("Никого нет. Заблокировать можно в профиле собеседника через «⋯».", 13f, Theme.muted))
+      else -> for (user in people) parts.add(person(user))
+    }
+    return SettingsLook.glassCard(context, parts, gap = 12f, labelled = true)
+  }
+
+  /** One blocked person: the avatar 40, 12 to the name (15 SemiBold) and @username (12, `muted`), «Разблокировать» (14
+   *  SemiBold, the accent) at the right. */
+  private fun person(user: Map<String, Any?>): View {
+    val id = user["id"] as? String ?: ""
+    val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    val ball = SettingsAvatar(context)
+    ball.show(user, account.base)
+    row.addView(ball, LinearLayout.LayoutParams(context.px(40f), context.px(40f)).apply { rightMargin = context.px(12f) })
+    val name = context.words(user["displayName"] as? String ?: "", 15f, Theme.text, 600).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+    val handle = context.words("@" + (user["username"] as? String ?: ""), 12f, Theme.muted).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+    row.addView(stacked(context, listOf(name, handle), 0f), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    val free = context.words("Разблокировать", 14f, Theme.accent, 600)
+    free.isEnabled = unblocking.isEmpty()
+    free.isClickable = true
+    free.isFocusable = true
+    free.setOnClickListener { unblock(id) }
+    row.addView(free, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(12f) })
+    return row
+  }
+
+  private fun unblock(id: String) {
+    if (unblocking.isNotEmpty() || id.isEmpty()) return
+    unblocking = id
+    account.accountCall("unblock", listOf(id)) { result ->
+      unblocking = ""
+      // The reference: on a failure the row stays.
+      if (result.isSuccess) blocked = blocked.orEmpty().filter { it["id"] as? String != id }
+      fill()
+    }
+  }
+
+  /** «Удалить аккаунт»: a card (padding 6) holding one row — padding 14, radius 22, `dangerBg` under the finger,
+   *  trash-outline 20 and the words (15 SemiBold) in `danger`, 12 apart. */
+  private fun deleteCard(confirmationConfigured: Boolean): View {
+    val row = object : LinearLayout(context) {
+      override fun setPressed(pressed: Boolean) {
+        super.setPressed(pressed)
+        background = if (pressed) context.plate(ThemeStore.look.dangerBg, 22f) else null
+      }
+    }
+    row.orientation = LinearLayout.HORIZONTAL
+    row.gravity = Gravity.CENTER_VERTICAL
+    row.setPadding(context.px(14f), context.px(14f), context.px(14f), context.px(14f))
+    row.addView(SymbolView(context, "ion:trash-outline", 20f, Theme.danger), LinearLayout.LayoutParams(context.px(20f), context.px(20f)).apply { rightMargin = context.px(12f) })
+    row.addView(context.words("Удалить аккаунт", 15f, Theme.danger, 600))
+    row.isClickable = true
+    row.isFocusable = true
+    row.contentDescription = "Удалить аккаунт"
+    row.setOnClickListener { open(DeleteAccountScreen(context, account, confirmationConfigured)) }
+    return SettingsLook.glassCard(context, listOf(row), padding = 6f, gap = 0f)
   }
 
   private fun openForm(form: SecretChangeScreen.Form, confirmationConfigured: Boolean) {

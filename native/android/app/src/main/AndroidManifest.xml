@@ -46,6 +46,10 @@
          screen (push/IncomingCall.kt, the reference's modules/linea-call). On Android 14+ the person can switch this off
          in the app's notification settings. POST_NOTIFICATIONS above is asked once the account is open (push/Push.kt). -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Push/Calls: the ongoing-call foreground service (push/OngoingCall.kt, the reference's linea-call CallService): type
+         microphone — Android 11+ silences the microphone of an app in the background unless such a service runs. Given
+         with the install; the service starts only once the microphone permission was given for a call. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
@@ -170,6 +174,12 @@
         <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon" />
         <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_icon_color" />
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="messages" />
+        <!-- Push/Calls: the call keeps going with the app in the background, «Имя · Звонок · 0:42» with «Завершить звонок»
+             (push/OngoingCall.kt). Not exported: only the app starts it. -->
+        <service
+            android:name=".push.OngoingCallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
         <!-- Push: «Отклонить» on the ringing notification of an incoming call (push/IncomingCall.kt). Not exported. -->
         <receiver
             android:name=".push.IncomingCallReceiver"

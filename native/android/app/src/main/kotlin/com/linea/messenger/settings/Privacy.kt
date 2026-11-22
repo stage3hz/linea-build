@@ -113,6 +113,9 @@ class SettingsPrivacyModel(val account: SettingsAccount) { // Security: the list
 class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(context, "Конфиденциальность") {
   private val model = SettingsPrivacyModel(account)
   private val changed: () -> Unit = { fill() }
+  /** The inline call lists, kept while «Кто может звонить» stays the same. */
+  private var callLists: CallRulesInline? = null
+  private var callListsMode = ""
 
   private class Choice(val value: String, val label: String, val hint: String)
 
@@ -180,13 +183,20 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
       chosen = callIndex, enabled = !saving, spoken = "Звонки") { index ->
       if (index != callIndex) model.change(mapOf("calls" to callModes[index].value))
     }
-    // Security: the lists «Разрешить» and «Никогда» (settings/PrivacyLists.kt).
-    val callLists = SettingsRow(context, symbol = "ion:people-outline", label = if (model.word("calls", "everyone") == "everyone") "Никогда" else "Разрешить и никогда")
-    callLists.onPress = { open(CallRulesScreen(context, model.account)) }
-    addGroup("Звонки", listOf(callBox, callLists))
+    // CallPrivacy.tsx: the lists «Разрешить» and «Никогда» right under the choice, in the same card (12 under the segments,
+    // 14 at the sides and below); kept while the choice stays the same.
+    val calls = model.word("calls", "everyone")
+    val lists = callLists?.takeIf { callListsMode == calls } ?: CallRulesInline(context, model.account, calls).also { callLists = it; callListsMode = calls }
+    (lists.parent as? android.view.ViewGroup)?.removeView(lists)
+    val callCard = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+    callCard.addView(callBox)
+    callCard.addView(SettingsLook.inset(lists, side = 14f, bottom = 14f), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -context.px(2f) })
+    addGroup("Звонки", listOf(callCard))
 
-    // LinkPreview: kept on this phone, not on the server (linkpreview/LinkSettings.kt).
-    addGroup("Ссылки", listOf(com.linea.messenger.linkpreview.LinkSettings.row(context)))
+    // «На этом устройстве» — the typing notice (SettingsScreen.tsx; DevicePreferences `sendTyping`).
+    val typing = SettingsSwitchRow(context, "Показывать «печатает…»", "Собеседник видит, что ты набираешь сообщение.", DevicePreferences.flag("sendTyping") ?: true)
+    typing.onChange = { value -> DevicePreferences.set(mapOf("sendTyping" to value)) }
+    addGroup("На этом устройстве", listOf(typing))
 
     add(SettingsLook.foot(context, "Содержимое сообщений, ответы, реакции, правки и закрепления шифруются на устройстве. Сервер видит только служебные данные: кто, кому и когда."), 16f)
   }

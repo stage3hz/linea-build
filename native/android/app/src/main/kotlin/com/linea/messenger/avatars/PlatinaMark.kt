@@ -35,7 +35,8 @@ object PlatinaMetal {
   fun sheen(seconds: Double, duration: Double, width: Float): Float {
     val k = (seconds % (duration * 2)) / duration
     val p = if (k <= 1) k else 2 - k
-    val eased = -(cos(Math.PI * p) - 1) / 2
+    // Easing.inOut(Easing.quad) of the reference (easeInOutQuad).
+    val eased = if (p < 0.5) 2 * p * p else 1 - Math.pow(-2 * p + 2, 2.0) / 2
     return (-width * 1.5f * eased).toFloat()
   }
 }
@@ -249,7 +250,8 @@ class PlatinaButton(context: Context, title: String, size: Float = 16f, private 
 
   override fun setPressed(pressed: Boolean) {
     super.setPressed(pressed)
-    animate().scaleX(if (pressed) 0.96f else 1f).scaleY(if (pressed) 0.96f else 1f).setDuration(120).start()
+    // The reference's Pressable style: 0.96 while pressed, at once.
+    scaleX = if (pressed) 0.96f else 1f; scaleY = scaleX
   }
 
   override fun onDraw(canvas: Canvas) {

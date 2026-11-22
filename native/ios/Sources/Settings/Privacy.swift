@@ -107,6 +107,9 @@ final class SettingsPrivacyModel {
 /// (The previous app: `PrivacySection` of `mobile/src/SettingsScreen.tsx`.)
 final class PrivacyViewController: SettingsPage {
     private let model: SettingsPrivacyModel
+    /// The inline call lists, kept while «Кто может звонить» stays the same (a rebuild of the page does not reload them).
+    private var callLists: CallRulesInline?
+    private var callListsMode = ""
 
     private static let audiences: [(value: String, label: String, hint: String)] = [
         ("friends", "Друзья", "Истории и записи видят только твои друзья."),
@@ -189,13 +192,18 @@ final class PrivacyViewController: SettingsPage {
             guard index != callIndex else { return }
             model.change(["calls": PrivacyViewController.callModes[index].value])
         }
-        // Security: the lists «Разрешить» and «Никогда» (Settings/PrivacyLists.swift).
-        let callLists = SettingsRow(symbol: "ion:people-outline", label: calls == "everyone" ? "Никогда" : "Разрешить и никогда")
-        callLists.onPress = { [weak self] in self?.open(CallRulesViewController(messenger: model.messenger)) }
-        addGroup("Звонки", rows: [callBox, callLists])
-
-        // LinkPreview: kept on this phone, not on the server (Sources/LinkPreview/LinkSettings.swift).
-        addGroup("Ссылки", rows: [LinkSettings.row()])
+        // CallPrivacy.tsx: the lists «Разрешить» and «Никогда» right under the choice, in the same card (padding 14, 12
+        // between the parts) — the choice box keeps its 14, the lists follow 12 under the segments.
+        let lists: CallRulesInline
+        if let kept = callLists, callListsMode == calls { lists = kept } else {
+            lists = CallRulesInline(messenger: model.messenger, mode: calls)
+            callLists = lists
+            callListsMode = calls
+        }
+        lists.removeFromSuperview()
+        let callCard = UIStackView(arrangedSubviews: [callBox, SettingsLook.inset(lists, top: -2, side: 14, bottom: 14)])
+        callCard.axis = .vertical
+        addGroup("Звонки", rows: [callCard])
 
         // Profile: «На этом устройстве» — the typing notice (SettingsScreen.tsx; DevicePreferences `sendTyping`, which
         // ChatActions reads before telling the other side).

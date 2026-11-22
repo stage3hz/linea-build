@@ -49,6 +49,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    com.linea.messenger.storage.OldAppSettings.importOnce(this) // Storage: the previous app's choices, once, before anything reads them
     Account.start(this)
     com.linea.messenger.design.Fonts.install(this) // Fonts: Montserrat and Unbounded, as the reference (design/Fonts.kt)
     com.linea.messenger.design.IonIcon.install(this) // the reference's icon set (design/IonIcon.kt)
@@ -63,6 +64,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     stack.onDepthChange = { syncBack() }
     com.linea.messenger.calls.Calls.changed.watch(callWatch)
     com.linea.messenger.calls.Calls.changed.watch(overLockWatch) // Push
+    com.linea.messenger.push.OngoingCall.install(this) // Push/Calls: the ongoing-call service follows the call (push/OngoingCall.kt)
     start()
     // Effects / Security: the snow, the trail, the rime, the palette's page; the code lock (effects/EffectsHost.kt, security/LockGate.kt).
     com.linea.messenger.effects.EffectsHost.attach(this)
@@ -122,6 +124,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.profile.BirthdayReminders.tapped(intent)
     com.linea.messenger.links.DeepLinks.open(this, intent) // Links: an invitation opened while the app runs
     com.linea.messenger.push.IncomingCall.opened(this, intent) // Push: the ringing notification of a call
+    com.linea.messenger.push.OngoingCall.opened(intent) // Push/Calls: the ongoing-call notification opens the call screen
     com.linea.messenger.push.Push.tapped(intent) // Push: a tapped notification opens its chat
   }
 
@@ -139,6 +142,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.profile.BirthdayReminders.tapped(intent) // Profile: opened by a birthday reminder
     com.linea.messenger.links.DeepLinks.open(this, intent) // Links: opened by an invitation (it waits for the account)
     com.linea.messenger.push.IncomingCall.opened(this, intent) // Push: opened by the ringing notification of a call
+    com.linea.messenger.push.OngoingCall.opened(intent) // Push/Calls: the ongoing-call notification opens the call screen
     com.linea.messenger.push.Push.tapped(intent) // Push: opened by a tapped notification (it waits for the account)
     val token = Account.token ?: return showAuth()
     Account.cachedUser?.let { return open(token, it) }

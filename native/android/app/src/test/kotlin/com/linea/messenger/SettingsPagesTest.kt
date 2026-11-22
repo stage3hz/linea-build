@@ -162,21 +162,18 @@ class SettingsPagesTest {
     // D, M: no big «Настройки» (the profile head is the top) and no «Публикации и истории» row, as in the reference's `Root`.
     assertFalse(texts().contains("Настройки"))
     assertFalse(texts().contains("Публикации и истории"))
-    has("Мария Орлова", "@maria", "Мой профиль", "Конфиденциальность", "Безопасность", "Активные сеансы", "Заблокированные", "Помощь и поддержка", "О приложении", "Выйти из аккаунта")
-    assertTrue(texts().any { it.startsWith("INVIZENT ") && it.contains(" · ядро ") })
+    // The reference's rows: one «Безопасность и устройства» (sessions and blocked people are inside), no «О приложении».
+    has("Мария Орлова", "@maria", "Мой профиль", "Уведомления и звуки", "Оформление", "Папки с чатами", "Энергосбережение и анимации", "Язык",
+      "Конфиденциальность", "Безопасность и устройства", "Данные и память", "Помощь и поддержка", "Выйти из аккаунта")
+    hasNot("Активные сеансы", "Заблокированные", "О приложении")
+    // «Чёрная»: the technical line of the reference.
+    assertTrue(texts().any { it.startsWith("INVIZENT ") && it.endsWith(" · e2ee · signal") })
     // Coming to the eyes, the section asks for the profile again.
     assertTrue(account.refreshed >= 1)
     shot("30-settings-root")
     // A new name from the server is shown at once.
     account.keepOwnProfile(account.profile + mapOf("displayName" to "Маша"))
     has("Маша"); hasNot("Мария Орлова")
-    press("О приложении")
-    assertEquals("AboutScreen", topName)
-    has("О приложении", "Приложение", "Сборка", "Ядро")
-    assertTrue(texts().any { it.startsWith("Инвиз ") && it.endsWith(" · переписка защищена сквозным шифрованием") })
-    shot("44-settings-about")
-    find(top) { it.contentDescription == "Назад" }!!.performClick(); idle()
-    assertEquals("SettingsScreen", topName)
   }
 
   @Test fun everyLaunchPageOpens() {
@@ -227,13 +224,14 @@ class SettingsPagesTest {
     assertEquals("Маша Орлова", account.profile["displayName"])
 
     // The gender is chosen from three; the words say what it is for.
+    // The reference's Sheet «Пол»: SheetActions with checkmark-circle on the chosen one.
     press("Пол")
-    val choice = dialog()
-    val words = ArrayList<String>()
-    fun gather(view: View) { if (view is TextView) words.add(view.text.toString()); if (view is ViewGroup) for (index in 0 until view.childCount) gather(view.getChildAt(index)) }
-    gather(choice.window!!.decorView)
-    assertTrue(words.toString(), words.containsAll(listOf("Пол", "Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", "Мужской", "Женский", "Не указан", "Отмена")))
-    find(choice.window!!.decorView) { it is TextView && it.text.toString() == "Не указан" }!!.performClick(); idle()
+    val choice = com.linea.messenger.chatactions.ChoiceSheet.last!!.get()!!
+    assertEquals("Пол", choice.heading)
+    assertEquals("Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", choice.note)
+    assertEquals(listOf("Мужской", "Женский", "Не указан"), choice.choices.map { it.label })
+    assertEquals(listOf("ion:ellipse-outline", "ion:checkmark-circle", "ion:ellipse-outline"), choice.choices.map { it.symbol })
+    choice.choices[2].run(); idle()
     has("Не указан"); hasNot("Профиль сохранён.")
     account.refuse("profile", "Слишком часто.")
     press("Сохранить")
@@ -365,7 +363,7 @@ class SettingsPagesTest {
   @Test fun aSecretIsChangedWithTheCurrentOnesAndEverythingSignsOut() {
     everythingAnswers()
     launch()
-    press("Безопасность")
+    press("Безопасность и устройства")
     assertEquals("SecurityScreen", topName)
     has("Твой доступ.\nТвои устройства.", "ПАРОЛЬ", "Изменить пароль", "ПОДТВЕРЖДЕНИЕ ВХОДА", "Слово подтверждения", "Настроено", "Изменить слово подтверждения",
       "ВОССТАНОВЛЕНИЕ ДОСТУПА", "Слово восстановления", "Пока не настроено", "Настроить слово восстановления", "3 попытки → 24 часа ожидания", "Удалить аккаунт",
@@ -431,7 +429,7 @@ class SettingsPagesTest {
   @Test fun theAccountIsDeletedOnlyWithItsSecrets() {
     everythingAnswers()
     launch()
-    press("Безопасность"); press("Удалить аккаунт")
+    press("Безопасность и устройства"); press("Удалить аккаунт")
     assertEquals("DeleteAccountScreen", topName)
     has("Удалить аккаунт навсегда?", "Удалить навсегда")
     press("Удалить навсегда"); has("Введи пароль.")
@@ -453,7 +451,7 @@ class SettingsPagesTest {
   @Test fun aSessionThatEndedClosesTheAccount() {
     account.refuse("security", "Войдите заново.", 401)
     launch()
-    press("Безопасность")
+    press("Безопасность и устройства")
     assertEquals("Сессия завершилась. Войди в аккаунт снова.", account.endedWith)
     assertEquals("AuthScreen", topName)
   }
@@ -461,8 +459,9 @@ class SettingsPagesTest {
   @Test fun sessionsAreListedAndEnded() {
     everythingAnswers()
     launch()
-    press("Активные сеансы")
-    assertEquals("SessionsScreen", topName)
+    // The sessions are on «Безопасность и устройства» itself, as in the reference's SecurityScreen.
+    press("Безопасность и устройства")
+    assertEquals("SecurityScreen", topName)
     val shown = texts()
     // This device first.
     assertTrue(shown.indexOf("Google Pixel 9") in 0 until shown.indexOf("iPhone 16"))
@@ -476,7 +475,7 @@ class SettingsPagesTest {
     account.answer("sessions", mapOf("sessions" to sessions.filter { it["id"] == "s-here" }))
     press("Завершить сеанс")
     assertEquals(listOf("s-old"), account.last("revokeSession"))
-    assertEquals("SessionsScreen", topName)
+    assertEquals("SecurityScreen", topName)
     has("Выбранный сеанс завершён.")
     hasNot("iPhone 16", "ДРУГИЕ УСТРОЙСТВА")
     assertFalse(enabled("Завершить все другие сеансы"))
@@ -493,7 +492,7 @@ class SettingsPagesTest {
   @Test fun allTheOtherSessionsAreEndedAfterAQuestion() {
     everythingAnswers()
     launch()
-    press("Активные сеансы")
+    press("Безопасность и устройства")
     press("Завершить все другие сеансы")
     assertEquals("Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.", dialogWords())
     assertEquals(0, account.count("revokeOtherSessions"))
@@ -512,13 +511,15 @@ class SettingsPagesTest {
   @Test fun aBlockedPersonIsLetBack() {
     everythingAnswers()
     launch()
-    press("Заблокированные")
-    assertEquals("BlockedScreen", topName)
-    has("Лев Никитин", "@lev", "Разблокировать")
+    // The blocked people are on «Безопасность и устройства» itself (the reference's AccountZone).
+    press("Безопасность и устройства")
+    assertEquals("SecurityScreen", topName)
+    has("ЗАБЛОКИРОВАННЫЕ", "Лев Никитин", "@lev", "Разблокировать")
     account.refuse("unblock", "Не удалось.")
     press("Разблокировать")
     assertEquals(listOf("u7"), account.last("unblock"))
-    has("Не удалось.", "Лев Никитин")
+    // The reference: on a failure the row stays.
+    has("Лев Никитин")
     account.answer("unblock", emptyMap())
     press("Разблокировать")
     has("Никого нет. Заблокировать можно в профиле собеседника через «⋯».")
@@ -550,7 +551,7 @@ class SettingsPagesTest {
     assertNotNull(section)
     val words = texts(section!!)
     assertTrue(words.toString(), words.containsAll(listOf("Мария Орлова", "@maria", "Мой профиль", "Выйти из аккаунта")))
-    for (row in listOf("Мой профиль", "Конфиденциальность", "Безопасность", "Активные сеансы", "Заблокированные", "Помощь и поддержка", "Выйти из аккаунта")) {
+    for (row in listOf("Мой профиль", "Конфиденциальность", "Безопасность и устройства", "Данные и память", "Помощь и поддержка", "Выйти из аккаунта")) {
       var target: View? = find(section) { it is TextView && it.text.toString() == row }
       while (target != null && !target.isClickable) target = target.parent as? View
       target!!.performClick(); idle()

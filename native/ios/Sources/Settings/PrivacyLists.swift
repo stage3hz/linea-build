@@ -393,3 +393,201 @@ final class CallRulesViewController: SettingsPage, UITextFieldDelegate {
         }
     }
 }
+
+/// CallPrivacy.tsx `RuleList`s, inline under «Кто может звонить» on «Конфиденциальность»: «Разрешить» (unless everyone may
+/// call) and «Никогда», each a caption (11 Bold, letter spacing 1.1, `muted`, «· n»), a field (at least 42, radius 13, a
+/// 1 `border`, «@» 15, the login 15, the add button 36 of `accentSoft`, radius 11, add 20), an error (12, `danger`) and
+/// the people (avatar 32, 10 to the name 14 and @login 12, close-circle 20 at the right); 8 between the parts, 12
+/// between the lists. The lists are the server's (`callRules`).
+final class CallRulesInline: UIView, UITextFieldDelegate {
+    private let messenger: Messenger
+    private let mode: String
+    private let stack = UIStackView()
+    private var rules: [String: Any]?
+    private var failure = ""
+    private var fields: [String: UITextField] = [:]
+    private var errors: [String: String] = [:]
+    private var busy = false
+    /// Called after the block changed its height (the page relayouts by itself; kept for a host that scrolls).
+    var onChange: (() -> Void)?
+
+    init(messenger: Messenger, mode: String) {
+        self.messenger = messenger
+        self.mode = mode
+        super.init(frame: .zero)
+        stack.axis = .vertical
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: topAnchor), stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor), stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+        ])
+        load()
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    private func load() {
+        failure = ""
+        fill()
+        messenger.accountCall("callRules", []) { [weak self] (result: Result<[String: Any], ServerError>) -> Void in
+            guard let self else { return }
+            switch result {
+            case .success(let body): self.rules = body
+            case .failure(let error): self.failure = error.words.isEmpty ? "Не удалось загрузить списки." : error.words
+            }
+            self.fill()
+        }
+    }
+
+    private func fill() {
+        for old in stack.arrangedSubviews {
+            stack.removeArrangedSubview(old)
+            old.removeFromSuperview()
+        }
+        if !failure.isEmpty { stack.addArrangedSubview(SettingsNotice(failure, error: true, onRetry: { [weak self] in self?.load() })) }
+        guard let rules else {
+            if failure.isEmpty {
+                let spinner = UIActivityIndicatorView(style: .medium)
+                spinner.color = Theme.accent
+                spinner.startAnimating()
+                stack.addArrangedSubview(spinner)
+            }
+            onChange?()
+            return
+        }
+        if mode != "everyone" { stack.addArrangedSubview(list("Разрешить", rule: "allow", users: rules["allow"] as? [[String: Any]] ?? [])) }
+        stack.addArrangedSubview(list("Никогда", rule: "deny", users: rules["deny"] as? [[String: Any]] ?? []))
+        onChange?()
+    }
+
+    private func list(_ title: String, rule: String, users: [[String: Any]]) -> UIView {
+        let caption = UILabel()
+        caption.attributedText = NSAttributedString(string: title.uppercased() + (users.isEmpty ? "" : " · \(users.count)"), attributes: [.kern: 1.1, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
+        let field = fields[rule] ?? UITextField()
+        fields[rule] = field
+        field.attributedPlaceholder = NSAttributedString(string: "логин", attributes: [.foregroundColor: Theme.muted])
+        field.font = .systemFont(ofSize: 15)
+        field.textColor = Theme.text
+        field.tintColor = Theme.accent
+        field.autocapitalizationType = .none
+        field.autocorrectionType = .no
+        field.returnKeyType = .done
+        field.accessibilityLabel = "Добавить в список «" + title + "» по логину"
+        field.delegate = self
+        let at = SettingsLook.words("@", size: 15, color: Theme.muted)
+        at.setContentHuggingPriority(.required, for: .horizontal)
+        let plus = UIButton(type: .system)
+        plus.setImage(IonIcon.image("add", size: 20), for: .normal)
+        plus.tintColor = Theme.accent
+        plus.backgroundColor = ThemeStore.look.accentSoft
+        plus.layer.cornerRadius = 11
+        plus.layer.cornerCurve = .continuous
+        plus.accessibilityLabel = "Добавить в «" + title + "»"
+        plus.alpha = busy ? 0.6 : 1
+        plus.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.addLogin(rule) }, for: .touchUpInside)
+        plus.translatesAutoresizingMaskIntoConstraints = false
+        plus.widthAnchor.constraint(equalToConstant: 36).isActive = true
+        plus.heightAnchor.constraint(equalToConstant: 36).isActive = true
+        let line = UIStackView(arrangedSubviews: [at, field, plus])
+        line.axis = .horizontal
+        line.alignment = .center
+        line.spacing = 8
+        let box = SettingsLook.inset(line, top: 3, side: 0, bottom: 3)
+        let frame = UIView()
+        frame.layer.cornerRadius = 13
+        frame.layer.cornerCurve = .continuous
+        frame.layer.borderWidth = 1
+        frame.layer.borderColor = ThemeStore.look.border.cgColor
+        box.translatesAutoresizingMaskIntoConstraints = false
+        frame.addSubview(box)
+        NSLayoutConstraint.activate([
+            box.topAnchor.constraint(equalTo: frame.topAnchor), box.bottomAnchor.constraint(equalTo: frame.bottomAnchor),
+            box.leadingAnchor.constraint(equalTo: frame.leadingAnchor, constant: 12), box.trailingAnchor.constraint(equalTo: frame.trailingAnchor, constant: -4),
+            frame.heightAnchor.constraint(greaterThanOrEqualToConstant: 42),
+        ])
+        var parts: [UIView] = [caption, frame]
+        if let problem = errors[rule], !problem.isEmpty { parts.append(SettingsLook.words(problem, size: 12, color: Theme.danger)) }
+        for user in users {
+            guard let id = user["id"] as? String else { continue }
+            parts.append(person(user, title: title) { [weak self] in self?.remove(id, rule: rule) })
+        }
+        let list = UIStackView(arrangedSubviews: parts)
+        list.axis = .vertical
+        list.spacing = 8
+        return list
+    }
+
+    private func person(_ user: [String: Any], title: String, remove: @escaping () -> Void) -> UIView {
+        let ball = SettingsAvatar(frame: CGRect(x: 0, y: 0, width: 32, height: 32))
+        ball.show(user, base: messenger.server.endpoint)
+        ball.translatesAutoresizingMaskIntoConstraints = false
+        ball.widthAnchor.constraint(equalToConstant: 32).isActive = true
+        ball.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        let name = SettingsLook.words(user["displayName"] as? String ?? "", size: 14, color: Theme.text)
+        name.numberOfLines = 1
+        let handle = SettingsLook.words("@" + (user["username"] as? String ?? ""), size: 12, color: Theme.muted)
+        handle.numberOfLines = 1
+        let texts = UIStackView(arrangedSubviews: [name, handle])
+        texts.axis = .vertical
+        texts.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        let close = UIButton(type: .system)
+        close.setImage(IonIcon.image("close-circle", size: 20), for: .normal)
+        close.tintColor = Theme.muted
+        close.accessibilityLabel = "Убрать @" + (user["username"] as? String ?? "") + " из «" + title + "»"
+        close.setContentHuggingPriority(.required, for: .horizontal)
+        close.addAction(UIAction { (_: UIAction) -> Void in remove() }, for: .touchUpInside)
+        let row = UIStackView(arrangedSubviews: [ball, texts, close])
+        row.axis = .horizontal
+        row.alignment = .center
+        row.spacing = 10
+        return row
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        for (rule, field) in fields where field === textField { addLogin(rule) }
+        return true
+    }
+
+    private func addLogin(_ rule: String) {
+        var login = (fields[rule]?.text ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        if login.hasPrefix("@") { login.removeFirst() }
+        guard login.count >= 2, !busy else { return }
+        busy = true
+        errors[rule] = ""
+        messenger.accountCall("users", ["@" + login]) { [weak self] (result: Result<[String: Any], ServerError>) -> Void in
+            guard let self else { return }
+            let users = (try? result.get())?["users"] as? [[String: Any]] ?? []
+            guard let person = users.first(where: { (user: [String: Any]) -> Bool in (user["username"] as? String ?? "").lowercased() == login }), let id = person["id"] as? String else {
+                self.busy = false
+                if case .failure(let error) = result { self.errors[rule] = error.words } else { self.errors[rule] = "Пользователь @" + login + " не найден." }
+                self.fill()
+                return
+            }
+            self.messenger.accountCall("setCallRule", [id, rule]) { [weak self] (answer: Result<[String: Any], ServerError>) -> Void in
+                guard let self else { return }
+                self.busy = false
+                switch answer {
+                case .success(let body):
+                    self.rules = body
+                    self.fields[rule]?.text = ""
+                case .failure(let error):
+                    self.errors[rule] = error.words.isEmpty ? "Не удалось добавить." : error.words
+                }
+                self.fill()
+            }
+        }
+    }
+
+    private func remove(_ id: String, rule: String) {
+        messenger.accountCall("removeCallRule", [id]) { [weak self] (result: Result<[String: Any], ServerError>) -> Void in
+            guard let self else { return }
+            switch result {
+            case .success(let body): self.rules = body
+            case .failure(let error): self.errors[rule] = error.words.isEmpty ? "Не удалось убрать." : error.words
+            }
+            self.fill()
+        }
+    }
+}

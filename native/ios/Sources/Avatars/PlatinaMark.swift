@@ -62,7 +62,8 @@ final class SheenLayerView: UIView {
         slide.duration = duration
         slide.autoreverses = true
         slide.repeatCount = .infinity
-        slide.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        // Easing.inOut(Easing.quad) of the reference (easeInOutQuad), not the system's ease-in-ease-out.
+        slide.timingFunction = CAMediaTimingFunction(controlPoints: 0.455, 0.03, 0.515, 0.955)
         slide.isRemovedOnCompletion = false
         gradient.add(slide, forKey: "sheen")
     }
@@ -311,7 +312,8 @@ final class PlatinaButton: UIControl {
     }
 
     override var isHighlighted: Bool {
-        didSet { UIView.animate(withDuration: 0.12) { self.transform = self.isHighlighted ? CGAffineTransform(scaleX: 0.96, y: 0.96) : .identity } }
+        // The reference's Pressable style: 0.96 while pressed, at once (no animation of its own).
+        didSet { transform = isHighlighted ? CGAffineTransform(scaleX: 0.96, y: 0.96) : .identity }
     }
 
     override func layoutSubviews() {

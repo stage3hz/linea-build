@@ -3,6 +3,7 @@ import UIKit
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        OldAppSettings.importOnce() // Storage: the previous app's choices, once, before anything reads its settings (Storage/OldAppSettings.swift)
         Typography.install() // Fonts: Montserrat and Unbounded, as the reference (Design/Typography.swift)
         Push.shared.install() // Push: the notification centre's delegate before launch ends, so a tap that started the app is kept (Shell/Push.swift)
         return true

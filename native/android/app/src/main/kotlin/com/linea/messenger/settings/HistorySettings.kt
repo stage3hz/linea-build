@@ -201,13 +201,24 @@ class RestoreHistoryScreen(context: Context, private val messenger: Messenger) :
   private var busy = false
 
   override fun build() {
-    add(SettingsLook.foot(context, "Введи ключ резервной копии с другого твоего устройства (9 групп по 4 символа). Попыток — 5 в час."), 4f)
+    add(SettingsLook.foot(context, "Введи ключ резервной копии с другого твоего устройства (9 групп по 4 символа) или отсканируй его QR-код. Попыток — 5 в час."), 4f)
     field.input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
     field.onReturn = { restore() }
     add(field, 16f)
     add(noticeBox, 14f)
     restoreButton.onPress = { restore() }
     add(restoreButton, 14f)
+    // The camera opens only after this tap, with the system's question if it was never asked.
+    add(SettingsButton(context, "Сканировать QR-код", SettingsButton.Kind.SECONDARY, icon = "qr-code-outline").apply { onPress = { scan() } }, 10f)
+  }
+
+  private fun scan() {
+    if (busy) return
+    val activity = context as? Activity ?: return
+    com.linea.messenger.voice.Permits.ask(activity, listOf(android.Manifest.permission.CAMERA)) { granted ->
+      if (!granted) return@ask show("Нет доступа к камере. Введи ключ вручную или разреши камеру в настройках.", true)
+      open(ScanKeyScreen(context) { text -> field.input.setText(text); restore() })
+    }
   }
 
   private fun show(words: String, error: Boolean) {
@@ -231,5 +242,104 @@ class RestoreHistoryScreen(context: Context, private val messenger: Messenger) :
         messenger.noteChanged(null)
       } else show(CryptoService.failure(result)?.words?.ifEmpty { null } ?: "Не удалось восстановить переписки.", true)
     }
+  }
+}
+
+/** The back camera reading one QR code (ML Kit barcode scanning through Google Play services, on the phone: no frame
+ *  leaves it). Goes back with the text as soon as one is read. */
+@SuppressLint("ViewConstructor")
+class ScanKeyScreen(context: Context, private val found: (String) -> Unit) : SettingsPage(context, "QR-код ключа") {
+  // The picture in a TextureView (as the round video's single camera does): CameraX's PreviewView would bring media3
+  // and guava along. The camera already turns the frames upright for a texture; only the aspect is corrected here.
+  private val preview = android.view.TextureView(context)
+  private var frame: android.util.Size? = null
+  private val owner = object : androidx.lifecycle.LifecycleOwner {
+    val registry = androidx.lifecycle.LifecycleRegistry(this)
+    override fun getLifecycle(): androidx.lifecycle.Lifecycle = registry
+  }
+  private val scanner = com.google.mlkit.vision.barcode.BarcodeScanning.getClient(
+    com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder().setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE).build())
+  private val worker = java.util.concurrent.Executors.newSingleThreadExecutor()
+  private val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
+  private val noticeBox = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+
+  override fun build() {
+    add(SettingsLook.foot(context, "Наведи камеру на QR-код ключа на другом твоём устройстве (Безопасность → «Переписки на новом устройстве» → «Ключ резервной копии»)."), 4f)
+    add(preview.apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, context.px(340f)) }, 14f)
+    add(noticeBox, 14f)
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    owner.registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
+    val future = try { androidx.camera.lifecycle.ProcessCameraProvider.getInstance(context) } catch (_: Throwable) { return fail() }
+    future.addListener({
+      if (!isAttachedToWindow) return@addListener
+      try {
+        val provider = future.get()
+        val shown = androidx.camera.core.Preview.Builder().build()
+        shown.setSurfaceProvider(context.mainExecutor) { request -> provide(request) }
+        val analysis = androidx.camera.core.ImageAnalysis.Builder().setBackpressureStrategy(androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
+        analysis.setAnalyzer(worker) { proxy -> analyze(proxy) }
+        provider.unbindAll()
+        provider.bindToLifecycle(owner, androidx.camera.core.CameraSelector.DEFAULT_BACK_CAMERA, shown, analysis)
+      } catch (_: Throwable) { fail() }
+    }, context.mainExecutor)
+  }
+
+  override fun onDetachedFromWindow() {
+    super.onDetachedFromWindow()
+    owner.registry.currentState = androidx.lifecycle.Lifecycle.State.DESTROYED
+    scanner.close()
+    worker.shutdown()
+  }
+
+  private fun provide(request: androidx.camera.core.SurfaceRequest) {
+    val texture = preview.surfaceTexture
+    if (texture == null) {
+      // Not laid out yet: provide it once the texture is there.
+      preview.surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(made: android.graphics.SurfaceTexture, width: Int, height: Int) = provide(request)
+        override fun onSurfaceTextureSizeChanged(made: android.graphics.SurfaceTexture, width: Int, height: Int) = fit()
+        override fun onSurfaceTextureDestroyed(made: android.graphics.SurfaceTexture): Boolean = true
+        override fun onSurfaceTextureUpdated(made: android.graphics.SurfaceTexture) {}
+      }
+      return
+    }
+    texture.setDefaultBufferSize(request.resolution.width, request.resolution.height)
+    frame = request.resolution
+    val surface = android.view.Surface(texture)
+    request.provideSurface(surface, context.mainExecutor) { surface.release() }
+    fit()
+  }
+
+  /** The frame (landscape, shown turned upright) fills the view without being stretched. */
+  private fun fit() {
+    val size = frame ?: return
+    val w = preview.width.toFloat()
+    val h = preview.height.toFloat()
+    if (w <= 0f || h <= 0f) return
+    val (bw, bh) = size.height.toFloat() to size.width.toFloat()
+    val scale = maxOf(w / bw, h / bh)
+    preview.setTransform(android.graphics.Matrix().apply { setScale(bw * scale / w, bh * scale / h, w / 2f, h / 2f) })
+  }
+
+  private fun fail() {
+    noticeBox.removeAllViews()
+    noticeBox.addView(SettingsNotice(context, "Камера недоступна. Введи ключ вручную.", error = true))
+  }
+
+  @androidx.annotation.OptIn(markerClass = [androidx.camera.core.ExperimentalGetImage::class])
+  private fun analyze(proxy: androidx.camera.core.ImageProxy) {
+    val media = proxy.image
+    if (media == null || delivered.get()) { proxy.close(); return }
+    val input = com.google.mlkit.vision.common.InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees)
+    scanner.process(input)
+      .addOnSuccessListener { codes ->
+        val text = codes.firstNotNullOfOrNull { it.rawValue } ?: return@addOnSuccessListener
+        if (!delivered.compareAndSet(false, true)) return@addOnSuccessListener
+        main.post { goBack(); found(text) }
+      }
+      .addOnCompleteListener { proxy.close() }
   }
 }
