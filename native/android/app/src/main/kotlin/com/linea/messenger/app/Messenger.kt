@@ -273,7 +273,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
         time = listTime(last["createdAt"] as? String, now, zone)
         if (last["senderId"] as? String == userId) ticks = if (peerLastRead >= ((last["id"] as? Number)?.toLong() ?: 0L)) 2 else 1
       }
-      val color = color(peer["avatarColor"] as? String)
+      val color = color(peer["avatarColor"] as? String ?: "#4B73BB") // Avatars: the reference's colour for a person without one
       val orb = orbPair(color)
       val settings = Core.map(chat["settings"])
       val avatarId = peer["avatarId"] as? String ?: ""
@@ -363,7 +363,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
 
     /** The first letters of the first two words, in capitals. */
     fun initials(name: String): String =
-      name.split(' ').filter { it.isNotEmpty() }.take(2).joinToString("") { String(Character.toChars(it.codePointAt(0))) }.uppercase()
+      // Avatars: as the reference — the first letters of the first two words, split on any white space.
+      name.split(Regex("[\\p{Z}\\s]+")).filter { it.isNotEmpty() }.take(2).joinToString("") { String(Character.toChars(it.codePointAt(0))) }.uppercase()
 
     /** `#RRGGBB` → 0xRRGGBB; the app's blue when it is not a colour. */
     fun color(hex: String?): Int {
