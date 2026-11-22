@@ -64,6 +64,7 @@ jobs:
           # A system question left open by one shot (camera for the round video, the photo library) stays on screen over
           # the following ones: the simulator answers yes beforehand. On a phone the app asks at the moment of use.
           for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+          limit 60 xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
           shot() { # name, launch arguments…
             local name="$1"; shift
             limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
@@ -303,6 +304,13 @@ jobs:
             limit 60 xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 || true
             limit 60 xcrun simctl ui "$UDID" appearance dark || true
             if limit 600 xcrun simctl install "$UDID" "$APP"; then
+              # A freshly made simulator is slow on its first launches: one launch to warm it, and the keyboard's
+              # one-time tip («Speed up your typing…») marked as already seen so it does not cover the shots.
+              limit 60 xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
+              for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.invizent.app || true; done
+              limit 240 xcrun simctl launch "$UDID" com.invizent.app -auth 1 >/dev/null 2>&1 || true
+              sleep 25
+              limit 60 xcrun simctl terminate "$UDID" com.invizent.app >/dev/null 2>&1 || true
               shot 430-auth-small-keyboard-login -auth 1 -authfocus 1 || echo "no picture: 430"
               shot 430b-auth-small-keyboard-register -auth 1 -authmode register -authfocus 1 || echo "no picture: 430b"
               shot 430c-auth-small-keyboard-profile -auth 1 -authmode profile -authfocus 2 || echo "no picture: 430c"
