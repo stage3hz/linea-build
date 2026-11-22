@@ -269,6 +269,8 @@ final class AuthViewController: UIViewController {
         themePill.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(themePill)
         themeButton.translatesAutoresizingMaskIntoConstraints = false
+        themeButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+        themeButton.setContentHuggingPriority(.required, for: .horizontal)
         themeButton.addTarget(self, action: #selector(themePressed), for: .touchUpInside)
         themePill.contentView.addSubview(themeButton)
         paintThemePill()
@@ -284,6 +286,8 @@ final class AuthViewController: UIViewController {
             themePill.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 7),
             themePill.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             themePill.heightAnchor.constraint(equalToConstant: 44),
+            // The pill takes the width of its words (it cut «Графит» to «Гра…т»).
+            themePill.widthAnchor.constraint(greaterThanOrEqualToConstant: 128),
             themeButton.topAnchor.constraint(equalTo: themePill.contentView.topAnchor),
             themeButton.bottomAnchor.constraint(equalTo: themePill.contentView.bottomAnchor),
             themeButton.leadingAnchor.constraint(equalTo: themePill.contentView.leadingAnchor),
