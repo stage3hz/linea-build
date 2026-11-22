@@ -527,11 +527,18 @@ final class UsernameViewController: SettingsPage {
         let previous = currentName
         let login = status?["loginName"] as? String ?? ""
         let later = platina ? "Следующая смена будет доступна через день." : "Следующая смена будет доступна через неделю, с Platina — через день."
-        let words = "@\(previous) → @\(wanted)\n\nЛогин для входа «\(login)», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.\n\n\(later)"
         view.endEditing(true)
-        confirm(heading: "Изменить публичное имя?", words: words, action: "Подтвердить смену имени", destructive: false) { [weak self] in
-            self?.apply(previous: previous, wanted: wanted)
-        }
+        // ProfileScreen.tsx: the Sheet «Изменить публичное имя?» — «@old → @new» (19 SemiBold), the words about the login
+        // (14, line 21, `muted`), when the next change comes (13, line 20, `muted`), the main «Подтвердить смену имени»; 18 apart.
+        let confirmButton = SettingsButton(label: "Подтвердить смену имени")
+        let sheet = ChoiceSheet(heading: "Изменить публичное имя?", parts: [
+            SettingsLook.words("@\(previous) → @\(wanted)", size: 19, color: Theme.text, weight: .semibold),
+            SettingsLook.para("Логин для входа «\(login)», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.", size: 14, color: Theme.muted, line: 21),
+            SettingsLook.para(later, size: 13, color: Theme.muted, line: 20),
+            confirmButton,
+        ], gap: 18)
+        confirmButton.onPress = { [weak self, weak sheet] in sheet?.dismiss(animated: true) { self?.apply(previous: previous, wanted: wanted) } }
+        present(sheet, animated: true)
     }
 
     private func apply(previous: String, wanted: String) {

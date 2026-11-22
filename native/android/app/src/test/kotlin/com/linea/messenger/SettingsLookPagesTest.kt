@@ -192,7 +192,10 @@ class SettingsLookPagesTest {
 
   private fun dialog(): AlertDialog = ShadowAlertDialog.getLatestAlertDialog()!!
   private fun dialogWords(): String = shadowOf(dialog()).message?.toString() ?: ""
-  private fun agree() { dialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick(); idle() }
+  /** A question is the reference's sheet (SettingsPage.confirm): its words and its one button. */
+  private fun question(): com.linea.messenger.chatactions.ChoiceSheet = com.linea.messenger.chatactions.ChoiceSheet.last!!.get()!!
+  private fun questionWords(): String = (question().parts.first() as android.widget.TextView).text.toString()
+  private fun agree() { question().parts.last().performClick(); idle() }
   private fun sheet(): ChoiceSheet = ChoiceSheet.last!!.get()!!
 
   private fun colourOf(theme: String, field: String): Int = ThemeLook.color(ThemeStore.plainFields(theme)[field] as String)!!
@@ -461,14 +464,16 @@ class SettingsLookPagesTest {
     has("Пульс")
 
     press("Сбросить настройки")
-    assertEquals("Все переключатели на этом устройстве вернутся к значениям по умолчанию. Звук в чатах останется как есть.", dialogWords())
+    assertEquals("Сбросить настройки уведомлений?", question().heading)
+    assertEquals("Все переключатели на этом устройстве вернутся к значениям по умолчанию. Звук в чатах останется как есть.", questionWords())
     agree()
     assertFalse(NotificationPrefs.changed)
     assertTrue(NotificationPrefs.flag("chats", "show"))
     has("Неон")
+    // Nothing changed: the same sheet says so, its button disabled (NotificationsSection.tsx).
     press("Сбросить настройки")
-    assertEquals("Все переключатели уже стоят по умолчанию.", dialogWords())
-    agree()
+    assertEquals("Все переключатели уже стоят по умолчанию.", questionWords())
+    assertFalse(question().parts.last().isEnabled)
   }
 
   @Test fun theSoundOfAChatIsTheServersSetting() {

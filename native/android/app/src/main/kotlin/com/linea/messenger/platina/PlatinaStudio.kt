@@ -324,10 +324,10 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
   private val seal = PlatinaSealView(context, small = true)
 
   init {
-    background = GradientDrawable().apply { setColor(Theme.bg); cornerRadius = 24f * resources.displayMetrics.density; setStroke(context.px(1f), Theme.veil(0.1f)) }
+    background = GradientDrawable().apply { setColor(Theme.bg); cornerRadius = 24f * resources.displayMetrics.density; setStroke(context.px(1f), com.linea.messenger.settings.ThemeStore.look.border) } // `t.border`
     clipToOutline = true
     addView(banner); addView(empty)
-    ring.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.bg) }
+    ring.background = GradientDrawable().apply { setColor(Theme.bg) } // a rounded square (`borderRadius: 40 * scale`), set in layout
     addView(ring)
     avatar.ringBackground = Theme.bg
     addView(avatar); addView(name); addView(status); addView(handle); addView(seal)
@@ -339,7 +339,7 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
     empty.visibility = if (banner.hasContent) GONE else VISIBLE
     avatar.show(person, look, base, animated = true)
     name.show(person.displayName, look.platina)
-    status.show(look, 22f, animated = true)
+    shownLook = look; statusSide = 0f // sized in layout: round(22 × scale), as the reference
     handle.text = if (person.username.isEmpty()) "" else "@" + person.username
     seal.visibility = if (look.platina) VISIBLE else GONE
     seal.owner = person.id to person.displayName
@@ -352,6 +352,8 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
   }
 
   private var layoutTotal = 0
+  private var shownLook: PersonLook? = null
+  private var statusSide = 0f
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -359,12 +361,17 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
     val scale = width / (393f * d)
     val height = Math.round(width * profileHeroRatio)
     name.textSize = 26f * scale
+    name.letterSpacing = -0.5f / (26f * scale)
     handle.textSize = 15f * scale
+    val wantedStatus = Math.round(22f * scale).toFloat()
+    shownLook?.let { if (statusSide != wantedStatus) { statusSide = wantedStatus; status.show(it, wantedStatus, animated = true) } }
     name.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     handle.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     val side = 100f * d * scale; val pad = 5f * d * scale
     val ringBottom = height - 58 * d * scale + side + pad * 2
-    layoutTotal = Math.round(ringBottom + 10 * d * scale + 34 * d * scale + 4 * d * scale + handle.measuredHeight + 16 * d * scale)
+    status.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    val nameRow = maxOf(name.measuredHeight, if (status.visibility == VISIBLE) status.measuredHeight else 0)
+    layoutTotal = Math.round(ringBottom + 10 * d * scale + nameRow + 4 * d * scale + handle.measuredHeight + 16 * d * scale)
     setMeasuredDimension(width, layoutTotal)
   }
 
@@ -374,7 +381,8 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
     val scale = width / (393f * d)
     val height = Math.round(width * profileHeroRatio)
     put(banner, 0, 0, width, height); put(empty, 0, 0, width, height)
-    val side = Math.round(100 * d * scale); val pad = Math.round(5 * d * scale)
+    val side = Math.round(Math.round(100 * scale) * d); val pad = Math.round(5 * d * scale)
+    (ring.background as? GradientDrawable)?.cornerRadius = 40 * d * scale
     val ringLeft = Math.round(20 * d * scale); val ringTop = height - Math.round(58 * d * scale)
     put(ring, ringLeft, ringTop, side + pad * 2, side + pad * 2)
     put(avatar, ringLeft + pad, ringTop + pad, side, side)
@@ -382,7 +390,7 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
     val statusW = if (status.visibility == VISIBLE) status.measuredWidth else 0
     val nameTop = ringTop + side + pad * 2 + Math.round(10 * d * scale)
     val nameW = minOf(name.measuredWidth, width - Math.round(40 * d * scale) - statusW - Math.round(8 * d))
-    val nameH = Math.round(34 * d * scale)
+    val nameH = maxOf(name.measuredHeight, if (statusW > 0) status.measuredHeight else 0)
     put(name, ringLeft, nameTop, nameW, nameH)
     if (statusW > 0) put(status, ringLeft + nameW + Math.round(8 * d * scale), nameTop + (nameH - status.measuredHeight) / 2, statusW, status.measuredHeight)
     val handleTop = nameTop + nameH + Math.round(4 * d * scale)

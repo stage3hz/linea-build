@@ -483,6 +483,8 @@ final class ProfileHeroCard: UIView {
     private let handle = UILabel()
     private let seal = PlatinaSealView(small: true)
     private var heightRule: NSLayoutConstraint?
+    private var shownLook: PersonLook?
+    private var statusSide: CGFloat = 0
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -490,7 +492,7 @@ final class ProfileHeroCard: UIView {
         layer.cornerRadius = 24
         layer.cornerCurve = .continuous
         layer.borderWidth = 1
-        layer.borderColor = Theme.veil(0.1).cgColor
+        layer.borderColor = ThemeStore.look.border.cgColor // the reference: `t.border`
         clipsToBounds = true
         addSubview(banner)
         empty.text = "Без баннера"
@@ -520,7 +522,9 @@ final class ProfileHeroCard: UIView {
         empty.isHidden = banner.hasContent
         avatar.show(person, look: look, base: base, animated: true)
         name.show(person.displayName, platina: look.platina)
-        status.show(look, size: 22, animated: true) // Avatars: animated as the reference
+        shownLook = look
+        statusSide = 0 // sized in layout: round(22 × scale), as the reference
+
         handle.text = person.username.isEmpty ? "" : "@" + person.username
         seal.isHidden = !look.platina
         seal.owner = (id: person.id, name: person.displayName)
@@ -536,13 +540,19 @@ final class ProfileHeroCard: UIView {
         empty.frame = banner.frame
         let side = (100 * scale).rounded(), pad = 5 * scale
         ring.frame = CGRect(x: 20 * scale, y: height - 58 * scale, width: side + pad * 2, height: side + pad * 2)
-        ring.layer.cornerRadius = ring.bounds.width / 2
+        ring.layer.cornerRadius = 40 * scale // the reference: `borderRadius: 40 * scale` (a rounded square behind the avatar)
+        let wantedStatus = (22 * scale).rounded()
+        if let shownLook, statusSide != wantedStatus {
+            statusSide = wantedStatus
+            status.show(shownLook, size: wantedStatus, animated: true)
+        }
         avatar.frame = CGRect(x: ring.frame.minX + pad, y: ring.frame.minY + pad, width: side, height: side)
         name.font = .systemFont(ofSize: 26 * scale, weight: .heavy)
         name.kern = -0.5
         let statusSize = status.isHidden ? CGSize.zero : status.intrinsicContentSize
         let nameWidth = min(name.sizeThatFits(CGSize(width: width, height: 60)).width, width - 40 * scale - statusSize.width - 8)
-        name.frame = CGRect(x: 20 * scale, y: ring.frame.maxY + 10 * scale, width: nameWidth, height: 34 * scale)
+        let nameHeight = name.sizeThatFits(CGSize(width: nameWidth, height: 80)).height
+        name.frame = CGRect(x: 20 * scale, y: ring.frame.maxY + 10 * scale, width: nameWidth, height: max(nameHeight, statusSize.height))
         status.frame = CGRect(x: name.frame.maxX + 8 * scale, y: name.frame.midY - statusSize.height / 2, width: statusSize.width, height: statusSize.height)
         handle.font = .systemFont(ofSize: 15 * scale)
         handle.sizeToFit()

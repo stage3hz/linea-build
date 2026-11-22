@@ -352,11 +352,13 @@ class SettingsPage: UIViewController {
     }
 
     /// A question with one action and «Отмена».
+    /// A question as the reference asks it: its `Sheet` (the title, the words 15 / line 22 in `muted`, 22 under them, and
+    /// one Button — `danger` for a destructive action), closed by its round button, a tap outside or a pull down.
     func confirm(heading: String, words: String, action: String, destructive: Bool = true, done: @escaping () -> Void) {
-        let alert = UIAlertController(title: heading, message: words, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
-        alert.addAction(UIAlertAction(title: action, style: destructive ? .destructive : .default, handler: { _ in done() }))
-        present(alert, animated: true)
+        let button = SettingsButton(label: action, kind: destructive ? .danger : .primary)
+        let sheet = ChoiceSheet(heading: heading, parts: [SettingsLook.para(words, size: 15, color: Theme.muted, line: 22), button], gap: 22)
+        button.onPress = { [weak sheet] in sheet?.dismiss(animated: true) { done() } }
+        present(sheet, animated: true)
     }
 
     func tell(_ words: String) {

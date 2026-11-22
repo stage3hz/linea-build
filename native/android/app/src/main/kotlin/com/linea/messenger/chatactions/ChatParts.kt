@@ -501,7 +501,7 @@ class SelectionBar(context: Context) : GlassBar(context, 28f) {
 /** A sheet of a few choices, each with a line of explanation under it — «Выключить звук», «Удалить чат?», what
  *  can be done with a chat. A choice closes the sheet and is then carried out. */
 /** `parts`: content of its own instead of choices (the reference's `<Sheet>` holding Buttons and words), `partsGap` apart. */
-class ChoiceSheet(context: Context, val heading: String, val note: String = "", val choices: List<Choice>, parts: List<View> = emptyList(), partsGap: Float = 10f) : Dialog(context) {
+class ChoiceSheet(context: Context, val heading: String, val note: String = "", val choices: List<Choice>, val parts: List<View> = emptyList(), partsGap: Float = 10f) : Dialog(context) {
   /** `selected`: one of several (the reference's `SheetAction selected`) — no chevron; null: an action. */
   class Choice(val symbol: String, val label: String, val note: String = "", val danger: Boolean = false, val selected: Boolean? = null, val run: () -> Unit)
 
@@ -602,13 +602,14 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
             val target = maxOf(tall, context.resources.displayMetrics.heightPixels / d) + 24f
             val left = maxOf(0f, target - maxOf(0f, offset))
             val duration = (left / maxOf(1200f, speed) * 1000f).coerceIn(120f, 280f).toLong()
-            dim.animate().alpha(0f).setDuration(duration).start()
             view.animate().translationY(target * d).setDuration(duration).setInterpolator(android.view.animation.PathInterpolator(0.25f, 0.46f, 0.45f, 0.94f))
+              .setUpdateListener { dim.alpha = (1f - view.translationY / d / tall).coerceIn(0f, 1f) }
               .withEndAction { dismiss() }.start()
           } else {
             val velocity = if (offset > 0.5f) -speed * 0.5f / offset else 0f
-            view.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.763f, velocity)).start()
-            dim.animate().alpha(1f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.763f, velocity)).start()
+            // The dim follows the card's place (backdropOpacity), not a curve of its own.
+            view.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.763f, velocity))
+              .setUpdateListener { val down = view.translationY / d; dim.alpha = if (down > 0) (1f - down / tall).coerceIn(0f, 1f) else 1f }.start()
           }
         }
       }

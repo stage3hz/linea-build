@@ -258,12 +258,13 @@ class DecoratedAvatarView(context: Context) : ViewGroup(context) {
     art?.let {
       // Small (list) sizes: the art reaches at most 1.3× the box; the photo shrinks inside to fill the opening.
       val scale = it.decoration.scale
-      faceSide = if (small && scale > 1.3f) Math.round(size * 1.3f / scale).toFloat() else size
+      faceSide = if (small && scale > 1.3f) Math.round(size / d * 1.3f / scale) * d else size // `Math.round` in points
       place(it, cx, cy, faceSide * scale)
     }
     codeFrame?.let { place(it, cx, cy, size * AvatarCatalog.codeFrameScale) }
     if (ringColors != null) {
-      val ring = maxOf(2 * d, Math.round(size * 0.045f).toFloat()); val gap = maxOf(1.5f * d, Math.round(size * 0.035f).toFloat())
+      // Decor.tsx rounds in points: max(2, round(size × 0.045)) and max(1.5, round(size × 0.035)), then to pixels.
+      val ring = maxOf(2f, Math.round(size / d * 0.045f).toFloat()) * d; val gap = maxOf(1.5f, Math.round(size / d * 0.035f).toFloat()) * d
       val badge = maxOf(16 * d, size * 0.34f)
       if (small) {
         // Inside the same box: a framed avatar keeps the column of plain ones.

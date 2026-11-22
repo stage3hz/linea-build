@@ -449,7 +449,19 @@ class UsernameScreen(context: Context, private val account: SettingsAccount) : S
     val previous = currentName
     val login = status?.get("loginName") as? String ?: ""
     endEditing()
-    confirm("Изменить публичное имя?", reviewWords(previous, wanted, login, platina), "Подтвердить смену имени") { applyChange(previous, wanted) }
+    // ProfileScreen.tsx: the Sheet «Изменить публичное имя?» — «@old → @new» (19 SemiBold), the words about the login (14,
+    // line 21, `muted`), when the next change comes (13, line 20, `muted`), the main «Подтвердить смену имени»; 18 apart.
+    if (!isAttachedToWindow) return
+    val parts = reviewWords(previous, wanted, login, platina).split("\n\n")
+    val confirmButton = SettingsButton(context, "Подтвердить смену имени")
+    val sheet = com.linea.messenger.chatactions.ChoiceSheet(context, "Изменить публичное имя?", "", emptyList(), listOf(
+      context.words(parts[0], 19f, Theme.text, 600),
+      SettingsLook.para(context, parts[1], 14f, Theme.muted, line = 21f),
+      SettingsLook.para(context, parts[2], 13f, Theme.muted, line = 20f),
+      confirmButton,
+    ), 18f)
+    confirmButton.onPress = { sheet.dismiss(); applyChange(previous, wanted) }
+    sheet.show()
   }
 
   private fun applyChange(previous: String, wanted: String) {

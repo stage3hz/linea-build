@@ -369,10 +369,14 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   }
 
   /** A question with one action and «Отмена». */
+  /** A question as the reference asks it: its `Sheet` (the title, the words 15 / line 22 in `muted`, 22 under them, and
+   *  one `danger` Button), closed by its round button, a tap outside or a pull down. */
   fun confirm(heading: String, words: String, action: String, done: () -> Unit) {
     if (!isAttachedToWindow) return
-    present(AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(heading).setMessage(words)
-      .setNegativeButton("Отмена", null).setPositiveButton(action) { _, _ -> done() })
+    val button = SettingsButton(context, action, SettingsButton.Kind.DANGER)
+    val sheet = com.linea.messenger.chatactions.ChoiceSheet(context, heading, "", emptyList(), listOf(SettingsLook.para(context, words, 15f, Theme.muted, line = 22f), button), 22f)
+    button.onPress = { sheet.dismiss(); done() }
+    sheet.show()
   }
 
   fun tell(words: String) {

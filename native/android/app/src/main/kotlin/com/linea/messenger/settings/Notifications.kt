@@ -203,15 +203,17 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
     if (isAttachedToWindow) ChoiceSheet(context, "Мелодия звонка", choices = choices).show()
   }
 
+  /** NotificationsSection.tsx: the Sheet «Сбросить настройки уведомлений?» — the words (13, line 19, `muted`, 14 under
+   *  them) and «Сбросить» (danger), disabled with «Все переключатели уже стоят по умолчанию.» when nothing changed. */
   private fun askReset() {
-    if (!NotificationPrefs.changed) {
-      tell("Все переключатели уже стоят по умолчанию.")
-      return
-    }
-    confirm("Сбросить настройки уведомлений?", "Все переключатели на этом устройстве вернутся к значениям по умолчанию. Звук в чатах останется как есть.", "Сбросить") {
-      NotificationPrefs.reset()
-      fill()
-    }
+    if (!isAttachedToWindow) return
+    val changed = NotificationPrefs.changed
+    val button = SettingsButton(context, "Сбросить", SettingsButton.Kind.DANGER)
+    button.isEnabled = changed
+    val words = if (changed) "Все переключатели на этом устройстве вернутся к значениям по умолчанию. Звук в чатах останется как есть." else "Все переключатели уже стоят по умолчанию."
+    val sheet = ChoiceSheet(context, "Сбросить настройки уведомлений?", "", emptyList(), listOf(SettingsLook.para(context, words, 13f, Theme.muted, line = 19f), button), 14f)
+    button.onPress = { performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP); NotificationPrefs.reset(); sheet.dismiss(); fill() }
+    sheet.show()
   }
 
   /** «Выключить звук» for a chat that is quiet already: the sound back, or another time. */

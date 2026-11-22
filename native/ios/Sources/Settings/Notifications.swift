@@ -248,18 +248,21 @@ final class NotificationsViewController: SettingsPage {
         present(ChoiceSheet(heading: "Мелодия звонка", choices: choices), animated: true)
     }
 
+    /// NotificationsSection.tsx: the Sheet «Сбросить настройки уведомлений?» — the words (13, line 19, `muted`, 14 under
+    /// them) and «Сбросить» (danger), disabled with «Все переключатели уже стоят по умолчанию.» when nothing changed.
     private func askReset() {
         let changed = NotificationPrefs.changed
-        guard changed else {
-            tell("Все переключатели уже стоят по умолчанию.")
-            return
-        }
-        confirm(heading: "Сбросить настройки уведомлений?",
-                words: "Все переключатели на этом устройстве вернутся к значениям по умолчанию. Звук в чатах останется как есть.",
-                action: "Сбросить") { [weak self] in
+        let button = SettingsButton(label: "Сбросить", kind: .danger)
+        button.isEnabled = changed
+        let words = changed ? "Все переключатели на этом устройстве вернутся к значениям по умолчанию. Звук в чатах останется как есть." : "Все переключатели уже стоят по умолчанию."
+        let sheet = ChoiceSheet(heading: "Сбросить настройки уведомлений?", parts: [SettingsLook.para(words, size: 13, color: Theme.muted, line: 19), button], gap: 14)
+        button.onPress = { [weak self, weak sheet] in
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
             NotificationPrefs.reset()
+            sheet?.dismiss(animated: true)
             self?.fill()
         }
+        present(sheet, animated: true)
     }
 
     /// «Выключить звук» for a chat that is quiet already: the sound back, or another time.

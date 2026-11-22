@@ -137,7 +137,10 @@ class SettingsPagesTest {
 
   private fun dialog(): AlertDialog = ShadowAlertDialog.getLatestAlertDialog()!!
   private fun dialogWords(): String = shadowOf(dialog()).message?.toString() ?: ""
-  private fun agree() { dialog().getButton(DialogInterface.BUTTON_POSITIVE).performClick(); idle() }
+  /** A question is the reference's sheet (SettingsPage.confirm): its words and its one button. */
+  private fun question(): com.linea.messenger.chatactions.ChoiceSheet = com.linea.messenger.chatactions.ChoiceSheet.last!!.get()!!
+  private fun questionWords(): String = (question().parts.first() as android.widget.TextView).text.toString()
+  private fun agree() { question().parts.last().performClick(); idle() }
 
   private val privacy = mapOf<String, Any?>("lastSeen" to "contacts", "showLastSeen" to true, "allowNewChats" to true, "showAvatar" to true, "readReceipts" to true, "posts" to "friends", "calls" to "everyone", "hideReadTime" to false)
   private val sessions = listOf(
@@ -284,7 +287,11 @@ class SettingsPagesTest {
     has("Имя пользователя: от 3 до 24 символов a–z, 0–9 и подчёркивание.")
     field("Публичное имя пользователя").setText("@Masha"); idle()
     press("Изменить публичное имя")
-    assertEquals("@maria → @masha\n\nЛогин для входа «native_tester», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.\n\nСледующая смена будет доступна через неделю, с Platina — через день.", dialogWords())
+    // The reference's sheet: the change, the words about the login, when the next change comes, the button.
+    assertEquals("Изменить публичное имя?", question().heading)
+    assertEquals(listOf("@maria → @masha", "Логин для входа «native_tester», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.",
+      "Следующая смена будет доступна через неделю, с Platina — через день.", "Подтвердить смену имени"),
+      question().parts.map { part -> (part as? android.widget.TextView)?.text?.toString() ?: (part as com.linea.messenger.settings.SettingsButton).label })
     assertEquals(0, account.count("changeUsername"))
     account.answer("changeUsername", mapOf("user" to (account.profile + mapOf("username" to "masha")),
       "status" to mapOf("accountId" to "u1", "username" to "masha", "loginName" to "native_tester", "canChangeUsername" to false, "nextUsernameChangeAt" to "2026-11-28T12:00:00.000Z", "platina" to mapOf("active" to false))))
@@ -494,7 +501,7 @@ class SettingsPagesTest {
     launch()
     press("Безопасность и устройства")
     press("Завершить все другие сеансы")
-    assertEquals("Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.", dialogWords())
+    assertEquals("Этот сеанс останется открытым. На остальных устройствах понадобится снова ввести логин, пароль и слово подтверждения.", questionWords())
     assertEquals(0, account.count("revokeOtherSessions"))
     account.refuse("revokeOtherSessions", "Не вышло.")
     agree()
@@ -529,7 +536,7 @@ class SettingsPagesTest {
   @Test fun leavingAsksFirstAndSaysWhatTheServerDidNotConfirm() {
     launch()
     press("Выйти из аккаунта")
-    assertEquals("Сеанс на этом устройстве завершится. Для следующего входа понадобятся логин, пароль и слово подтверждения. Публичное имя может отличаться от логина.", dialogWords())
+    assertEquals("Сеанс на этом устройстве завершится. Для следующего входа понадобятся логин, пароль и слово подтверждения. Публичное имя может отличаться от логина.", questionWords())
     // Not finished: the person is told, and stays in the account.
     account.signOut = Result.failure(ServerError.Network("Не удалось удалить сохранённую сессию с устройства. Выход не завершён. Попробуй ещё раз."))
     agree()
