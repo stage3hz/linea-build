@@ -172,22 +172,24 @@ func msgChips(_ row: MsgRow, width: CGFloat) -> (chips: [MsgChip], size: CGSize)
   var y: CGFloat = 0
   var widest: CGFloat = 0
   var i = 0
+  // MessageRow.tsx: reactions outside a bubble (a round video, big emoji) carry a 1-point border: 2 taller and wider.
+  let border: CGFloat = row.media == "note" || row.bigEmoji > 0 ? 2 : 0
   while i + 2 < row.chips.count {
     let emoji = row.chips[i]
     let count = Int(row.chips[i + 1]) ?? 1
     let mine = row.chips[i + 2] == "1"
     i += 3
-    var w = ceil(NSAttributedString(string: emoji, attributes: [.font: msgChipEmoji]).size().width) + 16
+    var w = ceil(NSAttributedString(string: emoji, attributes: [.font: msgChipEmoji]).size().width) + 16 + border
     if count > 1 { w += 4 + ceil(NSAttributedString(string: String(count), attributes: [.font: msgChipCount]).size().width) }
     if x > 0 && x + w > width {
       x = 0
-      y += 29
+      y += 29 + border
     }
-    chips.append(MsgChip(emoji: emoji, count: count, mine: mine, frame: CGRect(x: x, y: y, width: w, height: 24)))
+    chips.append(MsgChip(emoji: emoji, count: count, mine: mine, frame: CGRect(x: x, y: y, width: w, height: 24 + border)))
     x += w + 5
     widest = max(widest, x - 5)
   }
-  return (chips, chips.isEmpty ? .zero : CGSize(width: widest, height: y + 24))
+  return (chips, chips.isEmpty ? .zero : CGSize(width: widest, height: y + 24 + border))
 }
 
 private func msgAttrSize(_ text: NSAttributedString, _ width: CGFloat, _ maxHeight: CGFloat) -> CGSize {
@@ -950,10 +952,10 @@ final class MsgRowCanvas: UIView {
         }
         let emoji = NSAttributedString(string: chip.emoji, attributes: [.font: msgChipEmoji])
         let emojiSize = emoji.size()
-        emoji.draw(at: CGPoint(x: frame.minX + 8, y: frame.midY - emojiSize.height / 2))
+        emoji.draw(at: CGPoint(x: frame.minX + 8 + (outside ? 1 : 0), y: frame.midY - emojiSize.height / 2))
         if chip.count > 1 {
           let count = NSAttributedString(string: String(chip.count), attributes: [.font: msgChipCount, .foregroundColor: chip.mine ? palette.onAccent : palette.text])
-          count.draw(at: CGPoint(x: frame.minX + 8 + ceil(emojiSize.width) + 4, y: frame.midY - count.size().height / 2))
+          count.draw(at: CGPoint(x: frame.minX + 8 + (outside ? 1 : 0) + ceil(emojiSize.width) + 4, y: frame.midY - count.size().height / 2))
         }
       }
     } else if layoutInfo.reactSize != .zero {
