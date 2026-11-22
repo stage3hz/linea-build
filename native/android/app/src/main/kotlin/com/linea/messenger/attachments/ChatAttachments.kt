@@ -377,6 +377,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   private fun fail(item: Pending, words: String) {
     item.failed = words
     item.transfer = null
+    InlineMedia.forgetSending(item.key) // a failed row offers «повторить», not the ring
     onPendingChanged?.invoke()
     sendAlbumInOrder() // Media: the next photo of an album need not wait for this one
   }
@@ -396,6 +397,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   private fun remove(item: Pending) {
     item.removed = true
     item.transfer?.cancel()
+    InlineMedia.forgetSending(item.key)
     pending = pending.filter { it !== item }
     onPendingChanged?.invoke()
   }
@@ -427,12 +429,18 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     val size = prepared.bytes.size.toLong()
     val whole = FileCore.sizeText(size)
     item.percent = -1
+    // The reference's upload bubble (MessageRow.tsx UploadBubble, MediaBubble.tsx): a ring with ✕ that calls it off,
+    // «Шифрование · 5,3 МБ» before the first bytes, then «2,1 МБ / 5,3 МБ» (a file: «… из …»).
+    val photo = item.thumb.isNotEmpty()
+    item.note = "Шифрование · $whole"
+    InlineMedia.showSending(item.key, 0f, item.note)
     transfer.onProgress = { sent, total ->
       val percent = if (total > 0) (sent * 100 / total).toInt() else 0
       main.post {
         if (item.removed || item.failed != null || item.transfer !== transfer || percent == item.percent) return@post
         item.percent = percent
-        item.note = FileCore.sizeText(size * percent / 100) + " из " + whole
+        item.note = FileCore.sizeText(size * percent / 100) + (if (photo) " / " else " из ") + whole
+        InlineMedia.showSending(item.key, percent / 100f, item.note)
         onPendingChanged?.invoke()
       }
     }
@@ -466,7 +474,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   /** The rows of what is on its way out, to stand after the chat's own. */
   val pendingRows: List<Map<String, Any?>>
-    get() = pending.map { item -> pendingRow(item.key, item.time, item.heading, item.note, item.thumb, item.wide, item.failed, uploading = item.transfer != null) } +
+    get() = pending.map { item ->
+      val prepared = item.prepared
+      pendingRow(item.key, item.time, item.heading, item.note, item.thumb, item.wide, item.failed, uploading = item.transfer != null,
+        name = prepared?.name ?: "", mimeType = prepared?.mimeType ?: "", size = prepared?.let { FileCore.sizeText(it.bytes.size.toLong()) } ?: "")
+    } +
       com.linea.messenger.chatactions.ForwardQueue.rows(chatId) // ChatActions: then the forwards on their way into this chat
 
   // A touch on a row
@@ -481,6 +493,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     if (mediaPressed?.invoke(key) == true) return
     val item = pending.firstOrNull { it.key == key }
     if (item != null) {
+      // On its way: the ✕ on the ring calls the upload off (the reference's «Отменить отправку»).
+      if (item.failed == null && item.transfer != null) { remove(item); return }
       val failed = item.failed ?: return
       val sheet = AlertDialog.Builder(context).setMessage(failed)
       if (item.prepared != null) sheet.setPositiveButton("Повторить отправку") { _, _ -> send(item) }
@@ -553,12 +567,19 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     }
 
     /** One row of an attachment on its way out (`MsgRow`'s fields). */
-    fun pendingRow(key: String, time: String, heading: String, note: String, thumb: String, wide: Double, failed: String?, uploading: Boolean): Map<String, Any?> {
+    /** `name`, `mimeType`, `size`: of the prepared file — while it is uploaded the row is drawn as the photo / file it
+     *  will be, with InlineMedia's ring and ✕ over it (the reference's upload bubble). */
+    fun pendingRow(key: String, time: String, heading: String, note: String, thumb: String, wide: Double, failed: String?, uploading: Boolean,
+                   name: String = "", mimeType: String = "", size: String = ""): Map<String, Any?> {
       val label = if (failed != null) "Не отправлено · повторить\n$failed"
         else if (thumb.isEmpty()) (if (note.isEmpty()) heading else heading + "\n" + note)
         else if (uploading) note else ""
       val row = linkedMapOf<String, Any?>("key" to key, "kind" to 0, "mine" to true, "text" to "", "time" to time, "ticks" to (if (failed == null) 3 else 4), "tail" to true, "label" to label)
       if (thumb.isNotEmpty()) { row["thumb"] = thumb; row["thumbWide"] = wide }
+      if (failed == null && uploading && name.isNotEmpty()) {
+        if (thumb.isEmpty()) { row["media"] = "file"; row["label"] = name + "\n" + note }
+        else { row["media"] = if (mimeType.startsWith("video/")) "video" else "photo"; row["mediaTime"] = size; row["label"] = "" }
+      }
       return row
     }
   }

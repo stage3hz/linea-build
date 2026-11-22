@@ -382,11 +382,14 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
   private val noteTask = Runnable { noteBox.visibility = View.GONE }
   private val hideTask = Runnable { if (!dragging && !sheetOpen) show(false) }
 
+  /** The emulator check: a note and the seek highlight stay up for the screenshot taken seconds later. */
+  private var demoHold = false
+
   private fun say(words: String) {
     noteBox.text = words
     noteBox.visibility = View.VISIBLE
     main.removeCallbacks(noteTask)
-    main.postDelayed(noteTask, 1500)
+    if (!demoHold) main.postDelayed(noteTask, 1500)
     root.requestLayout()
   }
 
@@ -566,7 +569,7 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
     seekSide.show(side, seconds.toInt())
     seekSide.visibility = View.VISIBLE
     main.removeCallbacks(burstEnd)
-    main.postDelayed(burstEnd, (PlayerModel.seekBurst * 1000).toLong())
+    if (!demoHold) main.postDelayed(burstEnd, (PlayerModel.seekBurst * 1000).toLong())
   }
 
   private var heldUnlock = false
@@ -866,6 +869,8 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
   /** `videodemo player|sheet|speed|locked|seek` (debug builds): the player in that state. */
   fun demoState(state: String) {
     main.postDelayed({
+      // The shot comes seconds later: «заблокировано» and «20 с» stay on screen for it.
+      demoHold = state == "locked" || state == "seek"
       when (state) {
         "sheet" -> openSheet(false)
         "speed" -> openSheet(true)

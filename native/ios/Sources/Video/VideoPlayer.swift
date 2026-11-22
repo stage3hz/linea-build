@@ -512,10 +512,14 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
 
     // MARK: Showing and hiding
 
+    /// The simulator check: a note and the seek highlight stay up for the screenshot taken seconds later.
+    private var demoHold = false
+
     private func say(_ words: String) {
         noteLabel.text = words
         noteBox.isHidden = false
         noteTimer?.invalidate()
+        if demoHold { view.setNeedsLayout(); return }
         noteTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] (_: Timer) -> Void in self?.noteBox.isHidden = true }
         view.setNeedsLayout()
     }
@@ -668,6 +672,7 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
             chevronLink = link
         }
         burstTimer?.invalidate()
+        if demoHold { return }
         burstTimer = Timer.scheduledTimer(withTimeInterval: PlayerModel.seekBurst, repeats: false) { [weak self] (_: Timer) -> Void in
             guard let self else { return }
             self.seekSide.isHidden = true
@@ -1015,6 +1020,8 @@ final class VideoPlayerController: UIViewController, AVPictureInPictureControlle
             let screen = VideoPlayerController(file: file, folder: folder, attachment: ["id": "sample-video", "encryption": ["fileKeyId": "sample"]])
             host.present(screen, animated: false) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    // The shot comes seconds later: «заблокировано» and «20 с» stay on screen for it.
+                    screen.demoHold = state == "locked" || state == "seek"
                     switch state {
                     case "sheet": screen.openSheet(speeds: false)
                     case "speed": screen.openSheet(speeds: true)

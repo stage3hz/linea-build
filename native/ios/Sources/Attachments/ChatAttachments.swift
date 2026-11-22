@@ -372,6 +372,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     private func fail(_ item: Pending, _ words: String) {
         item.failed = words
         item.transfer = nil
+        InlineMedia.shared.forgetSending(item.key) // a failed row offers «повторить», not the ring
         onPendingChanged?()
         sendAlbumInOrder() // Attachments: the next photo of an album need not wait for this one
     }
@@ -379,6 +380,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     private func remove(_ item: Pending) {
         item.removed = true
         item.transfer?.cancel()
+        InlineMedia.shared.forgetSending(item.key)
         pending.removeAll { $0 === item }
         onPendingChanged?()
     }
@@ -426,12 +428,18 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         onPendingChanged?()
         let whole = FileCore.sizeText(prepared.bytes.count)
         item.percent = -1
+        // The reference's upload bubble (MessageRow.tsx UploadBubble, MediaBubble.tsx): a ring with ✕ that calls it
+        // off, «Шифрование · 5,3 МБ» before the first bytes, then «2,1 МБ / 5,3 МБ» (a file: «… из …»).
+        let photo = !item.thumb.isEmpty
+        item.note = "Шифрование · " + whole
+        InlineMedia.shared.showSending(item.key, progress: 0, words: item.note)
         transfer.onProgress = { [weak self, weak item] (sent: Int, total: Int) -> Void in
             let percent = total > 0 ? sent * 100 / total : 0
             DispatchQueue.main.async {
                 guard let self, let item, !item.removed, item.failed == nil, percent != item.percent else { return }
                 item.percent = percent
-                item.note = FileCore.sizeText(prepared.bytes.count * percent / 100) + " из " + whole
+                item.note = FileCore.sizeText(prepared.bytes.count * percent / 100) + (photo ? " / " : " из ") + whole
+                InlineMedia.shared.showSending(item.key, progress: CGFloat(percent) / 100, words: item.note)
                 self.onPendingChanged?()
             }
         }
@@ -480,17 +488,26 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     var pendingRows: [[String: Any]] {
         let own: [[String: Any]] = pending.map { (item: Pending) -> [String: Any] in
             var label = ""
+            let uploading = item.failed == nil && item.transfer != nil
             if let failed = item.failed {
                 label = "Не отправлено · повторить\n" + failed
             } else if item.thumb.isEmpty {
                 label = item.note.isEmpty ? item.heading : item.heading + "\n" + item.note
-            } else if item.transfer != nil {
-                label = item.note
             }
             var row: [String: Any] = ["key": item.key, "kind": 0, "mine": true, "text": "", "time": item.time, "ticks": item.failed == nil ? 3 : 4, "tail": true, "label": label]
             if !item.thumb.isEmpty {
                 row["thumb"] = item.thumb
                 row["thumbWide"] = item.wide
+            }
+            if uploading, let prepared = item.prepared {
+                // On its way: drawn as the photo / file it will be, with the ring and ✕ of InlineMedia over it.
+                if item.thumb.isEmpty {
+                    row["media"] = "file"
+                    row["label"] = prepared.name + "\n" + item.note
+                } else {
+                    row["media"] = prepared.mimeType.hasPrefix("video/") ? "video" : "photo"
+                    row["mediaTime"] = FileCore.sizeText(prepared.bytes.count)
+                }
             }
             return row
         }
@@ -509,6 +526,12 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
         if mediaPressed?(key) == true { return }
         if let item = pending.first(where: { $0.key == key }) {
+            // On its way: the ✕ on the ring calls the upload off (the reference's «Отменить отправку»).
+            if item.failed == nil, item.transfer != nil {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                remove(item)
+                return
+            }
             guard item.failed != nil, let host else { return }
             let sheet = UIAlertController(title: nil, message: item.failed, preferredStyle: .actionSheet)
             if item.prepared != nil { sheet.addAction(UIAlertAction(title: "Повторить отправку", style: .default, handler: { [weak self] _ in self?.send(item) })) }
@@ -614,13 +637,15 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         InlineMedia.shared.demo(ready: "sample-attach-1", picture: demoPicture(width: 900, height: 600))
         InlineMedia.shared.demo(loading: "sample-attach-5", progress: 0.4, size: 2_202_009, photo: true)
         InlineMedia.shared.demo(loading: "sample-attach-6", progress: 0.35, size: 1_258_291, photo: false)
+        InlineMedia.shared.showSending("sample-attach-4", progress: 0.4, words: FileCore.sizeText(2_202_009) + " / " + FileCore.sizeText(5_505_024))
         return [
             ["key": "sample-attach-1", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "media": "photo", "thumb": small, "thumbWide": 1.5, "mediaTime": FileCore.sizeText(184_320)],
             ["key": "sample-attach-5", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "media": "photo", "thumb": small, "thumbWide": 0.75, "mediaTime": FileCore.sizeText(2_202_009)],
             ["key": "sample-attach-2", "kind": 0, "mine": false, "text": "Договор и приложение к нему", "time": "09:39", "tail": false, "media": "file", "label": "Договор № 7.pdf\n" + FileCore.sizeText(1_258_291) + " · PDF"],
             ["key": "sample-attach-6", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": false, "media": "file", "label": "Смета.xlsx\n" + FileCore.sizeText(1_258_291) + " · XLSX"],
             ["key": "sample-attach-3", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": true, "label": "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)],
-            ["key": "sample-attach-4", "kind": 0, "mine": true, "text": "", "time": "09:41", "ticks": 3, "tail": true, "thumb": picture, "thumbWide": 1.5, "label": FileCore.sizeText(2_202_009) + " из " + FileCore.sizeText(5_505_024)],
+            // An outgoing photo on its way: the ring with ✕ and «2,1 МБ / 5,3 МБ», as the pending rows draw it.
+            ["key": "sample-attach-4", "kind": 0, "mine": true, "text": "", "time": "09:41", "ticks": 3, "tail": true, "media": "photo", "thumb": picture, "thumbWide": 1.5, "mediaTime": FileCore.sizeText(5_505_024)],
         ]
     }
 

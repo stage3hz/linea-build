@@ -406,6 +406,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     private func fail(_ item: Outgoing, _ words: String) {
         item.failed = words
         item.small = nil
+        InlineMedia.shared.forgetSending(item.key)
         item.export = nil
         onPendingChanged?()
     }
@@ -413,6 +414,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     private func remove(_ item: Outgoing, forget: Bool) {
         item.removed = true
         item.small?.cancel()
+        InlineMedia.shared.forgetSending(item.key)
         item.export?.cancelExport()
         if forget {
             item.big.cancel()
@@ -467,6 +469,9 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         let whole = FileCore.sizeText(size)
         item.percent = -1
         item.note = whole
+        // A video on its way: the reference's upload bubble — the ring with ✕ over its picture and sent / total.
+        let ringed = item.kind == "video"
+        if ringed { InlineMedia.shared.showSending(item.key, progress: 0, words: "Шифрование · " + whole) }
         onPendingChanged?()
         let report: (Int, Int) -> Void = { [weak self, weak item] (sent: Int, total: Int) -> Void in
             let percent = total > 0 ? sent * 100 / total : 0
@@ -474,6 +479,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
                 guard let self, let item, !item.removed, item.failed == nil, percent != item.percent else { return }
                 item.percent = percent
                 item.note = FileCore.sizeText(size / 100 * percent) + " из " + whole
+                if ringed { InlineMedia.shared.showSending(item.key, progress: CGFloat(percent) / 100, words: FileCore.sizeText(size / 100 * percent) + " / " + whole) }
                 self.onPendingChanged?()
             }
         }
@@ -543,7 +549,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     var pendingRows: [[String: Any]] {
         outgoing.map { (item: Outgoing) -> [String: Any] in
             var label = item.note
-            if let failed = item.failed { label = "Не отправлено · повторить\n" + failed }
+            if let failed = item.failed { label = "Не отправлено · повторить\n" + failed } else if item.kind == "video" && item.small != nil { label = "" } // the ring's pill says it
             var row: [String: Any] = ["key": item.key, "kind": 0, "mine": true, "text": "", "time": item.time, "ticks": item.failed == nil ? 3 : 4, "tail": true,
                                       "label": label, "media": item.kind, "wave": item.wave, "mediaTime": item.mediaTime, "thumbWide": item.wide]
             if !item.thumb.isEmpty { row["thumb"] = item.thumb }
@@ -563,6 +569,12 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     /// video, a big file).
     private func pressed(_ key: String) -> Bool {
         if let item = outgoing.first(where: { $0.key == key }) {
+            // A video on its way: the ✕ on its ring calls the upload off (the reference's «Отменить отправку»).
+            if item.failed == nil, item.kind == "video", item.small != nil {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                remove(item, forget: true)
+                return true
+            }
             guard item.failed != nil, let host else { return true }
             let sheet = UIAlertController(title: nil, message: item.failed, preferredStyle: .actionSheet)
             sheet.addAction(UIAlertAction(title: "Повторить отправку", style: .default, handler: { [weak self] _ in self?.run(item) }))

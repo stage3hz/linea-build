@@ -431,6 +431,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   private fun fail(item: Outgoing, words: String) {
     item.failed = words
     item.small = null
+    com.linea.messenger.attachments.InlineMedia.forgetSending(item.key)
     item.export = null
     onPendingChanged?.invoke()
   }
@@ -438,6 +439,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   private fun remove(item: Outgoing, forget: Boolean) {
     item.removed = true
     item.small?.cancel()
+    com.linea.messenger.attachments.InlineMedia.forgetSending(item.key)
     item.export?.cancel()
     if (forget) {
       item.big.cancel()
@@ -461,6 +463,9 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     val whole = FileCore.sizeText(size)
     item.percent = -1
     item.note = whole
+    // A video on its way: the reference's upload bubble — the ring with ✕ over its picture and sent / total.
+    val ringed = item.kind == "video"
+    if (ringed) com.linea.messenger.attachments.InlineMedia.showSending(item.key, 0f, "Шифрование · $whole")
     onPendingChanged?.invoke()
     val report: (Long, Long) -> Unit = { sent, total ->
       val percent = if (total > 0) (sent * 100 / total).toInt() else 0
@@ -468,6 +473,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
         if (!item.removed && item.failed == null && percent != item.percent) {
           item.percent = percent
           item.note = FileCore.sizeText(size / 100 * percent) + " из " + whole
+          if (ringed) com.linea.messenger.attachments.InlineMedia.showSending(item.key, percent / 100f, FileCore.sizeText(size / 100 * percent) + " / " + whole)
           onPendingChanged?.invoke()
         }
       }
@@ -580,7 +586,11 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
 
   /** The rows of what is on its way out, to stand after the chat's own. */
   val pendingRows: List<Map<String, Any?>>
-    get() = outgoing.map { item -> MediaRows.pendingRow(item.key, item.time, item.kind, item.note, item.failed, item.wave, item.mediaTime, item.thumb, item.wide) }
+    get() = outgoing.map { item ->
+      // A video on its way says it in its ring's pill (InlineMedia), not in a line of its own.
+      val note = if (item.kind == "video" && item.failed == null && item.small != null) "" else item.note
+      MediaRows.pendingRow(item.key, item.time, item.kind, note, item.failed, item.wave, item.mediaTime, item.thumb, item.wide)
+    }
 
   /** The chat's rows were read: gives the rows to add after them. */
   @Suppress("UNUSED_PARAMETER")
@@ -593,6 +603,8 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   private fun pressed(key: String): Boolean {
     val item = outgoing.firstOrNull { it.key == key }
     if (item != null) {
+      // A video on its way: the ✕ on its ring calls the upload off (the reference's «Отменить отправку»).
+      if (item.failed == null && item.kind == "video" && item.small != null) { remove(item, forget = true); return true }
       val failed = item.failed ?: return true
       try {
         AlertDialog.Builder(context).setMessage(failed)
