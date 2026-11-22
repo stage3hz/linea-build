@@ -86,14 +86,14 @@ final class ChatListEdit: NSObject {
         let widths = items.map { (item: UIButton) -> CGFloat in ceil(item.sizeThatFits(CGSize(width: bar.bounds.width, height: ChatListEdit.barHeight)).width) }
         let free = max(0, bar.bounds.width - inset * 2 - widths.reduce(0, +))
         let gap = items.count > 1 ? free / CGFloat(items.count - 1) : 0
-        var x = items.count > 1 ? inset : (bar.bounds.width - (widths.first ?? 0)) / 2
+        var cursor = items.count > 1 ? inset : (bar.bounds.width - (widths.first ?? 0)) / 2
         for (index, item) in items.enumerated() {
             // The touch area takes half the room on each side; the words stay where they are.
             let left = index == 0 ? inset : gap / 2
             let right = index == items.count - 1 ? inset : gap / 2
-            item.frame = CGRect(x: x - left, y: 0, width: widths[index] + left + right, height: ChatListEdit.barHeight)
+            item.frame = CGRect(x: cursor - left, y: 0, width: widths[index] + left + right, height: ChatListEdit.barHeight)
             item.contentEdgeInsets = UIEdgeInsets(top: 0, left: left, bottom: 0, right: right)
-            x += widths[index] + gap
+            cursor += widths[index] + gap
         }
         view.bringSubviewToFront(bar)
     }

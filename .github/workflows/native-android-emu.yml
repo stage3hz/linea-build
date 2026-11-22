@@ -55,7 +55,15 @@ jobs:
           echo "== core for this machine (the JNI test of the unit tests)"; native/android/build-core-host.sh
           echo "== app"
           cd native/android
-          INVIZENT_TEST_CA="$RUNNER_TEMP/tls/ca.pem" ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug > "$OUT/gradle.log" 2>&1 || { grep -nE "^e: |error:|FAILED|What went wrong" -A4 "$OUT/gradle.log" | head -80; tail -60 "$OUT/gradle.log"; exit 1; }
+          export INVIZENT_TEST_CA="$RUNNER_TEMP/tls/ca.pem"
+          # The libraries' host answers 429 now and then: what was fetched stays cached, so another go finishes the rest.
+          built=0
+          for go in 1 2 3; do
+            if ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug > "$OUT/gradle.log" 2>&1; then built=1; break; fi
+            grep -qE "status code 429|MavenArtifactFetcher|Could not (GET|download|resolve)" "$OUT/gradle.log" || break
+            echo "::warning::the libraries' host refused (try $go of 3), waiting"; sleep 90
+          done
+          [ "$built" = 1 ] || { grep -nE "^e: |error:|FAILED|What went wrong" -A4 "$OUT/gradle.log" | head -80; tail -60 "$OUT/gradle.log"; exit 1; }
           tail -3 "$OUT/gradle.log"
           # How many tests ran, and how many were skipped (CoreJniTest is skipped without the core for this machine).
           grep -ho 'testsuite name="[^"]*" tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' app/build/test-results/testDebugUnitTest/*.xml || true
