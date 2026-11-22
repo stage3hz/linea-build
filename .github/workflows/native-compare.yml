@@ -142,7 +142,7 @@ jobs:
           # A screen that could not be reached: what was on the screen instead is kept under another name, with the reason.
           miss() { echo "$1: $2" >> "$CMP/missing.txt"; echo "::warning::$1: $2"; }
           # Maestro writes a picture where it was started, or next to the flow in some versions: gathered here.
-          gather() { find "$GITHUB_WORKSPACE/tools/maestro" "$OUT/ref" -maxdepth 3 \( -name 'ref-[0-9][0-9]-*.png' -o -name 'nat-[0-9][0-9]-*.png' \) -exec mv -f {} "$CMP/" \; 2>/dev/null || true; }
+          gather() { find "$GITHUB_WORKSPACE/tools/maestro" "$OUT/ref" "$HOME/.maestro" -maxdepth 5 \( -name 'ref-[0-9][0-9]-*.png' -o -name 'nat-[0-9][0-9]-*.png' \) -exec mv -f {} "$CMP/" \; 2>/dev/null || true; }
           export PATH="$HOME/.maestro/bin:$PATH"
 
           stage "the previous app signs in"
