@@ -223,7 +223,12 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     }
 
     private func special(_ id: String, title: String, preview: String, initials: String) -> [String: Any] {
-        ["id": id, "title": title, "preview": preview, "time": "", "unread": 0, "initials": initials, "avatarColor": Int(0xFF16_1718), "orbA": 0, "orbB": 0, "section": ""]
+        // ChatListScreen.tsx nativeRows: «Архив» and «‹ Архив» wear the theme's surface2.
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        Theme.surface2.getRed(&r, green: &g, blue: &b, alpha: &a)
+        func byte(_ v: CGFloat) -> Int { Int((max(0, min(1, v)) * 255).rounded()) }
+        let color = Int(0xFF00_0000) | byte(r) << 16 | byte(g) << 8 | byte(b)
+        return ["id": id, "title": title, "preview": preview, "time": "", "unread": 0, "initials": initials, "avatarColor": color, "orbA": 0, "orbB": 0, "section": ""]
     }
 
     private func refresh() {
@@ -262,10 +267,11 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             let isMarked = marked(chat)
             row["muted"] = quiet
             row["pinned"] = isPinned
-            // ChatsPlus: the crossed bell is drawn after the name (Chats/ChatList.swift), not a 🔕 in it; the status emoji,
-            // the Platina name and the frame come from the person's fields.
+            // The status emoji, the Platina name and the frame come from the person's fields; a chat without sound
+            // ends its title with « 🔕» (ChatListScreen.tsx nativeRows).
             row["title"] = chat.title
             if let peer = chat.chat["peer"] as? [String: Any] { ChatRowLooks.applyPerson(&row, peer: peer) }
+            if quiet { row["title"] = (row["title"] as? String ?? chat.title) + " 🔕" }
             row["unread"] = count > 0 ? count : (isMarked ? 1 : 0)
             let draft = draftLine(chat.id)
             // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.

@@ -32,7 +32,8 @@ final class MsgSwipeReply: NSObject, UIGestureRecognizerDelegate {
         badge.frame = CGRect(x: 0, y: 0, width: 32, height: 32)
         badge.layer.cornerRadius = 16
         badge.isUserInteractionEnabled = false
-        arrow.image = UIImage(systemName: "arrowshape.turn.up.left.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold))
+        // MessageRow.tsx SwipeToReply: <Icon name="arrow-undo" size={17}> on a 32-point accentSoft circle.
+        arrow.image = IonIcon.image("arrow-undo", size: 17)
         arrow.contentMode = .center
         arrow.frame = badge.bounds
         badge.addSubview(arrow)
@@ -59,7 +60,7 @@ final class MsgSwipeReply: NSObject, UIGestureRecognizerDelegate {
             armed = false
             moving = rowAt(recognizer.location(in: table))
             if let host = moving?.view.superview {
-                badge.backgroundColor = Theme.accent.withAlphaComponent(0.16)
+                badge.backgroundColor = ThemeStore.look.accentSoft
                 arrow.tintColor = Theme.accent
                 host.addSubview(badge)
             }
@@ -96,7 +97,7 @@ final class MsgSwipeReply: NSObject, UIGestureRecognizerDelegate {
     /// The simulator check: a row held 70 points to the left, the arrow fully there.
     func demo(_ view: UIView) {
         guard let host = view.superview else { return }
-        badge.backgroundColor = Theme.accent.withAlphaComponent(0.16)
+        badge.backgroundColor = ThemeStore.look.accentSoft
         arrow.tintColor = Theme.accent
         host.addSubview(badge)
         view.transform = CGAffineTransform(translationX: -70, y: 0)

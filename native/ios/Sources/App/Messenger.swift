@@ -128,13 +128,16 @@ final class Messenger {
             quiet = ListCatchUp.awaitsInbox(last)
             // The line of the list as the core words it (a call's outcome, hidden spoilers); else the plain words.
             let line = Core.view("chatListText", [last]) as? String ?? ""
-            preview = line.isEmpty ? Self.previewText(last) : line
+            preview = Self.listWords(line.isEmpty ? Self.previewText(last) : line)
+            if preview.isEmpty { preview = "Сообщение" }
             time = Self.listTime(last["createdAt"] as? String)
             if last["senderId"] as? String == userId {
                 let read = (chat["peerLastReadMessageId"] as? NSNumber)?.intValue ?? 0, own = (last["id"] as? NSNumber)?.intValue ?? 0
                 ticks = read >= own ? 2 : 1
             }
         }
+        // ChatListScreen.tsx nativeLine: a chat without messages yet.
+        if !(chat["lastMessage"] is [String: Any]) { preview = "Напиши первое сообщение" }
         let color = Self.color(peer["avatarColor"] as? String ?? "#4B73BB") // Avatars: the reference's colour for a person without one
         let orb = orbPair(color)
         let settings = chat["settings"] as? [String: Any]
@@ -303,6 +306,13 @@ final class Messenger {
         return ""
     }
 
+    /// ChatListScreen.tsx listText: a server invitation reads without its link, or «🔗 Приглашение на сервер».
+    static func listWords(_ text: String) -> String {
+        guard !text.isEmpty, ChannelWords.inviteCode(in: text) != nil else { return text }
+        let rest = ChannelWords.withoutInviteLink(text).trimmingCharacters(in: .whitespacesAndNewlines)
+        return rest.isEmpty ? "🔗 Приглашение на сервер" : rest
+    }
+
     static func initials(_ name: String) -> String {
         // Avatars: as the reference — the first letters of the first two words, split on any white space.
         name.split(whereSeparator: { $0.isWhitespace }).prefix(2).compactMap { $0.first }.map { String($0) }.joined().uppercased()
@@ -319,18 +329,16 @@ final class Messenger {
     static func date(_ text: String?) -> Date? { text.flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) } }
     private static func formatter(_ format: String) -> DateFormatter { let f = DateFormatter(); f.locale = Locale(identifier: "ru_RU"); f.dateFormat = format; return f }
     static let clock = formatter("HH:mm")
-    private static let weekday = formatter("EE")
-    private static let dayMonth = formatter("dd.MM")
+    /// theme.ts formatListTime: `toLocaleDateString('ru-RU', {day:'numeric',month:'short'})` — «5 нояб.».
+    private static let dayMonth = formatter("d MMM")
     private static let dayLong = formatter("d MMMM")
-    private static let dayLongYear = formatter("d MMMM yyyy")
 
-    /// The time of a chat's last message in the list: the clock today, «Вчера», the weekday within a week, else the date.
+    /// theme.ts formatListTime: the clock today, «вчера» (lower case), else the day and the short month.
     static func listTime(_ text: String?) -> String {
         guard let date = date(text) else { return "" }
         let calendar = Calendar.current
         if calendar.isDateInToday(date) { return clock.string(from: date) }
-        if calendar.isDateInYesterday(date) { return "Вчера" }
-        if let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: Date())).day, days < 7 { return weekday.string(from: date).capitalized }
+        if calendar.isDateInYesterday(date) { return "вчера" }
         return dayMonth.string(from: date)
     }
 
@@ -338,6 +346,7 @@ final class Messenger {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) { return "Сегодня" }
         if calendar.isDateInYesterday(date) { return "Вчера" }
-        return calendar.component(.year, from: date) == calendar.component(.year, from: Date()) ? dayLong.string(from: date) : dayLongYear.string(from: date)
+        // theme.ts formatDay: «5 ноября», without a year.
+        return dayLong.string(from: date)
     }
 }

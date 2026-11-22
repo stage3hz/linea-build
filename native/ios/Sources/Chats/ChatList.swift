@@ -254,8 +254,6 @@ final class ChatRowCanvas: UIView {
 
   private static let titleFont = AppFont.text(16, .semibold) // ChatsPlus: Montserrat (Design/AppFont.swift)
   private static let previewFont = AppFont.text(15)
-  /// Offline: the quiet line of a message this device cannot open.
-  private static let quietFont = UIFont.italicSystemFont(ofSize: 14)
   private static let timeFont = AppFont.text(13)
   private static let badgeFont = AppFont.text(12, .bold)
   private static let avatarFont = AppFont.text(21, .bold)
@@ -426,10 +424,8 @@ final class ChatRowCanvas: UIView {
 
     let title = NSAttributedString(string: item.title, attributes: [
       .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
-    // ChatsPlus: a chat without sound shows a crossed bell right after its name (ChatListScreen.tsx), room kept for it.
-    let bellRoom: CGFloat = item.muted ? 18 : 0
-    let titleRoom = max(0, right - x - timeWidth - 8 - tickWidth - bellRoom)
-    var titleDrawn = min(titleRoom, ceil(title.size().width))
+    // A chat without sound carries « 🔕» at the end of its title (ChatListScreen.tsx nativeRows), as the reference's list.
+    let titleRoom = max(0, right - x - timeWidth - 8 - tickWidth)
     let whole = item.title as NSString
     if item.metal.count >= 2, item.nameLen > 0, item.nameLen <= whole.length, titleRoom > 1 {
       // A Platina name: the letters of the name show polished metal, the rest of the line stays plain.
@@ -450,9 +446,7 @@ final class ChatRowCanvas: UIView {
         letters.draw(at: .zero, blendMode: .destinationIn, alpha: 1)
       }
       picture.draw(at: CGPoint(x: x, y: top))
-      titleDrawn = nameWidth
       if item.nameLen < whole.length, titleRoom - nameWidth > 8 {
-        titleDrawn = min(titleRoom, nameWidth + ceil(NSAttributedString(string: whole.substring(from: item.nameLen), attributes: [.font: ChatRowCanvas.titleFont]).size().width))
         let rest = NSAttributedString(string: whole.substring(from: item.nameLen), attributes: [
           .font: ChatRowCanvas.titleFont, .foregroundColor: textColor, .paragraphStyle: paragraph(.byTruncatingTail)])
         rest.draw(with: CGRect(x: x + nameWidth, y: top, width: titleRoom - nameWidth, height: 21),
@@ -462,13 +456,10 @@ final class ChatRowCanvas: UIView {
       title.draw(with: CGRect(x: x, y: top, width: titleRoom, height: 21),
                  options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
     }
-    if item.muted, let bell = UIImage(systemName: "bell.slash.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))?
-        .withTintColor(plate != nil ? UIColor(white: 1, alpha: 0.62) : palette.subtle, renderingMode: .alwaysOriginal) {
-      bell.draw(at: CGPoint(x: x + titleDrawn + 5, y: top + (ChatRowCanvas.titleFont.lineHeight - bell.size.height) / 2))
-    }
 
-    let previewColor = item.accentPreview ? palette.accent : item.quietPreview ? palette.subtle : mutedColor
-    let previewFont = item.quietPreview ? ChatRowCanvas.quietFont : ChatRowCanvas.previewFont
+    // The reference draws a line this device cannot open like any other line (no italic, no lock).
+    let previewColor = item.accentPreview ? palette.accent : mutedColor
+    let previewFont = ChatRowCanvas.previewFont
     let preview = NSMutableAttributedString(string: item.preview, attributes: [
       .font: previewFont, .foregroundColor: previewColor, .paragraphStyle: paragraph(.byWordWrapping)])
     // Telegram: the word «Черновик:» of a draft is red.
@@ -488,11 +479,6 @@ final class ChatRowCanvas: UIView {
       // Telegram: a voice message is a grey microphone before its name.
       mic.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - mic.size.height) / 2))
       thumbRoom = ceil(mic.size.width) + 7
-    } else if item.quietPreview, let lock = UIImage(systemName: "lock.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .regular))?
-                .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
-      // Offline: a message this device cannot open — a small lock before the quiet words.
-      lock.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - lock.size.height) / 2))
-      thumbRoom = ceil(lock.size.width) + 6
     }
     let previewWidth = max(0, right - x - thumbRoom - (markWidth > 0 ? markWidth + 8 : 0))
     preview.draw(with: CGRect(x: x + thumbRoom, y: top + 22, width: previewWidth, height: 38),

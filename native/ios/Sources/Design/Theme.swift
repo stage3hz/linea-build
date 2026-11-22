@@ -27,8 +27,9 @@ enum Theme {
         var palette = ChatPalette()
         palette.bg = bg; palette.text = text; palette.muted = muted; palette.subtle = subtle
         palette.accent = accent; palette.onAccent = onAccent; palette.border = .clear
-        palette.pressed = veil(0.07); palette.selected = veil(0.07)
-        palette.badgeMuted = surface2; palette.danger = danger; palette.pinned = veil(0.055)
+        // ChatListScreen.tsx nativePalette: pressed 0.07 white / 0.05 black, selected accentSoft, pinned 0.055 / 0.045.
+        palette.pressed = veil(dark ? 0.07 : 0.05); palette.selected = ThemeStore.look.accentSoft
+        palette.badgeMuted = surface2; palette.danger = danger; palette.pinned = veil(dark ? 0.055 : 0.045)
         return palette
     }
 }
