@@ -366,7 +366,7 @@ final class NoteRecorder: NSObject {
             }
         }
         ready = false
-        camera.start(front: front)
+        camera.restart(front: front)
     }
 
     /// Play / pause of the stopped take.
@@ -466,4 +466,77 @@ final class NoteRecorder: NSObject {
         return made
     }
     #endif
+}
+
+extension NoteRecorder {
+    /// Record: the parts of a round video («record more») joined one after another and cut to the kept part
+    /// (`from`…`to`, fractions of the whole), copied as they are (nothing encoded again) into a new .mp4. A single
+    /// part kept whole is handed back as it is. Main queue for `done`.
+    static func join(_ parts: [URL], from: Double, to: Double, done: @escaping (URL?) -> Void) {
+        let whole = from <= 0.0005 && to >= 0.9995
+        if parts.count == 1 && whole {
+            done(parts[0])
+            return
+        }
+        let made = AVMutableComposition()
+        guard let video = made.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            done(nil)
+            return
+        }
+        let audio = made.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+        var cursor = CMTime.zero
+        for part in parts {
+            let asset = AVURLAsset(url: part)
+            let range = CMTimeRange(start: .zero, duration: asset.duration)
+            if let source = asset.tracks(withMediaType: .video).first {
+                try? video.insertTimeRange(range, of: source, at: cursor)
+                video.preferredTransform = source.preferredTransform
+            }
+            if let source = asset.tracks(withMediaType: .audio).first {
+                try? audio?.insertTimeRange(range, of: source, at: cursor)
+            }
+            cursor = CMTimeAdd(cursor, asset.duration)
+        }
+        guard let export = AVAssetExportSession(asset: made, presetName: AVAssetExportPresetPassthrough) else {
+            done(nil)
+            return
+        }
+        let target = VideoPrepare.freshFile("mp4")
+        export.outputURL = target
+        export.outputFileType = .mp4
+        let seconds = cursor.seconds
+        if !whole {
+            export.timeRange = CMTimeRange(start: CMTime(seconds: seconds * from, preferredTimescale: 600), end: CMTime(seconds: seconds * to, preferredTimescale: 600))
+        }
+        export.exportAsynchronously {
+            let ok = export.status == .completed
+            DispatchQueue.main.async {
+                if ok { done(target) } else {
+                    try? FileManager.default.removeItem(at: target)
+                    done(nil)
+                }
+            }
+        }
+    }
+
+    /// Record: `count` square frames spread over the video, for the preview's strip (main queue for `done`).
+    static func frames(of file: URL, count: Int, side: CGFloat, done: @escaping ([UIImage]) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let asset = AVURLAsset(url: file)
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: side * 3, height: side * 3)
+            generator.requestedTimeToleranceBefore = CMTime(value: 1, timescale: 10)
+            generator.requestedTimeToleranceAfter = CMTime(value: 1, timescale: 10)
+            let total = asset.duration.seconds
+            var images: [UIImage] = []
+            if total.isFinite && total > 0 {
+                for index in 0..<max(1, count) {
+                    let at = CMTime(seconds: total * (Double(index) + 0.5) / Double(max(1, count)), preferredTimescale: 600)
+                    if let picture = try? generator.copyCGImage(at: at, actualTime: nil) { images.append(UIImage(cgImage: picture)) }
+                }
+            }
+            DispatchQueue.main.async { done(images) }
+        }
+    }
 }

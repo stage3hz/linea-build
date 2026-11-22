@@ -223,6 +223,7 @@ pub unsafe extern "C" fn invizent_crypto_call(crypto: *mut InvizentCrypto, op: *
     let crypto = &*crypto;
     let answer = catch_unwind(AssertUnwindSafe(|| {
         let mut service = crypto.service.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(step) = op.strip_prefix("history.") { return history_step(&mut service, Host(&*crypto._host), step, &args) }
         match dispatch(&mut service, &op, &args) {
             Ok(value) => json::stringify(&json::object(vec![("ok", value)])),
             Err(error) => failure(error.name(), error.message()),
@@ -230,6 +231,69 @@ pub unsafe extern "C" fn invizent_crypto_call(crypto: *mut InvizentCrypto, op: *
     }));
     give(answer.unwrap_or_else(|_| failure("Error", "The core stopped on this operation.")))
 }
+
+/// The server for old chats on a new device: the same transport, with the refusal's code and status
+/// (`{"refused": words, "code": …, "status": …}` from the app).
+struct HistoryHost(Host);
+impl crate::e2ee::history_sync::HistoryServer for HistoryHost {
+    fn call(&mut self, op: &str, args: Vec<Value>) -> Result<Value, crate::e2ee::history_sync::Refusal> {
+        use crate::e2ee::history_sync::Refusal;
+        let silent = || Refusal { network: true, message: "Нет связи с сервером.".to_string(), code: None, status: 0.0 };
+        let answer = self.0.asked(self.0.get().transport, op, args).ok_or_else(silent)?;
+        if let Some(words) = answer.get("network") { return Err(Refusal { network: true, message: words.as_str().unwrap_or_default(), code: None, status: 0.0 }) }
+        if let Some(words) = answer.get("refused") {
+            let status = match answer.get("status") { Some(Value::Number(n)) => *n, _ => 0.0 };
+            return Err(Refusal { network: false, message: words.as_str().unwrap_or_default(), code: answer.get("code").and_then(Value::as_str), status });
+        }
+        answer.get("ok").cloned().ok_or_else(silent)
+    }
+}
+
+/// `history.<step>` of `invizent_crypto_call` (docs/HISTORY-TRANSFER.md, `e2ee::history_sync`): `state []` → the
+/// vault's `history:v1` · `ask []` → the request made, or null · `serve []` → the time of the next request still
+/// waiting, or null · `receive []` → the messages imported, or null · `outgoing []` → `{transfers}` ·
+/// `cancel [transferId]` · `enable []` → the new backup secret · `disable []` · `secret []` → the secret, or null ·
+/// `backup []` → pages written · `restore [typed]` → the messages imported. A refusal also carries `code` (the
+/// server's) and `left` (restore attempts left this hour).
+fn history_step(service: &mut Crypto<Host, Host, Host, Host>, host: Host, step: &str, args: &[Value]) -> String {
+    use crate::e2ee::history_sync::{History, SyncError};
+    let failure = |error: SyncError| {
+        let mut fields = vec![("name", Value::str(error.name())), ("message", Value::str(&error.message()))];
+        if let Some(code) = error.code() { fields.push(("code", Value::str(code))) }
+        if let SyncError::Restore(_, Some(left)) = &error { fields.push(("left", Value::Number(*left))) }
+        json::stringify(&json::object(vec![("error", json::object(fields))]))
+    };
+    #[cfg(feature = "signal")]
+    let cipher = crate::e2ee::history::LibCipher;
+    #[cfg(not(feature = "signal"))]
+    struct NoCipher;
+    #[cfg(not(feature = "signal"))]
+    impl crate::e2ee::history::PageCipher for NoCipher {
+        fn seal(&self, _: &str, _: &str, _: &str, _: &str) -> Result<String, ()> { Err(()) }
+        fn open(&self, _: &str, _: &str, _: &str, _: &str) -> Result<String, ()> { Err(()) }
+    }
+    #[cfg(not(feature = "signal"))]
+    let cipher = NoCipher;
+    let mut server = HistoryHost(host);
+    let mut history = History { crypto: service, server: &mut server, cipher: &cipher };
+    let device = || history_device(&args);
+    let result: Result<Value, SyncError> = match step {
+        "state" => Ok(history.state()),
+        "ask" => history.ask(),
+        "serve" => history.serve(),
+        "receive" => history.receive(|_, _| {}),
+        "outgoing" => history.crypto.initialize().map_err(SyncError::from).and_then(|_| { let id = history.crypto.device_id().unwrap_or_default(); history.server.call("outgoingHistory", vec![Value::str(&id)]).map_err(SyncError::from) }),
+        "cancel" => history.crypto.initialize().map_err(SyncError::from).and_then(|_| { let id = history.crypto.device_id().unwrap_or_default(); history.server.call("cancelHistory", vec![device(), Value::str(&id)]).map(|_| Value::Null).map_err(SyncError::from) }),
+        "enable" => history.enable().map(|secret| Value::str(&secret)),
+        "disable" => history.disable().map(|_| Value::Null),
+        "secret" => history.secret(None).map(|secret| secret.map_or(Value::Null, |secret| Value::str(&secret))),
+        "backup" => history.backup().map(Value::Number),
+        "restore" => history.restore(&args.first().and_then(Value::as_str).unwrap_or_default(), |_, _| {}).map(Value::Number),
+        _ => Err(SyncError::Message(format!("Unknown operation: history.{step}"))),
+    };
+    match result { Ok(value) => json::stringify(&json::object(vec![("ok", value)])), Err(error) => failure(error) }
+}
+fn history_device(args: &[Value]) -> Value { args.first().cloned().unwrap_or(Value::Null) }
 
 /// Ends the service.
 ///
@@ -412,6 +476,7 @@ pub unsafe extern "C" fn invizent_proof_call(proof: *mut InvizentProof, input: *
 /// - `stories… […]` → the rules of stories and profile posts (see `stories::view` for the names).
 /// - `room… […]` → the rules of rooms (see `rooms::view` for the names).
 /// - `compose… […]` → formatting while a message is written (see `format::compose::view` for the names).
+/// - `history… […]` → old chats on a new device: pages, keys, the backup secret, its QR code (see `e2ee::history::view`).
 ///
 /// # Safety
 /// `name` and `args` are NUL-terminated strings that stay valid for the call (or null).
@@ -442,6 +507,8 @@ pub unsafe extern "C" fn invizent_view(name: *const c_char, args: *const c_char)
             (name, args) if name.starts_with("room") => crate::rooms::view(name, args)?,
             // The composer's formatting (`format/compose.rs`): every name that starts with `compose`.
             (name, args) if name.starts_with("compose") => crate::format::compose::view(name, args)?,
+            // Old chats on a new device (`e2ee/history.rs`): every name that starts with `history`.
+            (name, args) if name.starts_with("history") => crate::e2ee::history::view(name, args)?,
             // Calls (`calls.rs`): every name that starts with `call`.
             (name, args) => crate::calls::view(name, args)?,
         };

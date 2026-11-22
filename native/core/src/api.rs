@@ -174,6 +174,8 @@ impl<'a> In<'a> {
     fn on(&self, at: usize) -> Option<Option<f64>> { match self.given(at) { None => Some(None), Some(Value::Number(number)) => Some(Some(*number)), Some(_) => None } }
     /// A required object.
     fn o(&self, at: usize) -> Option<&'a Value> { self.args.get(at).filter(|value| matches!(value, Value::Object(_))) }
+    /// A required boolean.
+    fn b(&self, at: usize) -> Option<bool> { match self.args.get(at)? { Value::Bool(value) => Some(*value), _ => None } }
     /// A required array.
     fn a(&self, at: usize) -> Option<&'a Value> { self.args.get(at).filter(|value| matches!(value, Value::Array(_))) }
     /// `JSON.stringify(fields)` for an object argument.
@@ -354,4 +356,21 @@ static TABLE: &[(&str, usize, Build)] = &[
     ("createInvite", 1, |i| post(format!("/communities/{}/invites", i.e(0)?), empty())),
     ("invite", 1, |i| get(format!("/invites/{}", i.e(0)?))),
     ("acceptInvite", 1, |i| post(format!("/invites/{}/accept", i.e(0)?), empty())),
+    // Old chats on a new device (server history.js, docs/HISTORY-TRANSFER.md).
+    ("requestHistory", 1, |i| post("/history/transfers", literal().text("deviceId", i.s(0)?).json())),
+    ("outgoingHistory", 1, |i| get(format!("/history/transfers/outgoing?deviceId={}", i.e(0)?))),
+    ("incomingHistory", 1, |i| get(format!("/history/transfers/incoming?deviceId={}", i.e(0)?))),
+    ("claimHistory", 2, |i| post(format!("/history/transfers/{}/claim", i.e(0)?), literal().text("deviceId", i.s(1)?).json())),
+    ("putHistoryPage", 4, |i| put(format!("/history/transfers/{}/pages/{}", i.e(0)?, number_string(i.n(1)?)), literal().text("deviceId", i.s(2)?).text("body", i.s(3)?).json())),
+    ("completeHistory", 4, |i| post(format!("/history/transfers/{}/complete", i.e(0)?), literal().text("deviceId", i.s(1)?).set("note", i.o(2)?.clone()).set("pageCount", Value::Number(i.n(3)?)).json())),
+    ("historyPage", 3, |i| get(format!("/history/transfers/{}/pages/{}?deviceId={}", i.e(0)?, number_string(i.n(1)?), i.e(2)?))),
+    ("ackHistory", 2, |i| post(format!("/history/transfers/{}/ack", i.e(0)?), literal().text("deviceId", i.s(1)?).json())),
+    ("cancelHistory", 2, |i| post(format!("/history/transfers/{}/cancel", i.e(0)?), literal().text("deviceId", i.s(1)?).json())),
+    ("backupState", 1, |i| get(format!("/history/backup?deviceId={}", i.e(0)?))),
+    ("enableBackup", 3, |i| put("/history/backup", literal().text("deviceId", i.s(0)?).set("generation", Value::Number(i.n(1)?)).text("keyCheck", i.s(2)?).json())),
+    ("disableBackup", 1, |i| bare("DELETE", format!("/history/backup?deviceId={}", i.e(0)?))),
+    ("putBackupNote", 4, |i| post("/history/backup/notes", literal().text("deviceId", i.s(0)?).text("targetDeviceId", i.s(1)?).set("generation", Value::Number(i.n(2)?)).set("note", i.o(3)?.clone()).json())),
+    ("appendBackupPage", 4, |i| post("/history/backup/pages", literal().text("deviceId", i.s(0)?).set("generation", Value::Number(i.n(1)?)).text("body", i.s(2)?).set("reset", Value::Bool(i.b(3)?)).json())),
+    ("startRestore", 1, |i| post("/history/backup/restore", literal().text("deviceId", i.s(0)?).json())),
+    ("backupPage", 2, |i| get(format!("/history/backup/pages/{}?deviceId={}", number_string(i.n(0)?), i.e(1)?))),
 ];

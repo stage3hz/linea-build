@@ -166,6 +166,8 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   private val recording = MediaRecording(context)
   private val control: RecordControl get() = recording.control
   private var attachments: ChatAttachments? = null
+  /** Record: the row of the voice message just sent (the blob flies to it). */
+  private var flightKey: String? = null
   private val voice = VoicePlayer(context, messenger?.server)
   private var notes: NotePlayback? = null
   private var outgoing: List<Outgoing> = emptyList()
@@ -243,6 +245,16 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     recording.sendVoice = { file, ms, waveform -> sendVoice(file, ms, waveform) }
     recording.sendNote = { file -> sendNote(file) }
     control.onPhase = { relayout() }
+    // Record: the blob of a sent take flies to the new message's play button (the list's px → the screen's).
+    control.sentTarget = target@{
+      val key = flightKey ?: return@target null
+      flightKey = null
+      val list = this.list ?: return@target null
+      val play = list.mediaPlayHost(key) ?: return@target null
+      val at = IntArray(2); val mine = IntArray(2)
+      list.getLocationInWindow(at); host.getLocationInWindow(mine)
+      android.graphics.RectF(play).apply { offset((at[0] - mine[0]).toFloat(), (at[1] - mine[1]).toFloat()) }
+    }
     // The composer's pills make room for a take (the paperclip's glass slides off, the field's pill grows).
     control.onShift = { value -> onRecordShift?.invoke(value) }
     val app = context.applicationContext
@@ -350,6 +362,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     media["durationMs"] = durationMs
     waveform?.let { media["waveform"] = it }
     val item = Outgoing("voice")
+    flightKey = item.key
     item.meta = actions?.takeReply()
     item.wave = waveform ?: ""
     item.mediaTime = FileCore.call("voiceTime", listOf(durationMs)) as? String ?: ""

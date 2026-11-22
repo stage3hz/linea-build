@@ -178,6 +178,8 @@ class MsgRowView(context: Context) : View(context) {
 
   /** Voice/Video: where the picture of this row's video or round video was drawn last (null: it has none). */
   fun mediaThumb(): android.graphics.RectF? = if (mediaBoxes.thumb.isEmpty) null else mediaBoxes.thumb
+  /** Record: a voice row's play button (once the row has been drawn). */
+  fun mediaPlay(): android.graphics.RectF? = if (mediaBoxes.play.isEmpty) null else mediaBoxes.play
 
   /** LinkPreview: the card of the row laid out by the last measure, its decoded picture, and where it was drawn last. */
   private var card: com.linea.messenger.linkpreview.MsgLinkCardLayout? = null

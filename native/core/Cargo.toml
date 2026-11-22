@@ -43,3 +43,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 p256 = { version = "0.13", features = ["ecdsa"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
+# The cipher of the pages of old chats (tests/history_vectors.rs) without building the whole Signal library: the
+# very crate and version the library itself uses (see `aes-gcm-siv` above).
+aes-gcm-siv = "=0.12.0"

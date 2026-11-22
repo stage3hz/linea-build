@@ -51,7 +51,8 @@ export async function openPage(cipher: Cipher, key: string, ad: string, body: st
   let plain: string;
   try { plain = new TextDecoder('utf-8', { fatal: true }).decode(toByteArray(await cipher.open(fromByteArray(bytes.subarray(12)), key, fromByteArray(bytes.subarray(0, 12)), b64utf8(ad)))); }
   catch { throw new Error('Не удалось расшифровать копию переписок.'); }
-  const value = JSON.parse(plain) as { v?: unknown; items?: unknown; last?: unknown };
+  let value: { v?: unknown; items?: unknown; last?: unknown };
+  try { value = JSON.parse(plain); } catch { throw new Error('Неизвестный формат копии переписок.'); }
   if (!value || typeof value !== 'object' || value.v !== 1 || !Array.isArray(value.items) || (value.last !== undefined && value.last !== true)) throw new Error('Неизвестный формат копии переписок.');
   return { items: value.items, last: value.last === true };
 }

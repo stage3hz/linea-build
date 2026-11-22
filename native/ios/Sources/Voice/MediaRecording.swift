@@ -11,7 +11,12 @@ final class MediaRecording: NSObject {
     private let recorder = VoiceRecorder()
     private let draft = VoiceDraft()
     private var note: NoteRecorder?
-    private var noteFile: URL?
+    /// The parts of a stopped round video («record more» adds one), the file the circle plays (the parts joined),
+    /// the kept part.
+    private var noteParts: [URL] = []
+    private var noteShown: URL?
+    private var noteTrim: (Double, Double) = (0, 1)
+    private var noteMs = 0
     private var levelTimer: Timer?
     private weak var host: UIView?
     private weak var composer: UIView?
@@ -61,6 +66,11 @@ final class MediaRecording: NSObject {
         control.previewSeek = { [weak self] (fraction: Double) -> Void in self?.draft.seek(to: fraction) }
         control.previewTrim = { [weak self] (start: Double, end: Double, done: Bool) -> Void in
             guard let self else { return }
+            if let note = self.note {
+                self.noteTrim = (start, end)
+                note.setTrim(start: start, end: end, done: done)
+                return
+            }
             let endMoved = abs(end - self.lastTrim.1) > abs(start - self.lastTrim.0)
             if done { self.lastTrim = (start, end) }
             self.draft.trimmed(start: start, end: end, endMoved: endMoved, done: done)
@@ -225,35 +235,74 @@ final class MediaRecording: NSObject {
             shown.stop(keep: false) { (_: URL?, _: Int) -> Void in }
             shown.close()
             note = nil
+            dropNoteParts()
         case .send:
             shown.stop(keep: true) { [weak self] (file: URL?, ms: Int) -> Void in
                 shown.close()
                 guard let self else { return }
                 self.note = nil
-                guard let file else { return }
-                guard ms >= 1000 else {
-                    Haptic.error()
+                if let file, ms >= 1000 || !self.noteParts.isEmpty { self.noteParts.append(file) } else if let file {
                     try? FileManager.default.removeItem(at: file)
+                }
+                guard !self.noteParts.isEmpty else {
+                    Haptic.error()
                     return
                 }
-                self.sendNote?(file)
+                self.sendNoteParts()
             }
         case .preview:
             shown.stop(keep: true) { [weak self] (file: URL?, ms: Int) -> Void in
                 guard let self else { return }
-                guard let file, ms >= 1000 else {
+                if let file, ms >= 1000 || !self.noteParts.isEmpty { self.noteParts.append(file) } else if let file {
+                    try? FileManager.default.removeItem(at: file)
+                }
+                guard !self.noteParts.isEmpty else {
                     Haptic.error()
-                    if let file { try? FileManager.default.removeItem(at: file) }
                     shown.close()
                     self.note = nil
                     return
                 }
-                self.noteFile = file
-                shown.showResult(file)
-                self.control.showPreview(levels: [], durationMs: ms, video: true)
-                self.control.setPreviewPlayback(0, playing: true)
+                self.noteMs = shown.elapsedMs
+                self.noteTrim = (0, 1)
+                // The circle plays the parts joined; the field shows their frames.
+                NoteRecorder.join(self.noteParts, from: 0, to: 1) { [weak self] (joined: URL?) -> Void in
+                    guard let self, self.note === shown, let joined else { return }
+                    if joined != self.noteParts.first || self.noteParts.count > 1 { self.noteShown = joined }
+                    shown.showResult(joined)
+                    self.control.showPreview(levels: [], durationMs: self.noteMs, video: true)
+                    self.control.setPreviewPlayback(0, playing: true)
+                    NoteRecorder.frames(of: joined, count: self.control.videoFrameCount, side: 33) { [weak self] (images: [UIImage]) -> Void in
+                        self?.control.setVideoFrames(images)
+                    }
+                }
             }
         }
+    }
+
+    /// The parts joined and cut to the kept part go out as one round video.
+    private func sendNoteParts() {
+        let parts = noteParts
+        let trim = noteTrim
+        noteParts = []
+        noteTrim = (0, 1)
+        if let shown = noteShown { try? FileManager.default.removeItem(at: shown) }
+        noteShown = nil
+        NoteRecorder.join(parts, from: trim.0, to: trim.1) { [weak self] (file: URL?) -> Void in
+            for part in parts where part != file { try? FileManager.default.removeItem(at: part) }
+            guard let file else {
+                self?.say?("Не удалось подготовить видеосообщение.")
+                return
+            }
+            self?.sendNote?(file)
+        }
+    }
+
+    private func dropNoteParts() {
+        for part in noteParts { try? FileManager.default.removeItem(at: part) }
+        if let shown = noteShown { try? FileManager.default.removeItem(at: shown) }
+        noteParts = []
+        noteShown = nil
+        noteTrim = (0, 1)
     }
 
     // MARK: The preview
@@ -263,8 +312,7 @@ final class MediaRecording: NSObject {
             shown.close()
             note = nil
             control.endPreview(deleted: false)
-            if let file = noteFile { sendNote?(file) }
-            noteFile = nil
+            sendNoteParts()
             return
         }
         control.endPreview(deleted: false)
@@ -275,8 +323,7 @@ final class MediaRecording: NSObject {
         if let shown = note {
             shown.close()
             note = nil
-            if let file = noteFile { try? FileManager.default.removeItem(at: file) }
-            noteFile = nil
+            dropNoteParts()
         } else {
             draft.discard()
         }
@@ -284,7 +331,17 @@ final class MediaRecording: NSObject {
     }
 
     private func recordMore() {
-        guard note == nil, startVoice() else { return }
+        if let shown = note {
+            // A round video: the camera records the next part after the ones before.
+            if let joined = noteShown { try? FileManager.default.removeItem(at: joined) }
+            noteShown = nil
+            noteTrim = (0, 1)
+            shown.resume(after: noteMs)
+            control.resumeLocked()
+            startLevels()
+            return
+        }
+        guard startVoice() else { return }
         control.resumeLocked()
     }
 
@@ -297,8 +354,7 @@ final class MediaRecording: NSObject {
             shown.close()
             note = nil
         }
-        if let file = noteFile { try? FileManager.default.removeItem(at: file) }
-        noteFile = nil
+        dropNoteParts()
         draft.discard()
         if control.isBusy { control.reset() }
     }

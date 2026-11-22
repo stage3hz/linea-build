@@ -229,6 +229,8 @@ class NoteDualCamera(
     applyZoom()
   }
 
+  /** Record: the torch of the camera shown now (the back one has it). */
+  fun setTorch(on: Boolean) { try { side(facing).camera?.cameraControl?.enableTorch(on) } catch (_: Throwable) {} }
   fun setZoom(value: Float) { zoom = value.coerceIn(0f, 1f); applyZoom() }
   private fun applyZoom() { try { side(facing).camera?.cameraControl?.setLinearZoom(zoom) } catch (_: Throwable) {} }
 

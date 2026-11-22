@@ -9,5 +9,7 @@ pub mod attachment;
 pub mod bridge;
 pub mod dispatch;
 pub mod files;
+pub mod history;
+pub mod history_sync;
 pub mod service;
 pub mod wire;

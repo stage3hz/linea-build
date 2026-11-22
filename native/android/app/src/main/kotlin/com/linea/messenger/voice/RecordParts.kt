@@ -87,15 +87,25 @@ object RecordGesture {
   }
 }
 
-/** A damped spring over `durationMs` (damping ratio as a fraction of critical), as a time curve. */
+/** A damped spring as a time curve: the system's spring of `durationMs` with `damping` (the share of critical
+ *  damping). The natural frequency is chosen so that the swing has died down to 0.1 % at the end of the duration
+ *  (ω₀ = ln 1000 / (ζ·T)); below critical damping x(t) = 1 − e^(−ζω₀t)(cos ω_d t + ζω₀/ω_d · sin ω_d t), at or
+ *  above it the critically damped 1 − e^(−ω₀t)(1 + ω₀t). */
 class SpringCurve(private val damping: Float, private val durationMs: Long) : TimeInterpolator {
+  private val zeta = damping.coerceIn(0.01f, 1f).toDouble()
+  private val seconds = durationMs / 1000.0
+  private val omega = Math.log(1000.0) / (zeta * seconds)
+
   override fun getInterpolation(input: Float): Float {
-    val t = input * durationMs / 1000f
-    val omega = 2f * PI.toFloat() / (durationMs / 1000f) * 1.2f
-    val zeta = damping.coerceIn(0.05f, 0.99f)
-    val wd = omega * sqrt(1 - zeta * zeta)
-    val value = 1 - exp(-zeta * omega * t) * (cos(wd * t) + zeta * omega / wd * sin(wd * t))
-    return if (input >= 1f) 1f else value
+    if (input >= 1f) return 1f
+    val t = input * seconds
+    val value = if (zeta < 1.0) {
+      val wd = omega * Math.sqrt(1 - zeta * zeta)
+      1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + zeta * omega / wd * Math.sin(wd * t))
+    } else {
+      1 - Math.exp(-omega * t) * (1 + omega * t)
+    }
+    return value.toFloat()
   }
 }
 
@@ -701,6 +711,114 @@ class VoicePreviewPanel(context: Context) : View(context) {
             onSeek?.invoke(fraction.coerceIn(trimStart, trimEnd))
           }
         }
+        dragging = 0
+      }
+      MotionEvent.ACTION_CANCEL -> dragging = 0
+    }
+    return true
+  }
+}
+
+// The preview of a stopped round video
+
+/** The stopped round video in the field: a strip of its frames 33 dp tall with round ends, two accent handles 16 dp
+ *  wide with white grips (3 × 12, 10 dp in from the outer edge) that trim it, accent lines along the kept part, the
+ *  rest dimmed. A tap plays or pauses the circle. */
+class VideoTrimPanel(context: Context) : View(context) {
+  private val d = resources.displayMetrics.density
+  var onToggle: (() -> Unit)? = null
+  var onTrim: ((Double, Double, Boolean) -> Unit)? = null
+  private var frames: List<android.graphics.Bitmap> = emptyList()
+  private var durationMs = 0L
+  var trimStart = 0.0
+    private set
+  var trimEnd = 1.0
+    private set
+  private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+  private val rect = RectF()
+  private val src = android.graphics.Rect()
+  private val clip = Path()
+  private var dragging = 0
+  private var downX = 0f
+  private val handle = 16f
+  private val track = 33f
+
+  init { isClickable = true; contentDescription = "Видеосообщение: нажмите, чтобы остановить или продолжить" }
+
+  fun setTake(durationMs: Long) { this.durationMs = durationMs; trimStart = 0.0; trimEnd = 1.0; frames = emptyList(); invalidate() }
+  fun setFrames(images: List<android.graphics.Bitmap>) { frames = images; invalidate() }
+  val frameCount: Int get() = maxOf(1, Math.ceil(((width - 6f * d) / (track * d)).toDouble()).toInt())
+
+  private fun handles(): Pair<Float, Float> {
+    val range = maxOf(0f, width - 6f * d) - handle * d
+    val left = floor(handle * d / 2 + range * trimStart.toFloat()) - handle * d / 2
+    val right = max(left + handle * d, floor(handle * d / 2 + range * trimEnd.toFloat()) - handle * d / 2)
+    return Pair(3f * d + left, 3f * d + right)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    val top = (height - track * d) / 2
+    val bottom = top + track * d
+    val stripRight = width - 3f * d
+    rect.set(3f * d, top, stripRight, bottom)
+    canvas.save()
+    clip.reset(); clip.addRoundRect(rect, 16.5f * d, 16.5f * d, Path.Direction.CW)
+    canvas.clipPath(clip)
+    paint.color = Theme.surface2
+    canvas.drawRect(rect, paint)
+    val side = track * d
+    for ((index, bitmap) in frames.withIndex()) {
+      val w = bitmap.width; val h = bitmap.height; val s = minOf(w, h)
+      src.set((w - s) / 2, (h - s) / 2, (w - s) / 2 + s, (h - s) / 2 + s)
+      val x = 3f * d + index * side
+      canvas.drawBitmap(bitmap, src, RectF(x, top, x + side, bottom), paint)
+    }
+    val (left, right) = handles()
+    paint.color = (Theme.bg and 0xFFFFFF) or (0x99 shl 24)
+    canvas.drawRect(3f * d, top, left, bottom, paint)
+    canvas.drawRect(right + handle * d, top, stripRight, bottom, paint)
+    canvas.restore()
+    paint.color = Theme.accent
+    canvas.save(); canvas.clipRect(left, top, left + handle * d, bottom)
+    canvas.drawRoundRect(RectF(left, top, left + handle * d * 2, bottom), 16.5f * d, 16.5f * d, paint)
+    canvas.restore()
+    rect.set(right, top, right + handle * d, bottom)
+    canvas.save(); canvas.clipRect(rect)
+    canvas.drawRoundRect(RectF(right - handle * d, top, right + handle * d, bottom), 16.5f * d, 16.5f * d, paint)
+    canvas.restore()
+    canvas.drawRect(left + handle * d, top, right, top + 2f * d, paint)
+    canvas.drawRect(left + handle * d, bottom - 2f * d, right, bottom, paint)
+    paint.color = 0xFFFFFFFF.toInt()
+    val gripTop = top + (track - 12f) / 2 * d
+    canvas.drawRoundRect(RectF(left + 7f * d, gripTop, left + 10f * d, gripTop + 12f * d), d, d, paint)
+    canvas.drawRoundRect(RectF(right + (handle - 10f) * d, gripTop, right + (handle - 7f) * d, gripTop + 12f * d), d, d, paint)
+  }
+
+  @SuppressLint("ClickableViewAccessibility")
+  override fun onTouchEvent(event: MotionEvent): Boolean {
+    val (left, right) = handles()
+    val x = event.x
+    when (event.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        downX = x
+        dragging = when {
+          abs(x - (left + handle * d / 2)) <= (handle / 2 + 9f) * d -> 1
+          abs(x - (right + handle * d / 2)) <= (handle / 2 + 9f) * d -> 2
+          else -> 3
+        }
+        parent?.requestDisallowInterceptTouchEvent(true)
+      }
+      MotionEvent.ACTION_MOVE -> if (dragging == 1 || dragging == 2) {
+        val range = max(1f, width - 6f * d - handle * d)
+        val fraction = ((x - 3f * d - handle * d / 2) / range).toDouble().coerceIn(0.0, 1.0)
+        val least = 1000.0 / maxOf(1L, durationMs)
+        if (dragging == 1) trimStart = min(fraction, trimEnd - least).coerceAtLeast(0.0) else trimEnd = max(fraction, trimStart + least).coerceAtMost(1.0)
+        invalidate()
+        onTrim?.invoke(trimStart, trimEnd, false)
+      }
+      MotionEvent.ACTION_UP -> {
+        if (dragging == 1 || dragging == 2) onTrim?.invoke(trimStart, trimEnd, true)
+        else if (abs(x - downX) < 12f * d) { performClick(); onToggle?.invoke() }
         dragging = 0
       }
       MotionEvent.ACTION_CANCEL -> dragging = 0

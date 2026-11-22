@@ -93,6 +93,22 @@ class NoteRecorder(
   var onDone: ((File) -> Unit)? = null
   /** Record: the minute is over (the composer ends the take). */
   var onLimit: (() -> Unit)? = null
+  // Record: the flash (the screen for the front camera, the torch for the back one) and pinch to zoom.
+  private var builder: android.hardware.camera2.CaptureRequest.Builder? = null
+  private var maxZoom = 1f
+  private var hasTorch = false
+  private var flash = false
+  private var zoom = 0f
+  private var zoomBase = 0f
+  private var brightnessBefore: Float? = null
+  private val screenFlash = View(context).apply { setBackgroundColor(0xFFFFF6E8.toInt()); visibility = View.GONE; isClickable = false }
+  private val zoomPill = TextView(context)
+  private val flashButton = RoundButton({ if (flash) "flash" else "flash.off" }, true, { if (controlled) Theme.muted else Color.WHITE }, { 24f })
+  private var baseMs = 0L
+  private var stoppedPartMs = 0L
+  private var trimStart = 0.0
+  private var trimEnd = 1.0
+  private var resultView: TextureView? = null
   private val controlled: Boolean get() = panelTop >= 0
   /** Record: where the take is to go when it stops (null: `onDone`). */
   private var stopped: ((File?, Long) -> Unit)? = null
@@ -153,6 +169,8 @@ class NoteRecorder(
         canvas.drawCircle(cx, cy, radius - 2f * d, paint)
       }
       if (symbol() == "camera.flip") IonIcon.draw(canvas, "camera-reverse-outline", cx, cy, 24f * d, tint())
+      else if (symbol() == "flash") IonIcon.draw(canvas, "flash-outline", cx, cy, 24f * d, tint())
+      else if (symbol() == "flash.off") IonIcon.draw(canvas, "flash-off-outline", cx, cy, 24f * d, tint())
       else MediaIcons.draw(canvas, symbol(), cx, cy, symbolSize() * d, tint(), if (plate) 1.8f else 2.6f)
     }
   }
@@ -183,6 +201,9 @@ class NoteRecorder(
         put(circle, (width - side) / 2, circleTop, side, side)
         put(problem, dp(32f), circleTop + side + dp(16f), width - dp(64f), dp(64f))
         put(flipButton, dp(8f), height - dp(8f) - dp(40f), dp(40f), dp(40f))
+        put(flashButton, dp(8f + 40f + 11f), height - dp(8f) - dp(40f), dp(40f), dp(40f))
+        put(screenFlash, 0, 0, width, height)
+        put(zoomPill, (side - dp(46f)) / 2, side - dp(24f + 9f), dp(46f), dp(18f))
         fit()
         return
       }
@@ -265,6 +286,29 @@ class NoteRecorder(
       }
     }
     if (controlled) {
+      root.addView(screenFlash, 0)
+      root.addView(flashButton)
+      flashButton.contentDescription = "Вспышка"
+      flashButton.setOnClickListener { flash = !flash; showFlash() }
+      zoomPill.textSize = 12f
+      zoomPill.typeface = Theme.weight(700)
+      zoomPill.setTextColor(Color.WHITE)
+      zoomPill.gravity = Gravity.CENTER
+      zoomPill.background = GradientDrawable().apply { setColor(0x4D000000); cornerRadius = 10f * d }
+      zoomPill.visibility = View.GONE
+      circle.addView(zoomPill, FrameLayout.LayoutParams(dp(46f), dp(18f), Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(24f) })
+      val pinch = android.view.ScaleGestureDetector(context, object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        private var total = 1f
+        override fun onScaleBegin(detector: android.view.ScaleGestureDetector): Boolean { zoomBase = zoom; total = 1f; return true }
+        override fun onScale(detector: android.view.ScaleGestureDetector): Boolean {
+          total *= detector.scaleFactor
+          // The scale moves the zoom by 0.6 of its change, between 0 and 1.
+          zoom = (zoomBase + (total - 1f) * 0.6f).coerceIn(0f, 1f)
+          showZoom()
+          return true
+        }
+      })
+      circle.setOnTouchListener { _, event -> pinch.onTouchEvent(event); event.pointerCount > 1 || pinch.isInProgress }
       heading.visibility = View.GONE
       closeButton.visibility = View.GONE
       recordButton.visibility = View.GONE
@@ -282,6 +326,7 @@ class NoteRecorder(
   }
 
   private fun showButtons() {
+    if (controlled) showFlash()
     recordButton.contentDescription = if (recording) "Остановить и отправить" else "Начать запись"
     recordButton.invalidate()
     // The single camera is not turned in the middle of a take: the file would end there. With both cameras
@@ -362,6 +407,8 @@ class NoteRecorder(
       val about = manager.getCameraCharacteristics(id)
       if (about.get(CameraCharacteristics.LENS_FACING) != wanted) continue
       sensorTurn = about.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90
+      maxZoom = if (Build.VERSION.SDK_INT >= 30) (about.get(CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE)?.upper ?: 1f) else 1f
+      hasTorch = about.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
       val sizes = about.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.getOutputSizes(MediaRecorder::class.java)?.toList() ?: emptyList()
       size = captureSize(sizes.map { Pair(it.width, it.height) }).let { Size(it.first, it.second) }
       return id
@@ -442,7 +489,8 @@ class NoteRecorder(
             val request = device.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
             request.addTarget(shown)
             request.addTarget(written)
-            configured.setRepeatingRequest(request.build(), null, main)
+            builder = request
+            applyRequest()
           } catch (_: Exception) { return lost() }
           ready = true
           recordButton.isEnabled = true
@@ -527,7 +575,7 @@ class NoteRecorder(
   private val clock = object : Runnable {
     override fun run() {
       if (!recording) return
-      val ms = SystemClock.elapsedRealtime() - startedAt
+      val ms = SystemClock.elapsedRealtime() - startedAt + baseMs
       heading.text = FileCore.call("voiceTimeFine", listOf(ms)) as? String ?: ""
       progress = minOf(1f, ms.toFloat() / MAX_MS)
       root.invalidate()
@@ -614,7 +662,7 @@ class NoteRecorder(
   // Record: the composer drives the take
 
   /** How long the take is by now. */
-  val elapsedMs: Long get() = if (recording) SystemClock.elapsedRealtime() - startedAt else stoppedMs
+  val elapsedMs: Long get() = baseMs + (if (recording) SystemClock.elapsedRealtime() - startedAt else stoppedPartMs)
 
   /** The microphone's peak right now, 0…1 (for the blob): the single recorder's amplitude ÷ 16000. */
   fun level(): Float = try { ((recorder?.maxAmplitude ?: 0) / 16000f).coerceIn(0f, 1f) } catch (_: Exception) { 0f }
@@ -623,7 +671,10 @@ class NoteRecorder(
    *  stays for the preview or `close()`. */
   fun stopTake(keep: Boolean, done: (File?, Long) -> Unit) {
     if (closed) { done(null, 0); return }
+    stoppedPartMs = if (recording) SystemClock.elapsedRealtime() - startedAt else 0L
     stoppedMs = elapsedMs
+    flash = false
+    showFlash()
     stopped = done
     finish(keep)
   }
@@ -633,8 +684,13 @@ class NoteRecorder(
   /** The stopped take plays round and round in the circle; a tap pauses it. */
   fun showResult(file: File) {
     val shown = TextureView(context)
+    resultView = shown
+    trimStart = 0.0; trimEnd = 1.0
     circle.addView(shown, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     flipButton.animate().alpha(0f).scaleX(0.01f).scaleY(0.01f).setDuration(200).start()
+    flashButton.animate().alpha(0f).scaleX(0.01f).scaleY(0.01f).setDuration(200).start()
+    main.removeCallbacks(loopWatch)
+    main.post(loopWatch)
     progress = 0f
     root.invalidate()
     shown.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
@@ -663,6 +719,93 @@ class NoteRecorder(
     shown.setOnClickListener { togglePlayback() }
   }
 
+  /** The kept part plays round and round. */
+  private val loopWatch = object : Runnable {
+    override fun run() {
+      val made = resultPlayer
+      if (made != null) try {
+        val total = made.duration.toDouble()
+        if (total > 0 && made.isPlaying && made.currentPosition >= total * trimEnd) made.seekTo((total * trimStart).toLong(), android.media.MediaPlayer.SEEK_CLOSEST)
+      } catch (_: Exception) {}
+      if (resultView != null) main.postDelayed(this, 33)
+    }
+  }
+
+  /** Record: the kept part changed (fractions): playing stops while a handle moves, then goes on from its start. */
+  fun setTrim(start: Double, end: Double, done: Boolean) {
+    trimStart = start; trimEnd = end
+    val made = resultPlayer ?: return
+    try {
+      val total = made.duration.toDouble()
+      made.pause()
+      made.seekTo((total * (if (done) start else end)).toLong(), android.media.MediaPlayer.SEEK_CLOSEST)
+      if (done) made.start()
+    } catch (_: Exception) {}
+  }
+
+  /** Record: «record more» — the stopped take's playing ends and the camera records the next part after `afterMs`. */
+  fun resume(afterMs: Long) {
+    baseMs = afterMs
+    stoppedPartMs = 0L
+    main.removeCallbacks(loopWatch)
+    try { resultPlayer?.release() } catch (_: Exception) {}
+    resultPlayer = null
+    resultView?.let { circle.removeView(it) }
+    resultView = null
+    flipButton.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(200).start()
+    flashButton.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(200).start()
+    // The two-camera rig was let go with the last part: the next part takes the single camera.
+    dual?.let { circle.removeView(it.view) }
+    dual = null
+    dualTried = true
+    closed = false
+    ready = false
+    recording = false
+    startedAt = 0L
+    progress = (baseMs.toFloat() / MAX_MS).coerceIn(0f, 1f)
+    beginWhenReady = true
+    if (preview.parent == null) circle.addView(preview, 0, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    else if (texture != null) open()
+  }
+
+  /** The front camera's flash is the screen itself (warm white at full brightness) while recording; the back
+   *  camera's is its torch. */
+  private fun showFlash() {
+    flashButton.contentDescription = if (flash) "Вспышка включена" else "Вспышка выключена"
+    flashButton.invalidate()
+    val lit = flash && front && recording
+    screenFlash.visibility = if (lit) View.VISIBLE else View.GONE
+    val window = activity.window
+    if (lit && brightnessBefore == null) {
+      brightnessBefore = window.attributes.screenBrightness
+      window.attributes = window.attributes.apply { screenBrightness = 1f }
+    } else if (!lit) brightnessBefore?.let { before ->
+      window.attributes = window.attributes.apply { screenBrightness = before }
+      brightnessBefore = null
+    }
+    val torch = flash && !front
+    dual?.setTorch(torch)
+    applyRequest()
+  }
+
+  private fun showZoom() {
+    zoomPill.text = String.format(java.util.Locale.US, "%.1f", 1 + zoom * 5).replace('.', ',') + "×"
+    zoomPill.visibility = if (zoom <= 0.02f) View.GONE else View.VISIBLE
+    dual?.setZoom(zoom)
+    applyRequest()
+  }
+
+  /** The single camera's repeating request with the torch and the zoom of now. */
+  private fun applyRequest() {
+    val request = builder ?: return
+    val configured = session ?: return
+    try {
+      request.set(android.hardware.camera2.CaptureRequest.FLASH_MODE, if (flash && !front && hasTorch) android.hardware.camera2.CaptureRequest.FLASH_MODE_TORCH else android.hardware.camera2.CaptureRequest.FLASH_MODE_OFF)
+      if (Build.VERSION.SDK_INT >= 30 && maxZoom > 1f) request.set(android.hardware.camera2.CaptureRequest.CONTROL_ZOOM_RATIO, 1f + zoom * (minOf(6f, maxZoom) - 1f))
+      configured.setRepeatingRequest(request.build(), null, main)
+    } catch (_: Exception) {}
+  }
+
   /** Play / pause of the stopped take; true when it plays. */
   fun togglePlayback(): Boolean {
     val made = resultPlayer ?: return false
@@ -671,6 +814,9 @@ class NoteRecorder(
 
   /** Everything goes: the page clears in 0.25 s and the screen closes. */
   fun close() {
+    main.removeCallbacks(loopWatch)
+    resultView = null
+    if (flash) { flash = false; showFlash() }
     try { resultPlayer?.release() } catch (_: Exception) {}
     resultPlayer = null
     if (!closed) finish(keep = false)
@@ -717,6 +863,95 @@ class NoteRecorder(
   }
 
   companion object {
+    /** Record: the parts of a round video («record more») one after another, cut to the kept part (`from`…`to`,
+     *  fractions of the whole), their samples copied as they are into a new .mp4 (the cut starts at the key frame at
+     *  or before `from`). A single part kept whole is handed back as it is. Off the main thread. */
+    fun join(context: Context, parts: List<File>, from: Double, to: Double): File? {
+      val whole = from <= 0.0005 && to >= 0.9995
+      if (parts.size == 1 && whole) return parts[0]
+      val durations = parts.map { part ->
+        try { android.media.MediaMetadataRetriever().run { setDataSource(part.absolutePath); val ms = extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L; release(); ms } } catch (_: Exception) { 0L }
+      }
+      val totalUs = durations.sum() * 1000
+      val fromUs = (totalUs * from).toLong(); val toUs = (totalUs * to).toLong()
+      val target = VideoPrepare.freshFile(context, "mp4")
+      var muxer: android.media.MediaMuxer? = null
+      return try {
+        var videoTrack = -1; var audioTrack = -1
+        var offset = 0L
+        var started = false
+        var startUs = -1L
+        val buffer = java.nio.ByteBuffer.allocate(4 shl 20)
+        val info = android.media.MediaCodec.BufferInfo()
+        for ((index, part) in parts.withIndex()) {
+          val extractor = android.media.MediaExtractor()
+          try {
+            extractor.setDataSource(part.absolutePath)
+            val map = HashMap<Int, Boolean>()
+            for (i in 0 until extractor.trackCount) {
+              val format = extractor.getTrackFormat(i)
+              val mime = format.getString(android.media.MediaFormat.KEY_MIME) ?: ""
+              val video = mime.startsWith("video/")
+              if (!video && !mime.startsWith("audio/")) continue
+              if (muxer == null) muxer = android.media.MediaMuxer(target.absolutePath, android.media.MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+              if (!started) {
+                if (video && videoTrack < 0) {
+                  videoTrack = muxer!!.addTrack(format)
+                  if (format.containsKey(android.media.MediaFormat.KEY_ROTATION)) muxer!!.setOrientationHint(format.getInteger(android.media.MediaFormat.KEY_ROTATION))
+                }
+                if (!video && audioTrack < 0) audioTrack = muxer!!.addTrack(format)
+              }
+              extractor.selectTrack(i)
+              map[i] = video
+            }
+            if (!started && muxer != null) { muxer!!.start(); started = true }
+            while (true) {
+              val size = extractor.readSampleData(buffer, 0)
+              if (size < 0) break
+              val track = extractor.sampleTrackIndex
+              val video = map[track]
+              if (video == null) { extractor.advance(); continue }
+              val whole2 = offset + extractor.sampleTime
+              val key = extractor.sampleFlags and android.media.MediaExtractor.SAMPLE_FLAG_SYNC != 0
+              if (startUs < 0 && video && key && whole2 <= fromUs + 1) startUs = whole2
+              if (startUs >= 0 && whole2 >= startUs && whole2 <= toUs) {
+                info.offset = 0; info.size = size
+                info.presentationTimeUs = whole2 - startUs
+                info.flags = if (key) android.media.MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
+                val out = if (video) videoTrack else audioTrack
+                if (out >= 0) muxer!!.writeSampleData(out, buffer, info)
+              }
+              extractor.advance()
+            }
+          } finally { extractor.release() }
+          offset += durations[index] * 1000
+        }
+        muxer?.stop()
+        if (started) target else { target.delete(); null }
+      } catch (_: Exception) {
+        target.delete(); null
+      } finally {
+        try { muxer?.release() } catch (_: Exception) {}
+      }
+    }
+
+    /** Record: `count` square frames spread over the video, for the preview's strip. Off the main thread. */
+    fun frames(file: File, count: Int, sidePx: Int): List<android.graphics.Bitmap> {
+      val out = ArrayList<android.graphics.Bitmap>()
+      val retriever = android.media.MediaMetadataRetriever()
+      try {
+        retriever.setDataSource(file.absolutePath)
+        val ms = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 0L
+        for (i in 0 until maxOf(1, count)) {
+          val at = (ms * 1000 * (i + 0.5) / maxOf(1, count)).toLong()
+          val frame = (if (Build.VERSION.SDK_INT >= 27) retriever.getScaledFrameAtTime(at, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC, sidePx * 2, sidePx * 2) else retriever.getFrameAtTime(at)) ?: continue
+          out.add(frame)
+        }
+      } catch (_: Exception) {
+      } finally { try { retriever.release() } catch (_: Exception) {} }
+      return out
+    }
+
     const val MAX_MS = 60_000L
     const val VIDEO_BIT_RATE = 2_000_000
     const val noAccess = "Нужен доступ к камере и микрофону. Разреши их для Инвиза в настройках телефона."

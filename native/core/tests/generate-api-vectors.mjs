@@ -29,7 +29,7 @@ const classCode = stripTypeScriptTypes(`type DeviceInfo = any;\n${errorClass}\n$
 // Everything else the class body names (uploads) is never reached by the members replayed here.
 const makeApi = new Function('deviceInfo', 'networkTier', 'inboxPrefetch', `${classCode}; return Api;`);
 
-// kinds: s string · n number · o object · a array · z string|null · q the options of `scheduled`; `?` optional.
+// kinds: s string · n number · o object · a array · b boolean · z string|null · q the options of `scheduled`; `?` optional.
 const SPEC = {
   health: '', me: '', login: 's s s', register: 's s s s s s?', verifyRecovery: 's s', recoveryStatus: 's', resetPassword: 's s', recoveryRequests: '',
   cancelRecovery: 's', security: '', changePassword: 's s s?', changeConfirmationWord: 's s s?', changeRecoveryWord: 's s s?', sessions: '', revokeSession: 's',
@@ -45,6 +45,9 @@ const SPEC = {
   banMember: 's s s?', unbanMember: 's s', communityBans: 's', setMemberVoice: 's s o', kickMember: 's s', setMemberRoles: 's s a', createRole: 's o', updateRole: 's s o',
   deleteRole: 's s', createChannel: 's o', updateChannel: 's s o', deleteChannel: 's s', channelMessages: 's s n?', sendChannelMessage: 's s o', editChannelMessage: 's s n s',
   reactChannelMessage: 's s n s', deleteChannelMessage: 's s n', createInvite: 's', invite: 's', acceptInvite: 's',
+  requestHistory: 's', outgoingHistory: 's', incomingHistory: 's', claimHistory: 's s', putHistoryPage: 's n s s', completeHistory: 's s o n', historyPage: 's n s',
+  ackHistory: 's s', cancelHistory: 's s', backupState: 's', enableBackup: 's n s', disableBackup: 's', putBackupNote: 's s n o', appendBackupPage: 's n s b',
+  startRestore: 's', backupPage: 'n s',
 };
 // Members of the class that are not entries of the endpoint table (each one named, so a new member cannot slip by).
 const SKIP = {
@@ -160,7 +163,7 @@ const POOLS = {
   'sendChannelMessage.2': objects({ text: ['Привет 😀', '', 'x'.repeat(400)], attachmentId: [UUID], replyTo: [1, 123456], clientKey: ['k'.repeat(64), 'key-1'] }, { exhaustive: true }),
 };
 const poolFor = (op, index, kind) => {
-  const base = POOLS[`${op}.${index}`] ?? { s: STR, n: NUM, a: ARR, z: [...STR, null], o: [{ a: 1 }, ...ODD_OBJECTS] }[kind.replace('?', '')];
+  const base = POOLS[`${op}.${index}`] ?? { s: STR, n: NUM, a: ARR, b: [true, false], z: [...STR, null], o: [{ a: 1 }, ...ODD_OBJECTS] }[kind.replace('?', '')];
   if (!base) throw new Error(`no values for ${op} argument ${index}`);
   return kind.endsWith('?') && !base.includes(null) ? [...base, null] : base;
 };

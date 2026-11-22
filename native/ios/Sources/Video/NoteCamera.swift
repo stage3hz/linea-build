@@ -135,6 +135,12 @@ final class NoteCamera: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, 
         }
     }
 
+    /// Record: starts again after `stop()` («record more»); `onReady` comes again with the first frame.
+    func restart(front: Bool) {
+        dataQueue.async { self.firstFrameSent = false }
+        start(front: front)
+    }
+
     func stop() {
         sessionQueue.async {
             if let rig = self.rig, self.multiOn { rig.session.stopRunning() } else if self.session.isRunning { self.session.stopRunning() }

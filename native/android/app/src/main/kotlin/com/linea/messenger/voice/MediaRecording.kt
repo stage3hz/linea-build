@@ -26,7 +26,12 @@ class MediaRecording(private val context: Context) {
   private val draft = VoiceDraft(context)
   private val main = Handler(Looper.getMainLooper())
   private var note: NoteRecorder? = null
-  private var noteFile: File? = null
+  /** The parts of a stopped round video («record more» adds one), the file the circle plays, the kept part. */
+  private val noteParts = ArrayList<File>()
+  private var noteShown: File? = null
+  private var noteTrim = Pair(0.0, 1.0)
+  private var noteMs = 0L
+  private val work = java.util.concurrent.Executors.newSingleThreadExecutor()
   private var host: ViewGroup? = null
   private var composer: FrameLayout? = null
   private var lastTrim = Pair(0.0, 1.0)
@@ -60,7 +65,9 @@ class MediaRecording(private val context: Context) {
       if (shown != null) control.setPreviewPlayback(0.0, shown.togglePlayback()) else draft.toggle()
     }
     control.previewSeek = { draft.seek(it) }
-    control.previewTrim = { start, end, done ->
+    control.previewTrim = trim@{ start, end, done ->
+      val shown = note
+      if (shown != null) { noteTrim = Pair(start, end); shown.setTrim(start, end, done); return@trim }
       val endMoved = Math.abs(end - lastTrim.second) > Math.abs(start - lastTrim.first)
       if (done) lastTrim = Pair(start, end)
       draft.trimmed(start, end, endMoved, done)
@@ -187,26 +194,68 @@ class MediaRecording(private val context: Context) {
         shown.stopTake(keep = false) { _, _ -> }
         shown.close()
         note = null
+        dropNoteParts()
       }
       RecordControl.Ending.SEND -> shown.stopTake(keep = true) { file, ms ->
         shown.close()
         note = null
-        if (file == null) { if (ms in 1L..999L) Haptic.error(control.button); return@stopTake }
-        sendNote?.invoke(file)
+        if (file != null) noteParts.add(file)
+        if (noteParts.isEmpty()) { if (ms in 1L..999L) Haptic.error(control.button); return@stopTake }
+        sendNoteParts()
       }
       RecordControl.Ending.PREVIEW -> shown.stopTake(keep = true) { file, _ ->
-        if (file == null) {
+        if (file != null) noteParts.add(file)
+        if (noteParts.isEmpty()) {
           Haptic.error(control.button)
           shown.close()
           note = null
           return@stopTake
         }
-        noteFile = file
-        shown.showResult(file)
-        control.showPreview(emptyList(), shown.elapsedMs, video = true)
-        control.setPreviewPlayback(0.0, true)
+        noteMs = shown.elapsedMs
+        noteTrim = Pair(0.0, 1.0)
+        val parts = ArrayList(noteParts)
+        val count = control.videoFrameCount
+        val side = Math.round(33f * context.resources.displayMetrics.density)
+        // The circle plays the parts joined; the field shows their frames.
+        work.execute {
+          val joined = NoteRecorder.join(context, parts, 0.0, 1.0)
+          val frames = joined?.let { NoteRecorder.frames(it, count, side) } ?: emptyList()
+          main.post {
+            if (note !== shown || joined == null) return@post
+            if (parts.size > 1) noteShown = joined
+            shown.showResult(joined)
+            control.showPreview(emptyList(), noteMs, video = true)
+            control.setPreviewPlayback(0.0, true)
+            control.setVideoFrames(frames)
+          }
+        }
       }
     }
+  }
+
+  /** The parts joined and cut to the kept part go out as one round video. */
+  private fun sendNoteParts() {
+    val parts = ArrayList(noteParts)
+    val trim = noteTrim
+    noteParts.clear()
+    noteTrim = Pair(0.0, 1.0)
+    noteShown?.delete()
+    noteShown = null
+    work.execute {
+      val file = NoteRecorder.join(context, parts, trim.first, trim.second)
+      for (part in parts) if (part != file) part.delete()
+      main.post {
+        if (file == null) say?.invoke("Не удалось подготовить видеосообщение.") else sendNote?.invoke(file)
+      }
+    }
+  }
+
+  private fun dropNoteParts() {
+    for (part in noteParts) part.delete()
+    noteParts.clear()
+    noteShown?.delete()
+    noteShown = null
+    noteTrim = Pair(0.0, 1.0)
   }
 
   // The preview
@@ -217,8 +266,7 @@ class MediaRecording(private val context: Context) {
       shown.close()
       note = null
       control.endPreview(deleted = false)
-      noteFile?.let { sendNote?.invoke(it) }
-      noteFile = null
+      sendNoteParts()
       return
     }
     control.endPreview(deleted = false)
@@ -230,14 +278,24 @@ class MediaRecording(private val context: Context) {
     if (shown != null) {
       shown.close()
       note = null
-      noteFile?.delete()
-      noteFile = null
+      dropNoteParts()
     } else draft.discard()
     control.endPreview(deleted = true)
   }
 
   private fun recordMore() {
-    if (note != null || !startVoice()) return
+    val shown = note
+    if (shown != null) {
+      // A round video: the camera records the next part after the ones before.
+      noteShown?.delete()
+      noteShown = null
+      noteTrim = Pair(0.0, 1.0)
+      shown.resume(noteMs)
+      control.resumeLocked()
+      main.post(levels)
+      return
+    }
+    if (!startVoice()) return
     control.resumeLocked()
   }
 
@@ -247,8 +305,7 @@ class MediaRecording(private val context: Context) {
     if (recorder.isRecording) recorder.finish(keep = false)
     note?.let { shown -> shown.stopTake(keep = false) { _, _ -> }; shown.close() }
     note = null
-    noteFile?.delete()
-    noteFile = null
+    dropNoteParts()
     draft.discard()
     if (control.isBusy) control.reset()
     control.detached()

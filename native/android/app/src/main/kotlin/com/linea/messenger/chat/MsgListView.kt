@@ -274,6 +274,20 @@ class MsgListView(context: Context) : FrameLayout(context) {
     return null
   }
 
+  /** Record: the play button of a voice row while it is on screen, px in this view (the blob of a sent take flies
+   *  to it). */
+  fun mediaPlayHost(key: String): android.graphics.RectF? {
+    for (index in 0 until list.childCount) {
+      val view = list.getChildAt(index) as? MsgRowView ?: continue
+      if (view.rowKey != key) continue
+      val play = view.mediaPlay() ?: return null
+      val at = IntArray(2); val mine = IntArray(2)
+      view.getLocationInWindow(at); getLocationInWindow(mine)
+      return android.graphics.RectF(play).apply { offset((at[0] - mine[0]).toFloat(), (at[1] - mine[1]).toFloat()) }
+    }
+    return null
+  }
+
   /** The rows on screen, by key. */
   /** ChatScreen.tsx `peek`: a picture of the row of `key` as it stands now (the whole width), for the message menu. */
   fun rowPicture(key: String): android.graphics.Bitmap? {

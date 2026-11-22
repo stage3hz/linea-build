@@ -155,6 +155,12 @@ class RecordControl(private val context: Context) {
   private val timeLabel = TextView(context)
   private val indicator = RecordCancelIndicator(context)
   val preview = VoicePreviewPanel(context)
+  /** The preview of a stopped round video (its frames, trimmed by two handles). */
+  val videoPreview = VideoTrimPanel(context)
+  /** Asked right after a voice take was sent: where the sent message's play button is, in the screen view's px
+   *  (null: nowhere to fly; the blob shrinks into the button instead). */
+  var sentTarget: (() -> RectF?)? = null
+  private var flying = false
   private val trash = object : View(context) {
     override fun onDraw(canvas: Canvas) = IonIcon.draw(canvas, "trash-outline", width / 2f, height / 2f, 22f * d, RecordSpec.controlColor)
     override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
@@ -223,6 +229,10 @@ class RecordControl(private val context: Context) {
     preview.onSeek = { previewSeek?.invoke(it) }
     preview.onTrim = { start, end, done -> previewTrim?.invoke(start, end, done) }
     layer.addView(preview)
+    videoPreview.visibility = View.GONE
+    videoPreview.onToggle = { previewToggle?.invoke() }
+    videoPreview.onTrim = { start, end, done -> previewTrim?.invoke(start, end, done) }
+    layer.addView(videoPreview)
     trash.contentDescription = "Удалить запись"
     trash.isClickable = true
     trash.visibility = View.GONE
@@ -287,6 +297,7 @@ class RecordControl(private val context: Context) {
     put(timeLabel, (f.left + 34f * d).toInt(), (middle + d - timeLabel.measuredHeight / 2f).toInt(), timeW, timeLabel.measuredHeight)
     placeIndicator()
     put(preview, fieldIdle.left.toInt(), (fieldIdle.bottom - 40f * d).toInt(), fieldIdle.width().toInt(), dp(40f))
+    put(videoPreview, fieldIdle.left.toInt(), (fieldIdle.bottom - 40f * d).toInt(), fieldIdle.width().toInt(), dp(40f))
     put(trash, trashRect.left.toInt(), trashRect.top.toInt(), trashRect.width().toInt(), trashRect.height().toInt())
   }
 
@@ -312,7 +323,7 @@ class RecordControl(private val context: Context) {
   private fun layoutOverlay() {
     val (cx, cy) = buttonCenterInHost()
     val side = dp(RecordSpec.blobSide)
-    put(blob, (cx - side / 2f).toInt(), (cy - d + 1 - side / 2f).toInt(), side, side)
+    if (!flying) put(blob, (cx - side / 2f).toInt(), (cy - d + 1 - side / 2f).toInt(), side, side)
     put(lockPanel, (cx - 20f * d).toInt(), (cy - RecordSpec.lockLift * d - 36f * d).toInt(), dp(40f), dp(72f))
     put(recordMore, (cx - 22f * d).toInt(), (cy - buttonRect.height() / 2 - 16f * d - 42f * d).toInt(), dp(44f), dp(44f))
     val composer = composer
@@ -455,6 +466,8 @@ class RecordControl(private val context: Context) {
   }
 
   private fun switchMode() {
+    // A medium knock, as the owner's spec has it.
+    button.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
     mode = if (mode == Mode.VOICE) Mode.VIDEO else Mode.VOICE
     showIdleIcon(true)
     onModeChanged?.invoke(mode)
@@ -622,13 +635,17 @@ class RecordControl(private val context: Context) {
     blob.animate().cancel(); lockPanel.animate().cancel()
     val sent = ending == Ending.SEND
     if (sent) {
-      blob.animate().scaleX(0.33f).scaleY(0.33f).translationY(blob.translationY + 2f * d).setDuration(180).start()
-      ValueAnimator.ofFloat(1f, 0f).apply { startDelay = 150; duration = 30; addUpdateListener { blob.alpha = it.animatedValue as Float }; start() }
+      // Once the host has put the message in the list (two frames), the blob flies to its play button; with no
+      // such button it shrinks into the composer's button.
+      blob.postOnAnimation { blob.postOnAnimation {
+        val target = sentTarget?.invoke()
+        if (target != null && target.width() > 0f) fly(target) else shrinkSent()
+      } }
     } else {
       blob.animate().scaleX(0.2f).scaleY(0.2f).alpha(0f).setDuration(180).start()
     }
     lockPanel.animate().translationY(100f * d).scaleX(0.2f).scaleY(0.2f).alpha(0f).setDuration(180).withEndAction {
-      if (phase == Phase.IDLE || phase == Phase.PREVIEW) { blob.visibility = View.GONE; lockPanel.visibility = View.GONE; lockPanel.reset() }
+      if (phase == Phase.IDLE || phase == Phase.PREVIEW) { if (!sent) blob.visibility = View.GONE; lockPanel.visibility = View.GONE; lockPanel.reset() }
     }.start()
     if (ending != Ending.PREVIEW) animateButtonIcon(1f, 1f, 150)
     blink?.cancel(); blink = null
@@ -641,6 +658,46 @@ class RecordControl(private val context: Context) {
       if (phase == Phase.IDLE || phase == Phase.PREVIEW) { indicator.visibility = View.GONE; indicator.swap = 0f; dot.visibility = View.GONE; timeLabel.visibility = View.GONE }
     }.start()
     animateShift(0f)
+  }
+
+  private fun shrinkSent() {
+    blob.animate().scaleX(0.33f).scaleY(0.33f).translationY(blob.translationY + 2f * d).setDuration(180).start()
+    ValueAnimator.ofFloat(1f, 0f).apply { startDelay = 150; duration = 30; addUpdateListener { blob.alpha = it.animatedValue as Float }; start() }
+  }
+
+  /** The sent voice message's play button is at `target`: the blob flies there in 0.3 s — across on the
+   *  (0.23, 1, 0.32, 1) curve, down/up on (0.199, 0.011, 0.279, 0.910) — shrinking so that its centre circle lands on
+   *  the button, and fades out in its first 0.06 s while the message takes over. */
+  private fun fly(target: RectF) {
+    flying = true
+    blob.animate().cancel()
+    val fromX = blob.left + blob.width / 2f + blob.translationX
+    val fromY = blob.top + blob.height / 2f + blob.translationY
+    val fromScale = blob.scaleX
+    val toScale = target.width() / (RecordSpec.blobSide * d * 0.45f)
+    val baseX = blob.left + blob.width / 2f; val baseY = blob.top + blob.height / 2f
+    val across = android.view.animation.PathInterpolator(0.23f, 1f, 0.32f, 1f)
+    val down = android.view.animation.PathInterpolator(0.199f, 0.0106f, 0.279f, 0.910f)
+    blob.alpha = 1f
+    ValueAnimator.ofFloat(0f, 1f).apply {
+      duration = 300
+      addUpdateListener {
+        val t = it.animatedValue as Float
+        val x = fromX + (target.centerX() - fromX) * across.getInterpolation(t)
+        val y = fromY + (target.centerY() - fromY) * down.getInterpolation(t)
+        val sc = fromScale + (toScale - fromScale) * down.getInterpolation(t)
+        blob.translationX = x - baseX; blob.translationY = y - baseY
+        blob.scaleX = sc; blob.scaleY = sc
+        blob.alpha = (1f - t * 0.3f / 0.06f).coerceIn(0f, 1f)
+      }
+      addListener(object : AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: Animator) {
+          flying = false
+          if (phase == Phase.IDLE || phase == Phase.PREVIEW) { blob.visibility = View.GONE; blob.translationX = 0f; blob.translationY = 0f; blob.scaleX = 1f; blob.scaleY = 1f }
+        }
+      })
+      start()
+    }
   }
 
   /** Called off: the red dot jumps into a red trash in the paperclip's place, the lid bounces (1.34 s), then the
@@ -734,11 +791,11 @@ class RecordControl(private val context: Context) {
   fun showPreview(levels: List<Double>, durationMs: Long, video: Boolean) {
     previewIsVideo = video
     phase = Phase.PREVIEW
-    preview.allowsTrim = !video
-    preview.setTake(levels, durationMs)
-    preview.visibility = View.VISIBLE
-    preview.alpha = 0f
-    preview.animate().alpha(1f).setDuration(200).start()
+    val shown: View = if (video) videoPreview else preview
+    if (video) videoPreview.setTake(durationMs) else { preview.allowsTrim = true; preview.setTake(levels, durationMs) }
+    shown.visibility = View.VISIBLE
+    shown.alpha = 0f
+    shown.animate().alpha(1f).setDuration(200).start()
     trash.visibility = View.VISIBLE
     trash.alpha = 0f; trash.scaleX = 0.001f; trash.scaleY = 0.001f
     trash.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(RecordSpec.easeInOut()).start()
@@ -746,7 +803,8 @@ class RecordControl(private val context: Context) {
     button.contentDescription = if (video) "Отправить видеосообщение" else "Отправить голосовое сообщение"
     button.iconAlpha = 1f; button.iconScale = 1f
     ValueAnimator.ofFloat(0f, 1f).apply { duration = 200; addUpdateListener { button.sendFill = it.animatedValue as Float; button.invalidate() }; start() }
-    if (!video) {
+    // «Record more» (a round video: while it is shorter than 59 s).
+    if (!video || durationMs < 59_000L) {
       recordMore.visibility = View.VISIBLE
       recordMore.alpha = 0f; recordMore.scaleX = 0.01f; recordMore.scaleY = 0.01f
       recordMore.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(RecordSpec.layoutMs).setInterpolator(RecordSpec.layoutCurve()).start()
@@ -755,6 +813,10 @@ class RecordControl(private val context: Context) {
   }
 
   fun setPreviewPlayback(fraction: Double, playing: Boolean) = preview.setPlayback(fraction, playing)
+
+  /** The frames of a stopped round video, as many as `videoFrameCount`. */
+  fun setVideoFrames(images: List<android.graphics.Bitmap>) = videoPreview.setFrames(images)
+  val videoFrameCount: Int get() = videoPreview.frameCount
 
   fun endPreview(deleted: Boolean) {
     if (phase != Phase.PREVIEW) return
@@ -765,6 +827,7 @@ class RecordControl(private val context: Context) {
 
   private fun hidePreview(deleted: Boolean) {
     preview.animate().alpha(0f).setDuration(200).withEndAction { if (phase != Phase.PREVIEW) preview.visibility = View.GONE }.start()
+    videoPreview.animate().alpha(0f).setDuration(200).withEndAction { if (phase != Phase.PREVIEW) videoPreview.visibility = View.GONE }.start()
     ValueAnimator.ofFloat(button.sendFill, 0f).apply { duration = 200; addUpdateListener { button.sendFill = it.animatedValue as Float; button.invalidate() }; start() }
     button.iconName = idleIcon()
     showIdleIcon(false)
@@ -792,6 +855,7 @@ class RecordControl(private val context: Context) {
     if (phase != Phase.PREVIEW) return
     phase = Phase.IDLE
     preview.visibility = View.GONE
+    videoPreview.visibility = View.GONE
     trash.visibility = View.GONE
     recordMore.visibility = View.GONE
     button.sendFill = 0f
