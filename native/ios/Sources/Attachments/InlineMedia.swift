@@ -376,8 +376,6 @@ enum InlineMediaArt {
             let scale = max(box.width / image.size.width, box.height / image.size.height)
             let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
             image.draw(in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height))
-        } else {
-            drawCentered(symbol("ion:videocam-outline", 34, .regular, UIColor(white: 1, alpha: 0.75)), at: CGPoint(x: box.midX, y: box.midY))
         }
         context.restoreGState()
     }
