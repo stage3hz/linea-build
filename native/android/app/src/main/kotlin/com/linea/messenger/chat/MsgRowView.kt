@@ -106,7 +106,13 @@ class MsgRowView(context: Context) : View(context) {
   /** From the plate's edges to the words (MessageRow.tsx), px: bubbles 11 + the text's own 1 on both sides; the open
    *  look 2 (line) + 10 + 1 / 4 + 1 for the other side, 4 + 1 / 0 + 1 for one's own. A photo with words keeps its card. */
   private fun pads(item: MsgRow): Pair<Float, Float> =
-    if (!MSG_OPEN_LOOK || item.media == "photo") Pair(12f * d, 12f * d) else if (item.mine) Pair(5f * d, 1f * d) else Pair(13f * d, 5f * d)
+    // MessageRow.tsx `flush`: a captioned photo, video or album fills its card (2 around it); the words stand 2 + 9 in.
+    if (flush(item)) Pair(11f * d, 11f * d)
+    else if (!MSG_OPEN_LOOK || item.media == "photo") Pair(12f * d, 12f * d) else if (item.mine) Pair(5f * d, 1f * d) else Pair(13f * d, 5f * d)
+
+  /** MessageRow.tsx `flush`: words under a photo, a video or an album — the picture fills the card edge to edge
+   *  (2 around it), always on a card, even in the open look. */
+  private fun flush(item: MsgRow): Boolean = (item.media == "photo" || item.media == "video" || item.album != null) && item.text.isNotEmpty() && item.bigEmoji == 0
 
   /** chatPreferences.ts TEXT_SIZES: the line of each text size (15/20, 17/22, 19/25, 22/28), dp. */
   private fun lineOf(size: Float): Float = when (size) { 15f -> 20f; 17f -> 22f; 19f -> 25f; 22f -> 28f; else -> Math.round(size * 1.3f).toFloat() }
@@ -127,7 +133,7 @@ class MsgRowView(context: Context) : View(context) {
   private fun inlineTime(item: MsgRow): Boolean = item.text.isNotEmpty() && item.bigEmoji == 0 && item.chips.isEmpty() && item.reactions.isEmpty() &&
     item.linkCard == null && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }
   /** MessageRow.tsx `plainTime`: the open look, and no rare marks (silent). */
-  private fun plainTime(item: MsgRow): Boolean = inlineTime(item) && MSG_OPEN_LOOK && item.media != "photo" && !item.silent
+  private fun plainTime(item: MsgRow): Boolean = inlineTime(item) && MSG_OPEN_LOOK && item.media != "photo" && !flush(item) && !item.silent
 
   /** Room of a fixed width in a line (the 15-point mark after the time), drawing nothing. */
   private class Room(val size: Int) : android.text.style.ReplacementSpan() {
@@ -435,7 +441,12 @@ class MsgRowView(context: Context) : View(context) {
     } else {
       // MessageRow.tsx: at most 85 % of the row (the list's side margins taken off), less the plate's padding.
       val pad = pads(item)
-      val inner = ((width - 2 * edge) * 0.85f - pad.first - pad.second).toInt()
+      // MessageRow.tsx `flush`: the card is the picture's width + 4, the words 9 in from the picture's edges.
+      val isFlush = flush(item)
+      val albumInner = ((width - 2 * edge) * 0.85f - pad.first - pad.second).toInt()
+      val flushWidth = if (!isFlush) 0f else item.album?.let { com.linea.messenger.attachments.MsgAlbumLayout.make(it, width.toFloat(), albumInner.toFloat(), d).width }
+        ?: com.linea.messenger.attachments.InlineMediaArt.photoSize(item, width.toFloat(), d).first
+      val inner = if (isFlush) maxOf(40f * d, flushWidth - 18f * d).toInt() else albumInner
       timeCorner = false; timeBeside = false; timeX = 0f; timeBase = 0f
       // Composer: 1–3 emoji alone stand large, each in its box (the reference's 112 / 84 / 68).
       if (item.bigEmoji > 0) { bigGlyphs = com.linea.messenger.composer.BigEmoji.graphemes(item.text).take(3); bigBox = com.linea.messenger.composer.BigEmoji.box(bigGlyphs.size) * d }
@@ -475,7 +486,7 @@ class MsgRowView(context: Context) : View(context) {
       item.poll?.let { poll -> pollLayout = com.linea.messenger.polls.MsgPollLayout.make(poll, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
       if (bigGlyphs.isNotEmpty()) w = maxOf(w, bigBox * bigGlyphs.size)
       // Media: an album's mosaic stands above its caption.
-      item.album?.let { album -> albumLayout = com.linea.messenger.attachments.MsgAlbumLayout.make(album, width.toFloat(), inner.toFloat(), d).also { w = maxOf(w, it.width) } }
+      item.album?.let { album -> albumLayout = com.linea.messenger.attachments.MsgAlbumLayout.make(album, width.toFloat(), albumInner.toFloat(), d).also { w = maxOf(w, it.width) } }
       // MessageRow.tsx `inlineTime`: the time's room is the invisible run at the end of the words (withTrailing).
       val text = textLayout
       if (text != null && text.lineCount > 0 && inlineTime(item)) {
@@ -488,17 +499,19 @@ class MsgRowView(context: Context) : View(context) {
         } else timeCorner = true // bubbles (and the open look with a rare mark): the lower corner, 10 / 6
       }
       // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
-      if (item.media == "photo" && item.text.isEmpty() && item.quoteText.isEmpty() && item.quoteAuthor.isEmpty() && item.forward.isEmpty() && reactLayout == null && chips.isEmpty()) {
+      // MessageRow.tsx `bare`: a video without words is the picture alone as well.
+      if ((item.media == "photo" || item.media == "video") && item.text.isEmpty() && item.quoteText.isEmpty() && item.quoteAuthor.isEmpty() && item.forward.isEmpty() && reactLayout == null && chips.isEmpty()) {
         photoBare = true; bubbleW = thumbW; bubbleH = thumbH
         builtFor = item; builtWidth = width; builtFont = fontSize
         return
       }
       // MessageRow.tsx: 6 above the content; the forward line 4 above what follows; the quote's block 6 above it.
-      var h = 6f * d
-      if (item.forward.isNotEmpty()) h += Math.ceil((forwardPaint.descent() - forwardPaint.ascent()).toDouble()).toFloat() + 4f * d
-      if (quoteLayout != null) h += quoteHeight(quoteLayout!!) + 6f * d
-      if (thumbH > 0f) h += thumbH + 6f * d
-      albumLayout?.let { h += it.height + 6f * d } // Media
+      // `flush`: 2 above; the forward line 7 more, the quote 8 more, 7 under the picture.
+      var h = (if (isFlush) 2f else 6f) * d
+      if (item.forward.isNotEmpty()) h += Math.ceil((forwardPaint.descent() - forwardPaint.ascent()).toDouble()).toFloat() + 4f * d + (if (isFlush) 7f * d else 0f)
+      if (quoteLayout != null) h += quoteHeight(quoteLayout!!) + 6f * d + (if (isFlush) 8f * d else 0f)
+      if (thumbH > 0f) h += thumbH + (if (isFlush) 7f else 6f) * d
+      albumLayout?.let { h += it.height + (if (isFlush) 7f else 6f) * d } // Media
       if (voiceH > 0f) h += voiceH + 4f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
       if (fileH > 0f) h += fileH + 4f * d // Attachments
@@ -511,7 +524,7 @@ class MsgRowView(context: Context) : View(context) {
       // Below: 6 under words that carry the time or beside the chips (5 + the time's 1), else the time's own row
       // (4 above it, 5 below).
       h += if (timeInline || timeCorner || timeBeside) 6f * d else 4f * d + Math.ceil((meta.descent() - meta.ascent()).toDouble()).toFloat() + 5f * d
-      bubbleW = maxOf(if (MSG_OPEN_LOOK) 0f else 60f * d, w + pad.first + pad.second); bubbleH = h
+      bubbleW = if (isFlush) flushWidth + 4f * d else maxOf(if (MSG_OPEN_LOOK) 0f else 60f * d, w + pad.first + pad.second); bubbleH = h
     }
     builtFor = item; builtWidth = width; builtFont = fontSize
   }
@@ -619,15 +632,23 @@ class MsgRowView(context: Context) : View(context) {
     plateBox.set(left, 0f, left + bubbleW, bubbleH)
     // Attachments: a photo alone — the picture with the time in its corner, no plate and no line.
     if (photoBare) {
-      com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, left, 0f, bubbleW, bubbleH, palette, thumb, 15f * d, true, d)
+      if (item.media == "video") {
+        // MediaBubble.tsx `MediaTile` alone (radius 15): the poster, the play round, the label, the time in its corner.
+        mediaBoxes.clear()
+        mediaPicture.set(left, 0f, left + bubbleW, bubbleH)
+        mediaBoxes.thumb.set(mediaPicture)
+        com.linea.messenger.attachments.InlineMediaArt.drawVideo(canvas, item, left, 0f, bubbleW, bubbleH, palette, thumb, 15f * d, d)
+        MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d)
+        com.linea.messenger.attachments.InlineMediaArt.timePill(canvas, item, left + bubbleW, bubbleH, palette, d)
+      } else com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, left, 0f, bubbleW, bubbleH, palette, thumb, 15f * d, true, d)
       if (isPressed || flash) { fill.color = Theme.veil(if (isPressed) 0.08f else 0.14f); canvas.drawRoundRect(left, 0f, left + bubbleW, bubbleH, 15f * d, 15f * d, fill) }
       return
     }
     com.linea.messenger.chatlook.ChatBubbleLook.shape(path, plateBox, item.mine, item.tail, d)
     // Attachments: a photo with words keeps its card in the open look too.
-    if (!MSG_OPEN_LOOK || item.media == "photo") canvas.drawPath(path, fill)
+    if (!MSG_OPEN_LOOK || item.media == "photo" || flush(item)) canvas.drawPath(path, fill)
     // ChatLook: the open look — the other side's words carry a thin line in their colour.
-    if (MSG_OPEN_LOOK && !item.mine && item.media != "photo" && (item.text.isNotEmpty() || item.label.isNotEmpty())) {
+    if (MSG_OPEN_LOOK && !item.mine && item.media != "photo" && !flush(item) && (item.text.isNotEmpty() || item.label.isNotEmpty())) {
       val line = com.linea.messenger.chatlook.ChatBubbleLook.peerLine
       fill.color = if (line != 0) line else palette.accent
       canvas.drawRect(left, 0f, left + 2f * d, bubbleH, fill) // `borderLeftWidth: 2`, the whole height
@@ -636,19 +657,25 @@ class MsgRowView(context: Context) : View(context) {
 
     val pad = pads(item)
     val x = left + pad.first
-    var y = 6f * d
+    // MessageRow.tsx `flush`: 2 around the picture; the forward line 12 in and 7 lower, the quote 8 in and 8 lower.
+    val isFlush = flush(item)
+    var y = (if (isFlush) 2f else 6f) * d
     val metaColor = if (item.mine) palette.mineMeta else palette.muted
     val markColor = if (item.mine) palette.mineMark else palette.accent
     val inner = bubbleW - pad.first - pad.second
     if (item.forward.isNotEmpty()) {
       // MessageRow.tsx: 11 semibold in the accent, 4 above what follows.
       forwardPaint.color = palette.accent
-      val shown = TextUtils.ellipsize(item.forward, forwardPaint, inner - 2f * d, TextUtils.TruncateAt.END)
-      canvas.drawText(shown, 0, shown.length, x + 1f * d, y - forwardPaint.ascent(), forwardPaint)
+      if (isFlush) y += 7f * d
+      val shown = TextUtils.ellipsize(item.forward, forwardPaint, if (isFlush) bubbleW - 28f * d else inner - 2f * d, TextUtils.TruncateAt.END)
+      canvas.drawText(shown, 0, shown.length, if (isFlush) left + 14f * d else x + 1f * d, y - forwardPaint.ascent(), forwardPaint)
       y += Math.ceil((forwardPaint.descent() - forwardPaint.ascent()).toDouble()).toFloat() + 4f * d
     }
     quoteLayout?.let { quote ->
       // MessageRow.tsx: white 0.06 / black 0.04, radius 10, the 3-point bar, 7 to the words, 5 above and below.
+      if (isFlush) y += 8f * d
+      val x = if (isFlush) left + 10f * d else x
+      val inner = if (isFlush) bubbleW - 20f * d else inner
       val height = quoteHeight(quote)
       quoteLeft = x; quoteTop = y; quoteRight = x + inner; quoteBottom = y + height
       fill.color = if (Theme.dark) 0x0FFFFFFF else 0x0A000000
@@ -676,18 +703,22 @@ class MsgRowView(context: Context) : View(context) {
     val image = thumb
     // Voice/Video: where the picture of a video or a round video stands; without a picture, a quiet plate.
     mediaBoxes.clear()
+    // MessageRow.tsx `flush`: the picture 2 in from the card's edges, its corners max(4, the card's − 3), 7 above the words.
+    val pictureX = if (isFlush) left + 2f * d else x
+    val pictureRadius = if (isFlush) maxOf(4f, com.linea.messenger.chatlook.ChatBubbleLook.radius - 3f) * d else 12f * d
+    val pictureGap = (if (isFlush) 7f else 6f) * d
     if (thumbH > 0f && (item.media == "video" || item.media == "note")) {
-      mediaPicture.set(x, y, x + thumbW, y + thumbH)
+      mediaPicture.set(pictureX, y, pictureX + thumbW, y + thumbH)
       mediaBoxes.thumb.set(mediaPicture)
-      if (image == null) { MediaRowArt.plate(canvas, item.media == "note", palette, mediaPicture, d); y += thumbH + 6f * d }
+      if (image == null) { MediaRowArt.plate(canvas, item.media == "note", palette, mediaPicture, d); y += thumbH + pictureGap }
     }
     // Attachments: a photo with words, shown whole above them.
-    if (item.media == "photo" && thumbH > 0f) { com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, x, y, thumbW, thumbH, palette, image, 12f * d, false, d); y += thumbH + 6f * d }
-    if (image != null && item.media != "photo" && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
+    if (item.media == "photo" && thumbH > 0f) { com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, pictureX, y, thumbW, thumbH, palette, image, pictureRadius, false, d); y += thumbH + pictureGap }
+    if (image != null && item.media != "photo" && thumbH > 0f) { drawPicture(canvas, image, pictureX, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else pictureRadius); y += thumbH + pictureGap }
     // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
     if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d, hosted = com.linea.messenger.video.NotePlayback.hostedKeys.contains(item.key))
     // Media: the album's mosaic.
-    albumLayout?.let { albumX = x; albumY = y; it.draw(canvas, item.album ?: return@let, albumPictures, x, y, palette); y += it.height + 6f * d }
+    albumLayout?.let { albumX = pictureX; albumY = y; it.draw(canvas, item.album ?: return@let, albumPictures, pictureX, y, palette); y += it.height + pictureGap }
     if (voiceH > 0f) { MediaRowArt.voice(canvas, item, mediaState, palette, x, y, voiceW, d, mediaBoxes); y += voiceH + 4f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
     // Attachments: a file's card with the round button.
@@ -737,7 +768,7 @@ class MsgRowView(context: Context) : View(context) {
     // bottom, beside the chips, or on a row of its own at the right (5 above the plate's bottom).
     val inline = timeInline && textLayout != null
     val corner = timeCorner && textLayout != null
-    val under = left + bubbleW - (if (corner) 10f * d else if (MSG_OPEN_LOOK && item.media != "photo") pad.second - 1f * d else 11f * d)
+    val under = left + bubbleW - (if (corner) 10f * d else if (flush(item)) 2f * d else if (MSG_OPEN_LOOK && item.media != "photo") pad.second - 1f * d else 11f * d)
     val right = if (inline) x + timeX + meta.measureText(item.time) + marks + (if (item.silent) 15f * d else 0f) else under // Composer: room for the bell
     val base = if (inline) textTop + timeBase else bubbleH - (if (corner || timeBeside) 6f * d else 5f * d) - meta.descent()
     canvas.drawText(item.time, right - marks - meta.measureText(item.time), base, meta)
@@ -745,7 +776,7 @@ class MsgRowView(context: Context) : View(context) {
     if (item.mine && item.ticks == 4) {
       // MessageRow.tsx: a refused message — a 1-point danger border on its plate, and «Не отправлено · повторить» under it
       // (a touch on the row sends it again).
-      if (!MSG_OPEN_LOOK || item.media == "photo") { com.linea.messenger.chatlook.ChatBubbleLook.shape(path, plateBox, item.mine, item.tail, d); stroke.color = palette.danger; stroke.strokeWidth = 1f * d; canvas.drawPath(path, stroke) }
+      if (!MSG_OPEN_LOOK || item.media == "photo" || flush(item)) { com.linea.messenger.chatlook.ChatBubbleLook.shape(path, plateBox, item.mine, item.tail, d); stroke.color = palette.danger; stroke.strokeWidth = 1f * d; canvas.drawPath(path, stroke) }
       failedPaint.color = palette.danger
       val words = "Не отправлено · повторить"
       canvas.drawText(words, w - edge - failedPaint.measureText(words), bubbleH + 8f * d - failedPaint.ascent(), failedPaint)

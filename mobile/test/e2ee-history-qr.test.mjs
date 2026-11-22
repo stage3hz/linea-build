@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 import { loadTs } from './support/load-ts.mjs';
@@ -27,7 +27,8 @@ function image(matrix, scale = 6, quiet = 4) {
   return { data, width: size, height: size, colorSpace: 'srgb' };
 }
 
-test('the backup key QR code is read back exactly by a real QR reader', async () => {
+const READER = new URL('../node_modules/zxing-wasm/dist/reader/zxing_reader.wasm', import.meta.url);
+test('the backup key QR code is read back exactly by a real QR reader', { skip: existsSync(READER) ? false : 'zxing-wasm is not installed' }, async () => {
   const zxing = await reader();
   for (let i = 0; i < 12; i++) {
     const secret = history.newBackupSecret(count => new Uint8Array(randomBytes(count)));

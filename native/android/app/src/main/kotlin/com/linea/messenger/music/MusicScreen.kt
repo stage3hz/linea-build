@@ -250,11 +250,21 @@ class MusicSegments(context: Context, labels: List<String>, spoken: String = "")
 class MiniPlayerView(context: Context, private val player: MusicPlayer) : LinearLayout(context) {
   var onOpen: (() -> Unit)? = null
   private val d = resources.displayMetrics.density
-  private val cover = MusicCoverView(context, 8f)
+  private val cover = MusicCoverView(context, 12f, artwork = true)
   private val heading = AIKit.label(context, "", 14f, 700, lines = 1)
   private val line = AIKit.label(context, "", 12f, color = Theme.muted, lines = 1)
   private val back = AIIconButton(context, "prev", 20f, Theme.text, "Предыдущий трек или начало текущего")
-  private val toggle = AIIconButton(context, "play", 23f, Theme.text, "Слушать")
+  // PlaybackButton: a 46 round of the accent gradient under the play / pause (23, on-accent); `scale: pressed ? .95 : 1`.
+  private val toggle = object : AIIconButton(context, "play", 23f, Theme.onAccent, "Слушать") {
+    private val disc = Paint(Paint.ANTI_ALIAS_FLAG)
+    override fun onDraw(canvas: Canvas) {
+      val fill = com.linea.messenger.settings.ThemeStore.look.accentGradient.takeIf { it.size >= 2 }?.toIntArray() ?: intArrayOf(Theme.accent, Theme.accent)
+      disc.shader = android.graphics.LinearGradient(0f, 0f, width.toFloat(), height.toFloat(), fill, null, android.graphics.Shader.TileMode.CLAMP)
+      canvas.drawCircle(width / 2f, height / 2f, minOf(width, height) / 2f, disc)
+      super.onDraw(canvas)
+    }
+    override fun setPressed(pressed: Boolean) { super.setPressed(pressed); scaleX = if (pressed) 0.95f else 1f; scaleY = scaleX }
+  }
   private val forward = AIIconButton(context, "next", 20f, Theme.text, "Следующий трек")
   private val close = AIIconButton(context, "xmark", 20f, Theme.muted, "Закрыть плеер и остановить музыку")
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -274,13 +284,18 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
     gravity = Gravity.CENTER_VERTICAL
     setWillNotDraw(false)
     background = context.plate(Theme.panel(0xF71E1F21.toInt()), 24f, Theme.veil(0.1f))
-    setPadding(context.px(10f), context.px(8f), context.px(6f), context.px(8f))
+    // padding 9, 12 under (the progress line lies there), gap 9.
+    setPadding(context.px(9f), context.px(9f), context.px(9f), context.px(12f))
     addView(cover, LayoutParams(context.px(46f), context.px(46f)))
     val words = LinearLayout(context).apply { orientation = VERTICAL }
     words.addView(heading)
     AIKit.add(words, line, 4f)
-    addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.px(11f); marginEnd = context.px(6f) })
-    for (button in listOf(back, toggle, forward, close)) addView(button, LayoutParams(context.px(36f), context.px(44f)))
+    addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.px(11f); marginEnd = context.px(9f) })
+    for (button in listOf(back, forward, close)) button.background = com.linea.messenger.design.GlassDrawable(button)
+    addView(back, LayoutParams(context.px(36f), context.px(44f)))
+    addView(toggle, LayoutParams(context.px(46f), context.px(46f)).apply { marginStart = context.px(9f) })
+    addView(forward, LayoutParams(context.px(36f), context.px(44f)).apply { marginStart = context.px(9f) })
+    addView(close, LayoutParams(context.px(34f), context.px(44f)).apply { marginStart = context.px(9f) })
     back.setOnClickListener { player.previous() }
     toggle.setOnClickListener { player.togglePlayback() }
     forward.setOnClickListener { player.next() }
@@ -307,7 +322,7 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
   override fun dispatchDraw(canvas: Canvas) {
     super.dispatchDraw(canvas)
     val left = 15f * d; val wide = maxOf(0f, width - 30f * d); val top = height - 2f * d
-    paint.color = Theme.veil(0.1f)
+    paint.color = com.linea.messenger.settings.ThemeStore.look.border
     canvas.drawRect(left, top, left + wide, height.toFloat(), paint)
     val part = if (player.duration > 0) (player.position / player.duration).coerceIn(0.0, 1.0) else 0.0
     paint.color = Theme.accent
@@ -338,6 +353,10 @@ class MusicTrackCell(context: Context) : LinearLayout(context) {
   private val cover = MusicCoverView(context, 6f)
   private val heading = AIKit.label(context, "", 15f, 600, lines = 1)
   private val line = AIKit.label(context, "", 12f, color = Theme.muted, lines = 1)
+  /** The source and length (9, semibold, +0.2, subtle) — TrackRow's third line. */
+  private val badge = AIKit.label(context, "", 9f, 600, Theme.subtle, lines = 1).apply { letterSpacing = 0.2f / 9f }
+  /** The playing one: `stats-chart` / `pause` (12, accent) 5 before the title. */
+  private val mark = AIIconView(context, "ion:stats-chart", 12f, Theme.accent)
   private val heart = AIIconButton(context, "heart", 19f, Theme.muted)
   private val more = AIIconButton(context, "more", 19f, Theme.muted)
   var onHeart: (() -> Unit)? = null
@@ -346,15 +365,21 @@ class MusicTrackCell(context: Context) : LinearLayout(context) {
   init {
     orientation = HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
-    setPadding(context.px(18f), context.px(7f), context.px(10f), context.px(7f))
-    layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, context.px(66f))
+    // TrackRow: 9 above and below (and 4 under the row), the cover and the buttons on the page's 18 dp edge.
+    setPadding(context.px(18f), context.px(9f), context.px(18f), context.px(13f))
+    layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, context.px(77f))
     addView(cover, LayoutParams(context.px(52f), context.px(52f)))
     val words = LinearLayout(context).apply { orientation = VERTICAL }
-    words.addView(heading)
-    AIKit.add(words, line, 3f)
+    val top = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+    top.addView(mark, LayoutParams(context.px(12f), context.px(12f)).apply { marginEnd = context.px(5f) })
+    top.addView(heading, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
+    words.addView(top)
+    AIKit.add(words, line, 5f)
+    AIKit.add(words, badge, 5f)
     addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.px(12f); marginEnd = context.px(4f) })
-    addView(heart, LayoutParams(context.px(40f), context.px(44f)))
-    addView(more, LayoutParams(context.px(36f), context.px(44f)))
+    for (button in listOf(heart, more)) button.background = com.linea.messenger.design.GlassDrawable(button)
+    addView(heart, LayoutParams(context.px(44f), context.px(44f)))
+    addView(more, LayoutParams(context.px(44f), context.px(44f)).apply { marginStart = context.px(4f) })
     // The row itself stays pressable around its buttons.
     heart.isFocusable = false
     more.isFocusable = false
@@ -362,13 +387,16 @@ class MusicTrackCell(context: Context) : LinearLayout(context) {
     more.setOnClickListener { onMore?.invoke() }
   }
 
-  fun show(track: MusicTrack, current: Boolean, favorite: Boolean) {
+  fun show(track: MusicTrack, current: Boolean, favorite: Boolean, playing: Boolean = true) {
     cover.bind(track)
     heading.text = track.title
-    heading.setTextColor(if (current) Theme.onBlack(Color.WHITE, Theme.accent) else Theme.text)
-    line.text = MusicWords.rowLine(track)
+    heading.setTextColor(if (current) Theme.accent else Theme.text)
+    mark.visibility = if (current) View.VISIBLE else View.GONE
+    mark.symbol = if (playing) "ion:stats-chart" else "ion:pause"
+    line.text = track.artist
+    badge.text = MusicWords.badge(track.source) + (if (track.duration > 0) " · " + MusicCatalog.time(track.duration) else "")
     heart.symbol = if (favorite) "heart.fill" else "heart"
-    heart.color = if (favorite) Theme.text else Theme.muted
+    heart.color = if (favorite) Theme.accent else Theme.muted
     heart.contentDescription = if (favorite) "Убрать из любимого: ${track.title}" else "В любимое: ${track.title}"
     more.contentDescription = "Действия: ${track.title}"
     contentDescription = "Слушать: ${track.title}, ${track.artist}"
@@ -473,7 +501,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
       val cell = convertView as? MusicTrackCell ?: MusicTrackCell(context)
       val track = shownRows[position]
-      cell.show(track, current = player.current?.id == track.id, favorite = player.isFavorite(track))
+      cell.show(track, current = player.current?.id == track.id, favorite = player.isFavorite(track), playing = player.playing)
       cell.onHeart = { player.toggleFavorite(track) }
       cell.onMore = { showMenu(track) }
       return cell

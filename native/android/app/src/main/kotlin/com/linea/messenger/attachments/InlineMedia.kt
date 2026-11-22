@@ -450,7 +450,23 @@ object InlineMediaArt {
   }
 
   /** The time of a photo alone: white in a dark pill 8 dp from the lower right corner, with the ticks of one's own. */
-  private fun timePill(canvas: Canvas, row: MsgRow, right: Float, bottom: Float, palette: MsgPalette, d: Float) {
+  /** A video's poster (the small picture that came with it, unblurred) on the quiet plate (MediaBubble.tsx `MediaTile`). */
+  fun drawVideo(canvas: Canvas, row: MsgRow, left: Float, top: Float, width: Float, height: Float, palette: MsgPalette, small: Bitmap?, radius: Float, d: Float) {
+    fonts(d)
+    fill.color = PLATE
+    canvas.drawRoundRect(left, top, left + width, top + height, radius, radius, fill)
+    if (small != null && small.width > 0 && small.height > 0) {
+      picture.shader = BitmapShader(small, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+      val scale = max(width / small.width, height / small.height)
+      matrix.reset(); matrix.setScale(scale, scale); matrix.postTranslate(left + (width - small.width * scale) / 2, top + (height - small.height * scale) / 2)
+      picture.shader?.setLocalMatrix(matrix)
+      canvas.drawRoundRect(left, top, left + width, top + height, radius, radius, picture)
+      picture.shader = null
+    }
+  }
+
+  fun timePill(canvas: Canvas, row: MsgRow, right: Float, bottom: Float, palette: MsgPalette, d: Float) {
+    fonts(d)
     val color = if (row.ticks == 4) palette.danger else 0xFFFFFFFF.toInt()
     pillFont.color = color
     val timeW = ceil(pillFont.measureText(row.time)); val timeH = ceil(pillFont.fontSpacing)

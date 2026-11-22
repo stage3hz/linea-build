@@ -138,7 +138,7 @@ open class AIIconView(context: Context, symbol: String, private val size: Float,
 
 /** A button that is one picture. Give it a `contentDescription`: that is its name for a screen reader. */
 @SuppressLint("ViewConstructor")
-class AIIconButton(context: Context, symbol: String, size: Float, color: Int, words: String = "") : AIIconView(context, symbol, size, color) {
+open class AIIconButton(context: Context, symbol: String, size: Float, color: Int, words: String = "") : AIIconView(context, symbol, size, color) {
   init {
     isClickable = true
     isFocusable = true
