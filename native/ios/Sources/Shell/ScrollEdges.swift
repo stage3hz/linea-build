@@ -17,6 +17,10 @@ final class TabBarEdgeView: ProgressiveEdgeView {
 
     init() {
         super.init(edge: .bottom)
+        // 8 pt above the bar's block, fading over 40 pt, colour at .6 (EdgeFade.swift).
+        reach = 8
+        fade = 40
+        peak = 0.6
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -35,6 +39,7 @@ final class StatusStripView: ProgressiveEdgeView {
     init() {
         super.init(edge: .top)
         reach = 10
+        fade = 1000 // fades over its whole height
         peak = 0.45
     }
 

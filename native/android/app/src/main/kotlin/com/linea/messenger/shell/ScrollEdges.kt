@@ -16,6 +16,9 @@ class ScrollEdgeView(context: Context, top: Boolean) : ProgressiveEdgeView(conte
 class TabBarEdgeView(context: Context) : ProgressiveEdgeView(context, false) {
   private val d = resources.displayMetrics.density
 
+  // 8 dp above the bar's block, fading over 40 dp, colour at .6 (EdgeFade.kt).
+  init { reach = 8f; fade = 40f; peak = 0.6f }
+
   /** `block`: the height of the tab block above the screen's bottom (the pill, its margins, the mini-player when
    *  shown, the navigation bar), px; `lift`: the pill's lower edge above the screen's bottom, px. */
   fun place(width: Int, height: Int, block: Int, lift: Int) {
@@ -29,7 +32,7 @@ class TabBarEdgeView(context: Context) : ProgressiveEdgeView(context, false) {
 /** The strip under the status bar in the sections without a floating header of their own: a lighter progressive edge
  *  reaching 10 dp below the strip, so rows passing under the clock are not crisp. */
 class StatusStripView(context: Context) : ProgressiveEdgeView(context, true) {
-  init { reach = 10f; peak = 0.45f }
+  init { reach = 10f; fade = 1000f; peak = 0.45f } // fades over its whole height
 
   fun place(width: Int, safeTop: Int) = place(width, safeTop, 0)
 }

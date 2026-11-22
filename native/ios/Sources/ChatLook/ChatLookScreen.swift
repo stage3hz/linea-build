@@ -228,19 +228,19 @@ final class ChatLookScreen: NSObject {
         // The edge takes the wallpaper's own colour at the top, so it never shows as a band over it.
         if let colors = choice.colors, let first = colors.first {
             edge.color = LookColor.color(first)
-            edge.alphaOfEdge = 0.9
+            edge.alphaOfEdge = 0.75
             floorEdge.color = LookColor.color(colors.last ?? first)
-            floorEdge.alphaOfEdge = 0.9
+            floorEdge.alphaOfEdge = 0.75
         } else if choice.isImage {
             edge.color = .black
-            edge.alphaOfEdge = 0.5
+            edge.alphaOfEdge = 0.7
             floorEdge.color = .black
-            floorEdge.alphaOfEdge = 0.5
+            floorEdge.alphaOfEdge = 0.7
         } else {
             edge.color = Theme.bg
-            edge.alphaOfEdge = 0.96
+            edge.alphaOfEdge = 0.85
             floorEdge.color = Theme.bg
-            floorEdge.alphaOfEdge = 0.96
+            floorEdge.alphaOfEdge = 0.85
         }
         host.view.setNeedsLayout()
     }

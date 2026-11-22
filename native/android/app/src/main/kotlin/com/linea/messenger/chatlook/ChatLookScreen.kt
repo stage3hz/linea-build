@@ -229,9 +229,9 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     light.visibility = if (choice.shown) View.GONE else View.VISIBLE
     // The edge takes the wallpaper's own colour at the top, so it never shows as a band over it.
     val colors = choice.colors
-    if (colors != null && colors.isNotEmpty()) { edge.color = colors[0]; edge.alphaOfEdge = 0.9f }
-    else if (choice.isImage) { edge.color = 0; edge.alphaOfEdge = 0.5f }
-    else { edge.color = Theme.bg and 0xFFFFFF; edge.alphaOfEdge = 0.96f }
+    if (colors != null && colors.isNotEmpty()) { edge.color = colors[0]; edge.alphaOfEdge = 0.75f }
+    else if (choice.isImage) { edge.color = 0; edge.alphaOfEdge = 0.7f }
+    else { edge.color = Theme.bg and 0xFFFFFF; edge.alphaOfEdge = 0.85f }
     floorEdge.color = if (colors != null && colors.isNotEmpty()) colors[colors.size - 1] else edge.color
     floorEdge.alphaOfEdge = edge.alphaOfEdge
     host.requestLayout()
@@ -248,7 +248,7 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
   fun placeFloor(width: Int, height: Int, composerTop: Int) {
     val size = maxOf(0, height - composerTop)
     floorEdge.size = size.toFloat()
-    val total = size + dp(HeaderEdgeView.FADE)
+    val total = size + dp(floorEdge.reach)
     put(floorEdge, 0, height - total, width, total)
   }
 
@@ -261,7 +261,7 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     light.pivotY = 0f
     val headerSize = safeTop + dp(52f)
     edge.size = headerSize.toFloat()
-    put(edge, 0, 0, width, headerSize + dp(HeaderEdgeView.FADE))
+    put(edge, 0, 0, width, headerSize + dp(edge.reach))
     // ChatActions hides the name while messages are being chosen: the glass goes with it.
     val choosing = heading.visibility != View.VISIBLE
     val pillsShown = if (choosing) View.GONE else View.VISIBLE

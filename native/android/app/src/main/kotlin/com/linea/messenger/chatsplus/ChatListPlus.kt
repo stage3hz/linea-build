@@ -211,9 +211,6 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
   /** The edge under the floating header, as tall as the header (the status bar included). */
   fun placeHeaderEdge(top: Int, width: Int) {
     headerEdge.color = Theme.bg
-    // Owner (device photo): the edge is always there, but it ends at the header's lower edge — not 24 dp into the
-    // first row, which sits crisp right under the header until it is scrolled up behind it.
-    headerEdge.reach = 0f
     headerEdge.place(width, top, 0)
   }
 

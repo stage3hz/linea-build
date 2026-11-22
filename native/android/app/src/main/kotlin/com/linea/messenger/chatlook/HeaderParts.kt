@@ -22,7 +22,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.linea.messenger.chatactions.ChatIconView
 import com.linea.messenger.design.Theme
-import com.linea.messenger.shell.EdgeRamp
 import com.linea.messenger.shell.ProgressiveEdgeView
 
 /** The soft edge under the chat's header and above its composer (the reference's tabInset.tsx `ScrollEdgeEffect` with
@@ -31,13 +30,13 @@ import com.linea.messenger.shell.ProgressiveEdgeView
  *  the page's colour (the wallpaper's own colour at that edge), so they cannot be read through the glass, and dissolve
  *  `FADE` dp past it. The owner lays it out and sets `size`, the bar's height from the screen's edge, px. */
 class HeaderEdgeView(context: Context, top: Boolean = true) : ProgressiveEdgeView(context, top) {
-  companion object { const val FADE = EdgeRamp.REACH }
-  /** How strongly the colour covers right at the edge (the reference: the theme's background at .96, a gradient
-   *  wallpaper's colour at .9, a picture's black at .5); capped at .85 as on the iPhone. */
-  var alphaOfEdge = 0.96f
-    set(value) { field = value; peak = minOf(0.85f, value) }
+  /** How strongly the colour covers (owner: as in the messenger he compared with — a plain colour .85, a gradient
+   *  wallpaper .75, a picture .7). */
+  var alphaOfEdge = 0.85f
+    set(value) { field = value; peak = value }
 
-  init { peak = minOf(0.85f, alphaOfEdge) }
+  // Header: 34 dp past it, fading over 80 dp; composer: from 20 dp above it, fading over 60 dp.
+  init { peak = alphaOfEdge; reach = if (top) 34f else 20f; fade = if (top) 80f else 60f }
 }
 
 /** A long touch on the avatar in the header (the reference's ChatScreen.tsx avatar `ContextMenu`): a large card with

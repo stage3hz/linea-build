@@ -202,9 +202,6 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     /// The edge under the floating header, as tall as the header (the status bar included).
     func placeHeaderEdge(top: CGFloat, width: CGFloat) {
         headerEdge.color = Theme.bg
-        // Owner (device photo): the edge is always there, but it ends at the header's lower edge — not 24 pt into
-        // the first row, which sits crisp right under the header until it is scrolled up behind it.
-        headerEdge.reach = 0
         headerEdge.place(width: width, size: top)
     }
 

@@ -1,19 +1,20 @@
 import UIKit
 
-/// The soft edge under the chat's header and above its composer (the reference's tabInset.tsx `ScrollEdgeEffect`
-/// with ChatScreen.tsx's numbers, drawn as the progressive edge of Shell/EdgeFade.swift): the messages that pass
-/// under the glass are blurred hardest at the screen's edge and covered by the page's colour (the wallpaper's own
-/// colour at that edge), so they cannot be read through the glass, and dissolve 24 pt past it.
+/// The soft edge under the chat's header and above its composer (Shell/EdgeFade.swift): the messages that pass
+/// under the glass are covered by the chat's colour (the wallpaper's own colour at that edge) and fade out past it.
 final class HeaderEdgeView: ProgressiveEdgeView {
-    /// How strongly the colour covers right at the edge (the reference: the theme's background at .96, a gradient
-    /// wallpaper's colour at .9, a picture's black at .5); capped at .85 as on iPhone.
-    var alphaOfEdge: CGFloat = 0.96 {
-        didSet { peak = min(0.85, alphaOfEdge) }
+    /// How strongly the colour covers (owner: as in the messenger he compared with — a plain colour .85, a gradient
+    /// wallpaper .75, a picture .7).
+    var alphaOfEdge: CGFloat = 0.85 {
+        didSet { peak = alphaOfEdge }
     }
 
     override init(edge: ProgressiveEdgeView.Edge = .top) {
         super.init(edge: edge)
-        peak = min(0.85, alphaOfEdge)
+        peak = alphaOfEdge
+        // Header: 34 pt past it, fading over 80 pt; composer: from 20 pt above it, fading over 60 pt.
+        reach = edge == .top ? 34 : 20
+        fade = edge == .top ? 80 : 60
     }
 
     required init?(coder: NSCoder) { return nil }
