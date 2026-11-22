@@ -186,6 +186,14 @@ final class SecurityViewController: SettingsPage {
         ], gap: 15, labelled: true), gap: 16)
 
         add(sessionsCard(), gap: 16)
+        // HistorySection.tsx stands here (between the sessions and AccountZone): its own page in this app
+        // (Settings/HistorySettings.swift), reached from a card with the reference's section name.
+        let history = SettingsRow(symbol: "ion:cloud-download-outline", label: "Переписки на новом устройстве")
+        history.onPress = { [weak self] in
+            guard let self else { return }
+            self.open(HistoryViewController(messenger: self.messenger))
+        }
+        add(SettingsLook.glassCard([SettingsLook.inset(SettingsLook.sectionLabel("Переписки на новом устройстве"), top: 14, side: 14, bottom: 0), history], padding: 6, gap: 13), gap: 16)
         add(blockedCard(), gap: 16)
         add(deleteCard(confirmationConfigured), gap: 16)
     }

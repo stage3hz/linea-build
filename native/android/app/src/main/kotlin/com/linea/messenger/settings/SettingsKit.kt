@@ -102,6 +102,34 @@ object SettingsLook {
     addView(inner, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
   }
 
+  /** Words with the reference's exact line height and letter spacing. */
+  fun para(context: Context, text: String, size: Float, color: Int, weight: Int = 400, line: Float = 0f, kern: Float = 0f, centered: Boolean = false): TextView =
+    context.words(text, size, color, weight).apply {
+      if (line > 0f && Build.VERSION.SDK_INT >= 28) lineHeight = context.px(line)
+      if (kern != 0f) letterSpacing = kern / size
+      if (centered) gravity = Gravity.CENTER_HORIZONTAL
+    }
+
+  /** The reference's `SectionLabel` (components.tsx): 10 Bold, letter spacing 1.65, `muted`, upper case, 2 in. */
+  fun sectionLabel(context: Context, text: String): View {
+    val label = context.words(text.uppercase(Locale.ROOT), 10f, Theme.muted, 700)
+    label.letterSpacing = 1.65f / 10f
+    if (Build.VERSION.SDK_INT >= 28) label.isAccessibilityHeading = true
+    return inset(label, side = 2f)
+  }
+
+  /** A card of glass (GlassSurface: `radius`, `padding` inside, `gap` between the parts; `labelled`: the first part is a
+   *  SectionLabel with its 13 of margin on top of the gap). `clear`: `material="clear"`. */
+  fun glassCard(context: Context, parts: List<View>, radius: Float = 28f, padding: Float = 20f, gap: Float = 15f, clear: Boolean = false, labelled: Boolean = false): LinearLayout =
+    GlassCard(context, radius, clear).apply {
+      setPadding(context.px(padding), context.px(padding), context.px(padding), context.px(padding))
+      parts.forEachIndexed { index, part ->
+        (part.parent as? android.view.ViewGroup)?.removeView(part)
+        val above = if (index == 0) 0f else if (index == 1 && labelled) gap + 13f else gap
+        addView(part, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(above) })
+      }
+    }
+
   /** The quiet name above a group. */
   fun caption(context: Context, text: String): View {
     val label = context.words(text.uppercase(Locale.ROOT), 11f, Theme.muted, if (ThemeStore.look.black) 500 else 700)
@@ -409,6 +437,28 @@ class SettingsGroup(context: Context, rows: List<View>) : LinearLayout(context) 
 
   override fun onDraw(canvas: Canvas) {
     if (!flat) glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 20f * d)
+    super.onDraw(canvas)
+  }
+}
+
+/** A vertical card of glass that blurs its settings page's backdrop (`SettingsLook.glassCard`). */
+@SuppressLint("ViewConstructor")
+class GlassCard(context: Context, private val radius: Float, clear: Boolean) : LinearLayout(context) {
+  private val glass = Glass(this).let { if (clear) it.makeClear() else it }
+  private val d = resources.displayMetrics.density
+
+  init {
+    orientation = VERTICAL
+    setWillNotDraw(false)
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    glass.source = settingsBackdrop(this)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), radius * d)
     super.onDraw(canvas)
   }
 }

@@ -196,13 +196,18 @@ class SessionsScreen(context: Context, private val account: SettingsAccount) : S
 /** One session in the list: the device's icon, its model, the system and the app's version, the address and the
  *  last activity. */
 @SuppressLint("ViewConstructor")
-class SessionRow(context: Context, session: Map<String, Any?>) : LinearLayout(context) {
+class SessionRow(context: Context, session: Map<String, Any?>, private val plain: Boolean = false, private val first: Boolean = true) : LinearLayout(context) {
   var onPress: (() -> Unit)? = null
+  /** In a card of «Безопасность» (the reference's `SessionRow`): no room at the sides, a 1 `border` line above every
+   *  row but the first, 0.7 under the finger. */
+  private val rule = android.graphics.Paint().apply { color = ThemeStore.look.border }
 
   init {
     orientation = HORIZONTAL
     gravity = Gravity.CENTER_VERTICAL
-    setPadding(context.px(14f), context.px(13f), context.px(14f), context.px(13f))
+    setWillNotDraw(false)
+    val side = if (plain) 0f else 14f
+    setPadding(context.px(side), context.px(13f), context.px(side), context.px(13f))
     val current = SessionWords.isCurrent(session)
     // The reference's `SessionRow`: a 42 square of `accentSoft`, radius 16, the glyph 23 in the accent.
     val icon = FrameLayout(context).apply { background = context.plate(ThemeStore.look.accentSoft, 16f) }
@@ -236,9 +241,15 @@ class SessionRow(context: Context, session: Map<String, Any?>) : LinearLayout(co
 
   override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
 
+  override fun onDraw(canvas: android.graphics.Canvas) {
+    super.onDraw(canvas)
+    if (plain && !first) canvas.drawRect(0f, 0f, width.toFloat(), maxOf(1f, resources.displayMetrics.density), rule)
+  }
+
   override fun setPressed(pressed: Boolean) {
     super.setPressed(pressed)
-    setBackgroundColor(if (pressed) SettingsLook.pressed else 0)
+    if (plain) alpha = if (pressed) 0.7f else if (isEnabled) 1f else 0.5f
+    else setBackgroundColor(if (pressed) SettingsLook.pressed else 0)
   }
 
   override fun setEnabled(enabled: Boolean) {

@@ -190,6 +190,8 @@ dependencies {
     implementation(libs.camera.lifecycle)
     // Media: «Фон» of the photo editor (attachments/PhotoBackground.kt is the only file that knows it).
     implementation(libs.mlkit.subject)
+    // Security: the backup key's QR code, read with the camera after a tap (settings/HistorySettings.kt).
+    implementation(libs.mlkit.barcode)
     implementation(libs.play.services.base)
     // Push: the token and the delivery of the server's notifications (push/ is the only package that knows it).
     implementation(libs.firebase.messaging)
