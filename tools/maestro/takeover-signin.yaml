@@ -13,21 +13,27 @@ appId: com.invizent.app
     timeout: 300000
 - waitForAnimationToEnd
 - takeScreenshot: ref-00-auth
-- tapOn:
-    id: "field-Логин"
-- inputText: "${LOGIN}"
-- pressKey: enter
-- runFlow:
-    when:
-      notVisible:
-        id: "field-Пароль"
+# The simulator sometimes drops the typed text (the field stays empty and the app says the login is too short):
+# the step is tried again from a cleared field.
+- retry:
+    maxRetries: 3
     commands:
       - tapOn:
-          text: "Продолжить"
-- extendedWaitUntil:
-    visible:
-      id: "field-Пароль"
-    timeout: 30000
+          id: "field-Логин"
+      - eraseText: 40
+      - inputText: "${LOGIN}"
+      - pressKey: enter
+      - runFlow:
+          when:
+            notVisible:
+              id: "field-Пароль"
+          commands:
+            - tapOn:
+                text: "Продолжить"
+      - extendedWaitUntil:
+          visible:
+            id: "field-Пароль"
+          timeout: 20000
 # The password is shown while typed (the eye button), so the simulator's typing is not refused by a secure field.
 - tapOn:
     text: "Показать: пароль"
