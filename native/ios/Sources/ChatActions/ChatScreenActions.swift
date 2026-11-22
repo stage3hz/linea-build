@@ -183,7 +183,10 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         }
         // LinkPreview: a link in the text and the card of a link open in the system browser (Sources/LinkPreview/LinkOpen.swift).
         list.onLinkPress = { [weak self] (event: [String: Any]) -> Void in
-            LinkOpen.pressed(url: event["url"] as? String ?? "", shown: event["shown"] as? String ?? "", over: self?.host)
+            let url = event["url"] as? String ?? ""
+            // «@name» (format/nativeSpans.ts `mention:<name>`): that person's profile (App.tsx `mention`).
+            if url.hasPrefix("mention:") { LinkOpen.mention(String(url.dropFirst(8)), messenger: self?.messenger, from: self?.host); return }
+            LinkOpen.pressed(url: url, shown: event["shown"] as? String ?? "", over: self?.host)
         }
         list.onCardPress = { (event: [String: Any]) -> Void in
             LinkOpen.cardPressed(url: event["url"] as? String ?? "")

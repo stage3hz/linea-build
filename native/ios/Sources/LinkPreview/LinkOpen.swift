@@ -46,6 +46,31 @@ enum LinkOpen {
         host.present(alert, animated: true)
     }
 
+    /// «@name» in a message (App.tsx `mention`): the profile of the person with exactly that public name — the
+    /// profile, not the chat, so a glance at who was mentioned marks nothing as read; «Написать» there opens the
+    /// chat. One's own name does nothing; a name nobody has says «Пользователь не найден».
+    static func mention(_ username: String, messenger: Messenger?, from host: UIViewController?) {
+        let name = username.lowercased()
+        guard let messenger, !name.isEmpty else { return }
+        if name == (messenger.user["username"] as? String ?? "").lowercased() { return }
+        messenger.server.ask("users", ["@" + name]) { [weak host] result in
+            guard case .success(let body) = result else { return }
+            guard let host, host.viewIfLoaded?.window != nil else { return }
+            guard let person = Person.list(body["users"]).first(where: { $0.username.lowercased() == name }) else {
+                let alert = UIAlertController(title: "Пользователь не найден", message: "@" + name, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+                host.present(alert, animated: true)
+                return
+            }
+            let profile = PersonProfileViewController(messenger: messenger, userId: person.id, name: person.displayName, person: person)
+            if let navigation = host.navigationController ?? (host as? UINavigationController) {
+                navigation.pushViewController(profile, animated: true)
+            } else {
+                host.present(profile, animated: true)
+            }
+        }
+    }
+
     /// The card of a link: its address is the link written in the message itself, so nothing is asked.
     static func cardPressed(url: String) {
         guard let address = address(url) else { return }

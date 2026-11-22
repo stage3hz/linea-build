@@ -3,6 +3,8 @@ package com.linea.messenger.linkpreview
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import com.linea.messenger.channels.ask
+import com.linea.messenger.people.pages
 import android.content.Intent
 import android.net.Uri
 
@@ -48,6 +50,28 @@ object LinkOpen {
         AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Открыть ссылку?").setMessage(url)
           .setNegativeButton("Отмена", null).setPositiveButton("Открыть") { _, _ -> go(context, url) }.show()
       } catch (_: Exception) { /* the window is gone */ }
+    }
+  }
+
+  /** «@name» in a message (App.tsx `mention`): the profile of the person with exactly that public name — the
+   *  profile, not the chat, so a glance at who was mentioned marks nothing as read; «Написать» there opens the chat.
+   *  One's own name does nothing; a name nobody has says «Пользователь не найден». */
+  fun mention(from: android.view.View, messenger: com.linea.messenger.app.Messenger?, username: String) {
+    val name = username.lowercase()
+    if (messenger == null || name.isEmpty()) return
+    if (name == (messenger.user["username"] as? String ?: "").lowercase()) return
+    messenger.server.ask("users", listOf("@$name")) { result ->
+      val body = result.getOrNull() ?: return@ask
+      if (!from.isAttachedToWindow) return@ask
+      val person = com.linea.messenger.people.Person.list(body["users"]).firstOrNull { it.username.lowercase() == name }
+      if (person == null) {
+        try {
+          AlertDialog.Builder(from.context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Пользователь не найден").setMessage("@$name")
+            .setPositiveButton("OK", null).show()
+        } catch (_: Exception) { /* the window is gone */ }
+        return@ask
+      }
+      from.pages()?.push(com.linea.messenger.people.PersonProfileScreen(from.context, messenger, person.id, person.displayName, person))
     }
   }
 

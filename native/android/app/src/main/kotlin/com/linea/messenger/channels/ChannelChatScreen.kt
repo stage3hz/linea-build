@@ -76,29 +76,40 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
   private val emptyHeading = context.words("", 18f, Theme.text, 700)
   private val emptyWords = context.words("", 14f, Theme.muted)
 
+  /** ChannelChat.tsx: a plain row on the page — «add-circle» (IconButton), the field (radius 20, surface2, a 1 dp
+   *  border, 14 × 9 inside), «arrow-up-circle» 34 (IconButton); 10 from the sides, 8 under, 6 apart. */
   private val composer = object : ViewGroup(context) {
-    val glass = Glass(this).apply { source = page }
+    private val plate = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    var box = android.graphics.RectF()
     init { setWillNotDraw(false) }
-    override fun onDraw(canvas: Canvas) = glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 24f * d)
+    override fun onDraw(canvas: Canvas) {
+      canvas.drawColor(Theme.bg)
+      val r = 20f * d
+      plate.style = android.graphics.Paint.Style.FILL; plate.color = Theme.surface2
+      canvas.drawRoundRect(box, r, r, plate)
+      plate.style = android.graphics.Paint.Style.STROKE; plate.strokeWidth = d; plate.color = com.linea.messenger.settings.ThemeStore.look.border
+      canvas.drawRoundRect(box.left + d / 2, box.top + d / 2, box.right - d / 2, box.bottom - d / 2, r, r, plate)
+    }
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) = placeComposer(right - left, bottom - top)
   }
-  private val attachButton = ChannelIconButton(context, "ion:add-circle", 23f, Theme.muted)
+  private val attachButton = ChannelIconButton(context, "ion:add-circle", 23f, Theme.muted).apply { background = com.linea.messenger.design.GlassDrawable(this) }
   private val field = EditText(context)
-  private val sendButton = ChannelIconButton(context, "ion:arrow-up-circle", 34f, Theme.subtle)
-  private val busy = ChannelSpinner(context)
+  private val sendButton = ChannelIconButton(context, "ion:arrow-up-circle", 34f, Theme.subtle).apply { background = com.linea.messenger.design.GlassDrawable(this) }
+  private val busy = ChannelSpinner(context, Theme.accent)
   private val closedWords = context.words("", 13f, Theme.muted)
   private val contextBar = object : ViewGroup(context) {
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
       val width = right - left
-      contextIcon.layout(dp(6f), 0, dp(30f), dp(30f))
-      contextWords.measure(MeasureSpec.makeMeasureSpec(width - dp(74f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(30f), MeasureSpec.EXACTLY))
-      contextWords.layout(dp(34f), 0, width - dp(40f), dp(30f))
-      contextClose.layout(width - dp(40f), 0, width, dp(30f))
+      // The reply / edit line: 8 in, the glyph 16, 8 apart, the words 13, the close IconButton (44).
+      contextIcon.layout(dp(8f), 0, dp(24f), dp(44f))
+      contextWords.measure(MeasureSpec.makeMeasureSpec(width - dp(32f + 8f + 44f + 8f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
+      contextWords.layout(dp(32f), 0, width - dp(8f + 44f + 8f), dp(44f))
+      contextClose.layout(width - dp(8f + 44f), 0, width - dp(8f), dp(44f))
     }
   }
-  private val contextIcon = ChannelIconView(context, "ion:return-down-forward", 16f, Theme.text)
+  private val contextIcon = ChannelIconView(context, "ion:return-down-forward", 16f, Theme.accent)
   private val contextWords = context.words("", 13f, Theme.muted)
-  private val contextClose = ChannelIconButton(context, "ion:close", 18f, Theme.muted)
+  private val contextClose = ChannelIconButton(context, "ion:close", 18f, Theme.text).apply { background = com.linea.messenger.design.GlassDrawable(this) }
   private val waitingStrip = LinearLayout(context)
   private var menu: ChannelMenuView? = null
 
@@ -180,7 +191,7 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     field.textSize = 16f
     field.setTextColor(Theme.text)
     field.setHintTextColor(Theme.subtle)
-    field.setPadding(0, dp(13f), 0, dp(13f))
+    field.setPadding(0, dp(9f), 0, dp(9f))
     field.gravity = Gravity.TOP or Gravity.START
     field.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
     field.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
@@ -298,15 +309,25 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)
   }
 
+  /** The row inside the composer (which runs from 6 above it to the screen's bottom); `rowBottom` is where it ends. */
+  private var rowBottom = 0
+  private var boxTall = 0
+
   private fun placeComposer(width: Int, tall: Int) {
-    val side = if (editingMessage == null) dp(44f) else dp(14f)
-    val fieldWidth = width - side - dp(46f)
-    attachButton.layout(dp(2f), tall - dp(46f), dp(46f), tall - dp(2f))
-    field.measure(MeasureSpec.makeMeasureSpec(fieldWidth.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(tall, MeasureSpec.EXACTLY))
-    field.layout(side, 0, side + fieldWidth, tall)
-    sendButton.layout(width - dp(46f), tall - dp(46f), width - dp(2f), tall - dp(2f))
-    busy.measure(MeasureSpec.makeMeasureSpec(dp(22f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(22f), MeasureSpec.EXACTLY))
-    busy.layout(width - dp(35f), tall - dp(35f), width - dp(13f), tall - dp(13f))
+    val fieldLeft = if (editingMessage == null) dp(10f + 44f + 6f) else dp(10f)
+    val fieldRight = width - dp(10f + 44f + 6f)
+    attachButton.visibility = if (editingMessage == null) View.VISIBLE else View.GONE
+    attachButton.measure(MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
+    attachButton.layout(dp(10f), rowBottom - dp(44f), dp(54f), rowBottom)
+    composer.box.set(fieldLeft.toFloat(), (rowBottom - boxTall).toFloat(), fieldRight.toFloat(), rowBottom.toFloat())
+    field.measure(MeasureSpec.makeMeasureSpec((fieldRight - fieldLeft - dp(28f)).coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(boxTall, MeasureSpec.EXACTLY))
+    field.layout(fieldLeft + dp(14f), rowBottom - boxTall, fieldRight - dp(14f), rowBottom)
+    sendButton.measure(MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
+    sendButton.layout(width - dp(54f), rowBottom - dp(44f), width - dp(10f), rowBottom)
+    // ActivityIndicator, 40 × 40 in the send button's place.
+    busy.measure(MeasureSpec.makeMeasureSpec(dp(20f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(dp(20f), MeasureSpec.EXACTLY))
+    busy.layout(width - dp(42f), rowBottom - dp(32f), width - dp(22f), rowBottom - dp(12f))
+    composer.invalidate()
   }
 
   override fun place(width: Int, height: Int) {
@@ -318,16 +339,17 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     // Above the keyboard when it is up, above the system's bar otherwise.
     var floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
     if (canWrite) {
-      val side = if (editingMessage == null) dp(44f) else dp(14f)
-      val fieldWidth = width - dp(24f) - side - dp(46f)
-      field.measure(MeasureSpec.makeMeasureSpec(fieldWidth.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-      val tall = field.measuredHeight.coerceIn(dp(48f), dp(140f))
-      put(composer, dp(12f), floor - tall, width - dp(24f), tall)
-      floor -= tall
-      if (contextBar.visibility == View.VISIBLE) {
-        put(contextBar, dp(12f), floor - dp(34f), width - dp(24f), dp(30f))
-        floor -= dp(34f)
-      }
+      val fieldLeft = if (editingMessage == null) dp(60f) else dp(10f)
+      val textWidth = width - dp(60f) - fieldLeft - dp(28f)
+      field.measure(MeasureSpec.makeMeasureSpec(textWidth.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+      boxTall = field.measuredHeight.coerceIn(dp(40f), dp(140f))
+      val rowTall = maxOf(dp(44f), boxTall)
+      val contextRoom = if (contextBar.visibility == View.VISIBLE) dp(44f + 6f) else 0
+      val composerTop = floor - dp(8f) - rowTall - contextRoom - dp(6f)
+      rowBottom = floor - dp(8f) - composerTop
+      put(composer, 0, composerTop, width, height - composerTop)
+      if (contextBar.visibility == View.VISIBLE) put(contextBar, dp(10f), composerTop + dp(6f), width - dp(20f), dp(44f))
+      floor = composerTop
       if (waitingStrip.childCount > 0) {
         waitingStrip.measure(MeasureSpec.makeMeasureSpec(width - dp(24f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
         val strip = waitingStrip.measuredHeight

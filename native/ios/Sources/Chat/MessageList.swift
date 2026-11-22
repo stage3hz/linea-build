@@ -347,7 +347,12 @@ private func msgInlineTime(_ row: MsgRow) -> Bool {
     && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 })
 }
 /// MessageRow.tsx `plainTime`: the open look, and no rare marks (silent).
-private func msgPlainTime(_ row: MsgRow) -> Bool { msgInlineTime(row) && msgOpenLook && row.media != "photo" && !row.silent }
+private func msgPlainTime(_ row: MsgRow) -> Bool { msgInlineTime(row) && msgOpenLook && row.media != "photo" && !msgFlush(row) && !row.silent }
+/// MessageRow.tsx `flush`: words under a photo, a video or an album — the picture fills the card edge to edge
+/// (2 around it), always on a card, even in the open look.
+func msgFlush(_ row: MsgRow) -> Bool {
+  (row.media == "photo" || row.media == "video" || row.album != nil) && !row.text.isEmpty && row.bigEmoji == 0
+}
 /// The words of a row as they are laid out and drawn, with the invisible run at their end that keeps the time's room:
 /// the open look's time itself (msgTrailing), or the bubbles' spacer «\u00A0\u00A0\u00A0[silent: 5 × \u00A0]time
 /// [mine: 7 × \u00A0]\u00A0» in 11 pt — glued to the last word, so both take it to the next line together.
@@ -377,6 +382,8 @@ private var msgEdge: CGFloat { msgOpenLook ? 6 : 9 } // ChatScreen.tsx listSide:
 /// keeps the 2-point line + 10 + 1 at the other side's left and 4 + 1 at its right, own words 4 + 1 at the left and
 /// 0 + 1 at the right. A photo with words keeps its card.
 func msgPads(_ row: MsgRow) -> (left: CGFloat, right: CGFloat) {
+  // MessageRow.tsx `flush`: a captioned photo, video or album fills its card (2 around it); the words stand 2 + 9 in.
+  if msgFlush(row) { return (11, 11) }
   if !msgOpenLook || row.media == "photo" { return (12, 12) }
   return row.mine ? (5, 1) : (13, 5)
 }
@@ -450,7 +457,11 @@ struct MsgLayout {
     }
     // MessageRow.tsx: a message is at most 85 % of the row (the list's own side margins taken off).
     let pads = msgPads(row)
-    let inner = floor((width - 2 * msgEdge) * 0.85) - pads.left - pads.right
+    // MessageRow.tsx `flush`: the card is the picture's width + 4, the words 9 in from the picture's edges.
+    let flush = msgFlush(row)
+    let albumInner = floor((width - 2 * msgEdge) * 0.85) - pads.left - pads.right
+    let flushWidth: CGFloat = !flush ? 0 : row.album.map { MsgAlbumLayout.make($0, screenWidth: width, inner: albumInner).size.width } ?? InlineMediaArt.photoSize(row, width: width).width
+    let inner = flush ? max(40, flushWidth - 18) : albumInner
     let laidBody = row.text.isEmpty ? nil : MsgText(msgLaidBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
     layout.textSize = laidBody?.size ?? .zero
     if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty {
@@ -506,7 +517,7 @@ struct MsgLayout {
     }
     // Attachments: an album's mosaic stands above its caption.
     if let album = row.album {
-      layout.album = MsgAlbumLayout.make(album, screenWidth: width, inner: inner)
+      layout.album = MsgAlbumLayout.make(album, screenWidth: width, inner: albumInner)
       w = max(w, layout.album.size.width)
     }
     // MessageRow.tsx `inlineTime`: the time's room is the invisible run at the end of the words (msgLaidBody).
@@ -525,35 +536,36 @@ struct MsgLayout {
       }
     }
     // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
-    if row.media == "photo" && row.text.isEmpty && row.quoteText.isEmpty && row.quoteAuthor.isEmpty && row.forward.isEmpty && layout.reactSize == .zero {
+    // MessageRow.tsx `bare`: a video without words is the picture alone as well.
+    if (row.media == "photo" || row.media == "video") && row.text.isEmpty && row.quoteText.isEmpty && row.quoteAuthor.isEmpty && row.forward.isEmpty && layout.reactSize == .zero {
       layout.photoBare = true
       layout.bubble = layout.thumbSize
       layout.height = layout.thumbSize.height + msgFailedRoom(row) + (row.tail ? 6 : 2)
       return layout
     }
-    // MessageRow.tsx: 6 above the content.
-    var h: CGFloat = 6
-    if !row.forward.isEmpty { h += ceil(msgForwardFont.lineHeight) + 4 }
-    if layout.quoteSize != .zero { h += msgQuoteHeight(layout.quoteSize.height, thumb: !row.quoteThumb.isEmpty) + 6 }
-    if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
+    // MessageRow.tsx: 6 above the content (`flush`: 2; the forward line 7 more, the quote 8 more).
+    var h: CGFloat = flush ? 2 : 6
+    if !row.forward.isEmpty { h += ceil(msgForwardFont.lineHeight) + 4 + (flush ? 7 : 0) }
+    if layout.quoteSize != .zero { h += msgQuoteHeight(layout.quoteSize.height, thumb: !row.quoteThumb.isEmpty) + 6 + (flush ? 8 : 0) }
+    if layout.thumbSize != .zero { h += layout.thumbSize.height + (flush ? 7 : 6) }
     if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
     if layout.fileSize != .zero { h += layout.fileSize.height + 4 } // Attachments
-    if layout.album.size != .zero { h += layout.album.size.height + 6 } // Attachments
+    if layout.album.size != .zero { h += layout.album.size.height + (flush ? 7 : 6) } // Attachments
     if layout.poll.size != .zero { h += layout.poll.size.height + 4 } // Polls
     h += layout.textSize.height
     if layout.card.size != .zero { h += layout.card.size.height + 7 }
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
     if layout.timeBeside {
       // The time stands beside the chips: only the plate's 5 below.
-      layout.bubble = CGSize(width: max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h + 5)
+      layout.bubble = CGSize(width: flush ? flushWidth + 4 : max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h + 5)
       layout.height = h + 5 + msgFailedRoom(row) + (row.tail ? 6 : 2)
       return layout
     }
     // Below: 6 under words that carry the time; else the time's own row (4 above it, 5 below).
     h += layout.timeInline || layout.timeCorner ? 6 : 4 + ceil(msgMetaFont.lineHeight) + 5
     // Bubbles are at least 60 wide; 6 under the last message of a run, 2 inside one (`groupNext`).
-    layout.bubble = CGSize(width: max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h)
+    layout.bubble = CGSize(width: flush ? flushWidth + 4 : max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h)
     layout.height = h + msgFailedRoom(row) + (row.tail ? 6 : 2)
     return layout
   }
@@ -775,7 +787,16 @@ final class MsgRowCanvas: UIView {
     }
     if layoutInfo.photoBare {
       let outline = UIBezierPath(roundedRect: box, cornerRadius: 15)
-      InlineMediaArt.drawPhoto(context, row: item, box: box, palette: palette, small: thumbImage, radius: 15, alone: true)
+      if item.media == "video" {
+        // MediaBubble.tsx `MediaTile` alone (radius 15): the poster, the play round, the label, the time in its corner.
+        mediaBoxes = MsgMediaBoxes()
+        mediaBoxes.thumb = box
+        InlineMediaArt.drawVideo(context, row: item, box: box, palette: palette, small: thumbImage, radius: 15)
+        MediaRowArt.marks(context, row: item, state: mediaState, palette: palette, box: box)
+        InlineMediaArt.timePill(context, row: item, box: box, palette: palette)
+      } else {
+        InlineMediaArt.drawPhoto(context, row: item, box: box, palette: palette, small: thumbImage, radius: 15, alone: true)
+      }
       if pressed || flash {
         context.setFillColor(Theme.veil(pressed ? 0.08 : 0.14).cgColor)
         context.addPath(outline.cgPath)
@@ -784,7 +805,7 @@ final class MsgRowCanvas: UIView {
       return
     }
     // Attachments: a photo with words keeps its card in the open look too («a picture with a caption keeps its card»).
-    if !msgOpenLook || item.media == "photo" {
+    if !msgOpenLook || item.media == "photo" || msgFlush(item) {
       context.setFillColor((item.mine ? palette.mine : palette.theirs).cgColor)
       context.addPath(shape.cgPath)
       context.fillPath()
@@ -797,30 +818,35 @@ final class MsgRowCanvas: UIView {
 
     let pads = msgPads(item)
     let x = left + pads.left
-    var y: CGFloat = 6
+    // MessageRow.tsx `flush`: 2 around the picture; the forward line 12 in and 7 lower, the quote 8 in and 8 lower.
+    let flush = msgFlush(item)
+    var y: CGFloat = flush ? 2 : 6
     let inner = bubble.width - pads.left - pads.right
     let metaColor = item.mine ? palette.mineMeta : palette.muted
     let markColor = item.mine ? palette.mineMark : palette.accent
     if !item.forward.isEmpty {
-      draw(item.forward, msgForwardFont, palette.accent, CGRect(x: x + 1, y: y, width: inner - 2, height: ceil(msgForwardFont.lineHeight)), lines: false)
+      if flush { y += 7 }
+      let forwardX = flush ? left + 14 : x + 1
+      draw(item.forward, msgForwardFont, palette.accent, CGRect(x: forwardX, y: y, width: flush ? bubble.width - 28 : inner - 2, height: ceil(msgForwardFont.lineHeight)), lines: false)
       y += ceil(msgForwardFont.lineHeight) + 4
     }
     if layoutInfo.quoteSize != .zero {
+      if flush { y += 8 }
       let height = msgQuoteHeight(layoutInfo.quoteSize.height, thumb: !item.quoteThumb.isEmpty)
-      quoteBox = CGRect(x: x, y: y, width: inner, height: height)
+      quoteBox = flush ? CGRect(x: left + 10, y: y, width: bubble.width - 20, height: height) : CGRect(x: x, y: y, width: inner, height: height)
       context.setFillColor((Theme.dark ? UIColor(white: 1, alpha: 0.06) : UIColor(white: 0, alpha: 0.04)).cgColor)
       context.addPath(UIBezierPath(roundedRect: quoteBox, cornerRadius: 10).cgPath)
       context.fillPath()
       context.saveGState()
       UIBezierPath(roundedRect: quoteBox, cornerRadius: 10).addClip()
       context.setFillColor(markColor.cgColor)
-      context.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: 3, height: height), cornerRadius: 2).cgPath)
+      context.addPath(UIBezierPath(roundedRect: CGRect(x: quoteBox.minX, y: y, width: 3, height: height), cornerRadius: 2).cgPath)
       context.fillPath()
       context.restoreGState()
       // MessageRow.tsx replyThumb: 32 × 32 after the bar, centred, radius 5 (16 for a round video), on
       // rgba(120,130,160,0.18) until it shows.
       if !item.quoteThumb.isEmpty {
-        let box = CGRect(x: x + 10, y: y + (height - 32) / 2, width: 32, height: 32)
+        let box = CGRect(x: quoteBox.minX + 10, y: y + (height - 32) / 2, width: 32, height: 32)
         let corner: CGFloat = item.quoteRound ? 16 : 5
         context.setFillColor(UIColor(red: 120 / 255, green: 130 / 255, blue: 160 / 255, alpha: 0.18).cgColor)
         context.addPath(UIBezierPath(roundedRect: box, cornerRadius: corner).cgPath)
@@ -834,44 +860,48 @@ final class MsgRowCanvas: UIView {
           context.restoreGState()
         }
       }
-      let words = x + msgQuoteIndent(item)
+      let words = quoteBox.minX + msgQuoteIndent(item)
       let top = y + 5 // the words stand at the top of the block (paddingVertical 5); the picture is centred
-      draw(item.quoteAuthor, msgQuoteAuthorFont, markColor, CGRect(x: words, y: top, width: inner - msgQuoteIndent(item) - 8, height: ceil(msgQuoteAuthorFont.lineHeight)), lines: false)
+      draw(item.quoteAuthor, msgQuoteAuthorFont, markColor, CGRect(x: words, y: top, width: quoteBox.width - msgQuoteIndent(item) - 8, height: ceil(msgQuoteAuthorFont.lineHeight)), lines: false)
       NSAttributedString(string: item.quoteText, attributes: [.font: msgQuoteFont, .foregroundColor: metaColor, .paragraphStyle: msgQuoteStyle()])
-        .draw(with: CGRect(x: words, y: top + ceil(msgQuoteAuthorFont.lineHeight) + 1, width: inner - msgQuoteIndent(item) - 8, height: layoutInfo.quoteSize.height), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+        .draw(with: CGRect(x: words, y: top + ceil(msgQuoteAuthorFont.lineHeight) + 1, width: quoteBox.width - msgQuoteIndent(item) - 8, height: layoutInfo.quoteSize.height), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
       y += height + 6
     }
     // Attachments: the album's mosaic.
     if layoutInfo.album.size != .zero, let album = item.album {
-      albumBox = CGRect(x: x, y: y, width: layoutInfo.album.size.width, height: layoutInfo.album.size.height)
+      albumBox = CGRect(x: flush ? left + 2 : x, y: y, width: layoutInfo.album.size.width, height: layoutInfo.album.size.height)
       layoutInfo.album.draw(album, pictures: albumPictures, in: context, at: albumBox.origin, palette: palette)
-      y += layoutInfo.album.size.height + 6
+      y += layoutInfo.album.size.height + (flush ? 7 : 6)
     }
     // Voice/Video: where the picture of a video or a round video stands; without a picture, a quiet plate.
     mediaBoxes = MsgMediaBoxes()
-    let mediaPicture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
+    // MessageRow.tsx `flush`: the picture 2 in from the card's edges, its corners max(4, the card's − 3), 7 above the words.
+    let pictureX = flush ? left + 2 : x
+    let pictureRadius: CGFloat = flush ? max(4, ChatBubbleLook.radius - 3) : 12
+    let pictureGap: CGFloat = flush ? 7 : 6
+    let mediaPicture = CGRect(x: pictureX, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
     if layoutInfo.thumbSize != .zero && (item.media == "video" || item.media == "note") {
       mediaBoxes.thumb = mediaPicture
       if thumbImage == nil {
         MediaRowArt.plate(context, round: item.media == "note", palette: palette, box: mediaPicture)
-        y += mediaPicture.height + 6
+        y += mediaPicture.height + pictureGap
       }
     }
     // Attachments: a photo with words, shown whole above them.
     if item.media == "photo" && layoutInfo.thumbSize != .zero {
-      let picture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
-      InlineMediaArt.drawPhoto(context, row: item, box: picture, palette: palette, small: thumbImage, radius: 12, alone: false)
-      y += picture.height + 6
+      let picture = CGRect(x: pictureX, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
+      InlineMediaArt.drawPhoto(context, row: item, box: picture, palette: palette, small: thumbImage, radius: pictureRadius, alone: false)
+      y += picture.height + pictureGap
     }
     if let image = thumbImage, item.media != "photo", layoutInfo.thumbSize != .zero, image.size.width > 0, image.size.height > 0 {
-      let picture = CGRect(x: x, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
+      let picture = CGRect(x: pictureX, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
       context.saveGState()
-      UIBezierPath(roundedRect: picture, cornerRadius: item.thumbRound ? min(picture.width, picture.height) / 2 : 12).addClip()
+      UIBezierPath(roundedRect: picture, cornerRadius: item.thumbRound ? min(picture.width, picture.height) / 2 : pictureRadius).addClip()
       let scale = max(picture.width / image.size.width, picture.height / image.size.height)
       let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
       image.draw(in: CGRect(x: picture.midX - size.width / 2, y: picture.midY - size.height / 2, width: size.width, height: size.height))
       context.restoreGState()
-      y += picture.height + 6
+      y += picture.height + pictureGap
     }
     // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
     if mediaBoxes.thumb != .zero { MediaRowArt.marks(context, row: item, state: mediaState, palette: palette, box: mediaBoxes.thumb, hosted: subviews.contains { $0 is NotePlayerView }) }
@@ -972,7 +1002,7 @@ final class MsgRowCanvas: UIView {
     // MessageRow.tsx: in the corner of a bubble 10 from the right and 6 from the bottom; on a row of its own at the
     // right of the content (justify flex-end), 5 above the plate's bottom.
     let corner = layoutInfo.timeCorner && bodyBox != .zero
-    let under = left + bubble.width - (corner ? 10 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
+    let under = left + bubble.width - (corner ? 10 : msgFlush(item) ? 2 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
     let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks + (item.silent ? 15 : 0) : under // Composer: room for the bell
     // Inline, the time shares the last line's baseline (it is a trailing run of the words in the reference).
     let bodyFont = UIFont.systemFont(ofSize: fontSize)
@@ -988,7 +1018,7 @@ final class MsgRowCanvas: UIView {
     // MessageRow.tsx: after the time (4 apart) <Icon name="checkmark"|"checkmark-done" size={15}>, read in the accent;
     // on its way <Icon name="time-outline" size={12}>; failed <Icon name="alert-circle" size={13} color={t.danger}>.
     let middle = timeBottom - timeSize.height / 2
-    if item.mine && item.ticks == 4 && (!msgOpenLook || item.media == "photo") {
+    if item.mine && item.ticks == 4 && (!msgOpenLook || item.media == "photo" || msgFlush(item)) {
       context.setStrokeColor(palette.danger.cgColor)
       context.setLineWidth(1)
       context.addPath(ChatBubbleLook.shape(box.insetBy(dx: 0.5, dy: 0.5), mine: true, tail: item.tail).cgPath)

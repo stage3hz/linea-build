@@ -289,7 +289,8 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   private fun partPressed(item: Map<String, Any?>, part: String) {
     if (part.startsWith("link:")) {
       val href = part.removePrefix("link:")
-      com.linea.messenger.linkpreview.LinkOpen.pressed(context, href, href)
+      if (href.startsWith("mention:")) com.linea.messenger.linkpreview.LinkOpen.mention(this, messenger, href.removePrefix("mention:"))
+      else com.linea.messenger.linkpreview.LinkOpen.pressed(context, href, href)
       return
     }
     val attachment = Core.map(item["attachment"]) ?: return
@@ -615,6 +616,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
  *  with no words and no origin stands alone with the time in a pill under it (`circleOnly`). The owner's open look:
  *  no plate unless bubbles are chosen in «Оформление» (then the reference's plate: radius 23, 8 at the lower right).
  *  iOS: native/ios/Sources/ChatsPlus/SavedViewController.swift (SavedNoteCanvas). */
+private val MENTION_RE = Regex("@([A-Za-z0-9_]{3,24})")
 private val URL_RE = Regex("\\b((?:https?://|www\\.)[^\\s<>\"'«»]+[^\\s<>\"'«».,:;!?)\\]])", RegexOption.IGNORE_CASE)
 
 @SuppressLint("ViewConstructor")
@@ -727,11 +729,25 @@ private class SavedNoteRow(context: Context) : View(context) {
 
   /** linkify.tsx / format/markdown.ts `URL_RE`: the addresses in the words (their places and where each leads),
    *  drawn in the text's own colour, underlined. */
-  private fun links(): List<Pair<IntRange, String>> = URL_RE.findAll(words).map { match ->
-    val raw = match.groupValues[1]
-    val range = match.groups[1]!!.range
-    Pair(range, if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) raw else "https://$raw")
-  }.toList()
+  private fun links(): List<Pair<IntRange, String>> {
+    val found = URL_RE.findAll(words).map { match ->
+      val raw = match.groupValues[1]
+      val range = match.groups[1]!!.range
+      Pair(range, if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) raw else "https://$raw")
+    }.toMutableList()
+    val urls = found.toList()
+    // format/markdown.ts `linkTokens`: «@name» not glued to a word and not inside an address leads to that person.
+    for (match in MENTION_RE.findAll(words)) {
+      val range = match.range
+      val before = if (range.first > 0) words[range.first - 1] else ' '
+      val after = if (range.last + 1 < words.length) words[range.last + 1] else ' '
+      if (before.isLetterOrDigit() && before.code < 128 || before in "_@./-") continue
+      if (after.isLetterOrDigit() && after.code < 128 || after in "_@") continue
+      if (urls.any { it.first.first <= range.last && range.first <= it.first.last }) continue
+      found.add(Pair(range, "mention:" + match.groupValues[1].lowercase()))
+    }
+    return found
+  }
 
   /** The part under a point: "play", "wave", "rate", "thumb" (a round video), "card" or "link:<address>". */
   fun part(x: Float, y: Float): String? {
@@ -814,7 +830,8 @@ private class SavedNoteRow(context: Context) : View(context) {
       textPaint.textSize = size * d; textPaint.typeface = Theme.weight(400); textPaint.color = Theme.text
       val natural = textPaint.fontMetrics.let { it.descent - it.ascent }
       val spanned = android.text.SpannableString(words)
-      for (link in links()) spanned.setSpan(android.text.style.UnderlineSpan(), link.first.first, link.first.last + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      // linkify.tsx: an address underlined; a mention in the text's own colour only.
+      for (link in links()) if (!link.second.startsWith("mention:")) spanned.setSpan(android.text.style.UnderlineSpan(), link.first.first, link.first.last + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
       val made = android.text.StaticLayout.Builder.obtain(spanned, 0, spanned.length, textPaint, inner.toInt()).setIncludePad(false)
         .setLineSpacing(lineHeight * d - natural, 1f).build()
       textLayout = made

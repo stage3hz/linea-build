@@ -102,7 +102,12 @@ fun openMusicLink(context: Context, address: String?): Boolean {
 
 /** A track's cover: the picture, or a note on a quiet square while there is none. */
 @SuppressLint("ViewConstructor")
-class MusicCoverView(context: Context, private val radius: Float) : View(context) {
+/** A track's cover: the picture, or — while there is none — the reference's fallback. `artwork` false (MusicScreen.tsx
+ *  `TrackArtwork`): the accent gradient with `musical-note` (25, on-accent); true (PlayerControls.tsx `TrackArtwork`):
+ *  radius max(12, min(36, size × 0.23)), the soft accent under a hairline, a three-colour gradient, a light ring and
+ *  `musical-note(s)` (max(22, size × 0.31)). */
+class MusicCoverView(context: Context, private val radius: Float, private val artwork: Boolean = false) : View(context) {
+  private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
   private val d = resources.displayMetrics.density
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val from = Rect()
@@ -114,7 +119,7 @@ class MusicCoverView(context: Context, private val radius: Float) : View(context
     importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     clipToOutline = true
     outlineProvider = object : ViewOutlineProvider() {
-      override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, radius * d)
+      override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, if (artwork) maxOf(12f * d, minOf(36f * d, view.width * 0.23f)) else radius * d)
     }
   }
 
@@ -135,11 +140,33 @@ class MusicCoverView(context: Context, private val radius: Float) : View(context
   }
 
   override fun onDraw(canvas: Canvas) {
-    paint.color = Theme.veil(0.07f)
-    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+    val w = width.toFloat(); val h = height.toFloat()
     val picture = track?.let { MusicCovers.image(it) }
     if (picture == null) {
-      AIIcons.draw(canvas, "note", width / 2f, height / 2f, minOf(width, height) * 0.46f, Theme.muted)
+      if (artwork) {
+        paint.color = com.linea.messenger.settings.ThemeStore.look.accentSoft
+        canvas.drawRect(0f, 0f, w, h, paint)
+        val colors = if (Theme.dark) intArrayOf(0xFF253E70.toInt(), 0xFF38334F.toInt(), 0xFF172844.toInt()) else intArrayOf(0xFFCDDEFF.toInt(), 0xFFE1DCF6.toInt(), 0xFFAECBF3.toInt())
+        paint.shader = android.graphics.LinearGradient(0f, 0f, w, h, colors, null, android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = null
+        // The ring: 0.95 of the size, moved 0.24 right and 0.22 down.
+        ring.strokeWidth = d; ring.color = com.linea.messenger.settings.ThemeStore.look.glassHighlight
+        canvas.drawCircle(w / 2 + w * 0.24f, h / 2 + w * 0.22f, w * 0.95f / 2, ring)
+        val glyph = if (track?.source == "local") "musical-note" else "musical-notes"
+        com.linea.messenger.design.IonIcon.draw(canvas, glyph, w / 2, h / 2, maxOf(22f * d, w * 0.31f), if (Theme.dark) 0xFFC5D9FF.toInt() else 0xFF4569A5.toInt())
+        ring.color = com.linea.messenger.settings.ThemeStore.look.glassBorder
+        val r = maxOf(12f * d, minOf(36f * d, w * 0.23f))
+        canvas.drawRoundRect(d / 2, d / 2, w - d / 2, h - d / 2, r, r, ring)
+      } else {
+        paint.color = Theme.surface2
+        canvas.drawRect(0f, 0f, w, h, paint)
+        val fill = com.linea.messenger.settings.ThemeStore.look.accentGradient.takeIf { it.size >= 2 }?.toIntArray() ?: intArrayOf(Theme.accent, Theme.accent)
+        paint.shader = android.graphics.LinearGradient(0f, 0f, 0f, h, fill, null, android.graphics.Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, paint)
+        paint.shader = null
+        com.linea.messenger.design.IonIcon.draw(canvas, "musical-note", w / 2, h / 2, 25f * d, Theme.onAccent)
+      }
       return
     }
     // Fills the square: the middle of a picture that is not one.

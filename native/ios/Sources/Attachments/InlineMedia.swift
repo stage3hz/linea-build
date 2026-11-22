@@ -366,7 +366,23 @@ enum InlineMediaArt {
     private static func sizeWords(_ row: MsgRow) -> String { row.mediaTime }
 
     /// The time of a photo alone: white in a dark pill 8 pt from the lower right corner, with the ticks of one's own.
-    private static func timePill(_ context: CGContext, row: MsgRow, box: CGRect, palette: MsgPalette) {
+    /// A video's poster (the small picture that came with it, unblurred) on the quiet plate (MediaBubble.tsx `MediaTile`).
+    static func drawVideo(_ context: CGContext, row: MsgRow, box: CGRect, palette: MsgPalette, small: UIImage?, radius: CGFloat) {
+        context.saveGState()
+        UIBezierPath(roundedRect: box, cornerRadius: radius).addClip()
+        context.setFillColor(plate.cgColor)
+        context.fill(box)
+        if let image = small, image.size.width > 0, image.size.height > 0 {
+            let scale = max(box.width / image.size.width, box.height / image.size.height)
+            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            image.draw(in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height))
+        } else {
+            drawCentered(symbol("ion:videocam-outline", 34, .regular, UIColor(white: 1, alpha: 0.75)), at: CGPoint(x: box.midX, y: box.midY))
+        }
+        context.restoreGState()
+    }
+
+    static func timePill(_ context: CGContext, row: MsgRow, box: CGRect, palette: MsgPalette) {
         let color: UIColor = row.ticks == 4 ? palette.danger : .white
         let time = NSAttributedString(string: row.time, attributes: [.font: pillFont, .foregroundColor: color])
         let timeSize = time.size()

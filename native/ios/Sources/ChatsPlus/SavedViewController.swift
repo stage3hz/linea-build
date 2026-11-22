@@ -300,6 +300,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private func partPressed(_ item: [String: Any], part: String) {
         if part.hasPrefix("link:") {
             let href = String(part.dropFirst(5))
+            if href.hasPrefix("mention:") { LinkOpen.mention(String(href.dropFirst(8)), messenger: messenger, from: self); return }
             LinkOpen.pressed(url: href, shown: href, over: self)
             return
         }
@@ -871,20 +872,39 @@ final class SavedNoteCanvas: UIView {
     /// linkify.tsx / format/markdown.ts `URL_RE`: an address in the words, in the text's own colour, underlined.
     private static let urlPattern = try? NSRegularExpression(pattern: "\\b((?:https?://|www\\.)[^\\s<>\"'«»]+[^\\s<>\"'«».,:;!?)\\]])", options: [.caseInsensitive])
 
-    /// The addresses in the words: their ranges and where each leads.
+    /// format/markdown.ts `MENTION_RE`: «@name» of 3…24 letters, digits or «_».
+    private static let mentionPattern = try? NSRegularExpression(pattern: "@([A-Za-z0-9_]{3,24})", options: [])
+
+    /// format/markdown.ts `linkTokens`: the addresses and the @mentions in the words — their ranges and where each
+    /// leads (`https://…` or `mention:<name>`). A mention glued to a word, or inside an address, is none.
     private var links: [(range: NSRange, href: String)] {
-        guard let pattern = SavedNoteCanvas.urlPattern, !words.isEmpty else { return [] }
+        guard !words.isEmpty else { return [] }
         let all = words as NSString
-        return pattern.matches(in: words, options: [], range: NSRange(location: 0, length: all.length)).map { (match: NSTextCheckingResult) -> (range: NSRange, href: String) in
+        let whole = NSRange(location: 0, length: all.length)
+        var found: [(range: NSRange, href: String)] = []
+        for match in SavedNoteCanvas.urlPattern?.matches(in: words, options: [], range: whole) ?? [] {
             let raw = all.substring(with: match.range(at: 1))
             let href = raw.lowercased().hasPrefix("http://") || raw.lowercased().hasPrefix("https://") ? raw : "https://" + raw
-            return (range: match.range(at: 1), href: href)
+            found.append((range: match.range(at: 1), href: href))
         }
+        let urls = found
+        let glued = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_@./-")
+        let gluedAfter = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_@")
+        for match in SavedNoteCanvas.mentionPattern?.matches(in: words, options: [], range: whole) ?? [] {
+            let range = match.range
+            if range.location > 0, let unit = UnicodeScalar(all.character(at: range.location - 1)), glued.contains(unit) { continue }
+            let end = range.location + range.length
+            if end < all.length, let unit = UnicodeScalar(all.character(at: end)), gluedAfter.contains(unit) { continue }
+            if urls.contains(where: { NSIntersectionRange($0.range, range).length > 0 }) { continue }
+            found.append((range: range, href: "mention:" + all.substring(with: match.range(at: 1)).lowercased()))
+        }
+        return found
     }
 
     private var attributedWords: NSAttributedString {
         let made = NSMutableAttributedString(string: words, attributes: textAttributes)
-        for link in links { made.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: link.range) }
+        // linkify.tsx: an address underlined; a mention in the text's own colour only.
+        for link in links where !link.href.hasPrefix("mention:") { made.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: link.range) }
         return made
     }
 

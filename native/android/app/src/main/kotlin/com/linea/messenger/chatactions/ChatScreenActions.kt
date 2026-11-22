@@ -195,7 +195,11 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     list.onReactPress = { key, emoji -> chipPressed(key, emoji) }
     list.onQuotePress = { key -> quotePressed(key) }
     // LinkPreview: a link in the text and the card of a link open in the system browser (linkpreview/LinkOpen.kt).
-    list.onLinkPress = { _, url, shown -> com.linea.messenger.linkpreview.LinkOpen.pressed(context, url, shown) }
+    list.onLinkPress = { _, url, shown ->
+      // «@name» (format/nativeSpans.ts `mention:<name>`): that person's profile (App.tsx `mention`).
+      if (url.startsWith("mention:")) com.linea.messenger.linkpreview.LinkOpen.mention(list, messenger, url.removePrefix("mention:"))
+      else com.linea.messenger.linkpreview.LinkOpen.pressed(context, url, shown)
+    }
     list.onCardPress = { _, url -> com.linea.messenger.linkpreview.LinkOpen.cardPressed(context, url) }
     links.install(host, behind)
     links.onChanged = { relayout() }
