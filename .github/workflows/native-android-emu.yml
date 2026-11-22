@@ -90,7 +90,7 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu guest -no-snapshot -noaudio -no-boot-anim -camera-back none
           # First the pages that need no server. Then real data: a local test server on this runner, a test
           # account, really encrypted chats (emu-live.sh). The live part has its own outcome (live-status.txt),
           # so a failure there does not hide the first pictures.

@@ -76,7 +76,10 @@ appId: com.invizent.app
       notVisible: "Чаты"
       visible: "Войти в Инвиз"
     commands:
-      - tapOn: "Войти в Инвиз"
+      # The button can vanish between the check and the tap (the sign-in finishing by itself).
+      - tapOn:
+          text: "Войти в Инвиз"
+          optional: true
 - tapOn:
     text: "Allow|Разрешить"
     optional: true
