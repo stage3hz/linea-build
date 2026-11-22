@@ -153,6 +153,8 @@ final class MiniPlayerView: UIView {
         toggleFill.frame = CGRect(x: 0, y: 0, width: 46, height: 46)
         toggleFill.cornerRadius = 23
         toggle.layer.insertSublayer(toggleFill, at: 0)
+        // The button puts its picture's layer in later, sometimes beneath: the disc stays under it whatever the order.
+        toggleFill.zPosition = -1
         // PlaybackButton: `scale: pressed ? .95 : 1` — at once, no spring.
         toggle.addAction(UIAction { [weak self] _ in self?.toggle.transform = CGAffineTransform(scaleX: 0.95, y: 0.95) }, for: [.touchDown, .touchDragEnter])
         toggle.addAction(UIAction { [weak self] _ in self?.toggle.transform = .identity }, for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
