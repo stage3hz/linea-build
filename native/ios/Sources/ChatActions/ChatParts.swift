@@ -430,6 +430,8 @@ final class ChoiceSheet: UIViewController {
         let label: String
         var note = ""
         var danger = false
+        /// One of several (the reference's `SheetAction selected`): no chevron, a radio for VoiceOver; nil: an action.
+        var selected: Bool? = nil
         let run: () -> Void
     }
 
@@ -461,7 +463,7 @@ final class ChoiceSheet: UIViewController {
     private static func height(heading: String, note: String, choices: [Choice]) -> CGFloat {
         var total: CGFloat = 30 + 30
         if !note.isEmpty { total += 44 }
-        for choice in choices { total += choice.note.isEmpty ? 54 : 76 }
+        for choice in choices { total += ChoiceSheet.rowHeight(choice) }
         // And the room under the last choice (the home indicator).
         return total + 44
     }
@@ -494,6 +496,13 @@ final class ChoiceSheet: UIViewController {
         dismiss(animated: true) { run() }
     }
 
+    /// The reference's SheetAction: 13 above and below a 46 tile (72), at least 76 for an action; a two-line note adds 18.
+    static func rowHeight(_ choice: Choice) -> CGFloat {
+        let least: CGFloat = choice.selected != nil ? 72 : 76
+        if choice.note.isEmpty { return least }
+        return max(least, 13 + 20 + 5 + (choice.note.count > 44 ? 36 : 18) + 13)
+    }
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let width = view.bounds.width
@@ -505,7 +514,7 @@ final class ChoiceSheet: UIViewController {
             y += 44
         }
         for (index, row) in rows.enumerated() {
-            let height: CGFloat = choices[index].note.isEmpty ? 54 : 76
+            let height = ChoiceSheet.rowHeight(choices[index])
             row.frame = CGRect(x: 8, y: y, width: width - 16, height: height)
             y += height
         }
@@ -514,49 +523,75 @@ final class ChoiceSheet: UIViewController {
 
 /// One choice of a `ChoiceSheet`.
 private final class ChoiceRow: UIControl {
+    private let tile = UIVisualEffectView(effect: TabGlass.effect(clear: true, interactive: false, dark: Theme.dark))
     private let mark = UIImageView()
     private let nameLabel = UILabel()
     private let noteLabel = UILabel()
+    private let chevron = UIImageView(image: IonIcon.image("chevron-forward", size: 18))
     private let hasNote: Bool
+    private let isChoice: Bool
 
+    /// The reference's `SheetAction` (components.tsx): a 46 tile of clear glass (radius 16) holding the Ionicons glyph 22
+    /// in the accent (`danger` for a dangerous one), 14 to the words — the label 16 SemiBold, the note 12 (line 18) 5
+    /// under it in `muted` — and a chevron-forward 18 in `subtle` unless it is one of several; 13 above and below, 10 at
+    /// the sides, radius 19, `surface2` under the finger.
     init(choice: ChoiceSheet.Choice) {
         hasNote = !choice.note.isEmpty
+        isChoice = choice.selected != nil
         super.init(frame: .zero)
-        let ink = choice.danger ? Theme.danger : Theme.text
-        mark.image = chatSymbol(choice.symbol, 19)
-        mark.tintColor = ink
+        tile.layer.cornerRadius = 16
+        tile.layer.cornerCurve = .continuous
+        tile.clipsToBounds = true
+        tile.isUserInteractionEnabled = false
+        addSubview(tile)
+        mark.image = chatSymbol(choice.symbol, 22)
+        mark.tintColor = choice.danger ? Theme.danger : Theme.accent
         mark.contentMode = .center
-        addSubview(mark)
+        tile.contentView.addSubview(mark)
         nameLabel.text = choice.label
-        nameLabel.font = .systemFont(ofSize: 17)
-        nameLabel.textColor = ink
+        nameLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        nameLabel.textColor = choice.danger ? Theme.danger : Theme.text
         addSubview(nameLabel)
-        noteLabel.text = choice.note
-        noteLabel.font = .systemFont(ofSize: 13)
-        noteLabel.textColor = Theme.muted
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 18
+        style.maximumLineHeight = 18
+        noteLabel.attributedText = NSAttributedString(string: choice.note, attributes: [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: Theme.muted, .paragraphStyle: style])
         noteLabel.numberOfLines = 2
         addSubview(noteLabel)
-        layer.cornerRadius = 14
+        chevron.tintColor = Theme.subtle
+        chevron.isHidden = isChoice
+        addSubview(chevron)
+        layer.cornerRadius = 19
+        layer.cornerCurve = .continuous
         isAccessibilityElement = true
         accessibilityTraits = .button
+        if let selected = choice.selected, selected { accessibilityTraits.insert(.selected) }
         accessibilityLabel = choice.note.isEmpty ? choice.label : choice.label + ". " + choice.note
     }
 
     required init?(coder: NSCoder) { return nil }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? Theme.veil(0.07) : .clear }
+        didSet { backgroundColor = isHighlighted ? Theme.surface2 : .clear }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let width = bounds.width
-        mark.frame = CGRect(x: 8, y: 0, width: 36, height: hasNote ? 44 : bounds.height)
+        let width = bounds.width, height = bounds.height
+        tile.frame = CGRect(x: 10, y: (height - 46) / 2, width: 46, height: 46)
+        mark.frame = tile.bounds
+        let left: CGFloat = 10 + 46 + 14
+        let right: CGFloat = isChoice ? 10 : 10 + 18 + 14
+        chevron.frame = CGRect(x: width - 10 - 18, y: (height - 18) / 2, width: 18, height: 18)
+        let room = width - left - right
         if hasNote {
-            nameLabel.frame = CGRect(x: 52, y: 10, width: width - 64, height: 22)
-            noteLabel.frame = CGRect(x: 52, y: 33, width: width - 64, height: 36)
+            let noteHeight = noteLabel.sizeThatFits(CGSize(width: room, height: 36)).height
+            let block = 20 + 5 + min(36, noteHeight)
+            let top = (height - block) / 2
+            nameLabel.frame = CGRect(x: left, y: top, width: room, height: 20)
+            noteLabel.frame = CGRect(x: left, y: top + 25, width: room, height: min(36, noteHeight))
         } else {
-            nameLabel.frame = CGRect(x: 52, y: 0, width: width - 64, height: bounds.height)
+            nameLabel.frame = CGRect(x: left, y: 0, width: room, height: height)
         }
     }
 }

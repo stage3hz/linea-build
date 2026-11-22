@@ -501,7 +501,8 @@ class SelectionBar(context: Context) : GlassBar(context, 28f) {
 /** A sheet of a few choices, each with a line of explanation under it — «Выключить звук», «Удалить чат?», what
  *  can be done with a chat. A choice closes the sheet and is then carried out. */
 class ChoiceSheet(context: Context, val heading: String, val note: String = "", val choices: List<Choice>) : Dialog(context) {
-  class Choice(val symbol: String, val label: String, val note: String = "", val danger: Boolean = false, val run: () -> Unit)
+  /** `selected`: one of several (the reference's `SheetAction selected`) — no chevron; null: an action. */
+  class Choice(val symbol: String, val label: String, val note: String = "", val danger: Boolean = false, val selected: Boolean? = null, val run: () -> Unit)
 
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
@@ -533,27 +534,40 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     setCanceledOnTouchOutside(true)
   }
 
-  /** One choice: its picture, its name, and the quieter line under it. */
+  /** One choice — the reference's `SheetAction` (components.tsx): a 46 tile of clear glass (radius 16) holding the
+   *  Ionicons glyph 22 in the accent (`danger` for a dangerous one), 14 to the words (the label 16 SemiBold, the note 12,
+   *  line 18, 5 under it in `muted`), a chevron-forward 18 in `subtle` unless it is one of several; 13 above and below,
+   *  10 at the sides, at least 76 (60 for one of several), radius 19, `surface2` under the finger. */
   private fun row(choice: Choice): View {
-    val ink = if (choice.danger) Theme.danger else Theme.text
     val row = LinearLayout(context).apply {
       orientation = LinearLayout.HORIZONTAL
-      gravity = if (choice.note.isEmpty()) Gravity.CENTER_VERTICAL else Gravity.TOP
-      minimumHeight = dp(if (choice.note.isEmpty()) 54f else 76f)
-      setPadding(dp(8f), dp(10f), dp(12f), dp(8f))
+      gravity = Gravity.CENTER_VERTICAL
+      minimumHeight = dp(if (choice.selected != null) 60f else 76f)
+      setPadding(dp(10f), dp(13f), dp(10f), dp(13f))
       isClickable = true
       isFocusable = true
+      isSelected = choice.selected == true
       contentDescription = if (choice.note.isEmpty()) choice.label else choice.label + ". " + choice.note
       background = android.graphics.drawable.StateListDrawable().apply {
-        addState(intArrayOf(android.R.attr.state_pressed), GradientDrawable().apply { setColor(Theme.veil(0.07f)); cornerRadius = 14f * d })
+        addState(intArrayOf(android.R.attr.state_pressed), GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 19f * d })
       }
       setOnClickListener { chosen(choice) }
     }
-    row.addView(ChatIconView(context, choice.symbol, 21f, ink), LinearLayout.LayoutParams(dp(36f), dp(if (choice.note.isEmpty()) 34f else 24f)).apply { rightMargin = dp(8f) })
+    val tile = object : android.widget.FrameLayout(context) {
+      private val glass = com.linea.messenger.design.Glass(this)
+      init { setWillNotDraw(false) }
+      override fun onDraw(canvas: android.graphics.Canvas) { glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 16f * d); super.onDraw(canvas) }
+    }
+    tile.addView(ChatIconView(context, choice.symbol, 22f, if (choice.danger) Theme.danger else Theme.accent), android.widget.FrameLayout.LayoutParams(dp(22f), dp(22f), Gravity.CENTER))
+    row.addView(tile, LinearLayout.LayoutParams(dp(46f), dp(46f)).apply { rightMargin = dp(14f) })
     val words = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-    words.addView(TextView(context).apply { text = choice.label; textSize = 17f; setTextColor(ink) })
-    if (choice.note.isNotEmpty()) words.addView(TextView(context).apply { text = choice.note; textSize = 13f; setTextColor(Theme.muted); maxLines = 3 })
+    words.addView(TextView(context).apply { text = choice.label; textSize = 16f; typeface = Theme.weight(600); setTextColor(if (choice.danger) Theme.danger else Theme.text) })
+    if (choice.note.isNotEmpty()) words.addView(TextView(context).apply {
+      text = choice.note; textSize = 12f; setTextColor(Theme.muted); maxLines = 3
+      if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = dp(18f)
+    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(5f) })
     row.addView(words, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+    if (choice.selected == null) row.addView(ChatIconView(context, "ion:chevron-forward", 18f, Theme.subtle), LinearLayout.LayoutParams(dp(18f), dp(18f)).apply { leftMargin = dp(14f) })
     return row
   }
 

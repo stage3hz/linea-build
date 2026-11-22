@@ -158,6 +158,16 @@ class GlassHeaderView(
 
   fun setTitle(title: String) { titleLabel.text = title }
 
+  private var mark = ""
+  private var markSize = 0f
+  private var markRoom = 0f
+
+  /** A plain glyph at the right in the accent, `room` from the pill's padding (SecurityScreen.tsx: the shield, 23, 10). */
+  fun setMark(name: String, size: Float, room: Float) {
+    mark = name; markSize = size; markRoom = room
+    requestLayout(); invalidate()
+  }
+
   fun setSubtitle(subtitle: String) {
     subtitleLabel.text = subtitle
     subtitleLabel.visibility = if (subtitle.isEmpty()) GONE else VISIBLE
@@ -204,6 +214,7 @@ class GlassHeaderView(
     var left = dp(if (hasBack) padding else padding + 6f)
     backButton?.let { put(it, left, cy - dp(22f), dp(44f), dp(44f)); left += dp(44f + 9f) }
     var right = width - dp(padding)
+    if (mark.isNotEmpty()) right -= dp(markSize + markRoom + 9f)
     for (tool in tools.asReversed()) {
       val side = tool.measuredWidthFor()
       put(tool, right - side, cy - side / 2, side, side)
@@ -224,6 +235,7 @@ class GlassHeaderView(
 
   override fun onDraw(canvas: Canvas) {
     glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 27f * d)
+    if (mark.isNotEmpty()) Symbols.draw(canvas, "ion:$mark", width - dp(padding + markRoom) - markSize * d / 2, height / 2f, markSize * d, Theme.accent)
   }
 }
 

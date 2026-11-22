@@ -251,7 +251,7 @@ final class PasscodeViewController: SettingsPage {
         // immediate «flash-outline», a time «time-outline»).
         let choices = LockRules.autolockModes.map { (mode: String) -> ChoiceSheet.Choice in
             let symbol = mode == "off" ? "ion:close-circle-outline" : mode == "immediate" ? "ion:flash-outline" : "ion:time-outline"
-            return ChoiceSheet.Choice(symbol: symbol, label: LockRules.autolockLabels[mode] ?? mode, run: { [weak self] in
+            return ChoiceSheet.Choice(symbol: symbol, label: LockRules.autolockLabels[mode] ?? mode, selected: LockStore.shared.current.autolock == mode, run: { [weak self] in
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 LockStore.shared.update { (settings: inout LockSettings) -> Void in settings.autolock = mode }
                 self?.fill()

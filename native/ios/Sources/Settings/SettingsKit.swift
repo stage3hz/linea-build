@@ -47,6 +47,53 @@ enum SettingsLook {
         return label
     }
 
+    /// Words with the reference's exact line height and letter spacing.
+    static func para(_ text: String, size: CGFloat, color: UIColor, weight: UIFont.Weight = .regular, line: CGFloat = 0, kern: CGFloat = 0, centered: Bool = false) -> UILabel {
+        let label = UILabel()
+        label.numberOfLines = 0
+        let style = NSMutableParagraphStyle()
+        if line > 0 { style.minimumLineHeight = line; style.maximumLineHeight = line }
+        if centered { style.alignment = .center }
+        label.attributedText = NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color, .kern: kern, .paragraphStyle: style])
+        return label
+    }
+
+    /// The reference's `SectionLabel` (components.tsx): 10 Bold, letter spacing 1.65, `muted`, upper case, 2 in.
+    static func sectionLabel(_ text: String) -> UIView {
+        let label = UILabel()
+        label.attributedText = NSAttributedString(string: text.uppercased(), attributes: [.kern: 1.65, .font: UIFont.systemFont(ofSize: 10, weight: .bold), .foregroundColor: Theme.muted])
+        label.accessibilityTraits = .header
+        return inset(label, top: 0, side: 2, bottom: 0)
+    }
+
+    /// A card of glass (GlassSurface: `radius`, `padding` inside, `gap` between the parts; a SectionLabel first gets its
+    /// 13 of margin on top of the gap). `clear`: `material="clear"`.
+    static func glassCard(_ parts: [UIView], radius: CGFloat = 28, padding: CGFloat = 20, gap: CGFloat = 15, clear: Bool = false, labelled: Bool = false) -> UIView {
+        let card = UIView()
+        card.layer.cornerRadius = radius
+        card.layer.cornerCurve = .continuous
+        card.clipsToBounds = true
+        let glass = UIVisualEffectView(effect: TabGlass.effect(clear: clear, interactive: false, dark: Theme.dark))
+        glass.isUserInteractionEnabled = false
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(glass)
+        let stack = UIStackView(arrangedSubviews: parts)
+        stack.axis = .vertical
+        stack.spacing = gap
+        if labelled, let first = parts.first { stack.setCustomSpacing(gap + 13, after: first) }
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(stack)
+        NSLayoutConstraint.activate([
+            glass.topAnchor.constraint(equalTo: card.topAnchor), glass.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            glass.leadingAnchor.constraint(equalTo: card.leadingAnchor), glass.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: padding),
+            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -padding),
+            stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: padding),
+            stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -padding),
+        ])
+        return card
+    }
+
     /// `inner` with room around it (a stack has no margins of its own for one item).
     static func inset(_ inner: UIView, top: CGFloat = 0, side: CGFloat = 0, bottom: CGFloat = 0) -> UIView {
         let box = UIView()
@@ -130,6 +177,26 @@ class SettingsPage: UIViewController {
 
     required init?(coder: NSCoder) { return nil }
 
+    /// A page whose reference has its own header and column (SecurityScreen.tsx); nil: the settings `Page` look.
+    struct OwnLook {
+        var side: CGFloat            // the header's margin at the sides
+        var padding: CGFloat         // the pill's inner room
+        var minHeight: CGFloat
+        var clear: Bool              // `material="clear"`
+        var titleFont: UIFont
+        var titleKern: CGFloat
+        var mark: String             // an Ionicons glyph at the right (in the accent), "" for none
+        var markSize: CGFloat
+        var markRoom: CGFloat        // room right of the mark
+        var backLabel: String
+        var columnSide: CGFloat
+        var columnTop: CGFloat       // from the pill's bottom (+2) to the first part
+        var columnBottom: CGFloat
+    }
+    var ownLook: OwnLook? { return nil }
+    /// The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14.
+    private var columnSide: CGFloat { return ownLook?.columnSide ?? (large ? 16 : 14) }
+
     /// D: false — a large page without its big name (the root of Settings: the profile head is its top, as in the
     /// reference's `Root`). The column keeps its place under the status bar; the list runs up under it.
     var showsHeading: Bool { return true }
@@ -164,11 +231,11 @@ class SettingsPage: UIViewController {
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             top,
-            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -30),
+            column.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -(ownLook?.columnBottom ?? 30)),
             // The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14.
-            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: large ? 16 : 14),
-            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: large ? -16 : -14),
-            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: large ? -32 : -28),
+            column.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: columnSide),
+            column.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -columnSide),
+            column.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -2 * columnSide),
         ]
         if large {
             if showsHeading {
@@ -185,14 +252,21 @@ class SettingsPage: UIViewController {
             rules.append(scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor))
         } else {
             view.addSubview(headerEdge)
+            let own = ownLook
             let made = GlassHeaderView(title: pageName, titleSize: Theme.TypeSize.pageTitleSize(pageName), lineHeight: 28,
-                                       padding: 8, minHeight: 60, back: { [weak self] () -> Void in self?.goBack() })
+                                       padding: own?.padding ?? 8, minHeight: own?.minHeight ?? 60, clear: own?.clear ?? false,
+                                       back: { [weak self] () -> Void in self?.goBack() }, backLabel: own?.backLabel ?? "Назад")
+            if let own {
+                made.titleLabel.attributedText = NSAttributedString(string: pageName, attributes: [.font: own.titleFont, .kern: own.titleKern, .foregroundColor: Theme.text])
+                if !own.mark.isEmpty { made.addMark(IonIcon.image(own.mark, size: own.markSize), room: own.markRoom) }
+            }
             made.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(made)
             header = made
+            let side = own?.side ?? 12
             rules.append(made.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12))
-            rules.append(made.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12))
-            rules.append(made.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12))
+            rules.append(made.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: side))
+            rules.append(made.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -side))
             rules.append(scroll.topAnchor.constraint(equalTo: view.topAnchor))
             // The page ends where the keyboard begins, so a field is never under it.
             rules.append(scroll.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor))
@@ -206,8 +280,8 @@ class SettingsPage: UIViewController {
         let safeTop = view.safeAreaInsets.top
         if let header {
             // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below).
-            let below = header.frame.maxY + 7
-            let wanted = below + 16 - 8
+            let below = header.frame.maxY + (ownLook == nil ? 7 : 2)
+            let wanted = below + (ownLook?.columnTop ?? 16) - 8
             if let columnTop, columnTop.constant != wanted { columnTop.constant = wanted }
             if scroll.verticalScrollIndicatorInsets.top != below { scroll.verticalScrollIndicatorInsets.top = below }
             headerEdge.color = Theme.bg
@@ -788,6 +862,7 @@ final class SettingsField: UIView, UITextFieldDelegate {
     var onReturn: (() -> Void)?
     var onEdit: (() -> Void)?
     private let eye = UIButton(type: .system)
+    private weak var fieldPlate: UIView?
 
     init(caption: String, placeholder: String, secret: Bool = false) {
         input = secret ? ManualTextField() : UITextField()
@@ -796,12 +871,21 @@ final class SettingsField: UIView, UITextFieldDelegate {
         name.attributedText = NSAttributedString(string: caption.uppercased(), attributes: [.kern: 1.0, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         name.numberOfLines = 0
         name.isHidden = caption.isEmpty
+        // The reference's ManualField: regular glass, radius 18, at least 54 tall, 17 inside, a 1.4 accent border while typing.
         let plate = UIView()
-        plate.backgroundColor = SettingsLook.card
-        plate.layer.cornerRadius = 14
+        plate.layer.cornerRadius = 18
         plate.layer.cornerCurve = .continuous
-        plate.layer.borderWidth = 0.5
-        plate.layer.borderColor = SettingsLook.line.cgColor
+        plate.layer.borderColor = Theme.accent.cgColor
+        plate.clipsToBounds = true
+        let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
+        glass.isUserInteractionEnabled = false
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        plate.addSubview(glass)
+        NSLayoutConstraint.activate([
+            glass.topAnchor.constraint(equalTo: plate.topAnchor), glass.bottomAnchor.constraint(equalTo: plate.bottomAnchor),
+            glass.leadingAnchor.constraint(equalTo: plate.leadingAnchor), glass.trailingAnchor.constraint(equalTo: plate.trailingAnchor),
+        ])
+        fieldPlate = plate
         input.font = .systemFont(ofSize: 16)
         input.textColor = Theme.text
         input.tintColor = Theme.text
@@ -827,14 +911,16 @@ final class SettingsField: UIView, UITextFieldDelegate {
         eye.addTarget(self, action: #selector(eyePressed), for: .touchUpInside)
         eye.translatesAutoresizingMaskIntoConstraints = false
         plate.addSubview(eye)
+        if secret { GlassBacking.put(under: eye) }
         NSLayoutConstraint.activate([
-            plate.heightAnchor.constraint(equalToConstant: 50),
-            input.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 14),
+            plate.heightAnchor.constraint(equalToConstant: 54),
+            input.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 17),
             input.topAnchor.constraint(equalTo: plate.topAnchor),
             input.bottomAnchor.constraint(equalTo: plate.bottomAnchor),
-            input.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: secret ? -48 : -14),
-            eye.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: -4),
-            eye.centerYAnchor.constraint(equalTo: plate.centerYAnchor),
+            input.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: secret ? -58 : -17),
+            // SecretInput: the eye is the reference's IconButton — a 44 round of clear glass, 5 from the top and the right.
+            eye.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: -5),
+            eye.topAnchor.constraint(equalTo: plate.topAnchor, constant: 5),
             eye.widthAnchor.constraint(equalToConstant: 44),
             eye.heightAnchor.constraint(equalToConstant: 44),
         ])
@@ -887,6 +973,14 @@ final class SettingsField: UIView, UITextFieldDelegate {
         let now = (textField.text ?? "") as NSString
         guard range.location + range.length <= now.length else { return false }
         return now.length - range.length + (string as NSString).length <= limit
+    }
+
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        fieldPlate?.layer.borderWidth = 1.4
+    }
+
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        fieldPlate?.layer.borderWidth = 0
     }
 
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {

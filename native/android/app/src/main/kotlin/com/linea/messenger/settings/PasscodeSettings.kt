@@ -225,7 +225,7 @@ class PasscodeScreen(context: Context) : SettingsPage(context, "Код-паро�
     // immediate «flash-outline», a time «time-outline»).
     val choices = LockRules.autolockModes.map { mode ->
       val symbol = if (mode == "off") "ion:close-circle-outline" else if (mode == "immediate") "ion:flash-outline" else "ion:time-outline"
-      com.linea.messenger.chatactions.ChoiceSheet.Choice(symbol, LockRules.autolockLabels[mode] ?: mode) {
+      com.linea.messenger.chatactions.ChoiceSheet.Choice(symbol, LockRules.autolockLabels[mode] ?: mode, selected = LockStore.current.autolock == mode) {
         performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         LockStore.update { it.copy(autolock = mode) }
         fill()

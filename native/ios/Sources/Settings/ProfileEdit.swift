@@ -186,7 +186,7 @@ final class ProfileEditViewController: SettingsPage {
         // The reference's Sheet «Пол»: SheetActions with «checkmark-circle» on the chosen one, «ellipse-outline» on the others.
         let options: [(String?, String)] = [("male", "Мужской"), ("female", "Женский"), (nil, "Не указан")]
         let choices = options.map { (option: (String?, String)) -> ChoiceSheet.Choice in
-            ChoiceSheet.Choice(symbol: gender == option.0 ? "ion:checkmark-circle" : "ion:ellipse-outline", label: option.1, run: { [weak self] in
+            ChoiceSheet.Choice(symbol: gender == option.0 ? "ion:checkmark-circle" : "ion:ellipse-outline", label: option.1, selected: gender == option.0, run: { [weak self] in
                 self?.setGender(option.0)
             })
         }

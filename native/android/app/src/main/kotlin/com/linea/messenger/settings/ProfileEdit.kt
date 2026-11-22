@@ -170,7 +170,7 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     if (busy) return
     // The reference's Sheet «Пол»: SheetActions with «checkmark-circle» on the chosen one, «ellipse-outline» on the others.
     val choices = listOf("male" to "Мужской", "female" to "Женский", null to "Не указан").map { (value, label) ->
-      com.linea.messenger.chatactions.ChoiceSheet.Choice(if (gender == value) "ion:checkmark-circle" else "ion:ellipse-outline", label) { setGender(value) }
+      com.linea.messenger.chatactions.ChoiceSheet.Choice(if (gender == value) "ion:checkmark-circle" else "ion:ellipse-outline", label, selected = gender == value) { setGender(value) }
     }
     com.linea.messenger.chatactions.ChoiceSheet(context, "Пол", "Нужен только для оформления в день рождения: синее или розовое. Можно не указывать.", choices).show()
   }

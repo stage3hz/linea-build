@@ -240,7 +240,7 @@ final class NotificationsViewController: SettingsPage {
         let current = NotificationPrefs.ringtone
         for tone in ThemeStore.list("ringtones") {
             guard let id = tone["id"] as? String, let label = tone["label"] as? String else { continue }
-            choices.append(ChoiceSheet.Choice(symbol: id == current ? "ion:checkmark-circle" : "ion:ellipse-outline", label: label, run: { [weak self] in
+            choices.append(ChoiceSheet.Choice(symbol: id == current ? "ion:checkmark-circle" : "ion:ellipse-outline", label: label, selected: id == current, run: { [weak self] in
                 NotificationPrefs.set("calls", "ringtone", id)
                 self?.fill()
             }))
@@ -288,6 +288,15 @@ final class NotificationsViewController: SettingsPage {
                 }))
             }
         }
+        // MuteSheet.tsx: «Настроить…» — its own days, hours and minutes (ChatsPlus MuteCustomSheet).
+        choices.append(ChoiceSheet.Choice(symbol: "ion:options-outline", label: "Настроить…", note: "Своё время: дни, часы и минуты.", run: { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                guard let self, self.presentedViewController == nil else { return }
+                let custom = MuteCustomSheet(done: { [weak self] (until: String) -> Void in self?.change(chat, ["mutedUntil": until]) })
+                custom.onBack = { [weak self] in self?.askMute(chat, settings: settings) }
+                self.present(custom, animated: true)
+            }
+        }))
         present(ChoiceSheet(heading: "Выключить звук", note: chat.title, choices: choices), animated: true)
     }
 

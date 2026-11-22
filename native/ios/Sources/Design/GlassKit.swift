@@ -184,6 +184,25 @@ final class GlassHeaderView: UIView {
         subtitleLabel.isHidden = subtitle.isEmpty
     }
 
+    /// A plain glyph at the right in the accent, `room` from the pill's padding (SecurityScreen.tsx: the shield, 10).
+    func addMark(_ image: UIImage, room: CGFloat) {
+        let mark = UIImageView(image: image)
+        mark.tintColor = Theme.accent
+        mark.contentMode = .center
+        mark.isAccessibilityElement = false
+        let holder = UIView()
+        holder.addSubview(mark)
+        mark.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            mark.leadingAnchor.constraint(equalTo: holder.leadingAnchor),
+            mark.trailingAnchor.constraint(equalTo: holder.trailingAnchor, constant: -room),
+            mark.topAnchor.constraint(equalTo: holder.topAnchor),
+            mark.bottomAnchor.constraint(equalTo: holder.bottomAnchor),
+        ])
+        tools.addArrangedSubview(holder)
+        tools.isHidden = false
+    }
+
     /// A round button on the right (glass; `filled`: the accent round of «Создать», 42).
     @discardableResult
     func addTool(symbol: String, label: String, filled: Bool = false, iconSize: CGFloat = 19, action: @escaping () -> Void) -> GlassRoundButton {

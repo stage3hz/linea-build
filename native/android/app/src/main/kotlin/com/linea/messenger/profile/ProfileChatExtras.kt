@@ -180,7 +180,7 @@ object ProfileChatExtras {
   /** «Автоудаление»: `pick` gets a new value only (the sheet closes either way). */
   fun autoDeleteSheet(context: Context, current: Int, pick: (Int) -> Unit) {
     val choices = autoDelete.map { ttl ->
-      ChoiceSheet.Choice(if (ttl == current) "ion:checkmark-circle" else "ion:ellipse-outline", if (ttl != 0) autoDeleteLabel(ttl) else "Выключено") { if (ttl != current) pick(ttl) }
+      ChoiceSheet.Choice(if (ttl == current) "ion:checkmark-circle" else "ion:ellipse-outline", if (ttl != 0) autoDeleteLabel(ttl) else "Выключено", selected = ttl == current) { if (ttl != current) pick(ttl) }
     }
     ChoiceSheet(context, "Автоудаление", "Новые сообщения в этом чате удалятся у вас обоих через выбранное время. Собеседник увидит, что автоудаление включено.", choices).show()
   }

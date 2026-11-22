@@ -239,9 +239,23 @@ final class SessionsViewController: SettingsPage {
 /// the last activity.
 final class SessionRow: UIControl {
     var onPress: (() -> Void)?
+    /// In a card of «Безопасность» (the reference's `SessionRow`): no room at the sides, a 1 `border` line above
+    /// every row but the first, 0.7 under the finger.
+    private let plain: Bool
 
-    init(session: [String: Any]) {
+    init(session: [String: Any], plain: Bool = false, first: Bool = true) {
+        self.plain = plain
         super.init(frame: .zero)
+        if plain && !first {
+            let line = UIView()
+            line.backgroundColor = ThemeStore.look.border
+            line.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(line)
+            NSLayoutConstraint.activate([
+                line.topAnchor.constraint(equalTo: topAnchor), line.leadingAnchor.constraint(equalTo: leadingAnchor),
+                line.trailingAnchor.constraint(equalTo: trailingAnchor), line.heightAnchor.constraint(equalToConstant: 1),
+            ])
+        }
         let current = SessionWords.isCurrent(session)
         // The reference's `SessionRow`: a 42 square of `accentSoft`, radius 16, the glyph 23 in the accent.
         let icon = UIImageView(image: SettingsLook.symbol(SessionWords.symbol(session), size: 23))
@@ -310,8 +324,8 @@ final class SessionRow: UIControl {
         NSLayoutConstraint.activate([
             content.topAnchor.constraint(equalTo: topAnchor, constant: 13),
             content.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -13),
-            content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            content.leadingAnchor.constraint(equalTo: leadingAnchor, constant: plain ? 0 : 14),
+            content.trailingAnchor.constraint(equalTo: trailingAnchor, constant: plain ? 0 : -14),
         ])
         isAccessibilityElement = true
         accessibilityTraits.insert(.button)
@@ -321,7 +335,9 @@ final class SessionRow: UIControl {
     required init?(coder: NSCoder) { return nil }
 
     override var isHighlighted: Bool {
-        didSet { backgroundColor = isHighlighted ? SettingsLook.pressed : .clear }
+        didSet {
+            if plain { alpha = isHighlighted ? 0.7 : (isEnabled ? 1 : 0.5) } else { backgroundColor = isHighlighted ? SettingsLook.pressed : .clear }
+        }
     }
 
     override var isEnabled: Bool {

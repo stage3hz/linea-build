@@ -195,7 +195,7 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
     val choices = ThemeStore.list("ringtones").mapNotNull { tone ->
       val id = tone["id"] as? String ?: return@mapNotNull null
       val label = tone["label"] as? String ?: return@mapNotNull null
-      ChoiceSheet.Choice(if (id == current) "check.circle" else "circle", label) {
+      ChoiceSheet.Choice(if (id == current) "ion:checkmark-circle" else "ion:ellipse-outline", label, selected = id == current) {
         NotificationPrefs.set("calls", "ringtone", id)
         fill()
       }
@@ -218,18 +218,24 @@ class NotificationsScreen(context: Context, private val account: SettingsAccount
   private fun askMute(chat: Messenger.ChatSummary, settings: Map<String, Any?>) {
     val choices = ArrayList<ChoiceSheet.Choice>()
     val now = muteState(settings)
-    choices.add(ChoiceSheet.Choice("bell", "Включить звук", "Сейчас звук выключен " + (now["until"] as? String ?: "навсегда") + ".") { change(chat, mapOf("muted" to false)) })
+    choices.add(ChoiceSheet.Choice("ion:notifications-outline", "Включить звук", "Сейчас звук выключен " + (now["until"] as? String ?: "навсегда") + ".") { change(chat, mapOf("muted" to false)) })
     for (choice in ThemeStore.list("muteChoices")) {
       val id = choice["id"] as? String ?: continue
       val label = choice["label"] as? String ?: continue
       if (choice["ms"] is Number) {
         // The note shows the end counted from now; the end sent is counted from the moment of the choice.
         val note = muteEnd(id)?.let { preview -> "Без звука " + (muteState(mapOf("muted" to true, "mutedUntil" to preview))["until"] as? String ?: "") + "." } ?: ""
-        choices.add(ChoiceSheet.Choice("clock", label, note) { muteEnd(id)?.let { until -> change(chat, mapOf("mutedUntil" to until)) } })
+        choices.add(ChoiceSheet.Choice("ion:time-outline", label, note) { muteEnd(id)?.let { until -> change(chat, mapOf("mutedUntil" to until)) } })
       } else {
-        choices.add(ChoiceSheet.Choice("bell.slash", label, "Пока не включишь снова. Звонки продолжат звонить.") { change(chat, mapOf("muted" to true)) })
+        choices.add(ChoiceSheet.Choice("ion:notifications-off-outline", label, "Пока не включишь снова. Звонки продолжат звонить.") { change(chat, mapOf("muted" to true)) })
       }
     }
+    // MuteSheet.tsx: «Настроить…» — its own days, hours and minutes (chatsplus/MuteCustom.kt).
+    choices.add(ChoiceSheet.Choice("ion:options-outline", "Настроить…", "Своё время: дни, часы и минуты.") {
+      val custom = com.linea.messenger.chatsplus.MuteCustomSheet(context) { until -> change(chat, mapOf("mutedUntil" to until)) }
+      custom.onBack = { askMute(chat, settings) }
+      custom.show()
+    })
     if (isAttachedToWindow) ChoiceSheet(context, "Выключить звук", chat.title, choices).show()
   }
 

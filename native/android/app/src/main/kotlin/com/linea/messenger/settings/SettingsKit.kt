@@ -38,6 +38,7 @@ import com.linea.messenger.chats.AvatarStore
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.BusyButton
 import com.linea.messenger.design.Glass
+import com.linea.messenger.design.makeClear
 import com.linea.messenger.design.GlassHeaderView
 import com.linea.messenger.design.GlassRoundButton
 import com.linea.messenger.design.GlassSource
@@ -138,12 +139,22 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   protected val main = Handler(Looper.getMainLooper())
   private val heading = context.words(pageName, if (large) 34f else 20f, Theme.text, if (large) 700 else 600)
   private var sideAction: (() -> Unit)? = null
+  /** A page whose reference has its own header and column (SecurityScreen.tsx); null: the settings `Page` look. */
+  class OwnLook(val side: Float, val padding: Float, val minHeight: Float, val clear: Boolean, val titleSize: Float, val titleWeight: Int,
+                val titleKern: Float, val mark: String, val markSize: Float, val markRoom: Float, val backLabel: String,
+                val columnSide: Float, val columnTop: Float, val columnBottom: Float)
+  /** Read while the page is made: a computed getter only. */
+  protected open val ownLook: OwnLook? get() = null
   /** The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14. */
-  private val side: Float get() = if (large) 16f else 14f
+  private val side: Float get() = ownLook?.columnSide ?: if (large) 16f else 14f
+  private val bottomRoom: Float get() = ownLook?.columnBottom ?: 30f
   // B: the pages with a back button have the reference's header (SettingsScreen.tsx `Page`): a glass pill (radius 27,
   // 12 from the edges, at least 60 tall, 8 inside) with a round glass back button and the name; the list scrolls
   // under it (blurred there), with the page's colour fading in behind (tabInset.tsx `FloatingHeader`).
   private val behind = GlassSource(context)
+  /** The page's own background as a glass source: the glass of the groups, notices, buttons and fields in the list
+   *  blurs it (as the reference's GlassSurface blurs `PageBackdrop`), instead of drawing the dense plain fill. */
+  val backdrop = GlassSource(context)
   private var header: GlassHeaderView? = null
   private var sideButton: GlassRoundButton? = null
   private val headerEdge = View(context)
@@ -168,12 +179,15 @@ open class SettingsPage(context: Context, private val pageName: String, private 
     com.linea.messenger.design.Titles.title(heading, titleSize)
     heading.setAutoSizeTextTypeUniformWithConfiguration(Math.round(titleSize * 0.62f), Math.round(titleSize), 1, TypedValue.COMPLEX_UNIT_SP)
     if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
+    backdrop.addView(View(context).apply { setBackgroundColor(Theme.bg) }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    backdrop.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    addView(backdrop)
     if (large && showsHeading) addView(heading)
 
     scroll.isVerticalScrollBarEnabled = false
     scroll.isFillViewport = true
     column.orientation = LinearLayout.VERTICAL
-    column.setPadding(dp(side), dp(8f), dp(side), dp(30f))
+    column.setPadding(dp(side), dp(8f), dp(side), dp(bottomRoom))
     scroll.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     if (large) {
       addView(scroll)
@@ -183,7 +197,16 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       headerEdge.background = android.graphics.drawable.GradientDrawable(
         android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Theme.bg, Theme.alpha(Theme.bg, 0.85f), Theme.alpha(Theme.bg, 0f)))
       headerEdge.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-      val made = GlassHeaderView(context, pageName, titleSize = Theme.TypeSize.pageTitleSize(pageName), lineHeight = 28f, padding = 8f, minHeight = 60f, back = { goBack() })
+      val own = ownLook
+      val made = GlassHeaderView(context, pageName, titleSize = Theme.TypeSize.pageTitleSize(pageName), lineHeight = 28f, padding = own?.padding ?: 8f,
+        minHeight = own?.minHeight ?: 60f, clear = own?.clear ?: false, back = { goBack() }, backLabel = own?.backLabel ?: "Назад")
+      if (own != null) {
+        made.titleLabel.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
+        made.titleLabel.typeface = Theme.weight(own.titleWeight)
+        made.titleLabel.textSize = own.titleSize
+        made.titleLabel.letterSpacing = own.titleKern / own.titleSize
+        if (own.mark.isNotEmpty()) made.setMark(own.mark, own.markSize, own.markRoom)
+      }
       made.source = behind
       for (part in listOf<View>(made, headerEdge)) { part.outlineProvider = null; part.translationZ = if (part === made) 2f else 1f }
       addView(made)
@@ -209,27 +232,33 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   }
 
   override fun place(width: Int, height: Int) {
+    put(backdrop, 0, 0, width, height)
     val header = header
     if (large) {
       // The list goes under the bar at the bottom; the room for the bar is left under the last part.
       val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
       if (showsHeading) {
         put(heading, dp(20f), edges.top + dp(8f), width - dp(40f), dp(41f))
-        if (column.paddingBottom != dp(30f) + barRoom) column.setPadding(dp(side), dp(8f), dp(side), dp(30f) + barRoom)
+        if (column.paddingBottom != dp(bottomRoom) + barRoom) column.setPadding(dp(side), dp(8f), dp(side), dp(bottomRoom) + barRoom)
         val top = edges.top + dp(8f + 41f + 8f)
         put(scroll, 0, top, width, height - top)
       } else {
         // D: the column starts where it did under the big name (8 + 41 + 8 + 8 under the status bar).
         val first = edges.top + dp(8f + 41f + 8f + 8f)
-        if (column.paddingBottom != dp(30f) + barRoom || column.paddingTop != first) column.setPadding(dp(side), first, dp(side), dp(30f) + barRoom)
+        if (column.paddingBottom != dp(bottomRoom) + barRoom || column.paddingTop != first) column.setPadding(dp(side), first, dp(side), dp(bottomRoom) + barRoom)
         put(scroll, 0, 0, width, height)
       }
     } else if (header != null) {
       header.measure(MeasureSpec.makeMeasureSpec(width - dp(24f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-      put(header, dp(12f), edges.top + dp(12f), width - dp(24f), header.measuredHeight)
-      // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below).
-      val below = edges.top + dp(12f) + header.measuredHeight + dp(7f)
-      if (column.paddingTop != below + dp(16f)) column.setPadding(dp(side), below + dp(16f), dp(side), dp(30f))
+      val own = ownLook
+      val margin = own?.side ?: 12f
+      header.measure(MeasureSpec.makeMeasureSpec(width - dp(2 * margin), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+      put(header, dp(margin), edges.top + dp(12f), width - dp(2 * margin), header.measuredHeight)
+      // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below); a page
+      // of its own look: its margin (2) and its column's top.
+      val below = edges.top + dp(12f) + header.measuredHeight + dp(if (own == null) 7f else 2f)
+      val first = below + dp(own?.columnTop ?: 16f)
+      if (column.paddingTop != first) column.setPadding(dp(side), first, dp(side), dp(bottomRoom))
       put(headerEdge, 0, 0, width, below)
       // The page ends where the keyboard begins, so a field is never under it.
       put(behind, 0, 0, width, height - maxOf(edges.keyboard, edges.bottom))
@@ -332,6 +361,13 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   }
 }
 
+/** The glass source of the settings page `view` is on (its backdrop), or null outside one. */
+internal fun settingsBackdrop(view: View): GlassSource? {
+  var at: android.view.ViewParent? = view.parent
+  while (at != null) { if (at is SettingsPage) return at.backdrop; at = at.parent }
+  return null
+}
+
 /** Rows on one card (the reference's `Group`, SettingsScreen.tsx). «Чёрная» (`black` themes): a flat card of the
  *  theme's `glassOpaque`, radius 12, a hairline `border` around it and between the rows from 57 in. Every other theme:
  *  a glass surface, radius 20, 2 above and below the rows, no lines between them. */
@@ -364,6 +400,11 @@ class SettingsGroup(context: Context, rows: List<View>) : LinearLayout(context) 
       (row.parent as? android.view.ViewGroup)?.removeView(row)
       addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     }
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    glass.source = settingsBackdrop(this)
   }
 
   override fun onDraw(canvas: Canvas) {
@@ -556,6 +597,11 @@ class SettingsNotice(context: Context, text: String, error: Boolean = false, onR
     if (error) accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
   }
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    glass.source = settingsBackdrop(this)
+  }
+
   override fun onDraw(canvas: Canvas) {
     val r = 18f * d
     glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), r)
@@ -607,6 +653,11 @@ class SettingsButton(context: Context, label: String, kind: Kind = Kind.PRIMARY,
     com.linea.messenger.chatlook.Bouncy.attach(this, 0.96f)
   }
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    glass.source = settingsBackdrop(this)
+  }
+
   override fun onDraw(canvas: Canvas) {
     if (quiet) glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 21f * resources.displayMetrics.density)
     super.onDraw(canvas)
@@ -648,8 +699,20 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
       name.letterSpacing = 0.09f
       addView(SettingsLook.inset(name, side = 2f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(8f) })
     }
-    val plate = FrameLayout(context)
-    plate.background = context.plate(SettingsLook.card, 14f, SettingsLook.line)
+    // The reference's ManualField: regular glass, radius 18, at least 54 tall, 17 inside, a 1.4 accent border while typing.
+    val d = resources.displayMetrics.density
+    val plate = object : FrameLayout(context) {
+      private val glass = Glass(this)
+      private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1.4f * d; color = Theme.accent }
+      init { setWillNotDraw(false) }
+      override fun onAttachedToWindow() { super.onAttachedToWindow(); glass.source = settingsBackdrop(this) }
+      override fun onDraw(canvas: Canvas) {
+        glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 18f * d)
+        if (input.isFocused) { val h = ring.strokeWidth / 2; canvas.drawRoundRect(h, h, width - h, height - h, 18f * d - h, 18f * d - h, ring) }
+        super.onDraw(canvas)
+      }
+    }
+    input.setOnFocusChangeListener { _, _ -> plate.invalidate() }
     input.textSize = 16f
     input.setTextColor(Theme.text)
     input.setHintTextColor(Theme.subtle)
@@ -661,7 +724,7 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
     // Nothing is corrected, capitalised or suggested.
     input.inputType = InputType.TYPE_CLASS_TEXT or (if (secret) InputType.TYPE_TEXT_VARIATION_PASSWORD else InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS)
     input.imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI or (if (secret) EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING else 0)
-    input.typeface = Typeface.DEFAULT
+    input.typeface = Theme.weight(400) // Montserrat, as every text of the reference
     input.contentDescription = caption.ifEmpty { placeholder }
     input.filters = arrayOf(InputFilter { source, start, end, dest, dstart, dend ->
       // A change that is not taken leaves what was there.
@@ -684,13 +747,21 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
       override fun afterTextChanged(s: Editable?) { if (!setting) onEdit?.invoke() }
     })
     plate.addView(input, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
-      leftMargin = context.px(14f); rightMargin = context.px(if (secret) 48f else 14f)
+      leftMargin = context.px(17f); rightMargin = context.px(if (secret) 58f else 17f)
     })
     eye.contentDescription = "Показать"
     eye.visibility = if (secret) View.VISIBLE else View.GONE
     eye.setOnClickListener { eyePressed() }
-    plate.addView(eye, FrameLayout.LayoutParams(context.px(44f), context.px(44f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = context.px(4f) })
-    addView(plate, LayoutParams(LayoutParams.MATCH_PARENT, context.px(50f)))
+    // SecretInput: the eye is the reference's IconButton — a 44 round of clear glass, 5 from the top and the right.
+    eye.background = object : android.graphics.drawable.Drawable() {
+      private val round = Glass(eye).makeClear()
+      override fun draw(canvas: Canvas) { val b = bounds; round.draw(canvas, b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(), b.height() / 2f) }
+      override fun setAlpha(alpha: Int) {}
+      override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
+      @Deprecated("Deprecated in Java") override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
+    }
+    plate.addView(eye, FrameLayout.LayoutParams(context.px(44f), context.px(44f), Gravity.END or Gravity.TOP).apply { rightMargin = context.px(5f); topMargin = context.px(5f) })
+    addView(plate, LayoutParams(LayoutParams.MATCH_PARENT, context.px(54f)))
   }
 
   override fun setEnabled(enabled: Boolean) {

@@ -209,7 +209,7 @@ enum ProfileChatExtras {
     /// «Автоудаление»: `pick` gets a new value only (the sheet closes either way).
     static func autoDeleteSheet(current: Int, over host: UIViewController, pick: @escaping (Int) -> Void) {
         let choices = autoDelete.map { (ttl: Int) -> ChoiceSheet.Choice in
-            ChoiceSheet.Choice(symbol: ttl == current ? "ion:checkmark-circle" : "ion:ellipse-outline", label: ttl != 0 ? autoDeleteLabel(ttl) : "Выключено", run: {
+            ChoiceSheet.Choice(symbol: ttl == current ? "ion:checkmark-circle" : "ion:ellipse-outline", label: ttl != 0 ? autoDeleteLabel(ttl) : "Выключено", selected: ttl == current, run: {
                 if ttl != current {
                     Haptic.light()
                     pick(ttl)

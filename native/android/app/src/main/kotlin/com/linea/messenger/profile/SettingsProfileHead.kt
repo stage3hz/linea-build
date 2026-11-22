@@ -54,7 +54,8 @@ class SettingsProfileChrome(private val context: Context) {
     backdrop.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
     backdrop.addView(light)
     backdrop.addView(banner)
-    page.addView(backdrop, 0)
+    // Just above the settings page's own background (its glass source, index 0), under the list.
+    page.addView(backdrop, if (page is com.linea.messenger.settings.SettingsPage) 1 else 0)
     page.addView(effect)
     edit.gravity = Gravity.CENTER
     // D: «Изменить» on glass (the reference's `GlassSurface radius={22} interactive`), springing under the finger.
