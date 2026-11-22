@@ -446,7 +446,7 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
 /// A quiet heading of the requests («ЗАЯВКИ В ДРУЗЬЯ  2»): 10, bold, 1.7 apart, 26 from the left, 4 above, 10 under.
 final class PeopleLabelCell: UITableViewCell {
     private let words = UILabel()
-    static let attributes: [NSAttributedString.Key: Any] = [.kern: 1.7, .font: UIFont.systemFont(ofSize: 10, weight: .bold), .foregroundColor: Theme.muted]
+    static var attributes: [NSAttributedString.Key: Any] { return [.kern: 1.7, .font: UIFont.systemFont(ofSize: 10, weight: .bold), .foregroundColor: Theme.muted] }
     static var height: CGFloat { return 4 + ceil(UIFont.systemFont(ofSize: 10, weight: .bold).lineHeight) + 10 }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {

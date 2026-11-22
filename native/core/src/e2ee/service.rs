@@ -902,3 +902,201 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
         Ok(text_of(body.get("text")))
     }
 }
+
+// ── Old chats on a new device (docs/HISTORY-TRANSFER.md) ────────────────────────────────────────────────────────
+//
+// Reference: `ownDevice`, `historyExport`, `historyImport` of `CryptoService` in `mobile/src/e2ee/core.ts`. What
+// is exported here is plain: the caller encrypts it (`e2ee::history`) before anything leaves the device.
+
+/// About this many UTF-16 units of JSON per batch: even all in 3-byte UTF-8 it stays under a 512 KiB page.
+pub const HISTORY_EXPORT_CHARS: f64 = 150_000.0;
+const HISTORY_IMPORT_MAX: usize = 5000;
+const BAD_COPY: &str = "Некорректная копия переписок.";
+
+fn utf16_cmp(a: &str, b: &str) -> std::cmp::Ordering { a.encode_utf16().cmp(b.encode_utf16()) }
+fn history_mark(entry: &Value) -> String { format!("{}|{}|{}", text_of(entry.get("sentAt")), text_of(entry.get("senderId")), text_of(entry.get("clientId"))) }
+fn is_string(value: Option<&Value>) -> bool { matches!(value, Some(Value::String(_))) }
+fn valid_history_entry(value: &Value, preview_ok: &dyn Fn(Option<&Value>) -> bool) -> bool {
+    const KEYS: [&str; 8] = ["chatId", "senderId", "clientId", "fingerprint", "text", "attachment", "sentAt", "meta"];
+    let Value::Object(entries) = value else { return false };
+    if !entries.iter().all(|(key, _)| KEYS.iter().any(|name| key.0.iter().copied().eq(name.encode_utf16()))) { return false }
+    let hex64 = matches!(value.get("fingerprint"), Some(Value::String(text)) if text.0.len() == 64 && text.0.iter().all(|unit| matches!(*unit, 0x30..=0x39 | 0x61..=0x66)));
+    ["chatId", "senderId", "clientId"].iter().all(|key| is_string(value.get(key)) && uuid_test(value.get(key)))
+        && hex64
+        && matches!(value.get("text"), Some(Value::String(text)) if text.0.len() <= 8000)
+        && value.get("attachment").is_some_and(|attachment| valid_attachment(attachment, preview_ok))
+        && is_string(value.get("sentAt")) && value.get("sentAt").and_then(Value::as_str).is_some_and(|at| parse_iso_ms(&at).is_some())
+        && valid_meta(value.get("meta"))
+}
+
+impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
+    /// One of our own OTHER devices as the server lists it now (history notes); `None` when it is not active there.
+    fn own_device(&mut self, device_id: &str) -> Result<Option<Value>, CryptoError> {
+        let user_id = self.user_id.clone();
+        let own = self.transport.crypto_devices(&user_id)?;
+        let devices = match own.get("devices") { Some(Value::Array(devices)) => devices.clone(), _ => Vec::new() };
+        let (local_id, bundle) = (self.local_id(), self.local_bundle());
+        let this = devices.iter().find(|device| is_text(device.get("id"), &local_id));
+        if !this.is_some_and(|device| is_text(device.get("userId"), &user_id) && truthy(device.get("active")) && same_device(device, &bundle)) {
+            return refuse("Устройство больше не разрешено для переписки. Войди в аккаунт снова.");
+        }
+        let Some(device) = devices.into_iter().find(|item| is_text(item.get("id"), device_id) && !is_text(item.get("id"), &local_id)) else { return Ok(None) };
+        let number_ok = safe_integer(device.get("registrationId")).is_some_and(|number| (1.0..=16383.0).contains(&number));
+        let key_ok = matches!(device.get("identityKey"), Some(Value::String(key)) if key.0.len() == 44 && key.0.iter().all(|unit| u8::try_from(*unit).is_ok_and(|byte| byte.is_ascii_alphanumeric() || byte == b'+' || byte == b'/')));
+        if !is_text(device.get("userId"), &user_id) || !truthy(device.get("active")) || !number_ok || !key_ok { return refuse("Сервер вернул некорректный список ключей.") }
+        Ok(Some(device))
+    }
+
+    /// `sender_trust` for one of our own devices (not kept: the caller commits the record with its state).
+    fn own_sender_trust(&mut self, device_id: &str) -> Result<(Option<Value>, Option<(String, String)>), CryptoError> {
+        let key = keys::trust(&self.user_id, device_id);
+        let trusted = parse(self.vault.get(&key))?.filter(|record| truthy(Some(record)));
+        if trusted.is_some() || !self.auto_trust { return Ok((trusted, None)) }
+        let Some(device) = self.own_device(device_id)? else { return Ok((None, None)) };
+        let record = auto_record(&device);
+        Ok((json::parse(&record).ok(), Some((key, record))))
+    }
+
+    fn history_names(&self, chat_id: &str, page: f64) -> Vec<(Value, Value)> {
+        let list = match self.vault.get(&keys::history_page(chat_id, page)).map(|text| json::parse(&text)) { Some(Ok(Value::Array(list))) => list, _ => Vec::new() };
+        list.into_iter().filter_map(|item| match item { Value::Array(pair) if is_string(pair.first()) && is_string(pair.get(1)) => Some((pair[0].clone(), pair[1].clone())), _ => None }).collect()
+    }
+
+    fn history_entry(&self, chat_id: &str, sender: &Value, client: &Value) -> Option<Value> {
+        let cached = self.vault.get(&keys::message(chat_id, &text_of(Some(sender)), &text_of(Some(client)))).and_then(|text| json::parse(&text).ok())?;
+        // A failed message has nothing to copy; a Mesh copy's fingerprint is not the server's.
+        if !truthy(Some(&cached)) || is_failed(Some(&cached)) || !truthy(cached.get("plain")) || truthy(cached.get("mesh")) || !is_string(cached.get("fingerprint")) { return None }
+        let plain = cached.get("plain").cloned().unwrap_or(Value::Null);
+        Some(object_of(vec![("chatId", Some(Value::str(chat_id))), ("senderId", Some(sender.clone())), ("clientId", Some(client.clone())), ("fingerprint", cached.get("fingerprint").cloned()),
+            ("text", plain.get("text").cloned()), ("attachment", plain.get("attachment").cloned()), ("sentAt", plain.get("sentAt").cloned()), ("meta", plain.get("meta").filter(|meta| truthy(Some(meta))).cloned())]))
+    }
+
+    fn history_range(&self, chat_id: &str) -> Result<Option<(f64, f64)>, CryptoError> {
+        let meta = parse(self.vault.get(&keys::history_meta(chat_id)))?.filter(|meta| truthy(Some(meta)));
+        Ok(meta.as_ref().and_then(|meta| Some((safe_integer(meta.get("first"))?, safe_integer(meta.get("last"))?))).filter(|(first, last)| first <= last))
+    }
+
+    /// The decrypted messages kept here, for a copy to a new own device or the backup: chat by chat, oldest kept
+    /// first, about `max_chars` of JSON a batch (at least one message). `after`: per chat, the mark of the newest
+    /// message already copied. Gives `{items, next, marks}`; go on with `next` (null: done).
+    pub fn history_export(&self, after: &Value, cursor: &Value, max_chars: f64) -> Result<Value, CryptoError> {
+        let chats = self.history_chats();
+        let (mut items, mut marks, mut size): (Vec<Value>, Vec<(String, String)>, f64) = (Vec::new(), Vec::new(), 0.0);
+        let read = |key: &str| safe_integer(cursor.get(key));
+        let (mut chat, mut page, mut offset) = match (read("chat"), read("page"), read("offset")) { (Some(chat), Some(page), Some(offset)) if truthy(Some(cursor)) => (chat, page, offset), _ => (0.0, -1.0, 0.0) };
+        let marks_value = |marks: &Vec<(String, String)>| json::object(marks.iter().map(|(chat, mark)| (chat.as_str(), Value::str(mark))).collect());
+        let cursor_value = |chat: f64, page: f64, offset: f64| json::object(vec![("chat", Value::Number(chat)), ("page", Value::Number(page)), ("offset", Value::Number(offset))]);
+        while chat >= 0.0 && chat < chats.len() as f64 {
+            let chat_id = chats[chat as usize].clone();
+            let Some((first, last)) = self.history_range(&chat_id)? else { chat += 1.0; page = -1.0; offset = 0.0; continue };
+            let since = if truthy(Some(after)) { match after.get(&chat_id) { Some(Value::String(text)) => Some(text.to_string_lossy()), _ => None } } else { None };
+            if page < 0.0 {
+                // Start at the newest page that still holds something already copied (pages are in arrival order).
+                let mut start = first;
+                if let Some(since) = &since {
+                    let mut at = last;
+                    while at >= first {
+                        let old = self.history_names(&chat_id, at).iter().any(|(sender, client)| self.history_entry(&chat_id, sender, client).is_some_and(|entry| utf16_cmp(&history_mark(&entry), since) != std::cmp::Ordering::Greater));
+                        if old { start = at; break }
+                        at -= 1.0;
+                    }
+                }
+                page = start; offset = 0.0;
+            }
+            if page < first { page = first; offset = 0.0 }
+            if page > last { chat += 1.0; page = -1.0; offset = 0.0; continue }
+            let names = self.history_names(&chat_id, page);
+            let mut index = offset;
+            while index < names.len() as f64 {
+                let (sender, client) = &names[index as usize];
+                if let Some(entry) = self.history_entry(&chat_id, sender, client) {
+                    let mark = history_mark(&entry);
+                    if !since.as_ref().is_some_and(|since| utf16_cmp(&mark, since) != std::cmp::Ordering::Greater) {
+                        let chars = json::stringify(&entry).encode_utf16().count() as f64;
+                        if !items.is_empty() && size + chars > max_chars {
+                            return Ok(json::object(vec![("items", Value::Array(items)), ("next", cursor_value(chat, page, index)), ("marks", marks_value(&marks))]));
+                        }
+                        items.push(entry);
+                        size += chars;
+                        match marks.iter_mut().find(|(name, _)| *name == chat_id) {
+                            Some(held) => if utf16_cmp(&held.1, &mark) == std::cmp::Ordering::Less { held.1 = mark },
+                            None => marks.push((chat_id.clone(), mark)),
+                        }
+                    }
+                }
+                index += 1.0;
+            }
+            page += 1.0; offset = 0.0;
+        }
+        Ok(json::object(vec![("items", Value::Array(items)), ("next", Value::Null), ("marks", marks_value(&marks))]))
+    }
+
+    /// Messages from a copy made by another own device (or the backup), already decrypted by the caller. Each one
+    /// is checked like a message opened here; one that is not refuses the whole batch. One already held stays as it
+    /// is (a failed one is replaced). Gives `{imported}`.
+    pub fn history_import(&mut self, items: &Value) -> Result<Value, CryptoError> {
+        let preview_ok = &self.preview_ok;
+        let Value::Array(list) = items else { return refuse(BAD_COPY) };
+        if list.len() > HISTORY_IMPORT_MAX || !list.iter().all(|entry| valid_history_entry(entry, &|preview| preview_ok(preview))) { return refuse(BAD_COPY) }
+        let mut changes: Vec<(String, Option<String>)> = Vec::new();
+        let mut by_chat: Vec<(String, Vec<Value>)> = Vec::new();
+        let mut imported = 0.0;
+        for entry in list {
+            let key = message_key(entry);
+            if changes.iter().any(|(name, _)| *name == key) { continue }
+            let held = self.vault.get(&key).and_then(|text| json::parse(&text).ok()).filter(|record| truthy(Some(record)));
+            if held.is_some() && !is_failed(held.as_ref()) { continue }
+            let plain = object_of(vec![("text", entry.get("text").cloned()), ("attachment", entry.get("attachment").cloned()), ("sentAt", entry.get("sentAt").cloned()), ("meta", entry.get("meta").filter(|meta| truthy(Some(meta))).cloned())]);
+            changes.push((key, Some(json::stringify(&json::object(vec![("fingerprint", entry.get("fingerprint").cloned().unwrap_or(Value::Null)), ("plain", plain)])))));
+            imported += 1.0;
+            let chat_id = text_of(entry.get("chatId"));
+            match by_chat.iter_mut().find(|(id, _)| *id == chat_id) { Some((_, added)) => added.push(entry.clone()), None => by_chat.push((chat_id, vec![entry.clone()])) }
+        }
+        let before = self.history_chats();
+        let mut chats = before.clone();
+        for (chat_id, added) in &by_chat {
+            let range = self.history_range(chat_id)?.filter(|(first, last)| last - first < HISTORY_PAGES * 2.0);
+            let mut named: Vec<(Value, Value, String)> = Vec::new();
+            let mut seen: Vec<String> = Vec::new();
+            if let Some((first, last)) = range {
+                let mut page = first;
+                while page <= last {
+                    for (sender, client) in self.history_names(chat_id, page) {
+                        let id = format!("{}:{}", text_of(Some(&sender)), text_of(Some(&client)));
+                        if seen.contains(&id) { continue }
+                        seen.push(id);
+                        let held = self.vault.get(&keys::message(chat_id, &text_of(Some(&sender)), &text_of(Some(&client)))).and_then(|text| json::parse(&text).ok());
+                        let sent_at = match held.as_ref().filter(|record| truthy(Some(record)) && !is_failed(Some(record))).and_then(|record| record.get("plain")).filter(|plain| truthy(Some(plain))).and_then(|plain| plain.get("sentAt")) { Some(Value::String(text)) => text.to_string_lossy(), _ => String::new() };
+                        named.push((sender, client, sent_at));
+                    }
+                    page += 1.0;
+                }
+            }
+            for entry in added {
+                let id = format!("{}:{}", text_of(entry.get("senderId")), text_of(entry.get("clientId")));
+                if seen.contains(&id) { continue }
+                seen.push(id);
+                named.push((entry.get("senderId").cloned().unwrap_or(Value::Null), entry.get("clientId").cloned().unwrap_or(Value::Null), text_of(entry.get("sentAt"))));
+            }
+            // Older messages go before newer ones (equal times keep their order); the newest are kept.
+            let mut ordered: Vec<(usize, (Value, Value, String))> = named.into_iter().enumerate().collect();
+            ordered.sort_by(|a, b| utf16_cmp(&a.1 .2, &b.1 .2).then(a.0.cmp(&b.0)));
+            let keep = HISTORY_PAGE * HISTORY_PAGES as usize;
+            let skip = ordered.len().saturating_sub(keep);
+            let ordered: Vec<(Value, Value)> = ordered.into_iter().skip(skip).map(|(_, (sender, client, _))| (sender, client)).collect();
+            let first = range.map_or(0.0, |(first, _)| first);
+            let count = ordered.len().div_ceil(HISTORY_PAGE).max(1);
+            let last = first + count as f64 - 1.0;
+            for page in 0..count {
+                let slice: Vec<Value> = ordered.iter().skip(page * HISTORY_PAGE).take(HISTORY_PAGE).map(|(sender, client)| Value::Array(vec![sender.clone(), client.clone()])).collect();
+                changes.push((keys::history_page(chat_id, first + page as f64), Some(json::stringify(&Value::Array(slice)))));
+            }
+            if let Some((_, old_last)) = range { let mut page = last + 1.0; while page <= old_last { changes.push((keys::history_page(chat_id, page), None)); page += 1.0 } }
+            changes.push((keys::history_meta(chat_id), Some(json::stringify(&json::object(vec![("first", Value::Number(first)), ("last", Value::Number(last))])))));
+            if !chats.iter().any(|id| id == chat_id) { chats.push(chat_id.clone()) }
+        }
+        if chats.len() != before.len() { changes.push((keys::HISTORY_CHATS.to_string(), Some(json::stringify(&Value::Array(chats.iter().map(|id| Value::str(id)).collect()))))) }
+        if !changes.is_empty() { self.vault.commit(changes) }
+        Ok(json::object(vec![("imported", Value::Number(imported))]))
+    }
+}

@@ -971,3 +971,148 @@ final class VoicePreviewPanel: UIView {
         }
     }
 }
+
+// MARK: - The preview of a stopped round video
+
+/// The stopped round video in the field: a strip of its frames 33 pt tall with round ends, two accent handles 16 pt
+/// wide with white grips (3 × 12, 10 pt in from the outer edge) that trim it, accent lines along the kept part, the
+/// rest of the strip dimmed. A tap plays or pauses the circle.
+final class VideoTrimPanel: UIView {
+    var onToggle: (() -> Void)?
+    var onTrim: ((Double, Double, Bool) -> Void)?
+    private let strip = UIView()
+    private var frameViews: [UIImageView] = []
+    private let dimLeft = UIView()
+    private let dimRight = UIView()
+    private let leftHandle = UIView()
+    private let rightHandle = UIView()
+    private let leftGrip = UIView()
+    private let rightGrip = UIView()
+    private let topLine = UIView()
+    private let bottomLine = UIView()
+    private(set) var trimStart: Double = 0
+    private(set) var trimEnd: Double = 1
+    private var durationMs = 0
+    private let handleWidth: CGFloat = 16
+    private let trackHeight: CGFloat = 33
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        strip.clipsToBounds = true
+        strip.layer.cornerRadius = 16.5
+        strip.isUserInteractionEnabled = false
+        addSubview(strip)
+        for dim in [dimLeft, dimRight] {
+            dim.isUserInteractionEnabled = false
+            strip.addSubview(dim)
+        }
+        for line in [topLine, bottomLine] {
+            line.isUserInteractionEnabled = false
+            addSubview(line)
+        }
+        for (handle, grip, left) in [(leftHandle, leftGrip, true), (rightHandle, rightGrip, false)] {
+            handle.layer.cornerRadius = 16.5
+            handle.layer.maskedCorners = left ? [.layerMinXMinYCorner, .layerMinXMaxYCorner] : [.layerMaxXMinYCorner, .layerMaxXMaxYCorner]
+            grip.backgroundColor = .white
+            grip.layer.cornerRadius = 1
+            grip.isUserInteractionEnabled = false
+            handle.addSubview(grip)
+            let drag = UILongPressGestureRecognizer(target: self, action: #selector(dragged(_:)))
+            drag.minimumPressDuration = 0
+            drag.allowableMovement = .infinity
+            handle.addGestureRecognizer(drag)
+            addSubview(handle)
+        }
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
+        isAccessibilityElement = false
+        recolor()
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    func recolor() {
+        for view in [leftHandle, rightHandle, topLine, bottomLine] { view.backgroundColor = Theme.accent }
+        dimLeft.backgroundColor = Theme.bg.withAlphaComponent(0.6)
+        dimRight.backgroundColor = Theme.bg.withAlphaComponent(0.6)
+        strip.backgroundColor = Theme.surface2
+    }
+
+    func setTake(durationMs: Int) {
+        self.durationMs = durationMs
+        trimStart = 0
+        trimEnd = 1
+        for view in frameViews { view.removeFromSuperview() }
+        frameViews = []
+        setNeedsLayout()
+    }
+
+    /// The frames, left to right (square, as the circle is).
+    func setFrames(_ images: [UIImage]) {
+        for view in frameViews { view.removeFromSuperview() }
+        frameViews = images.map { (image: UIImage) -> UIImageView in
+            let view = UIImageView(image: image)
+            view.contentMode = .scaleAspectFill
+            view.clipsToBounds = true
+            return view
+        }
+        for view in frameViews { strip.insertSubview(view, at: 0) }
+        setNeedsLayout()
+    }
+
+    /// How many frames fill the strip.
+    var frameCount: Int { max(1, Int(ceil(max(1, bounds.width - 6) / trackHeight))) }
+
+    private func handleFrames() -> (CGRect, CGRect) {
+        let total = max(0, bounds.width - 6)
+        let range = total - handleWidth
+        let top = (bounds.height - trackHeight) / 2
+        let left = floor(handleWidth / 2 + range * CGFloat(trimStart)) - handleWidth / 2
+        let right = max(left + handleWidth, floor(handleWidth / 2 + range * CGFloat(trimEnd)) - handleWidth / 2)
+        return (CGRect(x: 3 + left, y: top, width: handleWidth, height: trackHeight), CGRect(x: 3 + right, y: top, width: handleWidth, height: trackHeight))
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let top = (bounds.height - trackHeight) / 2
+        strip.frame = CGRect(x: 3, y: top, width: max(0, bounds.width - 6), height: trackHeight)
+        let side = trackHeight
+        for (index, view) in frameViews.enumerated() {
+            view.frame = CGRect(x: CGFloat(index) * side, y: 0, width: side, height: side)
+        }
+        let (left, right) = handleFrames()
+        leftHandle.frame = left
+        rightHandle.frame = right
+        leftGrip.frame = CGRect(x: 10 - 3, y: (trackHeight - 12) / 2, width: 3, height: 12)
+        rightGrip.frame = CGRect(x: handleWidth - 10, y: (trackHeight - 12) / 2, width: 3, height: 12)
+        dimLeft.frame = CGRect(x: 0, y: 0, width: max(0, left.minX - 3), height: trackHeight)
+        dimRight.frame = CGRect(x: right.maxX - 3, y: 0, width: max(0, strip.bounds.width - (right.maxX - 3)), height: trackHeight)
+        topLine.frame = CGRect(x: left.maxX, y: top, width: max(0, right.minX - left.maxX), height: 2)
+        bottomLine.frame = CGRect(x: left.maxX, y: top + trackHeight - 2, width: max(0, right.minX - left.maxX), height: 2)
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        for handle in [leftHandle, rightHandle] where handle.frame.insetBy(dx: -9, dy: -8).contains(point) { return handle }
+        return super.hitTest(point, with: event)
+    }
+
+    @objc private func tapped() { onToggle?() }
+
+    @objc private func dragged(_ press: UILongPressGestureRecognizer) {
+        guard let handle = press.view else { return }
+        let range = max(1, bounds.width - 6 - handleWidth)
+        let fraction = Double(min(1, max(0, (press.location(in: self).x - 3 - handleWidth / 2) / range)))
+        // At least 1 s.
+        let least = 1000.0 / Double(max(1, durationMs))
+        switch press.state {
+        case .began, .changed:
+            if handle === leftHandle { trimStart = max(0, min(fraction, trimEnd - least)) } else { trimEnd = min(1, max(fraction, trimStart + least)) }
+            setNeedsLayout()
+            layoutIfNeeded()
+            onTrim?(trimStart, trimEnd, false)
+        case .ended, .cancelled:
+            onTrim?(trimStart, trimEnd, true)
+        default:
+            break
+        }
+    }
+}

@@ -44,6 +44,12 @@ final class NoteRecorder: NSObject {
     private var playerLayer: AVPlayerLayer?
     private var loopObserver: NSObjectProtocol?
     private var closed = false
+    /// Record: the length of the parts recorded before this one («record more»): the time, the ring and the
+    /// minute count them too.
+    var baseMs = 0
+    private var trimStart: Double = 0
+    private var trimEnd: Double = 1
+    private var timeObserver: Any?
 
     /// The longest take was reached (main queue).
     var onLimit: (() -> Void)?
@@ -239,8 +245,8 @@ final class NoteRecorder: NSObject {
 
     /// How long the take is by now.
     var elapsedMs: Int {
-        guard let startedAt else { return stoppedMs }
-        return Int(Date().timeIntervalSince(startedAt) * 1000)
+        guard let startedAt else { return baseMs + stoppedMs }
+        return baseMs + Int(Date().timeIntervalSince(startedAt) * 1000)
     }
 
     /// The microphone's peak right now, 0…1 (for the blob).
@@ -263,7 +269,7 @@ final class NoteRecorder: NSObject {
     func stop(keep: Bool, done: @escaping (URL?, Int) -> Void) {
         clock?.invalidate()
         clock = nil
-        let ms = elapsedMs
+        let ms = elapsedMs - baseMs
         stoppedMs = ms
         startedAt = nil
         guard recording else {
@@ -297,9 +303,17 @@ final class NoteRecorder: NSObject {
         circle.layer.insertSublayer(shown, below: ring)
         player = made
         playerLayer = shown
-        loopObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: made.currentItem, queue: .main) { [weak made] (_: Notification) -> Void in
-            made?.seek(to: .zero)
-            made?.play()
+        trimStart = 0
+        trimEnd = 1
+        loopObserver = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: made.currentItem, queue: .main) { [weak self] (_: Notification) -> Void in
+            self?.loopBack()
+        }
+        // The kept part plays round and round.
+        timeObserver = made.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 30), queue: .main) { [weak self] (time: CMTime) -> Void in
+            guard let self, let item = self.player?.currentItem else { return }
+            let total = item.duration.seconds
+            guard total.isFinite, total > 0 else { return }
+            if time.seconds / total >= self.trimEnd { self.loopBack() }
         }
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
         made.play()
@@ -310,6 +324,49 @@ final class NoteRecorder: NSObject {
             }
         }
         ring.strokeEnd = 0
+    }
+
+    private func loopBack() {
+        guard let player, let item = player.currentItem else { return }
+        let total = item.duration.seconds
+        let start = total.isFinite ? total * trimStart : 0
+        player.seek(to: CMTime(seconds: start, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        player.play()
+    }
+
+    /// Record: the kept part of the stopped take changed (fractions); playing stops while a handle moves and goes
+    /// on from the kept part's start when it is let go.
+    func setTrim(start: Double, end: Double, done: Bool) {
+        trimStart = start
+        trimEnd = end
+        guard let player, let item = player.currentItem else { return }
+        let total = item.duration.seconds
+        guard total.isFinite else { return }
+        player.pause()
+        player.seek(to: CMTime(seconds: total * (done ? start : end), preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+        if done { player.play() }
+    }
+
+    /// Record: «record more» — the stopped take's playing ends and the camera records the next part.
+    func resume(after ms: Int) {
+        baseMs = ms
+        stoppedMs = 0
+        player?.pause()
+        if let timeObserver, let player { player.removeTimeObserver(timeObserver) }
+        timeObserver = nil
+        if let loopObserver { NotificationCenter.default.removeObserver(loopObserver) }
+        loopObserver = nil
+        playerLayer?.removeFromSuperlayer()
+        playerLayer = nil
+        player = nil
+        UIView.animate(withDuration: 0.2) {
+            for view in [self.flipGlass, self.flipButton, self.flashGlass, self.flashButton] as [UIView] {
+                view.alpha = 1
+                view.transform = .identity
+            }
+        }
+        ready = false
+        camera.start(front: front)
     }
 
     /// Play / pause of the stopped take.

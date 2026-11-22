@@ -99,6 +99,8 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     private weak var composer: UIView?
     private weak var actions: ChatScreenActions?
     private weak var attachments: ChatAttachments?
+    /// Record: the row of the voice message just sent (the blob flies to it).
+    private var flightKey: String?
     private let messenger: Messenger?
     private let chatId: String
     private let peerId: String
@@ -195,6 +197,12 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         recording.sendVoice = { [weak self] (file: URL, ms: Int, waveform: String?) -> Void in self?.sendVoice(file: file, durationMs: ms, waveform: waveform) }
         recording.sendNote = { [weak self] (file: URL) -> Void in self?.sendNote(file) }
         // The composer lays itself out again in one of its 0.4 s transitions when a take starts, locks or stops.
+        // Record: the blob of a sent take flies to the new message's play button.
+        control.sentTarget = { [weak self] () -> CGRect? in
+            guard let self, let key = self.flightKey, let view = self.host?.view, let found = self.list?.mediaPlayHost(key) else { return nil }
+            self.flightKey = nil
+            return found.view.convert(found.frame, to: view)
+        }
         control.onPhase = { [weak self] (_: RecordControl.Phase) -> Void in
             guard let view = self?.host?.view else { return }
             view.setNeedsLayout()
@@ -307,6 +315,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         var media: [String: Any] = ["durationMs": durationMs]
         if let waveform { media["waveform"] = waveform }
         let item = Outgoing(kind: "voice")
+        flightKey = item.key
         item.meta = actions?.takeReply()
         item.wave = waveform ?? ""
         item.mediaTime = FileCore.call("voiceTime", [durationMs]) as? String ?? ""

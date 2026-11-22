@@ -1242,6 +1242,19 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     return nil
   }
 
+  /// Record: the play button of a voice row while it is on screen (drawn at once if it was not yet), for the blob
+  /// of a sent take to fly to.
+  func mediaPlayHost(_ key: String) -> (view: UIView, frame: CGRect)? {
+    table.layoutIfNeeded()
+    for cell in table.visibleCells {
+      guard let rowCell = cell as? MsgRowCell, rowCell.canvas.row?.key == key else { continue }
+      rowCell.canvas.layer.displayIfNeeded()
+      let play = rowCell.canvas.mediaBoxes.play
+      return play == .zero ? nil : (rowCell.canvas, play)
+    }
+    return nil
+  }
+
   /// Voice/Video: the rows on screen, by key.
   /// ChatScreen.tsx `peek`: a picture of the row of `key` as it stands now (the whole width), for the message menu.
   func rowSnapshot(_ key: String) -> UIView? {

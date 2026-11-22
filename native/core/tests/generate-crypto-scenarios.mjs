@@ -32,8 +32,10 @@ async function scenario(name, options, run) {
     history: (chat = CHAT, limit, fromPage) => step(w, steps, 'history', JSON.stringify([chat, limit ?? null, fromPage ?? null]), () => service.history(chat, limit, fromPage)),
     storeCache: (name, value) => step(w, steps, 'storeCache', JSON.stringify([name, value]), () => service.storeCache(name, value)),
     loadCache: name => step(w, steps, 'loadCache', JSON.stringify([name]), () => service.loadCache(name)),
-    sealNote: (peer, device, text) => step(w, steps, 'sealNote', JSON.stringify([peer, device, text]), () => service.sealNote(peer, device, text)),
-    openNote: (sender, note) => step(w, steps, 'openNote', JSON.stringify([sender, note]), () => service.openNote(sender, note)),
+    sealNote: (peer, device, text, lane) => step(w, steps, 'sealNote', JSON.stringify(lane ? [peer, device, text, lane] : [peer, device, text]), () => service.sealNote(peer, device, text, lane)),
+    openNote: (sender, note, lane) => step(w, steps, 'openNote', JSON.stringify(lane ? [sender, note, lane] : [sender, note]), () => service.openNote(sender, note, lane)),
+    historyExport: (after = null, cursor = null, maxChars) => step(w, steps, 'historyExport', JSON.stringify(maxChars === undefined ? [after, cursor] : [after, cursor, maxChars]), () => service.historyExport(after, cursor, maxChars)),
+    historyImport: items => step(w, steps, 'historyImport', JSON.stringify([items]), () => service.historyImport(structuredClone(items))),
   };
   steps.push({ op: 'new', args: JSON.stringify([options]), ok: null, error: null, io: [], set: {}, removed: [] });
   await run(api);
@@ -340,6 +342,40 @@ await scenario('notes without automatic trust', {}, async s => {
   await s.sealNote(PEER, D(1), 'x'); await s.openNote(PEER, { senderDeviceId: D(1), type: 3, body });
   const seen = await s.snapshot(); await s.approve(seen.ok);
   await s.sealNote(PEER, D(1), 'x'); await s.openNote(PEER, { senderDeviceId: D(1), type: 3, body });
+});
+
+// Old chats on a new device (docs/HISTORY-TRANSFER.md): notes between own devices, the export and the import.
+await scenario('history notes between own devices', { autoTrust: true }, async s => {
+  await s.initialize(); s.w.addDevice(ME, D(3)); s.w.addDevice(PEER, D(1));
+  const note = (text, { device = D(3), sender = ME, kind = 'history', tweak } = {}) => { const p = { version: 1, note: kind, senderId: sender, senderDeviceId: device, recipientId: ME, recipientDeviceId: MYDEV, text }; tweak?.(p); return { senderDeviceId: device, type: 3, body: b64('n\n' + JSON.stringify(p)) }; };
+  await s.sealNote(ME, D(3), '{"key":"k"}', 'history'); await s.sealNote(ME, D(3), 'ещё', 'history');
+  await s.sealNote(PEER, D(1), 'чужому', 'history'); await s.sealNote(ME, D(9), 'нет такого', 'history'); await s.sealNote(ME, MYDEV, 'себе же', 'history'); await s.sealNote(ME, D(3), 'x', 'other');
+  await s.openNote(ME, note('ключ'), 'history');
+  await s.openNote(ME, note('от себя', { device: MYDEV }), 'history'); await s.openNote(PEER, note('от собеседника', { sender: PEER, device: D(1) }), 'history');
+  await s.openNote(ME, note('голосовая', { kind: 'voice' }), 'history'); await s.openNote(ME, note('не мне', { tweak: p => { p.recipientDeviceId = D(2); } }), 'history');
+  await s.openNote(ME, note('с неизвестного', { device: D(8) }), 'history'); await s.openNote(ME, note('voice от себя'));
+  s.w.addDevice(ME, D(4), { active: false }); await s.sealNote(ME, D(4), 'вышедшему', 'history');
+  s.w.server.devices.set(ME, [...s.w.server.devices.get(ME), { id: D(5), userId: ME, deviceName: 'x', identityKey: 'short', registrationId: 1, createdAt: '', active: true }]); await s.sealNote(ME, D(5), 'кривой ключ', 'history');
+});
+await scenario('history export and import', { autoTrust: true }, async s => {
+  await s.initialize(); s.w.addDevice(PEER, D(1)); s.w.addDevice(OTHER, D(2));
+  serve(s, [incoming(1, M(1), 'первое'), incoming(2, M(2), 'с файлом', { attachment: PHOTO }), incoming(3, M(3), 'третье')]); await s.sync();
+  await s.encrypt(M(4), 'моё'); await s.encrypt(M(5), 'в другой чат', { chat: CHAT2, peer: OTHER });
+  const all = await s.historyExport(); await s.historyExport(null, null, 10);
+  const first = await s.historyExport(null, null, 400); await s.historyExport(null, first.ok?.next, 400); await s.historyExport(null, { chat: 1, page: 0, offset: 0 });
+  await s.historyExport(all.ok?.marks); await s.historyExport({ [CHAT]: '2026-11-21T07:00:01.000Z|z|z' }); await s.historyExport({ [CHAT]: 5 }); await s.historyExport(null, { chat: 'x' });
+  const items = all.ok.items;
+  const U = n => `e1000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  const fresh = (n, text, extra = {}) => ({ chatId: CHAT, senderId: PEER, clientId: U(n), fingerprint: 'a'.repeat(64), text, attachment: null, sentAt: `2026-11-0${n % 9 + 1}T10:00:00.000Z`, ...extra });
+  await s.historyImport(items);
+  await s.historyImport([fresh(6, 'старое из копии'), fresh(7, 'ещё старше', { sentAt: '2026-10-01T00:00:00.000Z' }), fresh(6, 'повтор'), { ...fresh(8, 'новый чат'), chatId: 'c0000000-0000-4000-8000-000000000003' }]);
+  await s.historyPage(); await s.historyPage('c0000000-0000-4000-8000-000000000003');
+  for (const bad of [{ ...fresh(9, 'x'), extra: 1 }, { ...fresh(9, 'x'), fingerprint: 'A'.repeat(64) }, { ...fresh(9, 'x'), text: 'x'.repeat(8001) }, { ...fresh(9, 'x'), sentAt: 'вчера' }, { ...fresh(9, 'x'), chatId: 'x' }, { ...fresh(9, 'x'), attachment: { id: 'x' } }, { ...fresh(9, 'x'), attachment: undefined }, null, 'x'])
+    await s.historyImport([fresh(10, 'годное'), bad]);
+  await s.historyImport('не список'); await s.historyImport([]);
+  serve(s, [incoming(4, U(11), 'x', { raw: '{' })]); await s.sync(); await s.sync(); await s.sync();
+  await s.historyImport([fresh(11, 'было не открыть')]);
+  await s.historyExport();
 });
 
 const out = new URL('./vectors/crypto-scenarios.json', import.meta.url);

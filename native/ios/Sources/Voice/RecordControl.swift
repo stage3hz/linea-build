@@ -48,6 +48,8 @@ final class RecordControl: NSObject {
     private let timeLabel = UILabel()
     private let indicator = RecordCancelIndicator()
     let preview = VoicePreviewPanel()
+    /// The preview of a stopped round video (its frames, trimmed by two handles).
+    let videoPreview = VideoTrimPanel()
     private let trashButton = UIButton(type: .custom)
     private let sendFill = UIView()
     // Over everything
@@ -75,6 +77,11 @@ final class RecordControl: NSObject {
     private var clock: Timer?
     private var lockAnimating = false
     private var previewIsVideo = false
+    private var flying = false
+    private var flightPending = false
+    /// Asked right after a voice take was sent: where the sent message's play button is, in the host's
+    /// coordinates (nil: nowhere to fly, the blob shrinks into the button instead).
+    var sentTarget: (() -> CGRect?)?
 
     // MARK: Installing and placing
 
@@ -94,6 +101,10 @@ final class RecordControl: NSObject {
         indicator.cancelButton.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
         preview.isHidden = true
         composer.addSubview(preview)
+        videoPreview.isHidden = true
+        composer.addSubview(videoPreview)
+        videoPreview.onToggle = { [weak self] in self?.previewToggle?() }
+        videoPreview.onTrim = { [weak self] (start: Double, end: Double, done: Bool) -> Void in self?.previewTrim?(start, end, done) }
         trashButton.setImage(IonIcon.image("trash-outline", size: 22).withRenderingMode(.alwaysTemplate), for: .normal)
         trashButton.tintColor = RecordSpec.controlColor
         trashButton.accessibilityLabel = "Удалить запись"
@@ -158,6 +169,7 @@ final class RecordControl: NSObject {
         sendFill.layer.cornerRadius = buttonFrame.height / 2
         info.frame = composer?.bounds ?? .zero
         preview.frame = CGRect(x: field.minX, y: field.maxY - 40, width: field.width, height: 40)
+        videoPreview.frame = preview.frame
         trashButton.frame = trash
         placeInfo()
         placeOverlay()
@@ -197,7 +209,7 @@ final class RecordControl: NSObject {
         let center = composer.convert(CGPoint(x: buttonRect.midX, y: buttonRect.midY), to: host)
         let blobCenter = CGPoint(x: center.x, y: center.y - 1 + 1 / UIScreen.main.scale)
         // The centre is not touched by the transforms (they scale and move around it).
-        blob.center = blobCenter
+        if !flying { blob.center = blobCenter }
         lockWrapper.center = CGPoint(x: blobCenter.x, y: blobCenter.y - RecordSpec.lockLift)
         recordMore.center = CGPoint(x: center.x, y: center.y - buttonRect.height / 2 - 16 - 20)
         if !bin.isHidden {
@@ -374,6 +386,8 @@ final class RecordControl: NSObject {
     }
 
     private func switchMode() {
+        // A medium knock, as the owner's spec has it.
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         mode = mode == .voice ? .video : .voice
         showIdleIcon(animated: true)
         onModeChanged?(mode)
@@ -400,6 +414,10 @@ final class RecordControl: NSObject {
         blob.iconView.image = blobIcon(locked: false)
         blob.iconView.tintColor = .white
         blob.iconView.transform = .identity
+        blob.layer.removeAllAnimations()
+        flying = false
+        flightPending = false
+        placeOverlay()
         blob.isHidden = false
         blob.transform = CGAffineTransform(scaleX: 0.2, y: 0.2)
         blob.alpha = 0.2
@@ -591,9 +609,7 @@ final class RecordControl: NSObject {
         lockAnimating = true
         let sent = ending == .send
         UIView.animate(withDuration: 0.18, animations: { () -> Void in
-            if sent {
-                self.blob.transform = CGAffineTransform(scaleX: 0.33, y: 0.33).concatenating(CGAffineTransform(translationX: 0, y: 2 - 1 / UIScreen.main.scale))
-            } else {
+            if !sent {
                 self.blob.transform = CGAffineTransform(scaleX: 0.2, y: 0.2)
                 self.blob.alpha = 0
             }
@@ -602,13 +618,19 @@ final class RecordControl: NSObject {
         }, completion: { (_: Bool) -> Void in
             self.lockAnimating = false
             guard self.phase == .idle || self.phase == .preview else { return }
-            self.blob.isHidden = true
+            if !self.flying && !self.flightPending { self.blob.isHidden = true }
             self.lockWrapper.isHidden = true
             self.lockPanel.reset()
         })
         if sent {
-            // Sent: the shrunken blob vanishes at the end.
-            UIView.animate(withDuration: 0.03, delay: 0.15, options: [], animations: { () -> Void in self.blob.alpha = 0 }, completion: nil)
+            // Sent: once the host has put the message in the list, the blob flies to its play button; with no
+            // such button it shrinks into the composer's button.
+            flightPending = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.flightPending else { return }
+                self.flightPending = false
+                if let target = self.sentTarget?(), target.width > 0 { self.fly(to: target) } else { self.shrinkSent() }
+            }
         }
         // The composer's icon comes back in 0.15 s.
         if ending != .preview {
@@ -643,6 +665,63 @@ final class RecordControl: NSObject {
                 self.indicator.showCancel(false, animated: false)
             }
         })
+    }
+
+    /// The sent take with no message to fly to: the blob shrinks to a third and vanishes at the end (0.18 s).
+    private func shrinkSent() {
+        UIView.animate(withDuration: 0.18, animations: { () -> Void in
+            self.blob.transform = CGAffineTransform(scaleX: 0.33, y: 0.33).concatenating(CGAffineTransform(translationX: 0, y: 2 - 1 / UIScreen.main.scale))
+        }, completion: { (_: Bool) -> Void in
+            if self.phase == .idle || self.phase == .preview { self.blob.isHidden = true }
+        })
+        UIView.animate(withDuration: 0.03, delay: 0.15, options: [], animations: { () -> Void in self.blob.alpha = 0 }, completion: nil)
+    }
+
+    /// The sent voice message's play button is at `target` (the host's coordinates): the blob flies there in 0.3 s
+    /// — across on the (0.23, 1, 0.32, 1) curve, down/up on (0.199, 0.011, 0.279, 0.910) — shrinking so that its
+    /// centre circle lands on the button, and fades out in its first 0.06 s while the message takes over.
+    private func fly(to target: CGRect) {
+        flying = true
+        let current = blob.transform
+        let from = CGPoint(x: blob.center.x + current.tx, y: blob.center.y + current.ty)
+        let fromScale = sqrt(current.a * current.a + current.c * current.c)
+        let to = CGPoint(x: target.midX, y: target.midY)
+        let toScale = target.width / (RecordSpec.blobSide * 0.45)
+        blob.layer.removeAllAnimations()
+        blob.center = to
+        blob.transform = CGAffineTransform(scaleX: toScale, y: toScale)
+        let duration = 0.3
+        let across = CABasicAnimation(keyPath: "position.x")
+        across.fromValue = from.x - to.x
+        across.toValue = 0
+        across.isAdditive = true
+        across.duration = duration
+        across.timingFunction = CAMediaTimingFunction(controlPoints: 0.23, 1, 0.32, 1)
+        blob.layer.add(across, forKey: "flyX")
+        let down = CABasicAnimation(keyPath: "position.y")
+        down.fromValue = from.y - to.y
+        down.toValue = 0
+        down.isAdditive = true
+        down.duration = duration
+        down.timingFunction = CAMediaTimingFunction(controlPoints: 0.199, 0.0106, 0.279, 0.910)
+        blob.layer.add(down, forKey: "flyY")
+        let grow = CABasicAnimation(keyPath: "transform.scale")
+        grow.fromValue = fromScale
+        grow.toValue = toScale
+        grow.duration = duration
+        grow.timingFunction = CAMediaTimingFunction(controlPoints: 0.199, 0.0106, 0.279, 0.910)
+        blob.layer.add(grow, forKey: "flyScale")
+        blob.alpha = 1
+        UIView.animate(withDuration: 0.06) { self.blob.alpha = 0 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self else { return }
+            self.flying = false
+            if self.phase == .idle || self.phase == .preview {
+                self.blob.isHidden = true
+                self.blob.transform = .identity
+                self.placeOverlay()
+            }
+        }
     }
 
     /// Called off: the red dot jumps into a red trash in the paperclip's place, the trash's lid bounces, then the
@@ -768,12 +847,18 @@ final class RecordControl: NSObject {
     func showPreview(levels: [Double], durationMs: Int, video: Bool) {
         previewIsVideo = video
         phase = .preview
-        preview.allowsTrim = !video
-        preview.setTake(samples: levels, durationMs: durationMs)
-        preview.recolor()
-        preview.isHidden = false
-        preview.alpha = 0
-        UIView.animate(withDuration: 0.2) { self.preview.alpha = 1 }
+        let shown: UIView = video ? videoPreview : preview
+        if video {
+            videoPreview.setTake(durationMs: durationMs)
+            videoPreview.recolor()
+        } else {
+            preview.allowsTrim = true
+            preview.setTake(samples: levels, durationMs: durationMs)
+            preview.recolor()
+        }
+        shown.isHidden = false
+        shown.alpha = 0
+        UIView.animate(withDuration: 0.2) { shown.alpha = 1 }
         trashButton.isHidden = false
         trashButton.tintColor = RecordSpec.controlColor
         trashButton.alpha = 0
@@ -791,8 +876,9 @@ final class RecordControl: NSObject {
             self.sendFill.alpha = 1
             self.sendFill.transform = .identity
         }
-        // «Record more» (voice only), a glass circle above the send button: it grows from 0.01.
-        if !video {
+        // «Record more», a glass circle above the send button: it grows from 0.01 (a round video: while it is
+        // shorter than 59 s).
+        if !video || durationMs < 59000 {
             recordMore.isHidden = false
             recordMore.alpha = 0
             recordMore.transform = CGAffineTransform(scaleX: 0.01, y: 0.01)
@@ -804,6 +890,13 @@ final class RecordControl: NSObject {
         placeOverlay()
         changedPhase()
     }
+
+    /// The frames of a stopped round video, as many as `videoFrameCount`.
+    func setVideoFrames(_ images: [UIImage]) {
+        videoPreview.setFrames(images)
+    }
+
+    var videoFrameCount: Int { videoPreview.frameCount }
 
     /// The preview played / paused / moved (fraction of the whole take).
     func setPreviewPlayback(_ fraction: Double, playing: Bool) {
@@ -821,9 +914,13 @@ final class RecordControl: NSObject {
     private func hidePreview(deleted: Bool) {
         UIView.animate(withDuration: 0.2, animations: { () -> Void in
             self.preview.alpha = 0
+            self.videoPreview.alpha = 0
             self.sendFill.alpha = 0
         }, completion: { (_: Bool) -> Void in
-            if self.phase != .preview { self.preview.isHidden = true }
+            if self.phase != .preview {
+                self.preview.isHidden = true
+                self.videoPreview.isHidden = true
+            }
         })
         showSendLook(false)
         button.iconView.alpha = 0
@@ -882,6 +979,7 @@ final class RecordControl: NSObject {
         guard phase == .preview else { return }
         phase = .idle
         preview.isHidden = true
+        videoPreview.isHidden = true
         trashButton.isHidden = true
         recordMore.isHidden = true
         sendFill.alpha = 0
