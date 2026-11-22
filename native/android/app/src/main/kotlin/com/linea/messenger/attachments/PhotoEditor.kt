@@ -327,6 +327,14 @@ class PhotoEditor(context: Context, private val original: Bitmap) : Dialog(conte
     refreshPreview()
     canvas.invalidate()
     for (button in tabButtons) { button.on = button.tab.id == editorTab; button.isSelected = button.on; button.alpha = if (canEdit) 1f else 0.4f; button.invalidate() }
+    // The active tab is scrolled into view (EditorPanels.tsx): the row ends before the confirm disc.
+    tabButtons.firstOrNull { it.on }?.let { active ->
+      tabsRow.post {
+        val left = active.left - dp(8f); val right = active.right + dp(8f)
+        if (left < tabsRow.scrollX) tabsRow.scrollTo(maxOf(0, left), 0)
+        else if (right > tabsRow.scrollX + tabsRow.width) tabsRow.scrollTo(right - tabsRow.width, 0)
+      }
+    }
     hint.text = ""; hint2.text = ""
     val edit = shown
     when (editorTab) {

@@ -100,6 +100,8 @@ final class PhotoEditorController: UIViewController {
     private let hint2 = UILabel()
     private let tabsRow = UIScrollView()
     private var tabButtons: [UIButton] = []
+    /// The tab last scrolled into view in the row.
+    private var shownTab = ""
     private let sendButton = UIButton(type: .custom)
     private let sendSpinner = UIActivityIndicatorView(style: .medium)
 
@@ -255,6 +257,7 @@ final class PhotoEditorController: UIViewController {
         guard !busy else { return }
         editorTab = sender.accessibilityIdentifier ?? "crop"
         show()
+        view.setNeedsLayout()
     }
 
     private func chip(_ label: String, spoken: String? = nil, badge: String? = nil, selected: Bool, enabled: Bool = true, action: Selector, tag: Int) -> UIButton {
@@ -790,6 +793,12 @@ final class PhotoEditorController: UIViewController {
             x += w + 2
         }
         tabsRow.contentSize = CGSize(width: x + 8, height: 58)
+        tabsRow.clipsToBounds = true // the row ends before the confirm disc (EditorPanels.tsx)
+        // The active tab is scrolled into view (a tab chosen elsewhere, the editor opened on «Размер и формат»).
+        if shownTab != editorTab, tabsRow.bounds.width > 0, let active = tabButtons.first(where: { (button: UIButton) -> Bool in button.accessibilityIdentifier == editorTab }) {
+            shownTab = editorTab
+            tabsRow.scrollRectToVisible(active.frame.insetBy(dx: -8, dy: 0), animated: false)
+        }
         y = tabY - 10
         for label in [hint2, hint] where !(label.text ?? "").isEmpty && !(label === hint2 && busy) {
             label.textAlignment = .left

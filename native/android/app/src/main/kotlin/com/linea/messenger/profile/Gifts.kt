@@ -25,7 +25,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.avatars.lookColor
-import com.linea.messenger.design.BusyButton
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
@@ -169,7 +168,8 @@ class GiftSheet(context: Context, private val messenger: Messenger?, private val
   private val tiles = ArrayList<Pair<String, View>>()
   private val note = EditText(context)
   private val problem = context.words("", 13f, Theme.danger)
-  private val send = BusyButton(context, "Отправить подарок", Theme.accent, Theme.onAccent, 26f)
+  /** The reference's standard `Button` (ProfilePosts.tsx GiftSheet; components.tsx): the main one, 54 tall. */
+  private val send = com.linea.messenger.settings.SettingsButton(context, "Отправить подарок")
   private val d = context.resources.displayMetrics.density
 
   init {

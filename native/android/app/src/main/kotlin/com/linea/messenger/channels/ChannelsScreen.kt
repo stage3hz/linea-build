@@ -126,10 +126,10 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    put(header, dp(14f), top + dp(12f), width - dp(28f), dp(64f))
+    put(header, dp(14f), top + dp(12f), width - dp(28f), header.fittingHeight(width - dp(28f))) // at least 64: the quiet line keeps its room
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
     // Where the list starts: 10 under the pill; it scrolls up under the pill.
-    val listTop = top + dp(12f + 64f + 10f)
+    val listTop = header.bottom + dp(10f)
     if (list.paddingBottom != barRoom || list.paddingTop != listTop) list.setPadding(0, listTop, 0, barRoom)
     put(listBox, 0, 0, width, height)
     put(spinner, width / 2 - dp(12f), listTop + dp(71f), dp(24f), dp(24f))

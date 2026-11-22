@@ -78,10 +78,22 @@ final class ChatListEdit: NSObject {
         buttonWords.frame = button.bounds
         let bottom = view.safeAreaInsets.bottom
         bar.frame = CGRect(x: 16, y: view.bounds.height - max(bottom, 12) - 6 - ChatListEdit.barHeight, width: width - 32, height: ChatListEdit.barHeight)
-        let items = [readButton, callButton, archiveButton, removeButton]
-        let each = bar.bounds.width / CGFloat(items.count)
+        // Each action as wide as its words, the same inset at both ends of the bar and equal room between them
+        // (equal slices centred the words, so a short first and a long last word left uneven ends).
+        let items = [readButton, callButton, archiveButton, removeButton].filter { (item: UIButton) -> Bool in !item.isHidden }
+        let inset: CGFloat = 16
+        for item in items { item.contentEdgeInsets = .zero } // measured bare: the room set below is not its words
+        let widths = items.map { (item: UIButton) -> CGFloat in ceil(item.sizeThatFits(CGSize(width: bar.bounds.width, height: ChatListEdit.barHeight)).width) }
+        let free = max(0, bar.bounds.width - inset * 2 - widths.reduce(0, +))
+        let gap = items.count > 1 ? free / CGFloat(items.count - 1) : 0
+        var x = items.count > 1 ? inset : (bar.bounds.width - (widths.first ?? 0)) / 2
         for (index, item) in items.enumerated() {
-            item.frame = CGRect(x: CGFloat(index) * each, y: 0, width: each, height: ChatListEdit.barHeight)
+            // The touch area takes half the room on each side; the words stay where they are.
+            let left = index == 0 ? inset : gap / 2
+            let right = index == items.count - 1 ? inset : gap / 2
+            item.frame = CGRect(x: x - left, y: 0, width: widths[index] + left + right, height: ChatListEdit.barHeight)
+            item.contentEdgeInsets = UIEdgeInsets(top: 0, left: left, bottom: 0, right: right)
+            x += widths[index] + gap
         }
         view.bringSubviewToFront(bar)
     }

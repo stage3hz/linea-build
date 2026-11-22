@@ -36,7 +36,8 @@ class HeaderEdgeView(context: Context, top: Boolean = true) : ProgressiveEdgeVie
     set(value) { field = value; peak = value }
 
   // Header: 34 dp past it, fading over 80 dp; composer: from 20 dp above it, fading over 60 dp.
-  init { peak = alphaOfEdge; reach = if (top) 34f else 20f; fade = if (top) 80f else 60f }
+  // The header's pills are clear glass: the colour stays solid behind the whole header and fades past it.
+  init { peak = alphaOfEdge; reach = if (top) 34f else 20f; fade = if (top) 80f else 60f; solidThroughBar = top }
 }
 
 /** A long touch on the avatar in the header (the reference's ChatScreen.tsx avatar `ContextMenu`): a large card with

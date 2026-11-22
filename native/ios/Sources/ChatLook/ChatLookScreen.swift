@@ -261,6 +261,7 @@ final class ChatLookScreen: NSObject {
         // The light runs past the screen's edges (top -80, bottom -60), as in the reference.
         light.frame = CGRect(x: 0, y: -80, width: width, height: height + 140)
         guard let header, let heading, let back, let call, let status else { return }
+        edge.statusBand = safeTop // EdgeFade: under the clock the colour lies twice: nothing readable there
         edge.place(width: width, size: header.frame.maxY)
         // ChatActions hides the name while messages are being chosen: the glass goes with it.
         let choosing = heading.isHidden

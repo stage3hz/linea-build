@@ -194,12 +194,17 @@ class GlassHeaderView(
     return total
   }
 
+  /** The height the pill needs at this width (px): its least height, or the name with the quiet line under it and
+   *  the padding above and below when that is taller. Owners that place the header themselves use it, so the quiet
+   *  line is never cut (a fixed 64 left a 12 sp line under a 32 dp name no room). */
+  fun fittingHeight(width: Int): Int {
+    val tall = maxOf(if (hasBack || tools.isNotEmpty()) dp(44f) else 0, textsHeight(width - dp(2 * padding + 120f)))
+    return maxOf(dp(minHeight), tall + dp(2 * padding))
+  }
+
   override fun onMeasure(widthSpec: Int, heightSpec: Int) {
     val width = MeasureSpec.getSize(widthSpec)
-    val height = if (MeasureSpec.getMode(heightSpec) == MeasureSpec.EXACTLY) MeasureSpec.getSize(heightSpec) else {
-      val tall = maxOf(if (hasBack || tools.isNotEmpty()) dp(44f) else 0, textsHeight(width - dp(2 * padding + 120f)))
-      maxOf(dp(minHeight), tall + dp(2 * padding))
-    }
+    val height = if (MeasureSpec.getMode(heightSpec) == MeasureSpec.EXACTLY) MeasureSpec.getSize(heightSpec) else fittingHeight(width)
     setMeasuredDimension(width, height)
   }
 

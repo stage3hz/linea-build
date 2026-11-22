@@ -59,8 +59,16 @@ class ProgressiveEdgeView: UIView {
     var reach: CGFloat = EdgeRamp.reach
     /// Over how many points (ending at `reach` past the bar) the colour fades out.
     var fade: CGFloat = EdgeRamp.fade
+    /// A top edge only: the status bar's height. The colour is laid a second time over it (fading out 10 pt below,
+    /// as the reference's extra status-bar layer), so under the clock the cover is near-solid
+    /// (1 − (1 − strength)²) and nothing scrolling there stays readable; the strength itself is unchanged.
+    var statusBand: CGFloat = 0
+    /// Solid over the whole bar: the fade (still `fade` long) begins only at the bar's inner edge, so nothing behind
+    /// the bar's clear glass shows through; false: the fade ends `reach` past the bar (and may begin inside it).
+    var solidThroughBar = false
 
     private let wash = CAGradientLayer()
+    private let band = CAGradientLayer()
     private var key = ""
 
     init(edge: Edge) {
@@ -68,6 +76,7 @@ class ProgressiveEdgeView: UIView {
         super.init(frame: .zero)
         isUserInteractionEnabled = false
         layer.addSublayer(wash)
+        layer.addSublayer(band)
         NotificationCenter.default.addObserver(self, selector: #selector(conditionsChanged), name: UIAccessibility.reduceTransparencyStatusDidChangeNotification, object: nil)
     }
 
@@ -86,14 +95,14 @@ class ProgressiveEdgeView: UIView {
     func place(width: CGFloat, size: CGFloat, height: CGFloat = 0) {
         isHidden = size <= 0
         guard size > 0 else { return }
-        let total = size + max(0, reach)
+        let total = size + max(0, solidThroughBar ? max(reach, fade) : reach)
         frame = CGRect(x: 0, y: edge == .top ? 0 : height - total, width: width, height: total)
         let reduced = UIAccessibility.isReduceTransparencyEnabled
         let tone = color ?? Theme.bg
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
         tone.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         let strength = reduced ? 1 : min(1, max(0, peak ?? EdgeRamp.strength))
-        let newKey = "\(width)|\(total)|\(fade)|\(red)|\(green)|\(blue)|\(alpha)|\(strength)|\(edge == .top)"
+        let newKey = "\(width)|\(total)|\(fade)|\(red)|\(green)|\(blue)|\(alpha)|\(strength)|\(edge == .top)|\(statusBand)|\(solidThroughBar)"
         guard newKey != key else { return }
         key = newKey
 
@@ -105,6 +114,16 @@ class ProgressiveEdgeView: UIView {
         let stops = EdgeRamp.stops(total: total, fade: fade)
         wash.colors = stops.map { (stop: (CGFloat, CGFloat)) -> CGColor in tone.withAlphaComponent(strength * stop.1).cgColor }
         wash.locations = stops.map { (stop: (CGFloat, CGFloat)) -> NSNumber in NSNumber(value: Double(stop.0)) }
+        let bandSolid = edge == .top ? min(total, max(0, statusBand)) : 0
+        band.isHidden = bandSolid <= 0
+        if bandSolid > 0 {
+            let bandHeight = min(total, bandSolid + 10)
+            band.frame = CGRect(x: 0, y: 0, width: width, height: bandHeight)
+            band.startPoint = CGPoint(x: 0.5, y: 0)
+            band.endPoint = CGPoint(x: 0.5, y: 1)
+            band.colors = [tone.withAlphaComponent(strength).cgColor, tone.withAlphaComponent(strength).cgColor, tone.withAlphaComponent(0).cgColor]
+            band.locations = [0, NSNumber(value: Double(bandSolid / bandHeight)), 1]
+        }
         CATransaction.commit()
     }
 }

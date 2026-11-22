@@ -15,6 +15,8 @@ final class HeaderEdgeView: ProgressiveEdgeView {
         // Header: 34 pt past it, fading over 80 pt; composer: from 20 pt above it, fading over 60 pt.
         reach = edge == .top ? 34 : 20
         fade = edge == .top ? 80 : 60
+        // The header's pills are clear glass: the colour stays solid behind the whole header and fades past it.
+        solidThroughBar = edge == .top
     }
 
     required init?(coder: NSCoder) { return nil }

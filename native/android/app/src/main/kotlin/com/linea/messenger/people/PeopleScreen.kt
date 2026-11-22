@@ -271,9 +271,9 @@ class PeopleScreen(
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    put(header, dp(14f), top + dp(12f), width - dp(28f), dp(72f))
+    put(header, dp(14f), top + dp(12f), width - dp(28f), header.fittingHeight(width - dp(28f))) // at least 72: the quiet line keeps its room
     // ChatsPlus: the switch «Друзья | Звонки» stands between the header and the search (14 under the pill).
-    val boxTop = calls.place(width, height, top + dp(12f + 72f + 2f), edges.bottom) + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(54f)
+    val boxTop = calls.place(width, height, header.bottom + dp(2f), edges.bottom) + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(54f)
     // The clear button: `IconButton` 30 wide, 44 tall, at the end of the row (paddingHorizontal 15, gap 10).
     place(clearButton, boxWidth - dp(45f), dp(5f), dp(30f), dp(44f))
     place(spinner, boxWidth - dp(45f) + dp(5f), dp(5f) + dp(12f), dp(20f), dp(20f))

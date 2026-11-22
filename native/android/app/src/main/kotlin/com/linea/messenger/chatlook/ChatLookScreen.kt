@@ -261,7 +261,8 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     light.pivotY = 0f
     val headerSize = safeTop + dp(52f)
     edge.size = headerSize.toFloat()
-    put(edge, 0, 0, width, headerSize + dp(edge.reach))
+    edge.statusBand = safeTop // EdgeFade: under the clock the colour lies twice: nothing readable there
+    put(edge, 0, 0, width, headerSize + dp(edge.past))
     // ChatActions hides the name while messages are being chosen: the glass goes with it.
     val choosing = heading.visibility != View.VISIBLE
     val pillsShown = if (choosing) View.GONE else View.VISIBLE

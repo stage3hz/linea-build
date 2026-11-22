@@ -375,6 +375,7 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
         strip.layer.cornerCurve = .continuous
         stripRow.axis = .horizontal
         stripRow.spacing = 6
+        stripRow.distribution = .fill
         stripRow.translatesAutoresizingMaskIntoConstraints = false
         strip.addSubview(stripRow)
         column.addArrangedSubview(strip)
@@ -501,6 +502,10 @@ final class SharedMediaView: UIView, UIGestureRecognizerDelegate {
             }
             let button = UIButton(configuration: config)
             button.tag = index
+            // Each pill is as wide as its word (SharedMedia.tsx: padding 14, gap 6): the row inside the scroll view
+            // has no width of its own, so without this the pills were stretched to equal, cut widths.
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            button.setContentCompressionResistancePriority(.required, for: .horizontal)
             button.accessibilityTraits = tab.id == active ? [.button, .selected] : .button
             button.addTarget(self, action: #selector(tabTapped(_:)), for: .touchUpInside)
             stripRow.addArrangedSubview(button)

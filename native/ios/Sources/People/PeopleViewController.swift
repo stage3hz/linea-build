@@ -137,7 +137,7 @@ final class PeopleViewController: UIViewController, UITableViewDataSource, UITab
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let top = view.safeAreaInsets.top, width = view.bounds.width
-        header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: 72)
+        header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: header.fittingHeight(width: width - 28)) // at least 72: the quiet line keeps its room
         // ChatsPlus: the switch «Друзья | Звонки» stands between the header and the search (14 under the pill).
         searchBox.frame = CGRect(x: 17, y: calls.place(in: view, top: header.frame.maxY + 2) + 14, width: width - 34, height: 54)
         // The clear button: `IconButton` 30 wide, 44 tall, at the end of the row (paddingHorizontal 15, gap 10).

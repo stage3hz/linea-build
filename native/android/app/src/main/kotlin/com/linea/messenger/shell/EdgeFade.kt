@@ -63,6 +63,16 @@ open class ProgressiveEdgeView(context: Context, private val top: Boolean) : Vie
   /** Over how many dp (ending at `reach` past the bar) the colour fades out. */
   var fade = EdgeRamp.FADE
     set(value) { field = value; invalidate() }
+  /** A top edge only: the status bar's height, px. The colour is laid a second time over it (fading out 10 dp below,
+   *  as the reference's extra status-bar layer), so under the clock the cover is near-solid (1 − (1 − strength)²)
+   *  and nothing scrolling there stays readable; the strength itself is unchanged. */
+  var statusBand = 0
+    set(value) { if (field != value) { field = value; invalidate() } }
+  /** Solid over the whole bar: the fade (still `fade` long) begins only at the bar's inner edge, so nothing behind the
+   *  bar's clear glass shows through; false: the fade ends `reach` past the bar (and may begin inside it). */
+  var solidThroughBar = false
+  /** The whole effect past the bar, dp: `reach`, or the whole `fade` when solid through the bar. */
+  val past: Float get() = if (solidThroughBar) maxOf(reach, fade) else reach
   /** The bar's height from the screen's edge, px (set by `place`, or by an owner that lays the view out itself). */
   var size = 0f
     set(value) { if (field != value) { field = value; invalidate() } }
@@ -81,7 +91,7 @@ open class ProgressiveEdgeView(context: Context, private val top: Boolean) : Vie
     this.size = size.toFloat()
     visibility = if (size <= 0) GONE else VISIBLE
     if (size <= 0) return
-    val total = size + (reach * d).roundToInt()
+    val total = size + (past * d).roundToInt()
     val y = if (top) 0 else height - total
     measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(total, MeasureSpec.EXACTLY))
     layout(0, y, width, y + total)
@@ -99,6 +109,13 @@ open class ProgressiveEdgeView(context: Context, private val top: Boolean) : Vie
     paint.shader = if (top) LinearGradient(0f, 0f, 0f, total, colors, positions, Shader.TileMode.CLAMP)
     else LinearGradient(0f, total, 0f, 0f, colors, positions, Shader.TileMode.CLAMP)
     canvas.drawRect(0f, 0f, width.toFloat(), total, paint)
+    val bandSolid = if (top) minOf(total, statusBand.toFloat()) else 0f
+    if (bandSolid > 0f) {
+      val bandHeight = minOf(total, bandSolid + 10 * d)
+      val full = argb(rgb, strength)
+      paint.shader = LinearGradient(0f, 0f, 0f, bandHeight, intArrayOf(full, full, argb(rgb, 0f)), floatArrayOf(0f, bandSolid / bandHeight, 1f), Shader.TileMode.CLAMP)
+      canvas.drawRect(0f, 0f, width.toFloat(), bandHeight, paint)
+    }
   }
 
   private fun argb(rgb: Int, alpha: Float): Int = ((alpha.coerceIn(0f, 1f) * 255).roundToInt() shl 24) or (rgb and 0xFFFFFF)

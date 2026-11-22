@@ -286,7 +286,8 @@ final class GiftSheetViewController: UIViewController, UITextFieldDelegate {
     private var tiles: [UIControl] = []
     private let noteField = UITextField()
     private let problem = UILabel()
-    private let sendButton = UIButton(type: .system)
+    /// The reference's standard `Button` (ProfilePosts.tsx GiftSheet; components.tsx): the main one, 54 tall.
+    private let sendButton = SettingsButton(label: "Отправить подарок")
 
     init(messenger: Messenger?, userId: String) {
         self.messenger = messenger
@@ -359,14 +360,7 @@ final class GiftSheetViewController: UIViewController, UITextFieldDelegate {
         problem.font = .systemFont(ofSize: 13)
         problem.textColor = Theme.danger
         problem.numberOfLines = 0
-        var look = UIButton.Configuration.filled()
-        look.title = "Отправить подарок"
-        look.baseBackgroundColor = Theme.accent
-        look.baseForegroundColor = Theme.onAccent
-        look.cornerStyle = .capsule
-        look.contentInsets = NSDirectionalEdgeInsets(top: 15, leading: 16, bottom: 15, trailing: 16)
-        sendButton.configuration = look
-        sendButton.addTarget(self, action: #selector(send), for: .touchUpInside)
+        sendButton.onPress = { [weak self] in self?.send() }
         let stack = UIStackView(arrangedSubviews: [heading, gridHolder, caption, noteField, problem, sendButton])
         stack.axis = .vertical
         stack.spacing = 14
@@ -423,11 +417,11 @@ final class GiftSheetViewController: UIViewController, UITextFieldDelegate {
         }
         busy = true
         problem.text = ""
-        sendButton.configuration?.showsActivityIndicator = true
+        sendButton.setBusy(true)
         messenger.sendGift(userId, gift: picked, message: note) { [weak self] (error: ServerError?) -> Void in
             guard let self else { return }
             self.busy = false
-            self.sendButton.configuration?.showsActivityIndicator = false
+            self.sendButton.setBusy(false)
             if let error {
                 self.problem.text = error.words.isEmpty ? "Не удалось отправить подарок." : error.words
                 return

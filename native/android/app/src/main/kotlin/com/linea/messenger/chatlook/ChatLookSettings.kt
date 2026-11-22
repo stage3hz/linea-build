@@ -23,7 +23,6 @@ import com.linea.messenger.design.px
 import com.linea.messenger.design.words
 import com.linea.messenger.settings.ColorChoiceButton
 import com.linea.messenger.settings.DevicePreferences
-import com.linea.messenger.settings.SettingsButton
 import com.linea.messenger.settings.SettingsLook
 import com.linea.messenger.settings.SettingsPage
 import com.linea.messenger.settings.SettingsRow

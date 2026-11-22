@@ -337,14 +337,17 @@ class SharedMediaView(context: Context) : LinearLayout(context) {
     body.removeAllViews()
     val active = active ?: return
     if (width <= 0) return
-    for ((tab, label) in tabs) {
+    for ((index, pair) in tabs.withIndex()) {
+      val (tab, label) = pair
       val on = tab == active
       val button = context.words(label, 14f, if (on) Theme.accent else Theme.text, 600)
+      button.maxLines = 1
       button.setPadding(context.px(14f), context.px(8f), context.px(14f), context.px(8f))
       button.background = if (on) context.plate(com.linea.messenger.settings.ThemeStore.look.accentSoft, 14f) else null
       button.isClickable = true; button.isSelected = on
       button.setOnClickListener { this.active = tab; rebuild() }
-      stripRow.addView(button)
+      // SharedMedia.tsx: each pill as wide as its word (padding 14), 6 apart.
+      stripRow.addView(button, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (index > 0) leftMargin = context.px(6f) })
     }
     body.addView(when (active) {
       Tab.PHOTOS -> grid(photos)

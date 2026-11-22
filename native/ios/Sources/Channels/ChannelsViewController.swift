@@ -88,7 +88,7 @@ final class ChannelsViewController: UIViewController, UITableViewDataSource, UIT
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let top = view.safeAreaInsets.top, width = view.bounds.width
-        header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: 64)
+        header.frame = CGRect(x: 14, y: top + 12, width: width - 28, height: header.fittingHeight(width: width - 28)) // at least 64: the quiet line keeps its room
         // Where the list starts: 10 under the pill (the rooms' caption carries its own room above it).
         let listTop = header.frame.maxY + 10
         table.frame = view.bounds

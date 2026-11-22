@@ -160,7 +160,9 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
 
     searchBox.visibility = View.GONE
     searchBox.gravity = Gravity.CENTER_VERTICAL
-    searchBox.addView(PlusIconView(context, "ion:search-outline", 18f, Theme.muted), LinearLayout.LayoutParams(context.px(36f), context.px(46f)))
+    // The reference (SavedScreen.tsx): padding 14, the lens 18, 9 before the text.
+    searchBox.setPadding(context.px(14f), 0, context.px(14f), 0)
+    searchBox.addView(PlusIconView(context, "ion:search-outline", 18f, Theme.muted), LinearLayout.LayoutParams(context.px(18f), context.px(18f)).apply { marginEnd = context.px(9f) })
     searchField.hint = "Поиск в Избранном"
     searchField.setHintTextColor(Theme.muted)
     searchField.setTextColor(Theme.text)

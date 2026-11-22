@@ -74,7 +74,13 @@ class ChatListEdit(private val context: Context, private val messenger: Messenge
     host.addView(button)
     bar.orientation = LinearLayout.HORIZONTAL
     bar.visibility = View.GONE
-    for (item in listOf(readButton, callButton, archiveButton, removeButton)) bar.addView(item, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+    // Each action as wide as its words, the same inset at both ends of the bar and equal room between them (equal
+    // slices centred the words, so a short first and a long last word left uneven ends).
+    bar.setPadding(dp(16f), 0, dp(16f), 0)
+    for ((index, item) in listOf(readButton, callButton, archiveButton, removeButton).withIndex()) {
+      if (index > 0) bar.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+      bar.addView(item, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
+    }
     readButton.setOnClickListener { readChosen() }
     callButton.setOnClickListener { callChosen() }
     archiveButton.setOnClickListener { archiveChosen() }

@@ -22,6 +22,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private let searchButton = GlassRoundButton(symbol: "ion:search-outline", label: "Поиск в Избранном", iconSize: 23)
     private let searchBox = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
     private let searchField = UITextField()
+    private var searchLens: UIImageView?
     private let table = UITableView(frame: .zero, style: .plain)
     private let empty = EmptyStateView()
     private let notice = UILabel()
@@ -130,10 +131,12 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         let lens = UIImageView(image: IonIcon.image("search-outline", size: 18).withRenderingMode(.alwaysTemplate))
         lens.tintColor = Theme.muted
         lens.contentMode = .center
-        lens.frame = CGRect(x: 0, y: 0, width: 36, height: 46)
-        searchField.leftView = lens
-        searchField.leftViewMode = .always
+        // The reference (SavedScreen.tsx): the lens 18, 14 in from the pill's edge, 9 before the text. Placed by
+        // hand: a text field sizes its leftView to the picture's own 18 pt, which jammed the lens to the edge.
+        lens.frame = CGRect(x: 14, y: 14, width: 18, height: 18)
+        searchLens = lens
         searchField.addTarget(self, action: #selector(queryChanged), for: .editingChanged)
+        searchBox.contentView.addSubview(lens)
         searchBox.contentView.addSubview(searchField)
 
         notice.font = AppFont.text(12)
@@ -360,7 +363,8 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         searchBox.isHidden = !searching
         if searching {
             searchBox.frame = CGRect(x: 12, y: y, width: width - 24, height: 46)
-            searchField.frame = CGRect(x: 4, y: 0, width: searchBox.bounds.width - 12, height: 46)
+            searchLens?.frame = CGRect(x: 14, y: (46 - 18) / 2, width: 18, height: 18)
+            searchField.frame = CGRect(x: 14 + 18 + 9, y: 0, width: max(0, searchBox.bounds.width - 14 - 18 - 9 - 14), height: 46)
             y += 52
         }
         // The field grows with the text up to 136 pt, as the reference's composer.

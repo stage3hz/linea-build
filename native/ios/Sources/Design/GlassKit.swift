@@ -171,6 +171,22 @@ final class GlassHeaderView: UIView {
         let snug = pill.heightAnchor.constraint(equalToConstant: minHeight)
         snug.priority = .defaultLow
         snug.isActive = true
+        self.padding = padding
+        self.minHeight = minHeight
+        self.leadRoom = back == nil ? padding + 6 : padding
+    }
+
+    private var padding: CGFloat = 0
+    private var minHeight: CGFloat = 0
+    private var leadRoom: CGFloat = 0
+
+    /// The height the pill needs at this width: its least height, or its row (the name with the quiet line under it)
+    /// and the padding above and below when that is taller. Owners that place the header by frame use it, so the
+    /// quiet line is never cut (a fixed 64 left a 12 pt line under a 32 pt name no room).
+    func fittingHeight(width: CGFloat) -> CGFloat {
+        let inner = CGSize(width: max(0, width - leadRoom - padding), height: 0)
+        let tall = row.systemLayoutSizeFitting(inner, withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel).height
+        return max(minHeight, ceil(tall) + padding * 2)
     }
 
     required init?(coder: NSCoder) { return nil }
