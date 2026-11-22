@@ -87,7 +87,7 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
     barBackdrop.setBackgroundColor(Theme.bg)
     barBackdrop.alpha = 0f
     addView(barBackdrop)
-    back.background = context.plate(Theme.surface2, 22f)
+    com.linea.messenger.design.GlassBacking.put(back) // C: the reference's IconButton — a round of clear glass
     back.contentDescription = "Назад"
     back.setOnClickListener { pagesStack()?.pop() }
     addView(back)

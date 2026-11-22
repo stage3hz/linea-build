@@ -2,7 +2,6 @@ package com.linea.messenger.chat
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Canvas
 import android.text.InputType
 import android.text.TextUtils
 import android.view.Gravity
@@ -19,7 +18,6 @@ import com.linea.messenger.attachments.ChatAttachments
 import com.linea.messenger.chatactions.ChatScreenActions
 import com.linea.messenger.chatactions.ComposerField
 import com.linea.messenger.chatactions.SendButton
-import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.IconButton
 import com.linea.messenger.design.Theme
@@ -44,11 +42,10 @@ class ChatScreen(
   private val header = View(context)
   private val back = IconButton(context, "back", 24f, Theme.text)
   private val heading = TextView(context)
-  private val composer = object : FrameLayout(context) {
-    val glass = Glass(this).apply { source = page }
-    init { setWillNotDraw(false) }
-    override fun onDraw(canvas: Canvas) = glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), minOf(24f * d, height / 2f))
-  }
+  // Composer: no glass of its own — three separate glass shapes under its buttons and field, as in the reference
+  // (composer/ComposerPills.kt).
+  private val composer = FrameLayout(context)
+  private val pills = com.linea.messenger.composer.ComposerPills(context, page)
   /** ChatActions: several lines, growing with the text (chatactions/ChatParts.kt). */
   private val field = ComposerField(context)
   private val send = SendButton(context)
@@ -94,8 +91,10 @@ class ChatScreen(
     heading.setOnClickListener { openProfile() }
     addView(callButton)
 
+    composer.addView(pills, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)) // Composer: the glass under everything
     composer.addView(field, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply { leftMargin = dp(18f); rightMargin = dp(50f) })
-    composer.addView(send, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(2f); bottomMargin = dp(2f) })
+    // Composer: an accent circle of 40 dp with the arrow, at the row's end (ChatScreen.tsx «Отправить сообщение»).
+    composer.addView(send, FrameLayout.LayoutParams(dp(40f), dp(40f), Gravity.END or Gravity.BOTTOM))
     // Attachments: the paperclip in the composer; a touch on a row opens its photo or file.
     attachments.install(composer, field)
     attachments.onPendingChanged = { showPendingAttachments() }
@@ -195,20 +194,23 @@ class ChatScreen(
     put(callButton, width - dp(50f), top + dp(2f), dp(44f), dp(44f))
     // ChatActions: the composer is as tall as the field's text asks (one line at first); the send button and
     // the paperclip stay at its lower edge.
-    val composerHeight = actions.composerHeight(width - dp(24f) - dp(100f))
+    // Composer: the row is 8 dp from the screen's sides; the field's pill leaves 40 + 8 dp on each side for the
+    // paperclip and the microphone, and its text stands 14 dp in from the pill's edges (ChatScreen.tsx).
+    val composerHeight = actions.composerHeight(width - dp(16f) - dp(96f) - dp(28f))
     // Above the keyboard when it is up, above the system's bar otherwise.
     var floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
     // Composer: the emoji panel stands where the keyboard was (composer/EmojiPanel.kt).
     actions.extras.keyboard(edges.keyboard)
     if (edges.keyboard == 0) actions.extras.panelTop(height)?.let { floor = it - dp(8f) }
     val composerTop = floor - composerHeight
-    put(composer, dp(12f), composerTop, width - dp(24f), composerHeight)
+    put(composer, dp(8f), composerTop, width - dp(16f), composerHeight) // Composer: 8 from the sides
     // Voice/Video: the microphone or the send button, the lock of a take, the words over the chat.
-    media.place(width, top, dp(12f), composerTop, width - dp(24f))
+    media.place(width, top, dp(8f), composerTop, width - dp(16f))
+    pills.microphoneShown = send.visibility != View.VISIBLE // Composer: the microphone's round glass only while the record button stands there
     // ChatActions: the status under the name, the pinned message, the bar above the field, the way down.
     actions.keyboardUp = edges.keyboard > 0
     val strip = playerStrip.place(width, top + dp(52f), hidden = false) // Shell: the strip takes its room under the header
-    val room = actions.place(width, height, top + dp(52f) + strip, top, dp(12f), composerTop, width - dp(24f), composerHeight)
+    val room = actions.place(width, height, top + dp(52f) + strip, top, dp(8f), composerTop, width - dp(16f), composerHeight)
     list.setPad(room.first, room.second)
     put(page, 0, 0, width, height)
     look.place(width, height, top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
@@ -239,7 +241,7 @@ class ChatScreen(
   fun addSampleRow(row: Map<String, Any?>) { sampleRows = sampleRows + row; load() }
 
   /** Profile: an attachment of the shared media is opened as a touch on its row would (profile/ProfileChatExtras.kt). */
-  fun openAttachment(key: String) = attachments.pressed(key)
+  fun openAttachment(key: String) = attachments.pressed(key, inRow = false) // Attachments: not brought inside a row that is not on screen
 
   private fun leave() {
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)

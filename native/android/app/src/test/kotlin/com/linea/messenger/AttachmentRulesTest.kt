@@ -25,19 +25,22 @@ class AttachmentRulesTest {
   @Test fun howAMessageWithAnAttachmentLooks() {
     val preview = mapOf("mimeType" to "image/jpeg", "base64" to "QUJD", "width" to 240.0, "height" to 160.0)
     val photo = mapOf("id" to "f1", "name" to "photo.png", "mimeType" to "image/png", "size" to 1000.0, "preview" to preview)
-    // A photo with its small picture: the picture, how wide it is for its height, and no words of its own.
-    assertEquals(mapOf("text" to "", "fmt" to emptyList<Int>(), "urls" to emptyList<String>(), "thumb" to "QUJD", "thumbWide" to 1.5),
+    // Attachments: a photo is shown whole in its row (InlineMedia): its shape, its size for the pill, the small
+    // picture to blur until it is here, and no words of its own.
+    assertEquals(mapOf("text" to "", "fmt" to emptyList<Int>(), "urls" to emptyList<String>(), "media" to "photo", "thumbWide" to 1.5, "mediaTime" to "1 КБ", "thumb" to "QUJD"),
       AttachmentRows.fields(mapOf("text" to "", "attachment" to photo), "peer:c1", about("photo", "1 КБ")))
     assertEquals(photo, AttachmentStore.attachment("peer:c1"))
-    // With words of its own the text stays as it is.
-    assertEquals(mapOf("thumb" to "QUJD", "thumbWide" to 1.5), AttachmentRows.fields(mapOf("text" to "Смотри", "attachment" to photo), "peer:c2", about("photo")))
-    // A photo that cannot be opened here, or one without a sound small picture, is a label.
+    // With words of its own the text stays as it is; the photo's own shape wins over the small picture's.
+    assertEquals(mapOf("media" to "photo", "thumbWide" to 0.5, "mediaTime" to "", "thumb" to "QUJD"),
+      AttachmentRows.fields(mapOf("text" to "Смотри", "attachment" to photo + ("media" to mapOf("width" to 600.0, "height" to 1200.0))), "peer:c2", about("photo")))
+    // A photo that cannot be opened here is a label; one without a sound small picture is 4:3.
     assertEquals("🖼 Фотография\n1 КБ", AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo), "k", about("photo", "1 КБ", refusal = "Нет ключа"))["label"])
-    assertEquals(mapOf("label" to "🖼 Фотография"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo - "preview"), "k", about("photo")))
-    assertEquals(mapOf("label" to "🖼 Фотография"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo + ("preview" to (preview + ("height" to 0.0)))), "k", about("photo")))
+    assertEquals(mapOf("media" to "photo", "thumbWide" to 4.0 / 3.0, "mediaTime" to ""), AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo - "preview"), "k", about("photo")))
+    assertEquals(4.0 / 3.0, AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo + ("preview" to (preview + ("height" to 0.0)))), "k", about("photo"))["thumbWide"])
     assertEquals(mapOf("label" to "🎬 Видео\n3 ГБ"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "a.mp4")), "k", about("video", "3 ГБ")))
-    assertEquals(mapOf("label" to "📎 Договор № 7.pdf\n1.2 МБ"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "Договор № 7.pdf")), "k", about("file", "1.2 МБ")))
-    assertEquals(mapOf("label" to "📎 Файл"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to emptyMap<String, Any?>()), "k", about("audio")))
+    // Any other file is a card: the name, then «1.2 МБ · PDF» (FileBubble).
+    assertEquals(mapOf("media" to "file", "label" to "Договор № 7.pdf\n1.2 МБ · PDF"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "Договор № 7.pdf")), "k", about("file", "1.2 МБ")))
+    assertEquals(mapOf("media" to "file", "label" to "Файл\n"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to emptyMap<String, Any?>()), "k", about("audio")))
     // No attachment: nothing to add, nothing remembered.
     assertEquals(emptyMap<String, Any?>(), AttachmentRows.fields(mapOf("text" to "x"), "none", about("file")))
     assertEquals(emptyMap<String, Any?>(), AttachmentRows.fields(mapOf("text" to "x", "attachment" to "f1"), "none", about("file")))
@@ -141,5 +144,23 @@ class AttachmentRulesTest {
     assertTrue(DecryptedFiles.folderName.matches("invizent-view-0f8fad5b-d9cb-469f-a165-70867728950e"))
     for (wrong in listOf("invizent-view-", "invizent-view-../..", "other-0f8fad5b-d9cb-469f-a165-70867728950e", "invizent-view-0F8FAD5B-D9CB-469F-A165-70867728950E", "invizent-view-0f8fad5b-d9cb-469f-a165-70867728950e/x"))
       assertFalse(wrong, DecryptedFiles.folderName.matches(wrong))
+  }
+
+  @Test fun inlineMediaWords() {
+    val sizes = { bytes: Long -> "$bytes Б" }
+    // «44 Б · PDF»: the size, then the name's ending in capitals (at most five letters or digits).
+    assertEquals("44 Б · PDF", com.linea.messenger.attachments.InlineMedia.sizeLine(mapOf("name" to "Договор.pdf"), "44 Б"))
+    assertEquals("44 Б", com.linea.messenger.attachments.InlineMedia.sizeLine(mapOf("name" to "README"), "44 Б"))
+    assertEquals("44 Б", com.linea.messenger.attachments.InlineMedia.sizeLine(mapOf("name" to "a.toolong"), "44 Б"))
+    assertEquals("2 КБ · XLSX", com.linea.messenger.attachments.InlineMedia.sizeLine(mapOf("name" to "Смета.xlsx"), "2 КБ"))
+    // While coming: «got / all» for a photo, «got из all» for a file.
+    assertEquals("40 Б / 100 Б", com.linea.messenger.attachments.InlineMedia.loadingWords(100, 0.4f, photo = true, sizeText = sizes))
+    assertEquals("100 Б из 100 Б", com.linea.messenger.attachments.InlineMedia.loadingWords(100, 1.5f, photo = false, sizeText = sizes))
+    // The file's icon once it is here (FileBubble `fileIcon`).
+    assertEquals("doc.text.fill", com.linea.messenger.attachments.InlineMedia.fileIcon("a.PDF"))
+    assertEquals("music.note", com.linea.messenger.attachments.InlineMedia.fileIcon("song.mp3"))
+    assertEquals("archivebox.fill", com.linea.messenger.attachments.InlineMedia.fileIcon("x.tar.gz"))
+    assertEquals("doc.fill", com.linea.messenger.attachments.InlineMedia.fileIcon("notes.txt"))
+    assertEquals(10 * 1024 * 1024, com.linea.messenger.attachments.InlineMedia.AUTO_PHOTO_BYTES)
   }
 }

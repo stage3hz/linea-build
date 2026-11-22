@@ -95,8 +95,10 @@ class ComposerExtras(private val context: Context) {
     emojiButton.contentDescription = "Стикеры и эмодзи"
     emojiButton.isClickable = true
     emojiButton.setOnClickListener { toggleEmoji() }
-    composer.addView(emojiButton, FrameLayout.LayoutParams(dp(EMOJI_ROOM), dp(44f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(2f + 44f - 4f); bottomMargin = dp(2f) })
-    (field.layoutParams as? FrameLayout.LayoutParams)?.let { it.rightMargin += dp(EMOJI_ROOM - 4f); field.layoutParams = it }
+    // Composer: inside the field's pill at its right end, 38 × 40 (ChatScreen.tsx «Стикеры и эмодзи»); the field's
+    // text ends 14 dp before it (composer/ComposerPills.kt).
+    composer.addView(emojiButton, FrameLayout.LayoutParams(dp(EMOJI_ROOM), dp(ComposerPills.SIDE), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(ComposerPills.SIDE + ComposerPills.GAP) })
+    (field.layoutParams as? FrameLayout.LayoutParams)?.let { it.rightMargin = dp(ComposerPills.SIDE + ComposerPills.GAP + EMOJI_ROOM + 14f); field.layoutParams = it }
 
     formatBar = FormatBar(context, behind)
     formatBar.visibility = View.GONE

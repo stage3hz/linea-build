@@ -2,7 +2,6 @@ package com.linea.messenger.settings
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.view.Gravity
@@ -192,9 +191,7 @@ class PowerRow(context: Context, symbol: String, title: String, text: String, va
     texts.addView(context.words(title, 15f, Theme.text))
     texts.addView(context.words(text, 12f, Theme.muted), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(2f) })
     addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(12f); rightMargin = context.px(12f) })
-    val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-    toggle.thumbTintList = ColorStateList(states, intArrayOf(0xFFFFFFFF.toInt(), 0xFFB4B7BD.toInt()))
-    toggle.trackTintList = ColorStateList(states, intArrayOf(SettingsLook.switchOn, Theme.veil(0.25f)))
+    SettingsLook.paint(toggle) // E: the reference's switch colours
     toggle.isChecked = value
     toggle.contentDescription = title
     toggle.setOnCheckedChangeListener { _, on -> onChange?.invoke(on) }

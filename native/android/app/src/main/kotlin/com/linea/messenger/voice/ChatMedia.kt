@@ -184,6 +184,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     this.field = field
     this.actions = actions
     sendButton = send
+    control.edgeInset = 0f; control.barRadius = 20f // Composer: the microphone on its round glass at the row's end
     control.install(composer, host)
     val notes = NotePlayback(context, messenger?.server, list)
     this.notes = notes

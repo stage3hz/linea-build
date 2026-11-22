@@ -247,6 +247,24 @@ shot 371-video-player-speed --ez demo true --ez chat true --es videodemo speed
 shot 372-video-player-locked --ez demo true --ez chat true --es videodemo locked
 shot 373-video-player-seek --ez demo true --ez chat true --es videodemo seek
 shot 374-note-recorder --ez demo true --ez chat true --es notedemo 1
+# Glass: the reference's glass headers, search and round buttons, the switch colours, the settings root without its
+# title, the music layout, the one-line AI composer, the sign-in card and theme pill (design/GlassKit.kt; the numbers
+# of the iPhone's shots).
+shot 420-glass-header-appearance --ez demo true --es effects 1 --es settings appearance
+shot 421-switches-power --ez demo true --es settings power
+shot 422-settings-root-head --ez demo true --es effects 1 --es settings root
+shot 423-people-glass --ez demo true --es effects 1 --es tab people
+shot 424-channels-glass --ez demo true --es effects 1 --es tab channels
+shot 425-person-profile-glass --ez demo true --es effects 1 --es profile chat
+shot 426-music-layout --es musicdemo 1 --es effects 1
+shot 427-ai-composer --es aidemo 1
+shot 428-auth-glass --ez auth true --es effects 1
+# Attachments, Composer, ChatSearch (the iPhone's 440–443): a photo inside its row and a file card with loading,
+# the three-piece composer, the search screen with its scopes.
+shot 440-chat-inline-media --ez demo true --ez chat true --es attachdemo 1
+shot 441-chat-composer --ez demo true --ez chat true
+shot 442-chat-search --ez demo true --es chatsearch Ма
+shot 443-chat-search-people --ez demo true --es chatsearch Мар --es chatsearchscope people
 # Last: on the runner's software-drawn emulator this page (eight frames drawn live) once took the emulator down.
 shot 101-avatar-code-frames --es profiledemo code
 

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
@@ -38,6 +37,9 @@ import com.linea.messenger.auth.ManualEditText
 import com.linea.messenger.chats.AvatarStore
 import com.linea.messenger.design.BarMetrics
 import com.linea.messenger.design.BusyButton
+import com.linea.messenger.design.GlassHeaderView
+import com.linea.messenger.design.GlassRoundButton
+import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.SymbolButton
 import com.linea.messenger.design.SymbolView
 import com.linea.messenger.design.Theme
@@ -59,7 +61,38 @@ object SettingsLook {
   val chip: Int get() = Theme.veil(0.07f)
   val dangerChip: Int get() = Theme.alpha(Theme.danger, 0.14f)
   val pressed: Int get() = Theme.veil(0.07f)
-  const val switchOn = 0xFF5E7BFF.toInt()
+  /** The reference's ThemeSwitch (components.tsx): the track is the theme's accent when on, green (#34C77B) when the
+   *  accent is pale (every channel above 190: «Чёрная», «Графит» …), and the theme's `subtle` when off. */
+  val switchOn: Int get() = switchOn(Theme.accent)
+  val switchOff: Int get() = Theme.subtle
+
+  /** The «on» track for an accent (pure: tested). */
+  fun switchOn(accent: Int): Int {
+    val opaque = (accent ushr 24) == 255
+    val pale = opaque && ((accent shr 16) and 255) > 190 && ((accent shr 8) and 255) > 190 && (accent and 255) > 190
+    return if (pale) 0xFF34C77B.toInt() else accent
+  }
+
+  /** A switch in the reference's colours: a pill track (`switchOn` / the `subtle` track), a white thumb, the
+   *  iPhone's proportions (51 × 31, the thumb 27). */
+  fun paint(toggle: Switch) {
+    val c = toggle.context
+    fun pill(color: Int) = android.graphics.drawable.GradientDrawable().apply {
+      setColor(color); cornerRadius = c.px(15.5f).toFloat(); setSize(c.px(51f), c.px(31f))
+    }
+    val track = android.graphics.drawable.StateListDrawable()
+    track.addState(intArrayOf(android.R.attr.state_checked), pill(switchOn))
+    track.addState(intArrayOf(), pill(switchOff))
+    val knob = android.graphics.drawable.GradientDrawable().apply {
+      shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(0xFFFFFFFF.toInt()); setSize(c.px(27f), c.px(27f))
+    }
+    toggle.trackDrawable = track
+    toggle.thumbDrawable = android.graphics.drawable.InsetDrawable(knob, c.px(2f))
+    toggle.trackTintList = null
+    toggle.thumbTintList = null
+    toggle.showText = false
+    toggle.switchMinWidth = c.px(51f)
+  }
 
   /** `inner` with room around it, dp. */
   fun inset(inner: View, top: Float = 0f, side: Float = 0f, bottom: Float = 0f): FrameLayout = FrameLayout(inner.context).apply {
@@ -103,9 +136,18 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   protected val column = LinearLayout(context)
   protected val main = Handler(Looper.getMainLooper())
   private val heading = context.words(pageName, if (large) 34f else 20f, Theme.text, if (large) 700 else 600)
-  private val backButton = SymbolButton(context, "chevron.left", 24f, Theme.text)
-  private val sideButton = SymbolButton(context, "", 21f, Theme.text)
   private var sideAction: (() -> Unit)? = null
+  // B: the pages with a back button have the reference's header (SettingsScreen.tsx `Page`): a glass pill (radius 27,
+  // 12 from the edges, at least 60 tall, 8 inside) with a round glass back button and the name; the list scrolls
+  // under it (blurred there), with the page's colour fading in behind (tabInset.tsx `FloatingHeader`).
+  private val behind = GlassSource(context)
+  private var header: GlassHeaderView? = null
+  private var sideButton: GlassRoundButton? = null
+  private val headerEdge = View(context)
+
+  /** D: false — a large page without its big name (the root of Settings: the profile head is its top, as in the
+   *  reference's `Root`). The column keeps its place under the status bar; the list runs up under it. */
+  protected open val showsHeading: Boolean get() = true
   private var dialog: Dialog? = null
   /** `build()` has been called. */
   protected var built = false
@@ -123,22 +165,28 @@ open class SettingsPage(context: Context, private val pageName: String, private 
     com.linea.messenger.design.Titles.title(heading, titleSize)
     heading.setAutoSizeTextTypeUniformWithConfiguration(Math.round(titleSize * 0.62f), Math.round(titleSize), 1, TypedValue.COMPLEX_UNIT_SP)
     if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
-    addView(heading)
+    if (large && showsHeading) addView(heading)
 
     scroll.isVerticalScrollBarEnabled = false
     scroll.isFillViewport = true
     column.orientation = LinearLayout.VERTICAL
     column.setPadding(dp(16f), dp(8f), dp(16f), dp(28f))
     scroll.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-    addView(scroll)
-
-    if (!large) {
-      backButton.contentDescription = "Назад"
-      backButton.setOnClickListener { goBack() }
-      addView(backButton)
-      sideButton.visibility = View.GONE
-      sideButton.setOnClickListener { sideAction?.invoke() }
-      addView(sideButton)
+    if (large) {
+      addView(scroll)
+    } else {
+      // The header is the page's first child (read first), drawn and touched above the list by its height (z).
+      behind.addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+      headerEdge.background = android.graphics.drawable.GradientDrawable(
+        android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Theme.bg, Theme.alpha(Theme.bg, 0.85f), Theme.alpha(Theme.bg, 0f)))
+      headerEdge.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+      val made = GlassHeaderView(context, pageName, titleSize = Theme.TypeSize.pageTitleSize(pageName), lineHeight = 28f, padding = 8f, minHeight = 60f, back = { goBack() })
+      made.source = behind
+      for (part in listOf<View>(made, headerEdge)) { part.outlineProvider = null; part.translationZ = if (part === made) 2f else 1f }
+      addView(made)
+      addView(headerEdge)
+      addView(behind)
+      header = made
     }
   }
 
@@ -158,22 +206,30 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   }
 
   override fun place(width: Int, height: Int) {
+    val header = header
     if (large) {
-      put(heading, dp(20f), edges.top + dp(8f), width - dp(40f), dp(41f))
       // The list goes under the bar at the bottom; the room for the bar is left under the last part.
       val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
-      if (column.paddingBottom != dp(28f) + barRoom) column.setPadding(dp(16f), dp(8f), dp(16f), dp(28f) + barRoom)
-      val top = edges.top + dp(8f + 41f + 8f)
-      put(scroll, 0, top, width, height - top)
-    } else {
-      val top = edges.top + dp(4f)
-      put(backButton, dp(6f), top, dp(44f), dp(44f))
-      val side = sideButton.visibility == View.VISIBLE
-      if (side) put(sideButton, width - dp(6f + 44f), top, dp(44f), dp(44f))
-      put(heading, dp(6f + 44f + 2f), top, width - dp(6f + 44f + 2f) - (if (side) dp(6f + 44f + 8f) else dp(20f)), dp(44f))
+      if (showsHeading) {
+        put(heading, dp(20f), edges.top + dp(8f), width - dp(40f), dp(41f))
+        if (column.paddingBottom != dp(28f) + barRoom) column.setPadding(dp(16f), dp(8f), dp(16f), dp(28f) + barRoom)
+        val top = edges.top + dp(8f + 41f + 8f)
+        put(scroll, 0, top, width, height - top)
+      } else {
+        // D: the column starts where it did under the big name (8 + 41 + 8 + 8 under the status bar).
+        val first = edges.top + dp(8f + 41f + 8f + 8f)
+        if (column.paddingBottom != dp(28f) + barRoom || column.paddingTop != first) column.setPadding(dp(16f), first, dp(16f), dp(28f) + barRoom)
+        put(scroll, 0, 0, width, height)
+      }
+    } else if (header != null) {
+      header.measure(MeasureSpec.makeMeasureSpec(width - dp(24f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+      put(header, dp(12f), edges.top + dp(12f), width - dp(24f), header.measuredHeight)
+      // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below).
+      val below = edges.top + dp(12f) + header.measuredHeight + dp(7f)
+      if (column.paddingTop != below + dp(16f)) column.setPadding(dp(16f), below + dp(16f), dp(16f), dp(28f))
+      put(headerEdge, 0, 0, width, below)
       // The page ends where the keyboard begins, so a field is never under it.
-      val from = top + dp(44f + 4f)
-      put(scroll, 0, from, width, height - from - maxOf(edges.keyboard, edges.bottom))
+      put(behind, 0, 0, width, height - maxOf(edges.keyboard, edges.bottom))
     }
   }
 
@@ -204,15 +260,14 @@ open class SettingsPage(context: Context, private val pageName: String, private 
 
   /** An icon on the right of the header (pages with a back button only). */
   fun setSide(symbol: String, label: String, action: () -> Unit) {
-    sideButton.symbol = symbol
-    sideButton.contentDescription = label
-    sideButton.visibility = View.VISIBLE
     sideAction = action
+    sideButton?.let { it.symbol = symbol; it.contentDescription = label; return }
+    sideButton = header?.addTool(symbol, label, iconSize = 17f) { sideAction?.invoke() }
     requestLayout()
   }
 
   fun setSideEnabled(enabled: Boolean) {
-    sideButton.isEnabled = enabled
+    sideButton?.isEnabled = enabled
   }
 
   /** Takes everything out of the column (before it is filled again). */
@@ -376,9 +431,7 @@ class SettingsSwitchRow(context: Context, label: String, words: String, value: B
     if (words.isNotEmpty()) texts.addView(context.words(words, 12f, Theme.muted), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
     addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
 
-    val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-    toggle.thumbTintList = ColorStateList(states, intArrayOf(0xFFFFFFFF.toInt(), 0xFFB4B7BD.toInt()))
-    toggle.trackTintList = ColorStateList(states, intArrayOf(SettingsLook.switchOn, Theme.veil(0.25f)))
+    SettingsLook.paint(toggle) // E: the reference's switch colours
     toggle.isChecked = value
     toggle.isEnabled = enabled
     toggle.contentDescription = label

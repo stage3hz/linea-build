@@ -203,9 +203,15 @@ class RecordControl(private val context: Context) {
   /** The parts changed their looks or places: the owner lays the screen out again. */
   var onChanged: (() -> Unit)? = null
 
+  /** Composer: how far the button stands from the composer's right and lower edges, dp (0 in a chat: on its own
+   *  round glass at the row's end, composer/ComposerPills.kt). Set before `install`. */
+  var edgeInset = 4f
+  /** Composer: the strip's corners (20 in a chat: the field's rounded shape). Set before `install`. */
+  var barRadius = 24f
+
   /** Adds the strip and the button to the composer, the lock and its hint to the screen. */
   fun install(composer: FrameLayout, host: ViewGroup) {
-    bar.background = GradientDrawable().apply { setColor(Theme.bg); cornerRadius = 24f * d }
+    bar.background = GradientDrawable().apply { setColor(Theme.bg); cornerRadius = barRadius * d }
     bar.visibility = View.GONE
     bar.isClickable = true
     composer.addView(bar, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -238,7 +244,7 @@ class RecordControl(private val context: Context) {
     pauseButton.setOnClickListener { if (phase == Phase.LOCKED) onPause?.invoke() }
     bar.addView(pauseButton)
 
-    composer.addView(button, FrameLayout.LayoutParams(dp(40f), dp(40f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(4f); bottomMargin = dp(4f) })
+    composer.addView(button, FrameLayout.LayoutParams(dp(40f), dp(40f), Gravity.END or Gravity.BOTTOM).apply { rightMargin = dp(edgeInset); bottomMargin = dp(edgeInset) })
 
     lockPill.background = GradientDrawable().apply { setColor(Theme.surface2 or 0xFF000000.toInt()); cornerRadius = 20f * d; setStroke(maxOf(1, dp(1f)), Theme.veil(0.12f)) }
     lockPill.visibility = View.GONE
@@ -272,7 +278,7 @@ class RecordControl(private val context: Context) {
   /** Places the lock above the composer's trailing end, its hint beside it (the composer's frame in the
    *  screen, px). The button and the strip are placed by the composer itself. */
   fun place(composerLeft: Int, composerTop: Int, composerWidth: Int) {
-    val pillLeft = composerLeft + composerWidth - dp(44f)
+    val pillLeft = composerLeft + composerWidth - dp(40f + edgeInset)
     val pillTop = composerTop - dp(76f)
     put(lockPill, pillLeft, pillTop, dp(40f), dp(66f))
     put(lockHint, pillLeft - dp(140f), pillTop + dp(18f), dp(132f), dp(28f))

@@ -10,6 +10,7 @@ object ChatActionsDemo {
   val chataction: String? get() = null
   val chatlist: String? get() = null
   val chatsearch: String? get() = null
+  val chatsearchscope: String? get() = null
 
   @Suppress("UNUSED_PARAMETER")
   fun client(index: Int): String = ""

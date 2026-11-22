@@ -51,6 +51,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
     isClickable = true
     backButton.contentDescription = "Назад"
     backButton.setOnClickListener { onBack() }
+    com.linea.messenger.design.GlassBacking.put(backButton) // B: the reference's IconButton — a round of clear glass
     addView(backButton)
     avatar.visibility = GONE
     addView(avatar)
@@ -72,6 +73,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
       val button = ChannelIconButton(context, item.symbol, 22f, Theme.text)
       button.contentDescription = item.label
       button.setOnClickListener { item.action() }
+      com.linea.messenger.design.GlassBacking.put(button) // B
       addView(button)
       tools.add(button)
     }
@@ -96,7 +98,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
     var right = r - l - dp(6f)
     for (button in tools.asReversed()) {
       put(button, right - dp(44f), top + dp(5f), dp(44f), dp(44f))
-      right -= dp(44f)
+      right -= dp(44f + 9f) // B: `gap: 9`
     }
     val wide = right - left - dp(4f)
     val alone = quietLabel.text.isNullOrEmpty()

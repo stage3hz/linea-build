@@ -88,16 +88,13 @@ class PeopleScreen(
   /** The account whose people are shown; null shows the debug build's samples (or nothing in a release one). */
   private val messenger: Messenger?,
 ) : Screen(context) {
-  private val heading = TextView(context)
-  private val caption = TextView(context)
-  private val searchBox = object : FrameLayout(context) {
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Theme.surface2 }
-    init { setWillNotDraw(false) }
-    override fun onDraw(canvas: Canvas) {
-      canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), 24f * d, 24f * d, paint)
-      PeopleIcons.draw(canvas, "search", 26f * d, height / 2f, 20f * d, Theme.accent)
-    }
-  }
+  // B: the reference's header — «Люди» and its quiet line in a glass pill (GlassSurface «clear», radius 27, 14 from the
+  // sides, 12 under the safe area, 10 inside, at least 72 tall; the name 26 on a 32 line, the line 11) — and the
+  // search on glass (radius 24, at least 54 tall).
+  private val header = com.linea.messenger.design.GlassHeaderView(context, "Люди", "Друзья, заявки и поиск по @имени", titleSize = Theme.TypeSize.sectionTitle,
+    lineHeight = Theme.TypeSize.sectionTitleLine, subtitleSize = 11f, padding = 10f, minHeight = 72f, clear = true)
+  private val caption: TextView get() = header.subtitleLabel
+  private val searchBox = com.linea.messenger.design.GlassSearchField(context)
   private val field = EditText(context)
   private val clearButton = RoundIconButton(context, "clear", RoundIconButton.Look.PLAIN, 19f)
   private val spinner = ProgressBar(context)
@@ -187,18 +184,7 @@ class PeopleScreen(
     })
     addView(list)
 
-    heading.text = "Люди"
-    heading.textSize = 34f
-    heading.typeface = Theme.weight(700)
-    heading.titled(Theme.TypeSize.sectionTitle) // Fonts: Unbounded, as the reference
-    heading.setTextColor(Theme.text)
-    heading.includeFontPadding = false
-    addView(heading)
-    caption.text = "Друзья, заявки и поиск по @имени"
-    caption.textSize = 13f
-    caption.setTextColor(Theme.muted)
-    caption.includeFontPadding = false
-    addView(caption)
+    addView(header)
 
     addView(searchBox)
     field.hint = "@имя или имя"
@@ -273,16 +259,14 @@ class PeopleScreen(
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    val headingHeight = putText(heading, dp(20f), top + dp(8f), width - dp(40f))
-    val captionTop = top + dp(8f) + headingHeight + dp(2f)
-    val captionHeight = putText(caption, dp(20f), captionTop, width - dp(40f))
-    // ChatsPlus: the switch «Друзья | Звонки» stands between the caption and the search.
-    val boxTop = calls.place(width, height, captionTop + captionHeight, edges.bottom) + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(52f)
-    place(clearButton, boxWidth - dp(46f), dp(4f), dp(44f), dp(44f))
-    place(spinner, boxWidth - dp(46f) + dp(11f), dp(4f) + dp(11f), dp(22f), dp(22f))
-    place(field, dp(46f), 0, boxWidth - dp(46f) - dp(48f), boxHeight)
+    put(header, dp(14f), top + dp(12f), width - dp(28f), dp(72f))
+    // ChatsPlus: the switch «Друзья | Звонки» stands between the header and the search (14 under the pill).
+    val boxTop = calls.place(width, height, top + dp(12f + 72f + 2f), edges.bottom) + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(54f)
+    place(clearButton, boxWidth - dp(46f), dp(5f), dp(44f), dp(44f))
+    place(spinner, boxWidth - dp(46f) + dp(11f), dp(5f) + dp(11f), dp(22f), dp(22f))
+    place(field, searchBox.wordsLeft, 0, boxWidth - searchBox.wordsLeft - dp(48f), boxHeight)
     put(searchBox, dp(17f), boxTop, boxWidth, boxHeight)
-    val listTop = boxTop + boxHeight + dp(12f)
+    val listTop = boxTop + boxHeight + dp(17f)
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
     // Above the keyboard when it is up, above the bar otherwise.
     val bottom = maxOf(barRoom, edges.keyboard + dp(12f))

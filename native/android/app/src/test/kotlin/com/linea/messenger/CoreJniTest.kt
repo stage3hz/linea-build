@@ -238,8 +238,8 @@ class CoreJniTest {
     // Voice/Video: a video is a row of its own now (the play mark over its picture or a plate), not a label.
     assertEquals(mapOf("media" to "video", "thumbWide" to 1.5), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.mkv", "mimeType" to "video/x-matroska", "size" to 3221225472.0,
       "encryption" to mapOf("scheme" to "aes-256-gcm-siv-chunked"))), "peer:c10"))
-    // A big file of another kind keeps its label, and is opened chunk by chunk (voice/ChatMedia.kt).
-    assertEquals("📎 big.iso\n" + FileCore.sizeText(3_221_225_472), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.iso", "mimeType" to "application/octet-stream", "size" to 3221225472.0,
+    // A big file of another kind is a file card (InlineMedia), and is opened chunk by chunk (voice/ChatMedia.kt).
+    assertEquals("big.iso\n" + FileCore.sizeText(3_221_225_472) + " · ISO", AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.iso", "mimeType" to "application/octet-stream", "size" to 3221225472.0,
       "encryption" to mapOf("scheme" to "aes-256-gcm-siv-chunked"))), "peer:c11")["label"])
 
     // The body of an upload and the answers to it.

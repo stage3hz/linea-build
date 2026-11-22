@@ -1,7 +1,6 @@
 package com.linea.messenger.polls
 
 import android.content.Context
-import android.content.res.ColorStateList
 import android.text.Editable
 import android.text.InputFilter
 import android.text.TextWatcher
@@ -59,8 +58,7 @@ class PollComposer(context: Context) : ComposerSheet(context, full = true) {
     multiple.gravity = Gravity.CENTER_VERTICAL
     multiple.addView(context.words("Несколько ответов", 14f, Theme.text), LinearLayout.LayoutParams(0, wrap, 1f))
     multipleSwitch.contentDescription = "Несколько ответов"
-    val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-    multipleSwitch.trackTintList = ColorStateList(states, intArrayOf(Theme.accent, Theme.veil(0.25f)))
+    com.linea.messenger.settings.SettingsLook.paint(multipleSwitch) // E: the reference's switch colours
     multiple.addView(multipleSwitch)
     stack.addView(multiple, LinearLayout.LayoutParams(wide, dp(46f)))
     sendButton.gravity = Gravity.CENTER

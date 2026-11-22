@@ -22,6 +22,7 @@ import android.view.inputmethod.InputMethodManager
 import android.webkit.MimeTypeMap
 import android.widget.FrameLayout
 import com.linea.messenger.app.Messenger
+import com.linea.messenger.composer.ComposerPills
 import com.linea.messenger.core.Core
 import com.linea.messenger.crypto.CryptoService
 import com.linea.messenger.design.Theme
@@ -123,16 +124,19 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   init {
     val app = context.applicationContext
     sweeping.execute { DecryptedFiles.sweep(app); CaptureProvider.sweep(app) /* Media: camera shots of earlier runs */ }
+    InlineMedia.use(messenger?.server) // Attachments: photos and files brought inside their rows
   }
 
   // The composer
 
-  /** Puts the paperclip at the composer's leading edge and moves the text field next to it.
+  /** Puts the paperclip at the composer's leading edge, on its own round glass (composer/ComposerPills.kt), and
+   *  the text field 14 dp inside the field's pill beside it.
    *  At the composer's lower edge: the field grows upwards with its text (ChatActions). */
   fun install(composer: FrameLayout, field: View) {
     button.setOnClickListener { choose() }
-    composer.addView(button, FrameLayout.LayoutParams((44f * d).toInt(), (44f * d).toInt(), Gravity.START or Gravity.BOTTOM).apply { leftMargin = (4f * d).toInt(); bottomMargin = (2f * d).toInt() })
-    (field.layoutParams as? FrameLayout.LayoutParams)?.let { it.leftMargin = (50f * d).toInt(); field.layoutParams = it }
+    val side = Math.round(ComposerPills.SIDE * d)
+    composer.addView(button, FrameLayout.LayoutParams(side, side, Gravity.START or Gravity.BOTTOM))
+    (field.layoutParams as? FrameLayout.LayoutParams)?.let { it.leftMargin = Math.round((ComposerPills.SIDE + ComposerPills.GAP + 14f) * d); field.layoutParams = it }
   }
 
   private fun activity(): Activity? {
@@ -446,8 +450,10 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   // A touch on a row
 
-  /** A row of the chat was touched: an unsent attachment offers to try again, a received one is opened. */
-  fun pressed(key: String) {
+  /** A row of the chat was touched: an unsent attachment offers to try again, a received one is opened.
+   *  Attachments: `inRow` false — opened from elsewhere (an album's tile, the profile's media): straight to the
+   *  viewer, not brought inside a row. */
+  fun pressed(key: String, inRow: Boolean = true) {
     // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
     if (mediaPressed?.invoke(key) == true) return
     val item = pending.firstOrNull { it.key == key }
@@ -460,10 +466,20 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
       sheet.show()
       return
     }
-    AttachmentStore.attachment(key)?.let { open(it) }
+    val attachment = AttachmentStore.attachment(key) ?: return
+    // Attachments: a photo is brought inside its row and a file inside its card first (MediaBubble.tsx); a touch
+    // while it comes stops it; once here, the photo opens on the whole screen and the file in the chosen app.
+    if (inRow && InlineMedia.inRow(key)) {
+      val opened = InlineMedia.pressed(key, attachment, host, openPhoto = { open(attachment, key) }, openFile = { data ->
+        hideKeyboard()
+        FileOpen.hand(host, data, FileCore.describe(attachment).fileName, attachment["name"] as? String ?: "Файл")
+      })
+      if (opened) return
+    }
+    open(attachment, key)
   }
 
-  private fun open(attachment: Map<String, Any?>) {
+  private fun open(attachment: Map<String, Any?>, key: String = "") {
     val about = FileCore.describe(attachment)
     about.refusal?.let { return say(context, it) }
     val messenger = messenger ?: return
@@ -471,7 +487,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     val load = AttachmentLoad(messenger.server, attachment, cipherSize)
     hideKeyboard()
     if (about.kind == "photo") {
-      val small = (Core.map(attachment["preview"] as? Map<*, *>)?.get("base64") as? String)?.let { text ->
+      val small = InlineMedia.picture(key) ?: (Core.map(attachment["preview"] as? Map<*, *>)?.get("base64") as? String)?.let { text ->
         try { Base64.decode(text, Base64.DEFAULT).let { BitmapFactory.decodeByteArray(it, 0, it.size) } } catch (_: Throwable) { null }
       }
       PhotoViewer(context, small, load).show()
@@ -484,7 +500,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   /** The chat's rows were read: gives the rows of outgoing attachments to add to them. */
   fun loaded(rows: List<Map<String, Any?>>): List<Map<String, Any?>> {
-    AttachmentsDemo.opened(rows, host) { key -> pressed(key) }
+    AttachmentsDemo.opened(rows, host) { key -> pressed(key, inRow = false) }
     AttachmentsDemo.media(this, host) // Media: the editor, the player, the round video, the panel
     return pendingRows
   }

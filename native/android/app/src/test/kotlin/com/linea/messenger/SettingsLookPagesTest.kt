@@ -257,7 +257,7 @@ class SettingsLookPagesTest {
     back()
     assertEquals("RootScreen", topName)
     assertEquals(1, stack.depth)
-    has("Настройки", "Оформление", "Чёрная", "Уведомления и звуки", "Данные и память")
+    has("Оформление", "Чёрная", "Уведомления и звуки", "Данные и память")
   }
 
   @Test fun theNightSwitchTurnsTheNightThemeOnByHand() {

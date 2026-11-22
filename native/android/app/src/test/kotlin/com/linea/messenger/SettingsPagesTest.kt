@@ -159,7 +159,10 @@ class SettingsPagesTest {
   @Test fun theSectionShowsWhoIsSignedInAndWhatCanBeSetUp() {
     launch()
     assertEquals("SettingsScreen", topName)
-    has("Настройки", "Мария Орлова", "@maria", "Мой профиль", "Конфиденциальность", "Безопасность", "Активные сеансы", "Заблокированные", "Помощь и поддержка", "О приложении", "Выйти из аккаунта")
+    // D, M: no big «Настройки» (the profile head is the top) and no «Публикации и истории» row, as in the reference's `Root`.
+    assertFalse(texts().contains("Настройки"))
+    assertFalse(texts().contains("Публикации и истории"))
+    has("Мария Орлова", "@maria", "Мой профиль", "Конфиденциальность", "Безопасность", "Активные сеансы", "Заблокированные", "Помощь и поддержка", "О приложении", "Выйти из аккаунта")
     assertTrue(texts().any { it.startsWith("INVIZENT ") && it.contains(" · ядро ") })
     // Coming to the eyes, the section asks for the profile again.
     assertTrue(account.refreshed >= 1)
@@ -546,7 +549,7 @@ class SettingsPagesTest {
     val section = find(page) { it is SettingsScreen && it.isShown }
     assertNotNull(section)
     val words = texts(section!!)
-    assertTrue(words.toString(), words.containsAll(listOf("Настройки", "Мария Орлова", "@maria", "Мой профиль", "Выйти из аккаунта")))
+    assertTrue(words.toString(), words.containsAll(listOf("Мария Орлова", "@maria", "Мой профиль", "Выйти из аккаунта")))
     for (row in listOf("Мой профиль", "Конфиденциальность", "Безопасность", "Активные сеансы", "Заблокированные", "Помощь и поддержка", "Выйти из аккаунта")) {
       var target: View? = find(section) { it is TextView && it.text.toString() == row }
       while (target != null && !target.isClickable) target = target.parent as? View

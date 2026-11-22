@@ -25,7 +25,9 @@ import com.linea.messenger.crypto.CryptoService
 import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Server
 import com.linea.messenger.people.RoundIconButton
+import com.linea.messenger.people.openChat
 import com.linea.messenger.people.pages
+import com.linea.messenger.chatlook.Haptic
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -129,7 +131,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
       else { plus?.holdY = y; openMenu(id) }
     }
     searchButton.contentDescription = "Поиск"
-    searchButton.setOnClickListener { toggleSearch() }
+    searchButton.setOnClickListener { showSearchScreen("") } // ChatSearch: the search is a screen of its own (chatsearch/ChatSearchScreen.kt)
     host.addView(searchButton)
     searchBox.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 20f * d }
     searchBox.visibility = View.GONE
@@ -511,6 +513,35 @@ class ChatListActions(private val context: Context, private val messenger: Messe
 
   // The search
 
+  /** ChatSearch: the magnifier opens the search screen (chatsearch/ChatSearchScreen.kt): the heading and the bar give
+   *  way to it, as in the reference (ChatSearch.tsx). */
+  private fun showSearchScreen(query: String) {
+    val host = host ?: return
+    val stack = host.pages() ?: return
+    if (!host.isAttachedToWindow) return
+    Haptic.light(host)
+    val screen = com.linea.messenger.chatsearch.ChatSearchScreen(context, messenger, chats.filter { !removed(it) }, query)
+    screen.openChat = { chatId, focus -> open(chatId, focus) }
+    screen.openPerson = { person ->
+      val account = messenger
+      if (account != null) account.openChat(person, host) { error ->
+        if (error == null) return@openChat
+        host.post { ChatAttachments.say(context, if (error.words.isEmpty()) "Не удалось открыть чат." else error.words + " Нажми ещё раз, чтобы повторить.") }
+      }
+    }
+    screen.openSaved = { plus?.openSaved() }
+    screen.openCommunity = { communityId ->
+      var above = host.parent
+      while (above != null && above !is com.linea.messenger.shell.RootScreen) above = above.parent
+      val root = above as? com.linea.messenger.shell.RootScreen
+      root?.show("channels")
+      val account = messenger
+      val page = root?.channelsPage()
+      if (account != null && page != null) com.linea.messenger.channels.ChannelsRoute.openCommunity(page, account, communityId)
+    }
+    stack.push(screen, animated = false)
+  }
+
   private fun toggleSearch() {
     searching = !searching
     searchBox.visibility = if (searching) View.VISIBLE else View.GONE
@@ -592,11 +623,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     demoDone = true
     val wanted = ChatActionsDemo.chatsearch
     if (!wanted.isNullOrEmpty()) {
-      main.postDelayed({
-        if (!searching) toggleSearch()
-        searchField.setText(wanted)
-        hideKeyboard()
-      }, 500)
+      // ChatSearch: the search screen with these words (the keyboard stays away for the picture).
+      main.postDelayed({ showSearchScreen(wanted) }, 500)
       return
     }
     val ask = ChatActionsDemo.chatlist ?: return

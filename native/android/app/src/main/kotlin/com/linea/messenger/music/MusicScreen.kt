@@ -400,16 +400,24 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
 
   private val list = ListView(context)
   private val column = LinearLayout(context)
-  private val addButton = AIIconButton(context, "plus", 22f, Theme.text, "Добавить аудиофайлы")
-  private val tabs = MusicSegments(context, listOf("Главная", "Любимое", "Мои файлы"))
+  // F: the reference's top (MusicScreen.tsx): on the cold ambient, «Музыка» with round glass «+» and «i», the tabs as
+  // a plain row with an `ink` pill on the chosen one, the source switch, and the large centred «Слушать микс»; it is
+  // `MusicInk.headHeight` tall from the screen's top. Then the search on glass, the shelves, the moods (tall chips),
+  // «ОТКРОЙ ДЛЯ СЕБЯ».
+  private val aiPainter: com.linea.messenger.design.IconPainter = { c, n, x, y, size, color -> AIIcons.draw(c, n, x, y, size, color) }
+  private val addButton = com.linea.messenger.design.GlassRoundButton(context, "plus", "Добавить аудиофайлы", 21f, painter = aiPainter)
+  private val tabs = MusicTabs(context, listOf("Главная", "Любимое", "Мои файлы"))
   private val searchBox = FrameLayout(context)
   private val search = EditText(context)
-  private val sources = MusicSegments(context, listOf("SoundCloud", "Audius"), "Источник музыки")
+  private val sources = MusicSourceSwitch(context, listOf("SoundCloud", "Audius"), "Источник музыки")
+  private val headStack = LinearLayout(context)
+  private lateinit var headBox: MusicHeadBox
+  private val sectionWords = AIKit.label(context, "", 12f, color = Theme.muted)
   private val moodScroll = HorizontalScrollView(context)
   private val moodRow = LinearLayout(context)
   private val mixRow = LinearLayout(context)
   private val mixButton = AIRoundButton(context, "play", "Слушать микс", size = 66f, icon = 28f)
-  private val mixLine = AIKit.label(context, "", 14f, color = Theme.muted, lines = 1)
+  private val mixLine = AIKit.label(context, "", 14f, color = MusicInk.soft, lines = 1, align = Gravity.CENTER)
   private val caption = AIKit.label(context, "", 11f, 700, Theme.muted, lines = 1)
   private val notices = LinearLayout(context)
   private val footer = LinearLayout(context)
@@ -653,27 +661,60 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
 
     column.orientation = LinearLayout.VERTICAL
     column.setPadding(dp(18f), dp(8f), dp(18f), dp(10f))
+    headStack.orientation = LinearLayout.VERTICAL
     val titleRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-    val info = AIIconButton(context, "info", 22f, Theme.text, "О музыкальном разделе")
-    info.setOnClickListener { showInfo() }
-    addButton.setOnClickListener { addFiles() }
-    titleRow.addView(AIKit.label(context, "Музыка", 34f, 700, lines = 1).also { com.linea.messenger.design.Titles.title(it, Theme.TypeSize.sectionTitle) }, LinearLayout.LayoutParams(0, wrap, 1f)) // Fonts: the reference's TITLE, 26
-    titleRow.addView(addButton, LinearLayout.LayoutParams(dp(40f), dp(40f)))
-    titleRow.addView(info, LinearLayout.LayoutParams(dp(40f), dp(40f)).apply { marginStart = dp(6f) })
-    column.addView(titleRow, LinearLayout.LayoutParams(wide, wrap))
+    val info = com.linea.messenger.design.GlassRoundButton(context, "info", "О музыкальном разделе", 19f, painter = aiPainter)
+    info.tint = MusicInk.ink
+    info.onPress = { showInfo() }
+    addButton.tint = MusicInk.ink
+    addButton.onPress = { addFiles() }
+    // TITLE: Unbounded 26, line 32, as the reference's section titles.
+    titleRow.addView(AIKit.label(context, "Музыка", 34f, 700, MusicInk.ink, lines = 1).also { com.linea.messenger.design.Titles.title(it, Theme.TypeSize.sectionTitle) }, LinearLayout.LayoutParams(0, wrap, 1f))
+    titleRow.addView(addButton, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { marginStart = dp(10f) })
+    titleRow.addView(info, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { marginStart = dp(10f) })
+    headStack.addView(titleRow, LinearLayout.LayoutParams(wide, wrap))
 
     tabs.onPick = { index ->
       section = listOf("catalog", "favorites", "saved")[index]
       reloadCatalog()
       refresh()
     }
-    AIKit.add(column, tabs, 14f)
+    headStack.addView(tabs, LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(10f) })
+    sources.onPick = { index ->
+      chosen = if (index == 0) "soundcloud" else "audius"
+      sourceNotice = ""
+      prefs.edit().putString(sourceKey, chosen).apply()
+      reloadCatalog()
+    }
+    headStack.addView(sources, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(12f) })
 
-    searchBox.background = context.plate(Theme.veil(0.08f), 14f)
-    searchBox.addView(AIIconView(context, "search", 18f, Theme.muted), FrameLayout.LayoutParams(dp(40f), dp(46f)))
+    // «Слушать микс»: centred in what is left of the top (gap 9): a plain round play (66, white on dark themes,
+    // #14243D on light ones, with a soft shadow), the name (21 bold) and its quiet line (14).
+    mixRow.orientation = LinearLayout.VERTICAL
+    mixRow.gravity = Gravity.CENTER_HORIZONTAL
+    mixButton.fill = if (Theme.dark) Color.WHITE else 0xFF14243D.toInt()
+    mixButton.ink = if (Theme.dark) Color.BLACK else Color.WHITE
+    mixButton.bordered = false
+    mixButton.elevation = dp(8f).toFloat()
+    mixButton.outlineProvider = object : ViewOutlineProvider() {
+      override fun getOutline(view: View, outline: Outline) { outline.setOval(0, 0, view.width, view.height) }
+    }
+    mixButton.setOnClickListener { mix() }
+    com.linea.messenger.chatlook.Bouncy.attach(mixButton, 0.94f)
+    mixRow.addView(mixButton, LinearLayout.LayoutParams(dp(66f), dp(66f)))
+    mixRow.addView(AIKit.label(context, "Слушать микс", 21f, 700, MusicInk.ink, lines = 1, align = Gravity.CENTER), LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(9f) })
+    mixRow.addView(mixLine, LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(9f) })
+    headBox = MusicHeadBox(context, headStack, mixRow)
+    column.addView(headBox, LinearLayout.LayoutParams(wide, wrap))
+
+    // The search: a full pill on glass (radius 26, 48 tall, 16 inside), #1F1F1F on dark themes; the magnifier (20)
+    // in the quiet colour, 10 before the words (15).
+    val glass = com.linea.messenger.design.GlassDrawable(searchBox, 26f * d, clear = false)
+    searchBox.background = if (Theme.dark) android.graphics.drawable.LayerDrawable(arrayOf(glass, context.plate(0xFF1F1F1F.toInt(), 26f))) else glass
+    searchBox.addView(AIIconView(context, "search", 17f, Theme.muted), FrameLayout.LayoutParams(dp(20f), dp(48f)).apply { leftMargin = dp(16f) })
     search.setHintTextColor(Theme.muted)
     search.setTextColor(Theme.text)
-    search.textSize = 16f
+    search.textSize = 15f
     search.background = null
     search.setPadding(0, 0, dp(12f), 0)
     search.maxLines = 1
@@ -689,39 +730,23 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
       override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
       override fun afterTextChanged(text: Editable?) { main.removeCallbacks(typing); main.postDelayed(typing, 450) }
     })
-    searchBox.addView(search, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(46f)).apply { leftMargin = dp(40f) })
-    column.addView(searchBox, LinearLayout.LayoutParams(wide, dp(46f)).apply { topMargin = dp(14f) })
+    searchBox.addView(search, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(48f)).apply { leftMargin = dp(46f); rightMargin = dp(8f) })
+    column.addView(searchBox, LinearLayout.LayoutParams(wide, dp(48f)).apply { topMargin = dp(16f) })
     shelves.orientation = LinearLayout.VERTICAL // Music
-    AIKit.add(column, shelves, 14f)
+    AIKit.add(column, shelves, 16f)
 
-    sources.onPick = { index ->
-      chosen = if (index == 0) "soundcloud" else "audius"
-      sourceNotice = ""
-      prefs.edit().putString(sourceKey, chosen).apply()
-      reloadCatalog()
-    }
-    AIKit.add(column, sources, 14f)
-
+    // The moods: tall chips (at least 62 × 100), gap 8.
     moodScroll.isHorizontalScrollBarEnabled = false
+    moodScroll.clipChildren = false
     moodRow.orientation = LinearLayout.HORIZONTAL
-    moodScroll.addView(moodRow, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, dp(38f)))
-    column.addView(moodScroll, LinearLayout.LayoutParams(wide, dp(38f)).apply { topMargin = dp(14f) })
-
-    mixRow.orientation = LinearLayout.HORIZONTAL
-    mixRow.gravity = Gravity.CENTER_VERTICAL
-    mixButton.fill = Theme.onBlack(Color.WHITE, Theme.accent)
-    mixButton.ink = Theme.onAccent
-    mixButton.setOnClickListener { mix() }
-    val mixWords = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-    mixWords.addView(AIKit.label(context, "Слушать микс", 21f, 700, lines = 1))
-    AIKit.add(mixWords, mixLine, 4f)
-    mixRow.addView(mixButton, LinearLayout.LayoutParams(dp(66f), dp(66f)))
-    mixRow.addView(mixWords, LinearLayout.LayoutParams(0, wrap, 1f).apply { marginStart = dp(16f) })
-    AIKit.add(column, mixRow, 14f)
+    moodScroll.addView(moodRow, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, dp(64f)))
+    column.addView(moodScroll, LinearLayout.LayoutParams(wide, dp(64f)).apply { topMargin = dp(16f) })
+    AIKit.add(column, caption, 16f)
+    // «Любимое» and «Мои файлы»: a few words about the section in place of the moods.
+    AIKit.add(column, sectionWords, 16f)
 
     notices.orientation = LinearLayout.VERTICAL
-    AIKit.add(column, notices, 14f)
-    AIKit.add(column, caption, 14f)
+    AIKit.add(column, notices, 16f)
 
     footer.orientation = LinearLayout.VERTICAL
     footer.gravity = Gravity.CENTER_HORIZONTAL
@@ -749,6 +774,9 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     // Above the keyboard when it is up, above the bar (and the strip of the playing track) otherwise.
     val bottom = maxOf(clearance + (if (miniShown) dp(72f) else 0), edges.keyboard + dp(12f))
     if (list.paddingBottom != bottom) list.setPadding(0, 0, 0, bottom)
+    // F: the top is `headHeight` tall from the screen's top; the column starts 8 under the status bar.
+    val tall = dp(MusicInk.headHeight(section == "catalog", query.isNotEmpty(), height / d)) + edges.top
+    headBox.wanted = maxOf(0, tall - edges.top - dp(8f))
     put(list, 0, edges.top, width, height - edges.top)
     placeAmbient() // Music
     put(mini, dp(12f), height - clearance - dp(64f), width - dp(24f), dp(64f))
@@ -807,7 +835,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
 
   private fun refresh() {
     val catalog = section == "catalog"
-    addButton.visibility = if (section == "saved") View.VISIBLE else View.INVISIBLE
+    tabs.chosen = listOf("catalog", "favorites", "saved").indexOf(section).coerceAtLeast(0)
     search.hint = if (section == "saved") "Поиск в моих файлах" else "Трек или исполнитель"
     sources.visibility = if (catalog && scReady) View.VISIBLE else View.GONE
     sources.chosen = if (source == "soundcloud") 0 else 1
@@ -815,10 +843,12 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     moodRow.removeAllViews()
     val chips = listOf(Triple<String?, String, String>(null, "Любое", "sparkles")) + MusicCatalog.moods.drop(1).map { Triple(it.apiMood, it.label, it.symbol) }
     for ((value, label, symbol) in chips) {
-      val chip = MusicChip(context, label, symbol, selected = value == mood)
+      val chip = MusicMoodChip(context, label, symbol, selected = value == mood)
       chip.setOnClickListener { pickMood(value) }
-      moodRow.addView(chip, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(38f)).apply { if (moodRow.childCount > 0) marginStart = dp(8f) })
+      moodRow.addView(chip, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(62f)).apply { if (moodRow.childCount > 0) marginStart = dp(8f) })
     }
+    sectionWords.visibility = if (catalog) View.GONE else View.VISIBLE
+    sectionWords.text = if (section == "saved") "Твои файлы на этом устройстве. Добавляй аудио через «+» и слушай без интернета." else "Треки, которые ты отметил сердцем. Для воспроизведения Audius нужен интернет."
     val shown = rows
     mixRow.visibility = if (catalog && query.isEmpty()) View.VISIBLE else View.GONE
     mixButton.isEnabled = shown.isNotEmpty()

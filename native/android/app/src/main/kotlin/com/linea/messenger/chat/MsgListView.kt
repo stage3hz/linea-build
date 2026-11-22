@@ -127,6 +127,15 @@ class MsgListView(context: Context) : FrameLayout(context) {
 
   init { addView(list, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)) }
 
+  /** Attachments: a photo or a file of a row came, is coming or stopped — only that row is drawn again
+   *  (attachments/InlineMedia.kt). */
+  private val inlineMediaChanged: (String) -> Unit = { key ->
+    for (index in 0 until list.childCount) (list.getChildAt(index) as? MsgRowView)?.takeIf { it.rowKey == key }?.invalidate()
+  }
+
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); com.linea.messenger.attachments.InlineMedia.listen(inlineMediaChanged) } // Attachments
+  override fun onDetachedFromWindow() { com.linea.messenger.attachments.InlineMedia.unlisten(inlineMediaChanged); super.onDetachedFromWindow() } // Attachments
+
   // ChatLook: a swipe to the left answers a message; new messages slide in (chatlook/MsgMotion.kt).
   private val arrivals = com.linea.messenger.chatlook.MsgArrivals()
   private var swipe: com.linea.messenger.chatlook.MsgSwipeReply? = null

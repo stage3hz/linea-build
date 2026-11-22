@@ -82,6 +82,10 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   private val scroll = ScrollView(context)
   private val column = LinearLayout(context)
+  // L: the reference's sign-in (AuthScreen.tsx, App.tsx `ThemeAccess`): the steps live on a glass card (GlassSurface
+  // «regular», radius 32, 22 inside), and a glass pill at the top right names the theme on screen and opens the choice.
+  private val card = LinearLayout(context)
+  private val themePill = AuthThemePill(context)
   private val brand = com.linea.messenger.effects.WordmarkView(context, 60f) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (effects/AppearingText.kt)
   private val motto = context.words("Твоя линия связи.", 17f, Theme.muted)
   private val heading = com.linea.messenger.effects.AppearingTextView(context, 22f, Theme.text, 600) // Effects: the title's words rise in one after another
@@ -156,14 +160,19 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
   /** The column scrolls between the status bar and the keyboard (or the navigation bar). */
   override fun place(width: Int, height: Int) {
-    put(scroll, 0, edges.top, width, height - edges.top - maxOf(edges.keyboard, edges.bottom))
+    // L: the row of the theme pill (at least 58 tall) stands above the page: the pill 20 from the right, 7 under the
+    // status bar; the page starts 58 under the status bar.
+    themePill.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
+    put(themePill, width - dp(20f) - themePill.measuredWidth, edges.top + dp(7f), themePill.measuredWidth, dp(44f))
+    val top = edges.top + dp(58f)
+    put(scroll, 0, top, width, height - top - maxOf(edges.keyboard, edges.bottom))
   }
 
   private fun keyboard(): InputMethodManager? = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
 
   /** Adds a part to the column; `after` is the room under it (a hidden part takes none). */
-  private fun part(view: View, after: Float = 12f) {
-    column.addView(view, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(after) })
+  private fun part(view: View, after: Float = 12f, into: LinearLayout = card) {
+    into.addView(view, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = context.px(after) })
   }
 
   private fun build() {
@@ -227,8 +236,14 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     back.setOnClickListener { goBack() }
 
     column.orientation = LinearLayout.VERTICAL
-    column.setPadding(context.px(24f), context.px(28f), context.px(24f), context.px(24f))
-    part(brand, 4f); part(motto, 28f); part(heading, 8f); part(hint, 20f); part(switcher, 16f); part(progress, 18f)
+    column.setPadding(context.px(22f), context.px(64f), context.px(22f), context.px(28f))
+    part(brand, 4f, column); part(motto, 28f, column); part(heading, 8f, column); part(hint, 24f, column)
+    // L: everything from the switch down is on the glass card (22 inside).
+    card.orientation = LinearLayout.VERTICAL
+    card.setPadding(context.px(22f), context.px(22f), context.px(22f), context.px(22f))
+    card.background = com.linea.messenger.design.GlassDrawable(card, context.px(32f).toFloat(), clear = false)
+    column.addView(card, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+    part(switcher, 18f); part(progress, 18f)
     for (item in listOf(nameEntry, loginWarning, displayEntry, handleEntry, profileHelp, passwordEntry, confirmationEntry, confirmationHelp, recoveryEntry, recoveryHelp,
       recoveryExtra, waitingBox, resetValidity, recoveryLock, attemptsNote, manualNote, notice, failure, loginLock)) part(item)
     part(proceed, 4f); part(forgot, 0f); part(back, 0f)
@@ -237,6 +252,13 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     scroll.isFillViewport = true
     scroll.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     addView(scroll)
+    // The sign-in screen is not part of the app's shell: it is made again in the new colours.
+    themePill.onChanged = {
+      val fresh = AuthScreen(context, server)
+      fresh.onSignedIn = onSignedIn
+      (parent as? com.linea.messenger.shell.Navigation)?.setRoot(fresh)
+    }
+    addView(themePill)
   }
 
   /** A recovery request kept from an earlier launch brings the screen back to its waiting period. */

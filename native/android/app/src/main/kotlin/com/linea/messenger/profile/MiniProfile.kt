@@ -163,7 +163,7 @@ class MiniProfile(
     words.addView(c.words(label, 15f, if (danger) Theme.danger else Theme.text, 600))
     if (hint.isNotEmpty()) words.addView(c.words(hint, 12f, Theme.muted))
     line.addView(words, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = c.px(12f) })
-    if (on != null) line.addView(Switch(c).apply { isChecked = on; isClickable = false; isFocusable = false })
+    if (on != null) line.addView(Switch(c).apply { isChecked = on; isClickable = false; isFocusable = false; com.linea.messenger.settings.SettingsLook.paint(this) }) // E
     line.isClickable = true
     line.contentDescription = label
     line.setOnClickListener { action() }

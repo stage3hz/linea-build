@@ -129,7 +129,7 @@ class ComposerField(context: Context) : EditText(context) {
     textSize = 17f
     background = null
     includeFontPadding = false
-    setPadding(0, Math.round(14f * d), 0, Math.round(13f * d))
+    setPadding(0, Math.round(10f * d), 0, Math.round(9f * d)) // Composer: 17 dp text in a 40 dp pill
     inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
     isSingleLine = false
     maxLines = Int.MAX_VALUE
@@ -157,8 +157,9 @@ class ComposerField(context: Context) : EditText(context) {
   }
 
   companion object {
-    const val lowest = 48f
-    const val highest = 148f
+    // Composer: the reference's field — at least 40 dp, at most 140 (ChatScreen.tsx `minHeight 40, maxHeight 140`).
+    const val lowest = 40f
+    const val highest = 140f
     const val MAX_UNITS = 8000
   }
 }
@@ -178,9 +179,26 @@ class SendButton(context: Context) : View(context) {
   override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
   override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
   override fun setEnabled(enabled: Boolean) { super.setEnabled(enabled); alpha = if (enabled) 1f else 0.4f }
+  private val disc = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private val line = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+    style = android.graphics.Paint.Style.STROKE; strokeCap = android.graphics.Paint.Cap.ROUND; strokeJoin = android.graphics.Paint.Join.ROUND
+  }
+  private val mark = android.graphics.Path()
+
+  /** Composer: the arrow (a tick while editing) on an accent circle of the button's size (ChatScreen.tsx). */
   override fun onDraw(canvas: Canvas) {
-    val color = if (isPressed) Theme.alpha(Theme.text, 0.5f) else Theme.text
-    ChatIcons.draw(canvas, if (editing) "check.fill" else "send", width / 2f, height / 2f, 30f * d, color)
+    val cx = width / 2f; val cy = height / 2f
+    disc.color = if (isPressed) Theme.alpha(Theme.accent, 0.8f) else Theme.accent
+    canvas.drawCircle(cx, cy, minOf(width, height) / 2f, disc)
+    line.color = Theme.onAccent; line.strokeWidth = 2.4f * d
+    mark.reset()
+    if (editing) {
+      mark.moveTo(cx - 6.5f * d, cy + 0.5f * d); mark.lineTo(cx - 2f * d, cy + 5f * d); mark.lineTo(cx + 7f * d, cy - 5f * d)
+    } else {
+      mark.moveTo(cx, cy + 7.5f * d); mark.lineTo(cx, cy - 7f * d)
+      mark.moveTo(cx - 6.5f * d, cy - 0.5f * d); mark.lineTo(cx, cy - 7f * d); mark.lineTo(cx + 6.5f * d, cy - 0.5f * d)
+    }
+    canvas.drawPath(mark, line)
   }
 }
 

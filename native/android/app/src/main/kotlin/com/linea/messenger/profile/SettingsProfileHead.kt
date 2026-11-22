@@ -15,7 +15,6 @@ import com.linea.messenger.avatars.PlatinaNameView
 import com.linea.messenger.avatars.PlatinaSealView
 import com.linea.messenger.avatars.StatusEmojiView
 import com.linea.messenger.design.Theme
-import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.titled
 import com.linea.messenger.design.words
@@ -58,7 +57,8 @@ class SettingsProfileChrome(private val context: Context) {
     page.addView(backdrop, 0)
     page.addView(effect)
     edit.gravity = Gravity.CENTER
-    edit.background = context.plate(Theme.alpha(Theme.surface2, 0.86f), 22f, Theme.veil(0.12f))
+    // D: «Изменить» on glass (the reference's `GlassSurface radius={22} interactive`), springing under the finger.
+    com.linea.messenger.design.GlassBacking.put(edit, 0.94f, 22f * context.resources.displayMetrics.density, clear = false)
     edit.setPadding(context.px(16f), 0, context.px(16f), 0)
     edit.isClickable = true
     edit.setOnClickListener { onEdit?.invoke() }
@@ -128,7 +128,8 @@ class SettingsProfileChrome(private val context: Context) {
   fun offer(): View {
     val card = LinearLayout(context)
     card.orientation = LinearLayout.VERTICAL
-    card.background = context.plate(Theme.surface2, 22f)
+    // D: on glass, as the reference's `GlassSurface radius={22}` (so «Ледяное стекло» frosts its rim).
+    card.background = com.linea.messenger.design.GlassDrawable(card, 22f * context.resources.displayMetrics.density, clear = false)
     card.setPadding(context.px(16f), context.px(16f), context.px(16f), context.px(16f))
     val brand = PlatinaNameView(context)
     brand.textSize = 11f

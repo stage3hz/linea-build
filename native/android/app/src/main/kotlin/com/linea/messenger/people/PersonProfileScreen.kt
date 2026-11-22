@@ -27,7 +27,6 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.chat.ChatScreen
-import com.linea.messenger.design.IconButton
 import com.linea.messenger.design.Theme
 import com.linea.messenger.net.Live
 import com.linea.messenger.net.Server
@@ -88,8 +87,9 @@ class PersonProfileScreen(
   private val scroll = ScrollView(context)
   private val content = LinearLayout(context)
   private val topBar = View(context)
-  private val back = IconButton(context, "back", 24f, Theme.text)
-  private val more = RoundIconButton(context, "dots", RoundIconButton.Look.PLAIN, 24f)
+  // C: back and «Ещё» are the reference's IconButtons — rounds of clear glass, the icons in the text colour.
+  private val back = com.linea.messenger.design.GlassRoundButton(context, "back", "Назад", 22f, painter = { c, n, x, y, size, color -> com.linea.messenger.design.Icons.draw(c, n, x, y, size, color) })
+  private val more = com.linea.messenger.design.GlassRoundButton(context, "dots", "Ещё", 22f, painter = { c, n, x, y, size, color -> PeopleIcons.draw(c, n, x, y, size, color) })
   // Profile: the top as the reference's UserProfile.tsx — banner / festive colour, the decorated avatar, the
   // platinum name and emoji status, the effect (profile/ProfileHead.kt).
   private val hero = com.linea.messenger.profile.ProfileHeroView(context)
@@ -210,8 +210,8 @@ class PersonProfileScreen(
   override fun place(width: Int, height: Int) {
     val top = edges.top
     put(topBar, 0, 0, width, top + dp(48f))
-    put(back, dp(6f), top + dp(2f), dp(44f), dp(44f))
-    put(more, width - dp(50f), top + dp(2f), dp(44f), dp(44f))
+    put(back, dp(10f), top + dp(2f), dp(44f), dp(44f)) // C: `paddingHorizontal: 10`
+    put(more, width - dp(54f), top + dp(2f), dp(44f), dp(44f))
     // Profile: the page scrolls from the very top, under the floating row.
     val padTop = top + dp(48f + 18f)
     if (content.paddingBottom != dp(32f) + edges.bottom || content.paddingTop != padTop) content.setPadding(dp(18f), padTop, dp(18f), dp(32f) + edges.bottom)

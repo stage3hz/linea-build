@@ -12,7 +12,8 @@ import java.util.Locale
  *    --es chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft   the sample chat (with --ez demo true --ez chat true)
  *    --es chataction menu|delete|reply|edit|pin|select|forward|react                  the first chat of an account (with --ez openchat true)
  *    --es chatlist menu|mute|delete|archive|archived|draft|unread                     the list of chats: on the first chat (archive: on the last one)
- *    --es chatsearch <query>                                                          the list's search field with these words
+ *    --es chatsearch <query>                                                          the search screen with these words
+ *    --es chatsearchscope messages|people|channels                                    ChatSearch: that scope of the search screen
  *  This file is in the debug source set: a release build is compiled with the empty `ChatActionsDemo` of
  *  src/release instead and contains none of this. */
 object ChatActionsDemo {
@@ -28,12 +29,16 @@ object ChatActionsDemo {
     private set
   var chatsearch: String? = null
     private set
+  /** ChatSearch: the scope the search screen opens on (messages|people|channels). */
+  var chatsearchscope: String? = null
+    private set
 
   fun read(intent: Intent) {
     chatdemo = intent.getStringExtra("chatdemo")
     chataction = intent.getStringExtra("chataction")
     chatlist = intent.getStringExtra("chatlist")
     chatsearch = intent.getStringExtra("chatsearch")
+    chatsearchscope = intent.getStringExtra("chatsearchscope") // ChatSearch
   }
 
   /** The clientId of the sample chat's Nth message (1 is the first). */

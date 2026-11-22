@@ -98,7 +98,7 @@ class MediaCoreJniTest {
       AttachmentRows.fields(mapOf("text" to "", "attachment" to voice), "peer:v1"))
     val note = mapOf("id" to "f2", "name" to "circle-1795244400000.mp4", "mimeType" to "video/mp4", "size" to 900000.0, "media" to mapOf("durationMs" to 12000.0, "width" to 480.0, "height" to 640.0))
     assertEquals(mapOf("media" to "note", "mediaTime" to "0:12", "thumbWide" to 1.0, "thumbRound" to true), AttachmentRows.fields(mapOf("text" to "x", "attachment" to note), "peer:n1"))
-    // An ordinary sound file stays a file.
-    assertEquals("📎 song.m4a\n" + FileCore.sizeText(40000), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "song.m4a", "mimeType" to "audio/mp4", "size" to 40000.0)), "peer:a1")["label"])
+    // An ordinary sound file stays a file (a file card: attachments/InlineMedia.kt).
+    assertEquals("song.m4a\n" + FileCore.sizeText(40000) + " · M4A", AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "song.m4a", "mimeType" to "audio/mp4", "size" to 40000.0)), "peer:a1")["label"])
   }
 }

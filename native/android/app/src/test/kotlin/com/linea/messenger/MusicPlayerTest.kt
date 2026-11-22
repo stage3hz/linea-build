@@ -468,7 +468,10 @@ class MusicPlayerTest {
     // A list builds its rows when it is laid out.
     val words = texts(page!!)
     assertTrue(words.toString(), words.containsAll(listOf("Музыка", "Главная", "Любимое", "Мои файлы", "Любое", "Спокойно", "Слушать микс", "Новые имена и любимый звук", "ОТКРОЙ ДЛЯ СЕБЯ",
-      "Северное сияние", "Лера Туман · 3:34 · AUDIUS", "Полночь над рекой")))
+      "Северное сияние", "Полночь над рекой")))
+    // F: the reference's order — «Слушать микс» (the hero of the top) comes before the search, the search before the shelves.
+    assertTrue(words.indexOf("Слушать микс") < words.indexOf("Артисты"))
+    assertTrue(spoken(page).indexOf("Слушать микс") < spoken(page).indexOf("Поиск музыки"))
     // Music: the shelves «Любимое» and «Артисты» stand above the list now (music/MusicShelves.kt); the footer is further down.
     assertTrue(words.containsAll(listOf("Артисты", "Артист")))
     // The strip of the «playing» track above the bar.
@@ -478,8 +481,13 @@ class MusicPlayerTest {
     assertTrue(spoken(mini).containsAll(listOf("Предыдущий трек или начало текущего", "Пауза", "Следующий трек", "Закрыть плеер и остановить музыку")))
     val bar = find(activity.window.decorView, "TabBarView")!!
     assertTrue(mini.bottom <= bar.top + (bar.parent as View).top)
-    // Music: the shelves push the later rows below the screen; the rows on it still say what their buttons do.
-    assertTrue(spoken(page).containsAll(listOf("Убрать из любимого: Северное сияние", "В любимое: Полночь над рекой", "О музыкальном разделе", "Поиск музыки", "Слушать: Северное сияние, Лера Туман")))
+    // Music: the tall top and the shelves push the rows below the screen: the list is scrolled to them; the rows say
+    // what their buttons do.
+    val list = find(page, "ListView") as android.widget.ListView
+    list.setSelection(list.headerViewsCount)
+    shadowOf(activity.mainLooper).idleFor(300, TimeUnit.MILLISECONDS)
+    assertTrue(texts(page).toString(), texts(page).contains("Лера Туман · 3:34 · AUDIUS"))
+    assertTrue(spoken(page).containsAll(listOf("Убрать из любимого: Северное сияние", "В любимое: Полночь над рекой", "Слушать: Северное сияние, Лера Туман")))
   }
 
   @Test fun theFullPlayerOverTheSamples() {

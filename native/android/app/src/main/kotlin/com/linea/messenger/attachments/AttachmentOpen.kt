@@ -67,13 +67,29 @@ object AttachmentRows {
     media(attachment)?.let { return fields + it }
     val about = describe(attachment)
     val name = attachment["name"] as? String ?: "Файл"
-    // The small picture was checked by the core when the message was opened (`photo::valid_preview`).
-    val preview = Core.map(attachment["preview"] as? Map<*, *>)
-    val picture = preview?.get("base64") as? String
-    val width = (preview?.get("width") as? Number)?.toDouble(); val height = (preview?.get("height") as? Number)?.toDouble()
-    if (about.kind == "photo" && about.refusal == null && picture != null && width != null && height != null && width > 0 && height > 0) {
-      fields["thumb"] = picture
-      fields["thumbWide"] = width / height
+    // Attachments: a photo is shown whole in its row (MediaBubble.tsx `MediaTile`, attachments/InlineMedia.kt): its
+    // proportions from the photo itself, else from the small picture, else 4:3; the small picture (checked by the
+    // core when the message was opened, `photo::valid_preview`) stands blurred until the photo has arrived.
+    if (about.kind == "photo" && about.refusal == null) {
+      fields["media"] = "photo"
+      val preview = Core.map(attachment["preview"] as? Map<*, *>)
+      val shape = Core.map(attachment["media"] as? Map<*, *>)
+      fun ratio(of: Map<String, Any?>?): Double? {
+        val width = (of?.get("width") as? Number)?.toDouble() ?: return null
+        val height = (of["height"] as? Number)?.toDouble() ?: return null
+        return if (width > 0 && height > 0) width / height else null
+      }
+      fields["thumbWide"] = ratio(shape) ?: ratio(preview) ?: (4.0 / 3.0)
+      // The size in the pill at the upper left until the photo is here («2 КБ»).
+      fields["mediaTime"] = about.sizeText
+      (preview?.get("base64") as? String)?.takeIf { it.isNotEmpty() }?.let { fields["thumb"] = it }
+      return fields
+    }
+    // Attachments: any other file is a card with the round button (MediaBubble.tsx `FileBubble`): the name, then
+    // «44 Б · PDF». A photo that cannot be opened here keeps its «🖼 Фотография» label.
+    if (about.kind != "video" && about.kind != "photo") {
+      fields["media"] = "file"
+      fields["label"] = name + "\n" + InlineMedia.sizeLine(attachment, about.sizeText)
       return fields
     }
     val heading = if (about.kind == "photo") "🖼 Фотография" else if (about.kind == "video") "🎬 Видео" else "📎 $name"
@@ -91,6 +107,8 @@ class AttachmentLoad(private val server: Server, private val attachment: Map<Str
   private var shownPercent = -1
   /** «1.2 МБ из 3.4 МБ», on the main thread. */
   var onProgress: ((String) -> Unit)? = null
+  /** Attachments: how much has arrived, 0…1, on the main thread (the ring of a photo or a file in its row). */
+  var onFraction: ((Float) -> Unit)? = null
 
   /** A failure is a `FileCore.Failure`. Main thread. */
   fun start(done: (Result<ByteArray>) -> Unit) {
@@ -107,6 +125,7 @@ class AttachmentLoad(private val server: Server, private val attachment: Map<Str
         if (cancelled || transfer !== this.transfer || percent == shownPercent) return@post
         shownPercent = percent
         onProgress?.invoke(FileCore.sizeText(size * percent / 100) + " из " + whole)
+        onFraction?.invoke(percent / 100f)
       }
     }
     work.execute {
@@ -228,7 +247,22 @@ class FileOpen(
   private fun finished(result: Result<ByteArray>) {
     if (isShowing) dismiss()
     val data = result.getOrNull() ?: return ChatAttachments.say(host.context, FileCore.words(result))
-    if (!host.isAttachedToWindow) return
+    hand(host, data, fileName, fileTitle)
+  }
+
+  companion object {
+    /** Attachments: a file that has arrived (in this card, or inside its row: attachments/InlineMedia.kt) is
+     *  handed to the app the person chooses; the decrypted copy goes when the person is back. */
+    fun hand(host: View, data: ByteArray, fileName: String, fileTitle: String) {
+      if (!host.isAttachedToWindow) return
+      Hand(host).give(data, fileName, fileTitle)
+    }
+  }
+}
+
+/** The handing out of one decrypted file (see `FileOpen.hand`). */
+private class Hand(private val host: View) {
+  fun give(data: ByteArray, fileName: String, fileTitle: String) {
     val written = DecryptedFiles.write(host.context, data, fileName) ?: return ChatAttachments.say(host.context, "Не удалось открыть файл.")
     val address = DecryptedFiles.address(host.context, written)
     val view = Intent(Intent.ACTION_VIEW).apply {

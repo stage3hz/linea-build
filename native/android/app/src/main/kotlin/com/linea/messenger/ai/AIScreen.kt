@@ -87,6 +87,13 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
   private val modelPill = TextView(context)
   private val sendButton = AIRoundButton(context, "arrow.up", "Отправить вопрос AI", size = 42f)
   private val pendingRow = LinearLayout(context)
+  // G: the reference's composer is one line while nothing is being written (AIScreen.tsx `expanded`): «+», the quiet
+  // «Спроси что угодно» (a tap opens the field), the model, the send; the field and the tools row below it only once
+  // the person writes, has a draft or attachments.
+  private val collapsedWords = TextView(context)
+  private val toolsSpacer = View(context)
+  private var focused = false
+  private val expanded: Boolean get() = focused || draft.isNotEmpty() || pictures.isNotEmpty() || documents.isNotEmpty() || reading > 0
   /** AI: photos (video frames) and documents attached to the next question (ai/attach.ts; ai/AIAttachments.kt). Pictures
    *  go with one question; documents stay with the whole conversation. `quick`: the quick dialog (`AIQuickDialog`) — over
    *  another screen, no history, «Закрыть» instead of the history. */
@@ -616,8 +623,9 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
     input.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {}
       override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
-      override fun afterTextChanged(text: Editable?) = paintSend()
+      override fun afterTextChanged(text: Editable?) { paintSend(); applyExpanded() }
     })
+    input.setOnFocusChangeListener { _, has -> focused = has; applyExpanded() }
     attachStrip.onRemovePicture = { id -> pictures = pictures.filter { it.id != id }; render() }
     attachStrip.onRemoveDocument = { name -> documents = documents.filter { it.name != name }; render() }
     composer.addView(attachStrip, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(62f)))
@@ -639,10 +647,28 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
     modelPill.setOnClickListener { showModels() }
     sendButton.bordered = false
     sendButton.setOnClickListener { submit() }
+    collapsedWords.text = "Спроси что угодно"
+    collapsedWords.textSize = 17f
+    collapsedWords.typeface = Theme.weight(400)
+    collapsedWords.setTextColor(Theme.muted)
+    collapsedWords.maxLines = 1
+    collapsedWords.ellipsize = android.text.TextUtils.TruncateAt.END
+    collapsedWords.gravity = Gravity.CENTER_VERTICAL
+    collapsedWords.setPadding(dp(6f), 0, dp(6f), 0)
+    collapsedWords.isClickable = true
+    collapsedWords.isFocusable = true
+    collapsedWords.contentDescription = "Написать вопрос AI"
+    collapsedWords.setOnClickListener {
+      focused = true
+      applyExpanded()
+      input.requestFocus()
+      (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)?.showSoftInput(input, 0)
+    }
     toolsRow.addView(plusButton, LinearLayout.LayoutParams(dp(42f), dp(42f)))
+    toolsRow.addView(collapsedWords, LinearLayout.LayoutParams(0, dp(42f), 1f).apply { marginStart = dp(8f) })
     toolsRow.addView(modelPill, LinearLayout.LayoutParams(wrap, dp(42f)).apply { marginStart = dp(8f) })
-    toolsRow.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-    toolsRow.addView(sendButton, LinearLayout.LayoutParams(dp(42f), dp(42f)))
+    toolsRow.addView(toolsSpacer, LinearLayout.LayoutParams(0, 1, 1f))
+    toolsRow.addView(sendButton, LinearLayout.LayoutParams(dp(42f), dp(42f)).apply { marginStart = dp(8f) })
     composer.addView(toolsRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, wrap).apply { topMargin = dp(6f) })
 
     pendingRow.orientation = LinearLayout.HORIZONTAL
@@ -682,7 +708,29 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
     sendButton.ink = if (can) Theme.onAccent else Theme.muted
   }
 
-  private fun retryButton(): View = AIWideButton(context, "Проверить снова", "refresh", secondary = true).apply { setOnClickListener { refreshStatus() } }
+  /** G: one line, or the field over the tools row. */
+  private fun applyExpanded() {
+    val open = expanded
+    input.visibility = if (conversation.pending || !open) View.GONE else View.VISIBLE
+    collapsedWords.visibility = if (open) View.GONE else View.VISIBLE
+    toolsSpacer.visibility = if (open) View.VISIBLE else View.GONE
+  }
+
+  /** G: the reference's `Button secondary` — a wide glass button (GlassSurface «regular», radius 21, 54 tall), the
+   *  icon (20) 10 before the bold words (16); it springs to 0.96 under the finger; it stretches across the empty page. */
+  private fun retryButton(): View = LinearLayout(context).apply {
+    orientation = LinearLayout.HORIZONTAL
+    gravity = Gravity.CENTER
+    setPadding(dp(21f), 0, dp(21f), 0)
+    minimumHeight = dp(54f)
+    addView(AIIconView(context, "refresh", 18f, Theme.text), LinearLayout.LayoutParams(dp(20f), dp(20f)).apply { marginEnd = dp(10f) })
+    addView(AIKit.label(context, "Проверить снова", 16f, 700, lines = 1))
+    isClickable = true
+    isFocusable = true
+    contentDescription = "Проверить снова"
+    com.linea.messenger.design.GlassBacking.put(this, 0.96f, 21f * d, clear = false)
+    setOnClickListener { refreshStatus() }
+  }
 
   private fun render() {
     val turns = conversation.turns
@@ -699,12 +747,12 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
       AIKit.add(emptyBox, AIKit.label(context, "Проверяем доступность AI…", 12f, color = Theme.muted, align = centre), 14f)
     } else if (statusError.isNotEmpty()) {
       emptyBox.addView(AIKit.label(context, statusError, 13f, color = Theme.danger, align = centre))
-      AIKit.add(emptyBox, retryButton(), 14f, wide = false)
+      AIKit.add(emptyBox, retryButton(), 14f)
     } else if (!ready && empty) {
       emptyBox.addView(AIIconView(context, "sparkles", 34f, Theme.muted), LinearLayout.LayoutParams(dp(40f), dp(40f)))
       AIKit.add(emptyBox, AIKit.label(context, "AI пока не подключён на этом сервере", 18f, 700, align = centre), 14f)
       AIKit.add(emptyBox, AIKit.label(context, "Когда администратор подключит сервис, здесь можно будет задать вопрос.", 12f, color = Theme.muted, align = centre), 14f)
-      AIKit.add(emptyBox, retryButton(), 14f, wide = false)
+      AIKit.add(emptyBox, retryButton(), 14f)
     } else if (empty) {
       emptyBox.addView(AIIconView(context, "sparkles", 40f, Theme.accent), LinearLayout.LayoutParams(dp(46f), dp(46f)))
       val greeting = AIModel.greeting(LocalTime.now().hour, messenger?.user?.get("displayName") as? String ?: "")
@@ -736,7 +784,7 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
     if (taskError.isNotEmpty()) AIKit.add(list, AIKit.notice(context, taskError, error = true), 13f)
 
     val pending = conversation.pending
-    input.visibility = if (pending) View.GONE else View.VISIBLE
+    applyExpanded()
     toolsRow.visibility = if (pending) View.GONE else View.VISIBLE
     pendingRow.visibility = if (pending) View.VISIBLE else View.GONE
     attachStrip.show(pictures, documents, reading)

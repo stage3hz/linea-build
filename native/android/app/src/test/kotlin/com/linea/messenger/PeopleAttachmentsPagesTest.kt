@@ -217,7 +217,9 @@ class PeopleAttachmentsPagesTest {
     val activity = launch("14-attachments", demo().putExtra("chat", true).putExtra("attachdemo", "1"))
     val chat = find(activity.window.decorView, "ChatScreen")!!
     val rows = named(chat)
-    assertTrue(rows.toString(), rows.any { it.startsWith("📎 Договор № 7.pdf") && it.contains("Договор и приложение к нему") })
+    // Attachments: a file card (the name, then «1.2 МБ · PDF»), a photo shown whole in its row (attachments/InlineMedia.kt).
+    assertTrue(rows.toString(), rows.any { it.startsWith("Договор № 7.pdf") && it.contains("Договор и приложение к нему") })
+    assertTrue(rows.toString(), rows.any { it.startsWith("Фото. 09:38") })
     assertTrue(rows.any { it.startsWith("🎬 Видео") })
     // Media: the paperclip opens its own panel — «Галерея», «Файл», «Опрос», «Аудио» (attachments/AttachmentPanel.kt).
     assertTrue(press(chat, "Вложения: галерея, файлы, опрос")); idle(activity)

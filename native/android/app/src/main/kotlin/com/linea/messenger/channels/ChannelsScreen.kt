@@ -31,9 +31,13 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     class Row(val community: CommunitySummary) : Item()
   }
 
-  private val heading = context.words("Каналы", 34f, Theme.text, 700).also { com.linea.messenger.design.Titles.title(it, Theme.TypeSize.sectionTitle) } // Fonts: the reference's TITLE, 26
-  private val joinButton = ChannelIconButton(context, "link", 20f, Theme.text, plate = Theme.surface2)
-  private val createButton = ChannelIconButton(context, "plus", 20f, Theme.onAccent, plate = Theme.accent)
+  // B: the reference's header (CommunitiesScreen.tsx): «Каналы» and «Комнаты, серверы и каналы» in a glass pill
+  // (GlassSurface lens «clear», radius 27, 14 from the sides, 12 under the safe area, 10 inside, at least 64 tall),
+  // with a round glass «Вступить по ссылке» and the accent round «Создать» (42) on the right. The list scrolls under
+  // it (blurred there).
+  private val header = com.linea.messenger.design.GlassHeaderView(context, "Каналы", "Комнаты, серверы и каналы", titleSize = Theme.TypeSize.sectionTitle,
+    lineHeight = Theme.TypeSize.sectionTitleLine, subtitleSize = 12f, padding = 10f, minHeight = 64f, clear = true)
+  private val listBox = com.linea.messenger.design.GlassSource(context)
   private val list = ListView(context)
   private val spinner = ChannelSpinner(context)
   private val notice = context.words("", 13f, Theme.danger)
@@ -78,17 +82,14 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
     list.addHeaderView(rooms, null, false)
     list.adapter = adapter
     list.setOnItemClickListener { _, _, position, _ -> (items.getOrNull(position - list.headerViewsCount) as? Item.Row)?.let { open(it.community) } }
-    addView(list)
+    listBox.addView(list, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    addView(listBox)
 
-    heading.includeFontPadding = false
-    if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
-    addView(heading)
-    joinButton.contentDescription = "Вступить по ссылке"
-    joinButton.setOnClickListener { join() }
-    addView(joinButton)
-    createButton.contentDescription = "Создать"
-    createButton.setOnClickListener { create() }
-    addView(createButton)
+    val painter: com.linea.messenger.design.IconPainter = { c, n, x, y, size, color -> ChannelIcons.draw(c, n, x, y, size, color) }
+    header.addTool("link", "Вступить по ссылке", iconSize = 20f, painter = painter) { join() }
+    header.addTool("plus", "Создать", filled = true, painter = painter) { create() }
+    header.source = listBox
+    addView(header)
 
     spinner.visibility = View.GONE
     addView(spinner)
@@ -131,15 +132,14 @@ class ChannelsScreen(context: Context, private val messenger: Messenger?) : Scre
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    put(heading, dp(20f), top + dp(8f), width - dp(140f), dp(41f))
-    put(createButton, width - dp(60f), top + dp(8f), dp(40f), dp(40f))
-    put(joinButton, width - dp(110f), top + dp(8f), dp(40f), dp(40f))
+    put(header, dp(14f), top + dp(12f), width - dp(28f), dp(64f))
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
-    val listTop = top + dp(57f)
-    if (list.paddingBottom != barRoom) list.setPadding(0, 0, 0, barRoom)
-    put(list, 0, listTop, width, height - listTop)
-    put(spinner, width / 2 - dp(12f), top + dp(128f), dp(24f), dp(24f))
-    put(notice, dp(20f), top + dp(62f), width - dp(40f), dp(44f))
+    // Where the list starts: 10 under the pill; it scrolls up under the pill.
+    val listTop = top + dp(12f + 64f + 10f)
+    if (list.paddingBottom != barRoom || list.paddingTop != listTop) list.setPadding(0, listTop, 0, barRoom)
+    put(listBox, 0, 0, width, height)
+    put(spinner, width / 2 - dp(12f), listTop + dp(71f), dp(24f), dp(24f))
+    put(notice, dp(20f), listTop + dp(5f), width - dp(40f), dp(44f))
     val middle = height / 2 - dp(30f)
     put(emptyIcon, 0, middle - dp(110f), width, dp(50f))
     put(emptyHeading, dp(24f), middle - dp(50f), width - dp(48f), dp(26f))

@@ -182,6 +182,10 @@ class MsgRowView(context: Context) : View(context) {
   private var albumPictures: Map<String, Bitmap> = emptyMap()
   private var albumX = 0f
   private var albumY = 0f
+  /** Attachments: a photo without words — the picture alone, the time in its corner; a file's card (0: none). */
+  private var photoBare = false
+  private var fileW = 0f
+  private var fileH = 0f
 
   /** Media: the row key of the album's part under a point of this view, or null. */
   fun albumAt(px: Float, py: Float): String? {
@@ -209,7 +213,10 @@ class MsgRowView(context: Context) : View(context) {
     // LinkPreview: the card's picture is decoded once per row, not on every drawing.
     val cardImage = next.linkCard?.image ?: ""
     if (cardImage != cardOf) { cardOf = cardImage; cardPicture = next.linkCard?.picture() }
-    contentDescription = if (next.kind == 1 || next.kind == 2) next.text else listOf(MediaRowArt.spoken(next), next.label, next.text, next.poll?.spoken ?: "", next.linkCard?.spoken ?: "", if (next.silent) "без звука" else "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
+    // Attachments: a photo or a file card shown in its row; a photo up to 10 MB comes by itself (attachments/InlineMedia.kt).
+    if (next.media == "photo" || next.media == "file") com.linea.messenger.attachments.InlineMedia.shown(next.key, next.media == "photo")
+    else if (next.album != null) com.linea.messenger.attachments.InlineMedia.gone(next.key) // an album's first photo opens from its tile
+    contentDescription = if (next.kind == 1 || next.kind == 2) next.text else listOf(if (next.media == "photo") "Фото" else "", MediaRowArt.spoken(next), next.label, next.text, next.poll?.spoken ?: "", next.linkCard?.spoken ?: "", if (next.silent) "без звука" else "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
     if (relayout) requestLayout()
     invalidate()
   }
@@ -294,6 +301,7 @@ class MsgRowView(context: Context) : View(context) {
     textLayout = null; quoteLayout = null; labelLayout = null; noticeLayout = null; reactLayout = null; thumbW = 0f; thumbH = 0f; voiceW = 0f; voiceH = 0f
     chips = emptyList(); chipsW = 0f; chipsH = 0f; timeInline = false; card = null; pollLayout = null; bigGlyphs = emptyList(); bigBox = 0f
     albumLayout = null // Media
+    photoBare = false; fileW = 0f; fileH = 0f // Attachments
     if (item.kind == 2) {
       // Offline: the lock notice of messages sent before this device signed in (the reference's MissingRow).
       val box = minOf(width - 2 * edge, 360f * d)
@@ -308,7 +316,7 @@ class MsgRowView(context: Context) : View(context) {
       if (item.bigEmoji > 0) { bigGlyphs = com.linea.messenger.composer.BigEmoji.graphemes(item.text).take(3); bigBox = com.linea.messenger.composer.BigEmoji.box(bigGlyphs.size) * d }
       if (item.text.isNotEmpty() && bigGlyphs.isEmpty()) textLayout = layout(styled(item), body, inner, 400)
       if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = layout(item.quoteText, small, inner - (12f * d).toInt(), 2)
-      if (item.label.isNotEmpty()) labelLayout = layout(item.label, small, inner, 2)
+      if (item.label.isNotEmpty() && item.media != "photo" && item.media != "file") labelLayout = layout(item.label, small, inner, 2) // Attachments: a file's card draws its own words
       layoutChips(item, inner.toFloat())
       if (item.reactions.isNotEmpty() && chips.isEmpty()) reactLayout = layout(item.reactions, small, inner, 2)
       if (thumb != null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
@@ -317,8 +325,12 @@ class MsgRowView(context: Context) : View(context) {
       if (item.media == "note") { thumbW = minOf(inner.toFloat(), MediaRowArt.noteSide * d); thumbH = thumbW }
       else if (item.media == "video" && thumb == null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
       else if (item.media == "voice") { voiceW = minOf(inner.toFloat(), MediaRowArt.voiceWidth * d); voiceH = MediaRowArt.voiceHeight * d }
+      // Attachments: a photo shown whole, a file as a card (MediaBubble.tsx; attachments/InlineMedia.kt).
+      else if (item.media == "photo") com.linea.messenger.attachments.InlineMediaArt.photoSize(item, width.toFloat(), d).let { thumbW = it.first; thumbH = it.second }
+      else if (item.media == "file") com.linea.messenger.attachments.InlineMediaArt.fileSize(item, inner.toFloat(), d).let { fileW = it.first; fileH = it.second }
       val metaWidth = meta.measureText(item.time) + (if (item.mine) 22f * d else 0f) + (if (item.silent) 15f * d else 0f) // Composer: the bell of «без звука»
       var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW, voiceW))
+      w = maxOf(w, fileW) // Attachments
       if (quoteLayout != null) w = maxOf(w, maxOf(widest(quoteLayout), smallBold.measureText(item.quoteAuthor)) + 12f * d)
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), smallBold.measureText(item.forward)))
       // LinkPreview: the card stands under the text, and the time then goes under the card.
@@ -339,6 +351,12 @@ class MsgRowView(context: Context) : View(context) {
           w = maxOf(w, end + 8f * d + metaWidth)
         }
       }
+      // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
+      if (item.media == "photo" && item.text.isEmpty() && item.quoteText.isEmpty() && item.quoteAuthor.isEmpty() && item.forward.isEmpty() && reactLayout == null && chips.isEmpty()) {
+        photoBare = true; bubbleW = thumbW; bubbleH = thumbH
+        builtFor = item; builtWidth = width; builtFont = fontSize
+        return
+      }
       var h = 9f * d
       if (item.forward.isNotEmpty()) h += 18f * d
       if (quoteLayout != null) h += 17f * d + quoteLayout!!.height + 8f * d
@@ -346,6 +364,7 @@ class MsgRowView(context: Context) : View(context) {
       albumLayout?.let { h += it.height + 6f * d } // Media
       if (voiceH > 0f) h += voiceH + 4f * d
       if (labelLayout != null) h += labelLayout!!.height + 4f * d
+      if (fileH > 0f) h += fileH + 4f * d // Attachments
       pollLayout?.let { h += it.height + 4f * d } // Polls
       if (bigGlyphs.isNotEmpty()) h += bigBox // Composer
       if (textLayout != null) h += textLayout!!.height
@@ -417,10 +436,17 @@ class MsgRowView(context: Context) : View(context) {
     // ChatLook: «Углы сообщений» (8, 14, 20), the corner by the sender's edge 6 at most on the last bubble of a run
     // (chatlook/BubbleLook.kt).
     plateBox.set(left, 0f, left + bubbleW, bubbleH)
+    // Attachments: a photo alone — the picture with the time in its corner, no plate and no line.
+    if (photoBare) {
+      com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, left, 0f, bubbleW, bubbleH, palette, thumb, 15f * d, true, d)
+      if (isPressed || flash) { fill.color = Theme.veil(if (isPressed) 0.08f else 0.14f); canvas.drawRoundRect(left, 0f, left + bubbleW, bubbleH, 15f * d, 15f * d, fill) }
+      return
+    }
     com.linea.messenger.chatlook.ChatBubbleLook.shape(path, plateBox, item.mine, item.tail, d)
-    if (!MSG_OPEN_LOOK) canvas.drawPath(path, fill)
+    // Attachments: a photo with words keeps its card in the open look too.
+    if (!MSG_OPEN_LOOK || item.media == "photo") canvas.drawPath(path, fill)
     // ChatLook: the open look — the other side's words carry a thin line in their colour.
-    if (MSG_OPEN_LOOK && !item.mine && (item.text.isNotEmpty() || item.label.isNotEmpty())) {
+    if (MSG_OPEN_LOOK && !item.mine && item.media != "photo" && (item.text.isNotEmpty() || item.label.isNotEmpty())) {
       val line = com.linea.messenger.chatlook.ChatBubbleLook.peerLine
       fill.color = if (line != 0) line else palette.accent
       canvas.drawRect(left, 2f * d, left + 2f * d, bubbleH - 2f * d, fill)
@@ -458,13 +484,17 @@ class MsgRowView(context: Context) : View(context) {
       mediaBoxes.thumb.set(mediaPicture)
       if (image == null) { MediaRowArt.plate(canvas, item.media == "note", palette, mediaPicture, d); y += thumbH + 6f * d }
     }
-    if (image != null && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
+    // Attachments: a photo with words, shown whole above them.
+    if (item.media == "photo" && thumbH > 0f) { com.linea.messenger.attachments.InlineMediaArt.drawPhoto(canvas, item, x, y, thumbW, thumbH, palette, image, 12f * d, false, d); y += thumbH + 6f * d }
+    if (image != null && item.media != "photo" && thumbH > 0f) { drawPicture(canvas, image, x, y, thumbW, thumbH, if (item.thumbRound) minOf(thumbW, thumbH) / 2 else 12f * d); y += thumbH + 6f * d }
     // Voice/Video: the play mark and the length over the picture; the waveform row of a voice message.
     if (!mediaBoxes.thumb.isEmpty) MediaRowArt.marks(canvas, item, mediaState, palette, mediaPicture, d)
     // Media: the album's mosaic.
     albumLayout?.let { albumX = x; albumY = y; it.draw(canvas, item.album ?: return@let, albumPictures, x, y, palette); y += it.height + 6f * d }
     if (voiceH > 0f) { MediaRowArt.voice(canvas, item, mediaState, palette, x, y, voiceW, d, mediaBoxes); y += voiceH + 4f * d }
     labelLayout?.let { small.color = markColor; canvas.save(); canvas.translate(x, y); it.draw(canvas); canvas.restore(); y += it.height + 4f * d }
+    // Attachments: a file's card with the round button.
+    if (fileH > 0f) { com.linea.messenger.attachments.InlineMediaArt.drawFile(canvas, item, x, y, fileW, fileH, palette, d); y += fileH + 4f * d }
     // Polls: the question, the options and the results.
     pollLayout?.let { pollX = x; pollY = y; it.draw(canvas, x, y, palette); y += it.height + 4f * d }
     // Composer: the big emoji — their animations where the reference has them, the glyphs otherwise.

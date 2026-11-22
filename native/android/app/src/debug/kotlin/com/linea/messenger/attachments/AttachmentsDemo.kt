@@ -13,8 +13,8 @@ import java.io.ByteArrayOutputStream
 /** Sample rows with attachments and the launch arguments of the emulator check (see `Demo.start`), as the iOS
  *  simulator check has them. This file is in the debug source set: a release build is compiled with the empty
  *  `AttachmentsDemo` of src/release instead.
- *    --es attachdemo 1         with `--ez demo true --ez chat true`: sample rows with a photo, a file, a big
- *                              file and an upload on its way
+ *    --es attachdemo 1         with `--ez demo true --ez chat true`: sample rows with a photo that is here, a photo
+ *                              and a file on their way, a file to bring, a big file and an upload on its way
  *    --es attachdemo viewer    the same, and the photo viewer with a drawn picture over them
  *    --es openattachment photo|file    with an account and `--ez openchat true`: once the chat is on screen,
  *                              opens its newest photo or file by itself
@@ -85,9 +85,17 @@ object AttachmentsDemo {
     if (sample == null) return emptyList()
     val bytes = ByteArrayOutputStream().also { picture(240, 160).compress(Bitmap.CompressFormat.JPEG, 60, it) }.toByteArray()
     val picture = Base64.encodeToString(bytes, Base64.NO_WRAP)
+    // Attachments: a photo that is here, a photo and a file on their way, a file to bring (attachments/InlineMedia.kt).
+    val smallBytes = ByteArrayOutputStream().also { picture(24, 16).compress(Bitmap.CompressFormat.JPEG, 60, it) }.toByteArray()
+    val small = Base64.encodeToString(smallBytes, Base64.NO_WRAP)
+    InlineMedia.showReady("sample-attach-1", picture(900, 600))
+    InlineMedia.showLoading("sample-attach-5", 0.4f, 2_202_009, photo = true)
+    InlineMedia.showLoading("sample-attach-6", 0.35f, 1_258_291, photo = false)
     return listOf(
-      mapOf("key" to "sample-attach-1", "kind" to 0, "mine" to false, "text" to "", "time" to "09:38", "tail" to false, "thumb" to picture, "thumbWide" to 1.5),
-      mapOf("key" to "sample-attach-2", "kind" to 0, "mine" to false, "text" to "Договор и приложение к нему", "time" to "09:39", "tail" to false, "label" to "📎 Договор № 7.pdf\n" + FileCore.sizeText(1_258_291)),
+      mapOf("key" to "sample-attach-1", "kind" to 0, "mine" to false, "text" to "", "time" to "09:38", "tail" to false, "media" to "photo", "thumb" to small, "thumbWide" to 1.5, "mediaTime" to FileCore.sizeText(184_320)),
+      mapOf("key" to "sample-attach-5", "kind" to 0, "mine" to false, "text" to "", "time" to "09:38", "tail" to false, "media" to "photo", "thumb" to small, "thumbWide" to 0.75, "mediaTime" to FileCore.sizeText(2_202_009)),
+      mapOf("key" to "sample-attach-2", "kind" to 0, "mine" to false, "text" to "Договор и приложение к нему", "time" to "09:39", "tail" to false, "media" to "file", "label" to "Договор № 7.pdf\n" + FileCore.sizeText(1_258_291) + " · PDF"),
+      mapOf("key" to "sample-attach-6", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to false, "media" to "file", "label" to "Смета.xlsx\n" + FileCore.sizeText(1_258_291) + " · XLSX"),
       mapOf("key" to "sample-attach-3", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to true, "label" to "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)),
       mapOf("key" to "sample-attach-4", "kind" to 0, "mine" to true, "text" to "", "time" to "09:41", "ticks" to 3, "tail" to true, "thumb" to picture, "thumbWide" to 1.5,
         "label" to FileCore.sizeText(2_202_009) + " из " + FileCore.sizeText(5_505_024)),

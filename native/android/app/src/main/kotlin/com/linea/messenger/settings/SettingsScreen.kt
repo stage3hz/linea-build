@@ -28,6 +28,8 @@ class SettingsScreen internal constructor(context: Context, private val account:
   constructor(context: Context, messenger: Messenger?) : this(context, messenger?.let { MessengerAccount(it) })
 
   private var leaving = false
+  // D: no big «Настройки» — the reference's `Root` starts with the profile head and «Изменить» on glass.
+  override val showsHeading: Boolean get() = false
   private val profileChanged: () -> Unit = { if (built) build() }
   // Profile: the banner, the effect, «Изменить» and the decorated head (profile/SettingsProfileHead.kt).
   private val profileChrome = com.linea.messenger.profile.SettingsProfileChrome(context)
@@ -73,13 +75,12 @@ class SettingsScreen internal constructor(context: Context, private val account:
 
     val profile = SettingsRow(context, symbol = "person", label = "Мой профиль")
     profile.onPress = { openProfile() }
-    // Stories: the account's own posts and stories (stories/ProfilePosts.kt).
-    val posts = SettingsRow(context, symbol = "posts.grid", label = com.linea.messenger.stories.OwnPostsScreen.NAME)
-    posts.onPress = { account?.let { own -> com.linea.messenger.stories.StoriesStore.account?.takeIf { it.userId == own.userId }?.let { open(com.linea.messenger.stories.OwnPostsScreen(context, it)) } } }
+    // M: the reference's `Root` has «Мой профиль» alone in its group (no «Публикации и истории» row: the posts are
+    // on the profile).
     // Platina: «Активна до …» while the account has it (platina/PlatinaState.kt, untilWords; the reference's SettingsScreen.tsx `until`).
     val until = com.linea.messenger.platina.PlatinaState.untilWords
     val platinaRows = if (until.isEmpty()) emptyList() else listOf(SettingsRow(context, symbol = "gift", label = "Platina", value = until).apply { onPress = { com.linea.messenger.platina.PlatinaShowcase.open(this) } })
-    addGroup(rows = listOf(profile, posts) + platinaRows)
+    addGroup(rows = listOf(profile) + platinaRows)
 
     // How it sounds and looks. (The reference also has «Папки с чатами», «Энергосбережение и анимации» and
     // «Язык» here: not built in this app yet.)
