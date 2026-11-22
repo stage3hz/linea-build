@@ -462,6 +462,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     grain.frame = bounds
     capsule.frame = capsuleFrame(activeIndex)
     capsule.alpha = activeIndex < 0 ? 0 : 1
+    // In a section without an icon on the bar there is no glow either (it showed as a smudge between the icons).
+    spotView.alpha = activeIndex < 0 ? 0 : 1
     trail.frame = capsule.frame
     shapeCapsules()
     CATransaction.commit()
@@ -600,6 +602,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     guard animated else {
       capsule.frame = target
       capsule.alpha = index < 0 ? 0 : 1
+      spotView.alpha = index < 0 ? 0 : 1
       spotView.frame = spotFrame(index)
       trail.alpha = 0
       shapeCapsules()
@@ -610,6 +613,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       if index >= 0 { capsule.frame = target; shapeCapsules() }
       UIView.animate(withDuration: 0.2, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
         self.capsule.alpha = index < 0 ? 0 : 1
+        self.spotView.alpha = index < 0 ? 0 : 1
         self.spotView.frame = self.spotFrame(index)
       }
       return
@@ -621,6 +625,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     UIView.animate(withDuration: 0.42, delay: 0, usingSpringWithDamping: 0.82, initialSpringVelocity: 0.4, options: [.beginFromCurrentState, .allowUserInteraction]) {
       self.capsule.frame = target
       self.capsule.alpha = 1
+      self.spotView.alpha = 1
       self.spotView.frame = self.spotFrame(index)
     }
     UIView.animate(withDuration: 0.62, delay: 0.05, usingSpringWithDamping: 0.9, initialSpringVelocity: 0, options: [.allowUserInteraction]) {

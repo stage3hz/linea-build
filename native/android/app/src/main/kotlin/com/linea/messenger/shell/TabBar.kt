@@ -424,6 +424,8 @@ class TabBarView(context: Context) : ViewGroup(context) {
     canvas.save(); canvas.clipPath(clip)
     // The glow behind the chosen icon: a circle almost the bar's height, centred on the icon.
     val halo = h * 0.95f / 2
+    // In a section without an icon on the bar there is no glow (it showed as a smudge between the icons).
+    lights[0].alpha = (255 * capsuleAlpha).toInt().coerceIn(0, 255)
     canvas.save(); canvas.translate(spotX, h / 2); canvas.scale(halo, halo)
     canvas.drawCircle(0f, 0f, 1f, lights[0])
     canvas.restore()
