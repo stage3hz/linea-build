@@ -25,6 +25,8 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     private let emptyWords = UILabel()
 
     private let composer = UIVisualEffectView(effect: nil)
+    /// The field's own plate (ChannelChat.tsx: surface2, radius 20, a 1 pt border).
+    private let fieldBox = UIView()
     private let attachButton = UIButton(type: .system)
     private let field = UITextView()
     private let hint = UILabel()
@@ -135,19 +137,31 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     }
 
     private func buildComposer() {
+        // ChannelChat.tsx: a plain row on the page — «add-circle» (IconButton), the field (radius 20, surface2, a 1 pt
+        // border, 14 × 9 inside), «arrow-up-circle» 34 (IconButton); 10 from the sides, 6 above, 8 under, 6 apart.
         composer.clipsToBounds = true
+        composer.contentView.backgroundColor = Theme.bg
         view.addSubview(composer)
+        fieldBox.backgroundColor = Theme.surface2
+        fieldBox.layer.cornerRadius = 20
+        fieldBox.layer.cornerCurve = .continuous
+        fieldBox.layer.borderWidth = 1
+        fieldBox.layer.borderColor = ThemeStore.look.border.cgColor
+        fieldBox.isUserInteractionEnabled = false
+        composer.contentView.addSubview(fieldBox)
         attachButton.setImage(IonIcon.image("add-circle", size: 23), for: .normal)
         attachButton.tintColor = Theme.muted
         attachButton.accessibilityLabel = "Прикрепить"
         attachButton.addTarget(self, action: #selector(attach), for: .touchUpInside)
+        attachButton.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
+        GlassBacking.put(under: attachButton)
         composer.contentView.addSubview(attachButton)
         field.backgroundColor = .clear
         field.font = .systemFont(ofSize: 16)
         field.textColor = Theme.text
         field.tintColor = Theme.text
         field.keyboardAppearance = Theme.dark ? .dark : .light
-        field.textContainerInset = UIEdgeInsets(top: 13, left: 0, bottom: 13, right: 0)
+        field.textContainerInset = UIEdgeInsets(top: 9, left: 0, bottom: 9, right: 0)
         field.textContainer.lineFragmentPadding = 0
         field.showsVerticalScrollIndicator = false
         field.delegate = self
@@ -159,8 +173,10 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         sendButton.setImage(IonIcon.image("arrow-up-circle", size: 34), for: .normal)
         sendButton.accessibilityLabel = "Отправить"
         sendButton.addTarget(self, action: #selector(sendNow), for: .touchUpInside)
+        sendButton.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
+        GlassBacking.put(under: sendButton)
         composer.contentView.addSubview(sendButton)
-        busy.color = Theme.muted
+        busy.color = Theme.accent
         composer.contentView.addSubview(busy)
 
         closedWords.font = .systemFont(ofSize: 13)
@@ -170,14 +186,16 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
 
         contextBar.isHidden = true
         view.addSubview(contextBar)
-        contextIcon.tintColor = Theme.text
+        contextIcon.tintColor = Theme.accent
         contextIcon.contentMode = .center
         contextBar.addSubview(contextIcon)
         contextWords.font = .systemFont(ofSize: 13)
         contextWords.textColor = Theme.muted
         contextBar.addSubview(contextWords)
         contextClose.setImage(IonIcon.image("close", size: 18), for: .normal)
-        contextClose.tintColor = Theme.muted
+        contextClose.tintColor = Theme.text
+        contextClose.frame = CGRect(x: 0, y: 0, width: 44, height: 44)
+        GlassBacking.put(under: contextClose)
         contextClose.accessibilityLabel = "Отменить"
         contextClose.addTarget(self, action: #selector(dropContext), for: .touchUpInside)
         contextBar.addSubview(contextClose)
@@ -266,27 +284,34 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         notice.frame = CGRect(x: 12, y: header.frame.maxY + 6, width: width - 24, height: 40)
         var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
         if canWrite {
-            let side: CGFloat = editingMessage == nil ? 44 : 14
-            let fieldWidth = width - 24 - side - 46
-            let wanted = ceil(field.sizeThatFits(CGSize(width: fieldWidth, height: 1000)).height)
-            let tall = min(140, max(48, wanted))
+            // The row: 10 from the sides, 8 under; the attach button only while not editing (then the field starts at 10).
+            let bottomPad: CGFloat = 8
+            let rowBottom = floor - bottomPad + 8
+            let fieldLeft: CGFloat = editingMessage == nil ? 10 + 44 + 6 : 10
+            let fieldRight = width - 10 - 44 - 6
+            let textWidth = max(10, fieldRight - fieldLeft - 28)
+            let wanted = ceil(field.sizeThatFits(CGSize(width: textWidth, height: 1000)).height)
+            let boxTall = min(140, max(40, wanted))
             field.isScrollEnabled = wanted > 140
-            composer.frame = CGRect(x: 12, y: floor - tall, width: width - 24, height: tall)
-            composer.layer.cornerRadius = 24
-            composer.layer.cornerCurve = .continuous
-            if composer.effect == nil { composer.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark) }
-            attachButton.frame = CGRect(x: 2, y: tall - 46, width: 44, height: 44)
-            field.frame = CGRect(x: side, y: 0, width: fieldWidth, height: tall)
-            hint.frame = CGRect(x: side, y: 13, width: fieldWidth, height: 22)
-            sendButton.frame = CGRect(x: composer.bounds.width - 46, y: tall - 46, width: 44, height: 44)
+            var rowTop = rowBottom - bottomPad - max(44, boxTall)
+            if !contextBar.isHidden { rowTop -= 44 + 6 }
+            composer.frame = CGRect(x: 0, y: rowTop - 6, width: width, height: view.bounds.height - (rowTop - 6))
+            composer.layer.cornerRadius = 0
+            let base = rowBottom - bottomPad - composer.frame.minY
+            attachButton.isHidden = editingMessage != nil
+            attachButton.frame = CGRect(x: 10, y: base - 44, width: 44, height: 44)
+            fieldBox.frame = CGRect(x: fieldLeft, y: base - boxTall, width: fieldRight - fieldLeft, height: boxTall)
+            field.frame = fieldBox.frame.insetBy(dx: 14, dy: 0)
+            hint.frame = CGRect(x: fieldLeft + 14, y: base - boxTall + 9, width: textWidth, height: boxTall - 18)
+            sendButton.frame = CGRect(x: width - 10 - 44, y: base - 44, width: 44, height: 44)
             busy.center = sendButton.center
             floor = composer.frame.minY
             if !contextBar.isHidden {
-                contextBar.frame = CGRect(x: 12, y: floor - 34, width: width - 24, height: 30)
-                contextIcon.frame = CGRect(x: 6, y: 0, width: 24, height: 30)
-                contextWords.frame = CGRect(x: 34, y: 0, width: contextBar.bounds.width - 34 - 40, height: 30)
-                contextClose.frame = CGRect(x: contextBar.bounds.width - 40, y: -7, width: 44, height: 44)
-                floor = contextBar.frame.minY
+                // The reply / edit line: 8 more in (18 from the edge), the glyph 16, 8 apart, the close IconButton.
+                contextBar.frame = CGRect(x: 10, y: composer.frame.minY + 6, width: width - 20, height: 44)
+                contextIcon.frame = CGRect(x: 8, y: 0, width: 16, height: 44)
+                contextWords.frame = CGRect(x: 32, y: 0, width: contextBar.bounds.width - 32 - 8 - 44 - 8, height: 44)
+                contextClose.frame = CGRect(x: contextBar.bounds.width - 8 - 44, y: 0, width: 44, height: 44)
             }
             if !waitingStrip.arrangedSubviews.isEmpty {
                 let count = CGFloat(waitingStrip.arrangedSubviews.count)

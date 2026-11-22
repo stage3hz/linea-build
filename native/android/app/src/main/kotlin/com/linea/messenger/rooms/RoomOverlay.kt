@@ -39,7 +39,7 @@ class RoomRingBanner(context: Context) : RoomGlassView(context, 26f) {
   private val avatar = PersonAvatarView(context)
   private val nameLabel = context.words("", 15.5f, Theme.text, 700)
   private val lineLabel = context.words("", 13f, RoomRules.talk)
-  private val laterButton = RoomIconView(context, "xmark", 18f, Theme.text)
+  private val laterButton = RoomIconView(context, "xmark", 20f, Theme.text)
   private val enterButton = context.words("Зайти", 14f, 0xFF04210F.toInt(), 700)
 
   init {

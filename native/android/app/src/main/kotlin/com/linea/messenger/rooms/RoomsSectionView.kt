@@ -204,7 +204,7 @@ class RoomRowView(context: Context) : RoomPartsView(context) {
 
 /** The dashed card that says how a room is made. */
 private class RoomHintBox(context: Context) : RoomPartsView(context) {
-  val icon = RoomIconView(context, "mic", 19f, Theme.text)
+  val icon = RoomIconView(context, "mic", 21f, Theme.text)
   val words = context.words("Комнат пока нет. В чатах удержи собеседника, нажми «Выбрать», отметь людей и позвони всем сразу — получится комната.", 13.5f, Theme.muted)
   private val dash = Paint(Paint.ANTI_ALIAS_FLAG).apply {
     style = Paint.Style.STROKE

@@ -210,7 +210,7 @@ class RoomRoundButton(context: Context, private val size: Float) : View(context)
 /** «Зайти»: the microphone and the word in the middle, a turning ring at the end while it works. */
 private class RoomEnterButton(context: Context) : RoomPartsView(context) {
   private val words = context.words("Зайти", 16f, Theme.onAccent, 600)
-  private val icon = RoomIconView(context, "mic.fill", 18f, Theme.onAccent)
+  private val icon = RoomIconView(context, "mic.fill", 20f, Theme.onAccent)
   private val spinner = ProgressBar(context)
 
   var busy = false
@@ -248,10 +248,10 @@ private class RoomEnterButton(context: Context) : RoomPartsView(context) {
 /** The glass bar at the top of a room's screen (the stage behind it, blurred). */
 private class RoomBar(context: Context) : RoomPartsView(context) {
   val glass = Glass(this)
-  val back = RoomIconView(context, "chevron.left", 24f, Theme.text)
+  val back = RoomIconView(context, "chevron.left", 23f, Theme.text)
   val name = context.words("", 20f, Theme.text, 700)
   val status = context.words("", 12f, Theme.muted, 600)
-  val more = RoomIconView(context, "ellipsis", 22f, Theme.text)
+  val more = RoomIconView(context, "ellipsis", 23f, Theme.text)
 
   init {
     setWillNotDraw(false)

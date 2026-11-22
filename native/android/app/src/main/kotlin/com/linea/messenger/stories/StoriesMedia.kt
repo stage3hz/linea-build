@@ -102,7 +102,10 @@ object StoryIcons {
 /** One of `StoryIcons`, `size` dp across, in the middle of its place; `disc` — a round plate behind it (0: none).
  *  It dims under a finger. A button when it is given a click listener and a `contentDescription`. */
 @SuppressLint("ViewConstructor")
-class StoryIconView(context: Context, symbol: String, private val size: Float, color: Int, disc: Int = 0) : View(context) {
+class StoryIconView(context: Context, symbol: String, size: Float, color: Int, disc: Int = 0) : View(context) {
+  /** The glyph's size, dp (the strip's badge: «add» 14, the clock 13). */
+  var size: Float = size
+    set(value) { if (field != value) { field = value; invalidate() } }
   private val d = resources.displayMetrics.density
   private val back = Paint(Paint.ANTI_ALIAS_FLAG)
   var symbol: String = symbol

@@ -66,22 +66,11 @@ enum AIKit {
         return button
     }
 
-    /// A wide button (the reference's `Button`): 54 tall, radius 21, 21 inside, the glyph (20) 10 before the words
-    /// (16, bold, −0.15); filled with the accent (the main action) or quiet. `symbol`: a name of the icon set.
+    /// A wide button: the reference's `Button` (Design/WideButton.swift) — primary (the accent gradient on glass) or
+    /// secondary (glass). `symbol`: a name of the icon set (a few older names are translated).
     static func wide(_ words: String, symbol: String? = nil, secondary: Bool = false) -> UIButton {
-        var config = UIButton.Configuration.filled()
-        config.attributedTitle = AttributedString(words, attributes: AttributeContainer([.font: UIFont.systemFont(ofSize: 16, weight: .bold), .kern: -0.15]))
         let known: [String: String] = ["doc.text": "document-text-outline", "plus": "add", "arrow.clockwise": "refresh-outline", "arrow.up": "arrow-up-outline"]
-        if let symbol { config.image = IonIcon.image(known[symbol] ?? symbol, size: 20) }
-        config.imagePadding = 10
-        config.baseBackgroundColor = secondary ? Theme.surface2 : Theme.accent
-        config.baseForegroundColor = secondary ? Theme.text : Theme.onAccent
-        config.background.cornerRadius = 21
-        config.cornerStyle = .fixed
-        config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 21, bottom: 0, trailing: 21)
-        let button = UIButton(configuration: config)
-        button.heightAnchor.constraint(equalToConstant: 54).isActive = true
-        return button
+        return WideButton(words: words, glyph: symbol.map { known[$0] ?? $0 }, secondary: secondary)
     }
 }
 

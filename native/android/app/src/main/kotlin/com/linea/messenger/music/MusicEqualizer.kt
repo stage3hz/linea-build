@@ -154,7 +154,7 @@ class EqualizerScreen(context: Context, private val player: MusicPlayer) : Scree
   private val cover = MusicCoverView(context, 14f)
   private val trackTitle = AIKit.label(context, "", 15f, 600, lines = 1)
   private val trackArtist = AIKit.label(context, "", 13f, color = Theme.muted, lines = 1)
-  private val playButton = AIIconButton(context, "play", 22f, Theme.text, "Слушать")
+  private val playButton = AIIconButton(context, "play", 24f, Theme.text, "Слушать")
   private val curve = EqualizerCurveView(context)
   private val card: Int get() = if (Theme.dark) 0xB8141824.toInt() else 0xC7FFFFFF.toInt()
   private val settingsChanged: (Unit) -> Unit = { refresh() }
@@ -167,7 +167,7 @@ class EqualizerScreen(context: Context, private val player: MusicPlayer) : Scree
     addView(ambient)
     top.orientation = LinearLayout.HORIZONTAL
     top.gravity = Gravity.CENTER_VERTICAL
-    val back = AIIconButton(context, "chevron.down", 20f, Theme.text, "Назад")
+    val back = AIIconButton(context, "ion:chevron-back", 23f, Theme.text, "Назад")
     back.rotation = 90f
     back.setOnClickListener { pages()?.let { if (it.top === this) it.pop() } }
     top.addView(back, LinearLayout.LayoutParams(dp(44f), dp(44f)))

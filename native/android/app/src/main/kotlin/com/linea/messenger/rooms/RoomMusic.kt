@@ -251,8 +251,10 @@ class RoomMusicLine(context: Context) : ViewGroup(context) {
       playingFor = true
       val by = if (leading) "ты" else RoomVoice.userIdOfPeer(host).let { userId -> members.firstOrNull { it.id == userId }?.let { RoomRules.firstName(it) } ?: "кто-то" }
       icon.visibility = VISIBLE
+      // roomMusic.tsx: «musical-notes» 20 on the soft accent (44, radius 13).
+      icon.symbol = "ion:musical-notes"; icon.size = 20f
       icon.color = Theme.text
-      icon.background = context.plate(Theme.veil(0.08f), 13f)
+      icon.background = context.plate(com.linea.messenger.settings.ThemeStore.look.accentSoft, 13f)
       heading.visibility = VISIBLE
       heading.text = shownName
       words.text = "включил $by · играет у всех"
@@ -267,6 +269,7 @@ class RoomMusicLine(context: Context) : ViewGroup(context) {
     val local = current?.source == "local"
     canLead = current != null && !local
     icon.visibility = VISIBLE
+    icon.symbol = "ion:musical-notes-outline"; icon.size = 17f
     icon.color = Theme.muted
     icon.background = null
     words.text = when {

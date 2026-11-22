@@ -85,6 +85,7 @@ class StoryStripCell(context: Context) : ViewGroup(context) {
     badge.rim = Theme.bg
     badge.color = Theme.onAccent
     badge.symbol = if (busy) "" else "ion:add"
+    badge.size = 14f
     badge.contentDescription = StoryRules.word("addStory")
     badge.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
     spinner.indeterminateTintList = ColorStateList.valueOf(Theme.onAccent)
@@ -106,6 +107,7 @@ class StoryStripCell(context: Context) : ViewGroup(context) {
     badge.rim = Theme.bg
     badge.color = Theme.muted
     badge.symbol = "ion:time-outline"
+    badge.size = 13f
     badge.contentDescription = null
     badge.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     spinner.visibility = View.GONE

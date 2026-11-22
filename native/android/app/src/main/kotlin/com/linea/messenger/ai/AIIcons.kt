@@ -29,10 +29,11 @@ object AIIcons {
     "photo" to "images-outline", "note" to "musical-note", "search" to "search-outline", "drop" to "water-outline", "bolt" to "flash-outline",
     "sun" to "sunny-outline", "moon" to "moon-outline", "speaker" to "volume-medium-outline", "link" to "open-outline", "download" to "download-outline",
     "lock" to "lock-closed", "trash" to "trash-outline", "refresh" to "refresh-outline", "check" to "checkmark", "info" to "information-outline",
-    "eye" to "eye-outline", "eye.slash" to "eye-off-outline", "check.circle" to "checkmark-circle", "sparkles" to "sparkles-outline", "headphones" to "headset-outline",
+    "eye" to "eye-outline", "eye.slash" to "eye-off-outline", "check.circle" to "checkmark-circle", "sparkles" to "sparkles-outline", "headphones" to "headset-outline", "repeat" to "repeat", "repeat.1" to "repeat",
   )
 
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    if (name == "ion:chevron-back") return com.linea.messenger.design.Symbols.draw(canvas, name, cx, cy, size, color) // the reference's drawn chevron
     if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     ion[name]?.let { return com.linea.messenger.design.IonIcon.draw(canvas, it, cx, cy, size, color) }
     if (name in fromIcons) return Icons.draw(canvas, name, cx, cy, size, color)

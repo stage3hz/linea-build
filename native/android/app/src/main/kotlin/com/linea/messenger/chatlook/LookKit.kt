@@ -149,13 +149,38 @@ object Bouncy {
     }
   }
 
-  fun press(target: View, scale: Float) {
+  fun press(target: View, scale: Float) = spring(target, scale, 15.0, 420.0)
+
+  fun release(target: View) = spring(target, 1f, 11.0, 300.0)
+
+  /** The spring itself (mass 0.6), stepped at 1 ms from where the view is and how fast it moves now. */
+  private fun spring(target: View, to: Float, damping: Double, stiffness: Double) {
     target.animate().cancel()
-    target.animate().scaleX(scale).scaleY(scale).setDuration(110).setInterpolator(OvershootInterpolator(0.6f)).start()
+    (target.getTag(SPRING_KEY) as? android.animation.ValueAnimator)?.cancel()
+    var x = (target.scaleX - to).toDouble()
+    var v = (target.getTag(SPEED_KEY) as? Double) ?: 0.0
+    val mass = 0.6
+    val run = android.animation.ValueAnimator.ofFloat(0f, 1f).setDuration(2000)
+    var last = 0L
+    run.addUpdateListener { step ->
+      val now = step.currentPlayTime
+      var left = (now - last).coerceIn(0L, 64L) / 1000.0
+      last = now
+      while (left > 0) {
+        val dt = minOf(0.001, left)
+        v += (-stiffness * x - damping * v) / mass * dt
+        x += v * dt
+        left -= dt
+      }
+      val value = (to + x).toFloat()
+      target.scaleX = value; target.scaleY = value
+      target.setTag(SPEED_KEY, v)
+      if (Math.abs(x) < 0.0005 && Math.abs(v) < 0.01) { target.scaleX = to; target.scaleY = to; target.setTag(SPEED_KEY, 0.0); step.cancel() }
+    }
+    target.setTag(SPRING_KEY, run)
+    run.start()
   }
 
-  fun release(target: View) {
-    target.animate().cancel()
-    target.animate().scaleX(1f).scaleY(1f).setDuration(260).setInterpolator(OvershootInterpolator(2.2f)).start()
-  }
+  private val SPRING_KEY = "linea.bouncy.spring".hashCode() or 0x7F000000
+  private val SPEED_KEY = "linea.bouncy.speed".hashCode() or 0x7E000000
 }

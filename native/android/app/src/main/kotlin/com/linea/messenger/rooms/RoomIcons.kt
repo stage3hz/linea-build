@@ -16,7 +16,7 @@ import com.linea.messenger.design.Theme
 object RoomIcons {
   private val ion = mapOf(
     "music.note" to "musical-notes-outline", "xmark" to "close", "circle" to "ellipse-outline", "checkmark.circle.fill" to "checkmark-circle",
-    "mic.slash.fill" to "mic-off", "mic.fill" to "mic", "mic" to "mic-outline", "chevron.left" to "chevron-back", "ellipsis" to "ellipsis-horizontal",
+    "mic.slash.fill" to "mic-off", "mic.fill" to "mic", "mic" to "mic-outline", "ellipsis" to "ellipsis-horizontal",
     "speaker.wave.2.fill" to "volume-high", "ear" to "ear-outline", "phone.down.fill" to "call",
   )
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
@@ -30,6 +30,7 @@ object RoomIcons {
     // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
     if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     // The reference's glyphs (RoomScreen.tsx, RoomsSection.tsx, roomMusic.tsx) for the names this app asks by.
+    if (name == "chevron.left") return Symbols.draw(canvas, "ion:chevron-back", cx, cy, size, color) // the reference's drawn chevron
     ion[name]?.let { return com.linea.messenger.design.IonIcon.draw(canvas, it, cx, cy, size, color) }
     when (name) {
       "mic.fill", "mic.slash.fill", "xmark", "phone.fill" -> return CallIcons.draw(canvas, name, cx, cy, size, color, ink)
@@ -90,7 +91,10 @@ object RoomIcons {
 /** One of the pictures above as a view, `size` dp across in the middle of its place; with a `contentDescription`
  *  and a click listener it is a button that dims under a finger. */
 @SuppressLint("ViewConstructor")
-open class RoomIconView(context: Context, symbol: String, private val size: Float, color: Int) : View(context) {
+open class RoomIconView(context: Context, symbol: String, size: Float, color: Int) : View(context) {
+  /** The glyph's size, dp. */
+  var size: Float = size
+    set(value) { if (field != value) { field = value; invalidate() } }
   private val d = resources.displayMetrics.density
   var symbol: String = symbol
     set(value) { if (field != value) { field = value; invalidate() } }

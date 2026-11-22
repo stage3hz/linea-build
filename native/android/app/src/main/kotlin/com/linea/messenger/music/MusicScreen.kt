@@ -226,10 +226,10 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
   private val cover = MusicCoverView(context, 8f)
   private val heading = AIKit.label(context, "", 14f, 700, lines = 1)
   private val line = AIKit.label(context, "", 12f, color = Theme.muted, lines = 1)
-  private val back = AIIconButton(context, "prev", 18f, Theme.text, "Предыдущий трек или начало текущего")
-  private val toggle = AIIconButton(context, "play", 20f, Theme.text, "Слушать")
-  private val forward = AIIconButton(context, "next", 18f, Theme.text, "Следующий трек")
-  private val close = AIIconButton(context, "xmark", 16f, Theme.muted, "Закрыть плеер и остановить музыку")
+  private val back = AIIconButton(context, "prev", 20f, Theme.text, "Предыдущий трек или начало текущего")
+  private val toggle = AIIconButton(context, "play", 23f, Theme.text, "Слушать")
+  private val forward = AIIconButton(context, "next", 20f, Theme.text, "Следующий трек")
+  private val close = AIIconButton(context, "xmark", 20f, Theme.muted, "Закрыть плеер и остановить музыку")
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val changed: () -> Unit = { refresh() }
   private val swipe = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
@@ -311,8 +311,8 @@ class MusicTrackCell(context: Context) : LinearLayout(context) {
   private val cover = MusicCoverView(context, 6f)
   private val heading = AIKit.label(context, "", 15f, 600, lines = 1)
   private val line = AIKit.label(context, "", 12f, color = Theme.muted, lines = 1)
-  private val heart = AIIconButton(context, "heart", 20f, Theme.muted)
-  private val more = AIIconButton(context, "more", 20f, Theme.muted)
+  private val heart = AIIconButton(context, "heart", 19f, Theme.muted)
+  private val more = AIIconButton(context, "more", 19f, Theme.muted)
   var onHeart: (() -> Unit)? = null
   var onMore: (() -> Unit)? = null
 
@@ -416,7 +416,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
   private val moodScroll = HorizontalScrollView(context)
   private val moodRow = LinearLayout(context)
   private val mixRow = LinearLayout(context)
-  private val mixButton = AIRoundButton(context, "play", "Слушать микс", size = 66f, icon = 28f)
+  private val mixButton = AIRoundButton(context, "play", "Слушать микс", size = 66f, icon = 30f)
   private val mixLine = AIKit.label(context, "", 14f, color = MusicInk.soft, lines = 1, align = Gravity.CENTER)
   private val caption = AIKit.label(context, "", 11f, 700, Theme.muted, lines = 1)
   private val notices = LinearLayout(context)
@@ -711,7 +711,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     // in the quiet colour, 10 before the words (15).
     val glass = com.linea.messenger.design.GlassDrawable(searchBox, 26f * d, clear = false)
     searchBox.background = if (Theme.dark) android.graphics.drawable.LayerDrawable(arrayOf(glass, context.plate(0xFF1F1F1F.toInt(), 26f))) else glass
-    searchBox.addView(AIIconView(context, "search", 17f, Theme.muted), FrameLayout.LayoutParams(dp(20f), dp(48f)).apply { leftMargin = dp(16f) })
+    searchBox.addView(AIIconView(context, "search", 20f, Theme.muted), FrameLayout.LayoutParams(dp(20f), dp(48f)).apply { leftMargin = dp(16f) })
     search.setHintTextColor(Theme.muted)
     search.setTextColor(Theme.text)
     search.textSize = 15f

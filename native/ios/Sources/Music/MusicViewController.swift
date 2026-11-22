@@ -153,7 +153,9 @@ final class MiniPlayerView: UIView {
         toggleFill.frame = CGRect(x: 0, y: 0, width: 46, height: 46)
         toggleFill.cornerRadius = 23
         toggle.layer.insertSublayer(toggleFill, at: 0)
-        Bouncy.attach(toggle, scale: 0.95)
+        // PlaybackButton: `scale: pressed ? .95 : 1` — at once, no spring.
+        toggle.addAction(UIAction { [weak self] _ in self?.toggle.transform = CGAffineTransform(scaleX: 0.95, y: 0.95) }, for: [.touchDown, .touchDragEnter])
+        toggle.addAction(UIAction { [weak self] _ in self?.toggle.transform = .identity }, for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
         let row = UIStackView(arrangedSubviews: [cover, words, back, toggle, forward, close])
         row.axis = .horizontal
         row.alignment = .center

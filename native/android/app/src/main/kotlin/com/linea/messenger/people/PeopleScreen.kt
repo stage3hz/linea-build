@@ -574,6 +574,7 @@ class PeopleEmptyCell(context: Context) : ViewGroup(context) {
 class PeopleRoundButton(context: Context, private val symbol: String, private val look: RoundIconButton.Look, private val size: Float = if (look == RoundIconButton.Look.PLAIN) 22f else 19f) : View(context) {
   private val d = resources.displayMetrics.density
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  private var wasPressed = false
 
   init {
     isClickable = look != RoundIconButton.Look.SOFT // the chat button is a picture: the row opens the chat
@@ -585,7 +586,8 @@ class PeopleRoundButton(context: Context, private val symbol: String, private va
 
   override fun drawableStateChanged() {
     super.drawableStateChanged()
-    if (look == RoundIconButton.Look.PLAIN) { val s = if (isPressed) 0.86f else 1f; animate().scaleX(s).scaleY(s).setDuration(120).start() }
+    // `IconButton` is a `Bouncy` (scale 0.86) with the reference's springs.
+    if (look == RoundIconButton.Look.PLAIN && isPressed != wasPressed) { wasPressed = isPressed; if (isPressed) com.linea.messenger.chatlook.Bouncy.press(this, 0.86f) else com.linea.messenger.chatlook.Bouncy.release(this) }
     invalidate()
   }
 

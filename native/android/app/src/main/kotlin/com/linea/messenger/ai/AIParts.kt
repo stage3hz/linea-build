@@ -202,33 +202,60 @@ class AIRoundButton(context: Context, symbol: String, words: String, active: Boo
 
 /** A wide button: filled (the main action) or quiet; a picture may stand before its words. */
 @SuppressLint("ViewConstructor")
-class AIWideButton(context: Context, label: String, symbol: String? = null, secondary: Boolean = false) : LinearLayout(context) {
-  private val text = context.words(label, 15f, if (secondary) Theme.text else Theme.onAccent, 600)
+/** The reference's `Button` (components.tsx): 54 tall, radius 21, 21 inside, the glyph (20) 10 before the words (16
+ *  bold, −0.15), a `Bouncy` press to 0.96, disabled at 0.45. Primary: the accent gradient (0,0 → 0.9,1 at 0.96) with a
+ *  white sheen (0.22 → clear, 0,0 → 0.4,0.65) and a 1 dp edge; secondary: regular glass. */
+class AIWideButton(context: Context, label: String, symbol: String? = null, private val secondary: Boolean = false) : LinearLayout(context) {
+  private val d = resources.displayMetrics.density
+  private val text = context.words(label, 16f, if (secondary) Theme.text else Theme.onAccent, 700).apply { letterSpacing = -0.15f / 16f }
+  private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private val box = android.graphics.RectF()
 
   init {
     orientation = HORIZONTAL
     gravity = Gravity.CENTER
-    background = context.plate(if (secondary) Theme.surface2 else Theme.accent, 24f, if (secondary) Theme.veil(0.1f) else 0)
-    setPadding(context.px(18f), context.px(13f), context.px(18f), context.px(13f))
-    minimumHeight = context.px(46f)
-    if (symbol != null) addView(AIIconView(context, symbol, 16f, if (secondary) Theme.text else Theme.onAccent), LayoutParams(context.px(18f), context.px(18f)).apply { marginEnd = context.px(8f) })
+    setWillNotDraw(false)
+    if (secondary) background = com.linea.messenger.design.GlassDrawable(this, 21f * d, clear = false)
+    setPadding(context.px(21f), 0, context.px(21f), 0)
+    minimumHeight = context.px(54f)
+    if (symbol != null) addView(AIIconView(context, symbol, 20f, if (secondary) Theme.text else Theme.onAccent), LayoutParams(context.px(20f), context.px(20f)).apply { marginEnd = context.px(10f) })
     text.gravity = Gravity.CENTER
     addView(text, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
     isClickable = true
     isFocusable = true
     contentDescription = label
+    com.linea.messenger.chatlook.Bouncy.attach(this, 0.96f)
+  }
+
+  override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+    super.onMeasure(widthSpec, MeasureSpec.makeMeasureSpec(context.px(54f), MeasureSpec.EXACTLY))
+  }
+
+  override fun onDraw(canvas: android.graphics.Canvas) {
+    super.onDraw(canvas)
+    if (secondary) return
+    val w = width.toFloat(); val h = height.toFloat(); val r = 21f * d
+    box.set(0f, 0f, w, h)
+    val colors = com.linea.messenger.settings.ThemeStore.look.accentGradient.takeIf { it.size >= 2 }?.toIntArray() ?: intArrayOf(Theme.accent, Theme.accent)
+    paint.style = android.graphics.Paint.Style.FILL
+    paint.shader = android.graphics.LinearGradient(0f, 0f, 0.9f * w, h, colors, null, android.graphics.Shader.TileMode.CLAMP)
+    paint.alpha = Math.round(0.96f * 255)
+    canvas.drawRoundRect(box, r, r, paint)
+    paint.alpha = 255
+    paint.shader = android.graphics.LinearGradient(0f, 0f, 0.4f * w, 0.65f * h, 0x38FFFFFF, 0x00FFFFFF, android.graphics.Shader.TileMode.CLAMP)
+    canvas.drawRoundRect(box, r, r, paint)
+    paint.shader = null
+    paint.style = android.graphics.Paint.Style.STROKE; paint.strokeWidth = d
+    paint.color = if (Theme.dark) 0x94EBF5FF.toInt() else 0x59FFFFFF
+    box.inset(d / 2, d / 2)
+    canvas.drawRoundRect(box, r, r, paint)
   }
 
   override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
 
   override fun setEnabled(enabled: Boolean) {
     super.setEnabled(enabled)
-    alpha = if (enabled) 1f else 0.5f
-  }
-
-  override fun setPressed(pressed: Boolean) {
-    super.setPressed(pressed)
-    text.alpha = if (pressed) 0.6f else 1f
+    alpha = if (enabled) 1f else 0.45f
   }
 }
 

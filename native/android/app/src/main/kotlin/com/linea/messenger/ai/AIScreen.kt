@@ -375,7 +375,7 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
       link.setOnClickListener { openLink("https://openrouter.ai/privacy") }
       sheet.add(link, wide = false)
     }
-    val allow = AIWideButton(context, "Разрешить и отправить", "arrow.up")
+    val allow = AIWideButton(context, "Разрешить и отправить", "ion:arrow-up-outline")
     allow.setOnClickListener {
       conversation.setConsent(true)
       sheet.dismiss()
