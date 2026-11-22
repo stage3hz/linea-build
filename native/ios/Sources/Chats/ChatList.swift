@@ -569,6 +569,8 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
   var onRowPress: ([String: Any]) -> Void = { _ in }
   var onRowLongPress: ([String: Any]) -> Void = { _ in }
   var onRowAction: ([String: Any]) -> Void = { _ in }
+  /// How far the rows have gone up under the floating header (0 at rest, at the top of the list).
+  var onScrolledUnder: (CGFloat) -> Void = { _ in }
 
   private let table = UITableView(frame: .zero, style: .plain)
   private var rows: [ChatRow] = []
@@ -798,6 +800,7 @@ extension ChatListView {
   }
 
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    onScrolledUnder(max(0, scrollView.contentOffset.y + padTop))
     guard pullView != nil else { return }
     // Scrolled down into the chats: the open block is put away (it is out of sight already, nothing jumps).
     if pullOpen && scrollView.contentOffset.y >= -padTop - 0.5 && (scrollView.isDragging || scrollView.isDecelerating) {
