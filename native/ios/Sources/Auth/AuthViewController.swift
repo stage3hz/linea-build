@@ -492,7 +492,7 @@ final class AuthViewController: UIViewController {
         return keyboardOverlap > AuthFit.keyboard || (holdCompact && keyboardHeight > 0)
     }
 
-    private var editing: Bool {
+    private var typingInField: Bool {
         let fields: [AuthEntry] = [nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry, recoveryEntry]
         return fields.contains(where: { (entry: AuthEntry) -> Bool in entry.field.isFirstResponder })
     }
@@ -634,7 +634,7 @@ final class AuthViewController: UIViewController {
     /// waiting period), or when the keyboard does not come back to the field.
     private func releaseHold() {
         guard holdCompact else { return }
-        if !editing {
+        if !typingInField {
             holdCompact = false
             relayout(duration: 0.3, options: .curveEaseInOut)
             return
