@@ -8,6 +8,7 @@ object ChatActionsDemo {
   const val read = 0L
   val chatdemo: String? get() = null
   val chataction: String? get() = null
+  val forwardto: String? get() = null
   val chatlist: String? get() = null
   val chatsearch: String? get() = null
   val chatsearchscope: String? get() = null

@@ -1161,9 +1161,30 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       "albummenu" -> shown.albumParts.keys.sorted().firstOrNull()?.let { openMenu(it, middle) }
       "gift" -> sendGift()
       "forwardmany" -> target?.let { startForward(listOf(it)) }
+      // The live check: every attachment the other side sent here goes on to the chat of `--es forwardto <name>`
+      // (the start of the person's @name), as «Выбрать» → send does; tools/sim-forward-check.mjs then opens them there.
+      "forwardsend" -> forwardForCheck(theirs.filter { Core.map(it["attachment"] as? Map<*, *>) != null })
       "react" -> incoming?.let { message ->
         val mine = (message["reactions"] as? List<*>).orEmpty().mapNotNull { Core.map(it) }.any { it["mine"] == true }
         if (!mine) react(message, "❤️")
+      }
+    }
+  }
+
+  /** `--es chataction forwardsend --es forwardto <name>`: forwards these messages to the first other chat whose
+   *  person's @name starts with `forwardto`, through the very road of «Переслать» → «Выбрать» → send; the notice
+   *  says how it went (the reference's words). Debug builds only (the release build's `forwardto` is null). */
+  private fun forwardForCheck(messages: List<Map<String, Any?>>) {
+    val messenger = messenger ?: return
+    val wanted = ChatActionsDemo.forwardto.orEmpty()
+    if (wanted.isEmpty() || messages.isEmpty()) return say("Не удалось переслать.", danger = true)
+    messenger.chats { result ->
+      val chat = result.getOrNull()?.firstOrNull { it.id != chatId && (Core.map(it.chat["peer"])?.get("username") as? String).orEmpty().startsWith(wanted) }
+        ?: return@chats say("Не удалось переслать.", danger = true)
+      val target = ForwardPicker.Target(chat.id, chat.peerId, chat.title, com.linea.messenger.people.Person.from(chat.chat["peer"]), chat)
+      val items = messages.map { ForwardDraft.Item(it, author(it)) }
+      ChatForward.sendMany(messenger, listOf(target), "", items) { problem ->
+        if (problem != null) say(problem, danger = true) else say(ChatForward.notice(listOf(target)))
       }
     }
   }

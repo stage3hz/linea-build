@@ -52,7 +52,8 @@ echo "sign-in requests: $(asked 'POST /auth/login 200'), keys published: $(asked
 [ "$(asked 'POST /e2ee/devices 20[01]')" -ge 1 ] || { echo "The app did not publish its keys" >&2; FAILED=1; }
 
 echo "== other people write"
-(cd "$ROOT" && node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$WORK/srvdata" nativetester 'Synthetic!Native.42' ambergardenprism) || { echo "seeding failed"; FAILED=1; }
+# SIM_SEED_FORWARD: also a small, a long (chunked) and a round video, and what the forward check below needs.
+(cd "$ROOT" && SIM_SEED_FORWARD="$WORK/forward.json" node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$WORK/srvdata" nativetester 'Synthetic!Native.42' ambergardenprism) || { echo "seeding failed"; FAILED=1; }
 
 echo "== the list and a chat (the session and the keys are read back from the device's storage)"
 before="$(asked 'POST /auth/login 200')"
@@ -85,6 +86,13 @@ live 13-settings 25 --es settings root
 live 14-settings-profile 25 --es settings profile
 live 15-settings-sessions 25 --es settings sessions
 live 16-settings-security 25 --es settings security
+
+echo "== forward: every attachment of the first chat (file, photo, voice, small, long and round video) goes on to Анна's chat"
+# Last, as it reorders the list. The person there then opens each one with the reference's own code.
+live 20-forward-real 60 --ez openchat true --es chataction forwardsend --es forwardto simpeer0
+(cd "$ROOT" && node tools/sim-forward-check.mjs http://127.0.0.1:3999 "$WORK/forward.json" 150) || { echo "The forwarded attachments did not arrive whole" >&2; FAILED=1; }
+echo "forward uploads: $(asked 'POST /e2ee/files 201') small, $(asked 'POST /e2ee/uploads 201') chunked"
+live 21-forward-list 25
 
 echo "== the requests, as the proxy saw them (last 60)"
 tail -60 "$WORK/proxy.log" | cut -c1-160

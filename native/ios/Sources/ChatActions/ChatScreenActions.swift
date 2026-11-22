@@ -1222,6 +1222,39 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
 
     private var simulatorDone = false
 
+    /// `-chataction forwardsend -forwardto <name>`: forwards these messages to the first other chat whose person's
+    /// @name starts with `forwardto`, through the very road of «Переслать» → «Выбрать» → send; the notice says how
+    /// it went (the reference's words). Simulator only.
+    private func forwardForCheck(_ messages: [[String: Any]]) {
+        guard let messenger else { return }
+        let wanted = UserDefaults.standard.string(forKey: "forwardto") ?? ""
+        if wanted.isEmpty || messages.isEmpty {
+            say("Не удалось переслать.", danger: true)
+            return
+        }
+        let here = chatId
+        messenger.chats { [weak self] (result: Result<[Messenger.ChatSummary], ServerError>) -> Void in
+            guard let self else { return }
+            var found: Messenger.ChatSummary?
+            if case .success(let chats) = result {
+                found = chats.first { (chat: Messenger.ChatSummary) -> Bool in
+                    let name = (chat.chat["peer"] as? [String: Any])?["username"] as? String ?? ""
+                    return chat.id != here && name.hasPrefix(wanted)
+                }
+            }
+            guard let chat = found else {
+                self.say("Не удалось переслать.", danger: true)
+                return
+            }
+            let target = ForwardPickerController.Target(chatId: chat.id, peerId: chat.peerId, name: chat.title, person: Person(chat.chat["peer"]), summary: chat)
+            let items = messages.map { ForwardDraft.Item(message: $0, author: self.author(of: $0)) }
+            ChatForward.sendMany(messenger: messenger, targets: [target], comment: "", items: items) { [weak self] (problem: String?) -> Void in
+                guard let self else { return }
+                if let problem { self.say(problem, danger: true) } else { self.say(ChatForward.notice([target])) }
+            }
+        }
+    }
+
     /// What the simulator check asks of an open chat, once its messages are on screen:
     ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft   the sample chat (with -demo 1 -chat 1)
     ///   -chataction menu|delete|reply|edit|pin|select|forward|react                  the first chat of an account (with -openchat 1)
@@ -1265,6 +1298,10 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             history.selection = Set(all.suffix(2).map { ChatHistory.key($0) })
         case "forward", "forwardmany":
             if let message = incoming ?? all.last { startForward([message]) }
+        // The live check: every attachment the other side sent here goes on to the chat of `-forwardto <name>` (the
+        // start of the person's @name), as «Выбрать» → send does; tools/sim-forward-check.mjs then opens them there.
+        case "forwardsend":
+            forwardForCheck(theirs.filter { $0["attachment"] is [String: Any] })
         case "pin":
             if shown.pinned == nil, let message = incoming ?? all.last, let client = message["clientId"] as? String {
                 history.sendAction(["type": "pin", "target": client], targetText: message["text"] as? String ?? "")

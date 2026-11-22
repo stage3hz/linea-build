@@ -376,7 +376,8 @@ jobs:
           echo "== sign in (the app makes its keys and publishes them)"
           live 07-signed-in 25 -login nativetester -password 'Synthetic!Native.42' -word ambergardenprism
           echo "== other people write"
-          node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$GITHUB_WORKSPACE/srvdata" nativetester 'Synthetic!Native.42' ambergardenprism || echo "seeding failed"
+          # SIM_SEED_FORWARD: also a small, a long (chunked) and a round video, and what the forward check below needs.
+          SIM_SEED_FORWARD="$GITHUB_WORKSPACE/forward.json" node tools/sim-seed.mjs http://127.0.0.1:3999 native_check "$GITHUB_WORKSPACE/srvdata" nativetester 'Synthetic!Native.42' ambergardenprism || echo "seeding failed"
           echo "== the list and a chat"
           live 08-real-chats 25
           live 09-real-chat 30 -openchat 1
@@ -406,7 +407,13 @@ jobs:
           live 16-settings-security 25 -settings security
           live 16b-settings-notifications 25 -settings notifications
           live 16c-settings-data 25 -settings data
+          echo "== forward: every attachment of the first chat (file, photo, voice, small, long and round video) goes on to Анна's chat"
+          # Last, as it reorders the list. The person there then opens each one with the reference's own code.
+          live 33-forward-real 60 -openchat 1 -chataction forwardsend -forwardto simpeer0
+          limit 240 node tools/sim-forward-check.mjs http://127.0.0.1:3999 "$GITHUB_WORKSPACE/forward.json" 150 || FORWARD_FAILED=1
+          live 34-forward-list 25
           tail -5 server.log || true
+          [ -z "${FORWARD_FAILED:-}" ] || { echo "== forward check FAILED"; exit 1; }
           echo "== live done"
       - name: Publish the result (branch native-sim-output-<runner>)
         if: always()

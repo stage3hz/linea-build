@@ -200,23 +200,34 @@ object ChatForward {
 
   /** A file of the chunked scheme as a new chunked file on the server (the reference's forward: the file is opened
    *  here and sent again as a new encrypted file; the key of the first one is never reused). One 4 MiB chunk is in
-   *  memory at a time; the opened copy lives in a private folder of the app's cache that goes as soon as this ends
-   *  (its name is that of the opened files, so a copy left by a killed app is swept with them). Background thread. */
+   *  memory at a time. Background thread. */
   private fun copiedBig(attachment: Map<String, Any?>, server: Server): Result<Map<String, Any?>> {
+    val cache = File(System.getProperty("java.io.tmpdir") ?: return Result.failure(FileCore.Failure("Не удалось открыть файл.")))
+    val quiet: (Long, Long) -> Unit = { _, _ -> }
+    return copiedBig(attachment, cache,
+      download = { file -> BigFiles.download(server, attachment, file, BigTransfer(), quiet) },
+      upload = { file, video -> BigFiles.upload(server, file, video, BigTransfer(), progress = quiet) })
+  }
+
+  /** The steps of `copiedBig` around the transfers (given, so that the checks can run them without a server): the
+   *  opened copy lives in a private folder of the app's cache that goes as soon as this ends (its name is that of
+   *  the opened files, so a copy left by a killed app is swept with them); a video goes up under the video limit,
+   *  anything else under the file limit; the message gets the new id and key with the first one's name, type,
+   *  media and preview. */
+  internal fun copiedBig(
+    attachment: Map<String, Any?>, cache: File,
+    download: (File) -> Result<Unit>, upload: (File, Boolean) -> Result<BigFiles.Uploaded>,
+  ): Result<Map<String, Any?>> {
     fun failure(words: String) = Result.failure<Map<String, Any?>>(FileCore.Failure(words))
-    val cache = File(System.getProperty("java.io.tmpdir") ?: return failure("Не удалось открыть файл."))
     val folder = File(cache, DecryptedFiles.prefix + UUID.randomUUID().toString().lowercase())
     try {
       if (!folder.mkdirs()) return failure("Не удалось открыть файл.")
       val file = File(folder, "forward.bin")
-      val quiet: (Long, Long) -> Unit = { _, _ -> }
-      val brought = BigFiles.download(server, attachment, file, BigTransfer(), quiet)
+      val brought = download(file)
       if (brought.isFailure) return failure(FileCore.words(brought))
       val name = attachment["name"] as? String ?: "file"
       val type = attachment["mimeType"] as? String ?: "application/octet-stream"
-      // A video goes up under the video limit (the same for everyone), anything else under the file limit.
-      val video = type.lowercase(java.util.Locale.ROOT).startsWith("video/")
-      val uploaded = BigFiles.upload(server, file, video, BigTransfer(), progress = quiet)
+      val uploaded = upload(file, isVideo(type))
       val done = uploaded.getOrNull() ?: return failure(FileCore.words(uploaded))
       val made = Core.map(FileCore.call("attachment", listOf(done.id, name, type, done.size, done.encryption, attachment["media"], attachment["preview"])))
         ?: return failure("Не удалось переслать.")
@@ -225,6 +236,9 @@ object ChatForward {
       folder.deleteRecursively()
     }
   }
+
+  /** Whether a forwarded big file goes up as a video (its limit is the same for everyone) or as a file. */
+  fun isVideo(mimeType: String): Boolean = mimeType.lowercase(java.util.Locale.ROOT).startsWith("video/")
 }
 
 /** «Переслать»: the chats to choose from, with a search by name. */

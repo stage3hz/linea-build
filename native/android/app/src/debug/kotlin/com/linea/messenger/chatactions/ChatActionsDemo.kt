@@ -11,6 +11,7 @@ import java.util.Locale
  *  messages and chats (see `Demo.start`), as the iOS simulator check does:
  *    --es chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft   the sample chat (with --ez demo true --ez chat true)
  *    --es chataction menu|delete|reply|edit|pin|select|forward|react                  the first chat of an account (with --ez openchat true)
+ *    --es chataction forwardsend --es forwardto <name>                                 its attachments forwarded to the chat of @<name>… (live check)
  *    --es chatlist menu|mute|delete|archive|archived|draft|unread                     the list of chats: on the first chat (archive: on the last one)
  *    --es chatsearch <query>                                                          the search screen with these words
  *    --es chatsearchscope messages|people|channels                                    ChatSearch: that scope of the search screen
@@ -25,6 +26,9 @@ object ChatActionsDemo {
     private set
   var chataction: String? = null
     private set
+  /** `chataction forwardsend`: the start of the @name of the person whose chat gets the forwarded attachments. */
+  var forwardto: String? = null
+    private set
   var chatlist: String? = null
     private set
   var chatsearch: String? = null
@@ -36,6 +40,7 @@ object ChatActionsDemo {
   fun read(intent: Intent) {
     chatdemo = intent.getStringExtra("chatdemo")
     chataction = intent.getStringExtra("chataction")
+    forwardto = intent.getStringExtra("forwardto")
     chatlist = intent.getStringExtra("chatlist")
     chatsearch = intent.getStringExtra("chatsearch")
     chatsearchscope = intent.getStringExtra("chatsearchscope") // ChatSearch

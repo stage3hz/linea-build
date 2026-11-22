@@ -41,7 +41,8 @@ function png(a, b) {
 async function peer(username, displayName, colors) {
   const session = await new Api(base).register(username, PASSWORD, displayName, CONFIRMATION, RECOVERY);
   const api = new Api(base, session.token);
-  const service = new CryptoService(session.user.id, api, nodeSignalBridge, new MemoryVault(), randomUUID, sha256, { autoTrust: true });
+  const vault = new MemoryVault();
+  const service = new CryptoService(session.user.id, api, nodeSignalBridge, vault, randomUUID, sha256, { autoTrust: true });
   await service.initialize();
   if (colors) {
     // The avatar goes up as the app sends it: one multipart file, then the profile points at it. Not fatal.
@@ -53,7 +54,7 @@ async function peer(username, displayName, colors) {
       await api.profile({ avatarId: body.attachment.id });
     } catch (error) { console.log(`avatar of ${username} not set: ${error.message}`); }
   }
-  return { api, service, id: session.user.id, chatId: null };
+  return { api, service, vault, id: session.user.id, chatId: null };
 }
 // A message with every kind of formatting, for the native list's formatting check: [text, entities].
 const FORMATTED = (() => {
@@ -116,7 +117,14 @@ async function sayFile(from, to, bytes, { name, mimeType, media }, text = '') {
   const clientId = randomUUID();
   await from.api.sendEncrypted(from.chatId, clientId, await from.service.encrypt(from.chatId, to, clientId, text, attachment));
   await from.service.delivered(from.chatId, clientId);
+  forwardWanted.set(name, { sha256: sha256hex(bytes), id: attachment.id, key: attachment.encryption.key });
 }
+// SIM_SEED_FORWARD=<file>: the forward check (tools/sim-forward-check.mjs). Every attachment seeded here is noted
+// (its name, the SHA-256 of its bytes, its id and key), a small and two chunked videos are added, and what the
+// first person needs to open what reaches them later — their session and their device's keys, made up for this
+// run on the local server — is written to that file.
+const forwardWanted = new Map();
+const { sha256hex, uploadSmall, uploadChunked, CHUNK } = await import(new URL('sim-files.mjs', import.meta.url));
 try {
   const last = people[people.length - 1];
   await sayFile(last, found.id, Buffer.from('%PDF-1.4\n% a made-up file for the simulator\n', 'utf8'), { name: 'Договор.pdf', mimeType: 'application/pdf' }, 'Посмотри договор');
@@ -133,6 +141,24 @@ try {
   head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
   await sayFile(last, found.id, Buffer.concat([head, pcm]), { name: `voice-${Date.now()}.m4a`, mimeType: 'audio/mp4', media: { durationMs: 3000, waveform: 'AFKPUZbfbZUPKFA'.repeat(6) } });
   sent += 1;
+  if (process.env.SIM_SEED_FORWARD) {
+    // A small video (one sealed block) and two in chunks: a long one (two chunks) and a round one (a «кружок»).
+    const { mp4Fixture, atom } = await import(new URL('mp4-fixture.mjs', support));
+    const video = mp4Fixture({ metadata: false }).bytes;
+    const videos = [
+      [video, { name: 'video.mp4', mimeType: 'video/mp4', media: { width: 2, height: 2, durationMs: 2000, hdr: 'sdr' } }, uploadSmall],
+      [Buffer.concat([video, atom('free', Buffer.alloc(CHUNK + 300000, 7))]), { name: 'big-video.mp4', mimeType: 'video/mp4', media: { width: 2, height: 2, durationMs: 2000, hdr: 'sdr' } }, uploadChunked],
+      [Buffer.concat([video, atom('free', Buffer.alloc(20000, 3))]), { name: `circle-${Date.now()}.mp4`, mimeType: 'video/mp4', media: { width: 2, height: 2, durationMs: 2000 } }, uploadChunked],
+    ];
+    for (const [bytes, about, upload] of videos) {
+      const attachment = await upload(nodeSignalBridge, base, last.api.authHeaders, bytes, about);
+      const clientId = randomUUID();
+      await last.api.sendEncrypted(last.chatId, clientId, await last.service.encrypt(last.chatId, found.id, clientId, '', attachment));
+      await last.service.delivered(last.chatId, clientId);
+      forwardWanted.set(about.name, { sha256: sha256hex(bytes), id: attachment.id, key: attachment.encryption.key });
+      sent += 1;
+    }
+  }
   // SIM_SEED_RICH=1: a text after the media, so the newest message of the chat (the one the native app's
   // `-chataction menu` holds) is one the reference flow can hold by its words too.
   if (process.env.SIM_SEED_RICH === '1') { await say(last, found.id, 'Как тебе фото'); sent += 1; }
@@ -181,4 +207,13 @@ if (dataDir) {
   }
 }
 for (const person of people) await person.service.close();
+if (process.env.SIM_SEED_FORWARD) {
+  const { writeFileSync } = await import('node:fs');
+  const first = people[0];
+  writeFileSync(process.env.SIM_SEED_FORWARD, JSON.stringify({
+    username: `simpeer0_${stamp}`, userId: first.id, token: first.api.token, chatId: first.chatId,
+    vault: [...first.vault.data], wanted: Object.fromEntries(forwardWanted),
+  }), { mode: 0o600 });
+  console.log(`forward check: ${forwardWanted.size} attachments noted, the forward goes to @simpeer0_${stamp}`);
+}
 console.log(JSON.stringify({ people: people.length, messages: sent, to: found.id }));
