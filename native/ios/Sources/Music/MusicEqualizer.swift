@@ -228,8 +228,8 @@ private let equalizerTapProcess: MTAudioProcessingTapProcessCallback = { tap, fr
                     lowSum += low * low; midSum += mid * mid; highSum += top * top
                 }
                 context.meterLow = low; context.meterHigh = high
-                let count = Float(frameCount)
-                context.state.meter(low: (lowSum / count).squareRoot(), mid: (midSum / count).squareRoot(), high: (highSum / count).squareRoot())
+                let sampleCount = Float(frameCount)
+                context.state.meter(low: (lowSum / sampleCount).squareRoot(), mid: (midSum / sampleCount).squareRoot(), high: (highSum / sampleCount).squareRoot())
             }
         }
     }
