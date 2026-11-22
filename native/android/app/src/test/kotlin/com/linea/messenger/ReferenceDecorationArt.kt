@@ -90,6 +90,9 @@ class ReferenceDecorationArt(val context: Context, val decoration: AvatarCatalog
         }
         val alpha = opacity.toFloat().coerceIn(0f, 1f)
         val s = sparkSize * scale.toFloat()
+        // The first port left the previous spark's alpha on the paint, which then also faded this glow (a slip, not
+        // the reference's look: Decorations.tsx fades each glow by its own spark only); fixed here as in the app.
+        dot.alpha = 255
         dot.shader = RadialGradient(x, y, s * 2f, intArrayOf((color and 0xFFFFFF) or (Math.round(alpha * 0.6f * 255) shl 24), color and 0xFFFFFF), null, Shader.TileMode.CLAMP)
         canvas.drawCircle(x, y, s * 2f, dot)
         dot.shader = null

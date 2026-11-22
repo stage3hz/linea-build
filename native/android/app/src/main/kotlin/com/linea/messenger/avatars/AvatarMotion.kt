@@ -52,11 +52,13 @@ object AvatarMotion {
  *  leave the window or hide, and while the app's animations are off («Энергосбережение и анимации», the system's
  *  battery saver or «Удалить анимации»). The views never ask for their own next frame from onDraw. */
 object DecorTicker : Choreographer.FrameCallback {
-  /** At least this long between two redraws (ns): a little under 1/60 s, so a 60 Hz screen keeps every frame. */
-  private const val GAP = 15_000_000L
+  /** At least this long between two redraws (ms): a little under 1/60 s, so a 60 Hz screen keeps every frame and a
+   *  90/120 Hz one draws the decorations at most 60 times a second. */
+  private const val GAP = 15L
   private val views = ArrayList<View>()
   private var posted = false
-  private var last = 0L
+  private var postedAt = 0L
+  private var lastFrame = 0L
   private var frames = 0
   private var watching = false
   private val motionChanged: (Unit) -> Unit = { refresh() }
@@ -65,8 +67,8 @@ object DecorTicker : Choreographer.FrameCallback {
   var allowed = true
     private set
 
-  /** How many views are moving now (tests). */
-  val count: Int get() = views.size
+  /** The view is on the clock now (tests). */
+  fun ticking(view: View): Boolean = views.contains(view)
 
   fun start(view: View) {
     if (!watching) { watching = true; try { com.linea.messenger.effects.Motion.changed.watch(motionChanged) } catch (_: Throwable) {} }
@@ -80,26 +82,36 @@ object DecorTicker : Choreographer.FrameCallback {
   /** Reads the animations' switch again; when it flips, the moving views redraw once (still or moving). */
   fun refresh() {
     val now = AvatarMotion.enabled()
-    if (now != allowed) { allowed = now; for (index in views.indices.reversed()) views[index].invalidate() }
+    if (now != allowed) { allowed = now; invalidateAll() }
     schedule()
   }
 
   private fun schedule() {
-    if (posted || !allowed || views.isEmpty()) return
-    posted = true
-    Choreographer.getInstance().postFrameCallback(this)
+    if (!allowed || views.isEmpty()) return
+    val now = android.os.SystemClock.uptimeMillis()
+    // Already asked (a request that never came back — a looper thrown away in tests — is asked again after a second).
+    if (posted && now - postedAt < 1000) return
+    posted = true; postedAt = now
+    // The next frame no sooner than GAP after the last one: asked for a little before, so it lands on the vsync.
+    val wait = lastFrame + GAP - now
+    val choreographer = Choreographer.getInstance()
+    choreographer.removeFrameCallback(this)
+    if (wait > 0) choreographer.postFrameCallbackDelayed(this, wait) else choreographer.postFrameCallback(this)
   }
 
   override fun doFrame(frameTimeNanos: Long) {
     posted = false
     if (views.isEmpty()) return
+    lastFrame = frameTimeNanos / 1_000_000
     frames += 1
     if (frames % 60 == 0) { refresh(); if (!allowed) return }
-    if (frameTimeNanos - last >= GAP) {
-      last = frameTimeNanos
-      for (index in views.indices.reversed()) views[index].invalidate()
-    }
+    invalidateAll()
     schedule()
+  }
+
+  private fun invalidateAll() {
+    var index = views.size - 1
+    while (index >= 0) { views[index].invalidate(); index -= 1 }
   }
 
   /** A view's place on the clock: it ticks while it wants to, is in a window and is shown. */
