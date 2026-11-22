@@ -242,15 +242,12 @@ class GlassSearchField(context: Context) : FrameLayout(context) {
   init { setWillNotDraw(false) }
 
   /** Where the words go, px (after the magnifier and 10 of room). */
-  val wordsLeft: Int get() = Math.round((15f + 22f + 10f) * d)
+  val wordsLeft: Int get() = Math.round((15f + 21f + 10f) * d)
 
   override fun onDraw(canvas: Canvas) {
     glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 24f * d)
-    // The magnifier: a ring and its handle, in the accent, centred in its 22 dp column 15 from the left.
-    val cx = (15f + 11f) * d; val cy = height / 2f; val unit = 20f * d / 24f
-    lens.color = Theme.accent; lens.strokeWidth = 2f * unit
-    canvas.drawCircle(cx - 1.5f * unit, cy - 1.5f * unit, 6.5f * unit, lens)
-    canvas.drawLine(cx + 3.4f * unit, cy + 3.4f * unit, cx + 8f * unit, cy + 8f * unit, lens)
+    // The magnifier: the reference's `search-outline` (21), in the accent, 15 from the left.
+    IonIcon.draw(canvas, "search-outline", (15f + 10.5f) * d, height / 2f, 21f * d, Theme.accent)
   }
 }
 

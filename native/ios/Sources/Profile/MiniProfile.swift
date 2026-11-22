@@ -189,11 +189,11 @@ final class MiniProfileViewController: UIViewController {
 
     private func actionButton(_ symbol: String, _ label: String, primary: Bool, action: @escaping () -> Void) -> UIButton {
         var config = UIButton.Configuration.filled()
-        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+        config.image = IonIcon.image(symbol, size: 18) // the reference's `action`: Ionicons 18, 7 to the words
         config.imagePadding = 7
         config.attributedTitle = AttributedString(NSAttributedString(string: label, attributes: [.font: UIFont.systemFont(ofSize: 14, weight: .bold)]))
         config.baseBackgroundColor = primary ? Theme.accent : Theme.surface2
-        config.baseForegroundColor = primary ? Theme.onAccent : Theme.text
+        config.baseForegroundColor = primary ? UIColor.white : Theme.text // the reference writes #FFFFFF on the accent
         config.background.cornerRadius = 14
         let button = UIButton(configuration: config)
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
@@ -205,7 +205,8 @@ final class MiniProfileViewController: UIViewController {
 
     private func tile(_ symbol: String, _ label: String, action: @escaping () -> Void) -> UIButton {
         var config = UIButton.Configuration.filled()
-        config.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .medium))
+        config.image = IonIcon.image(symbol, size: 21) // the reference's `tile`: Ionicons 21 in the accent
+        config.imageColorTransformer = UIConfigurationColorTransformer { (_: UIColor) -> UIColor in Theme.accent }
         config.imagePlacement = .top
         config.imagePadding = 5
         config.attributedTitle = AttributedString(NSAttributedString(string: label, attributes: [.font: UIFont.systemFont(ofSize: 12, weight: .semibold)]))
@@ -224,7 +225,7 @@ final class MiniProfileViewController: UIViewController {
         control.isAccessibilityElement = true
         control.accessibilityLabel = label
         control.accessibilityTraits = .button
-        let icon = UIImageView(image: UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)))
+        let icon = UIImageView(image: IonIcon.image(symbol, size: 20)) // the reference's `row`: Ionicons 20
         icon.tintColor = danger ? Theme.danger : Theme.text
         icon.contentMode = .center
         let title = SettingsLook.words(label, size: 15, color: danger ? Theme.danger : Theme.text, weight: .semibold)
@@ -237,16 +238,32 @@ final class MiniProfileViewController: UIViewController {
         line.alignment = .center
         line.isUserInteractionEnabled = false
         if let on {
-            let toggle = UISwitch()
-            toggle.isOn = on
-            SettingsLook.paint(toggle)
+            // The reference draws its own small switch here: a 44×26 pill (radius 13, 3 inside) of the accent when on,
+            // `surface2` when off, with a white 20 knob at the end.
+            let toggle = UIView()
+            toggle.backgroundColor = on ? Theme.accent : Theme.surface2
+            toggle.layer.cornerRadius = 13
             toggle.isUserInteractionEnabled = false
+            toggle.translatesAutoresizingMaskIntoConstraints = false
+            let knob = UIView()
+            knob.backgroundColor = .white
+            knob.layer.cornerRadius = 10
+            knob.translatesAutoresizingMaskIntoConstraints = false
+            toggle.addSubview(knob)
+            NSLayoutConstraint.activate([
+                toggle.widthAnchor.constraint(equalToConstant: 44),
+                toggle.heightAnchor.constraint(equalToConstant: 26),
+                knob.widthAnchor.constraint(equalToConstant: 20),
+                knob.heightAnchor.constraint(equalToConstant: 20),
+                knob.centerYAnchor.constraint(equalTo: toggle.centerYAnchor),
+                on ? knob.trailingAnchor.constraint(equalTo: toggle.trailingAnchor, constant: -3) : knob.leadingAnchor.constraint(equalTo: toggle.leadingAnchor, constant: 3),
+            ])
             line.addArrangedSubview(toggle)
         }
         line.translatesAutoresizingMaskIntoConstraints = false
         control.addSubview(line)
         NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 22),
+            icon.widthAnchor.constraint(equalToConstant: 20),
             line.topAnchor.constraint(equalTo: control.topAnchor, constant: 8),
             line.bottomAnchor.constraint(equalTo: control.bottomAnchor, constant: -8),
             line.leadingAnchor.constraint(equalTo: control.leadingAnchor, constant: 14),
@@ -269,10 +286,10 @@ final class MiniProfileViewController: UIViewController {
             tiles.spacing = 8
             tiles.distribution = .fillEqually
             if let call = quick.onCall {
-                tiles.addArrangedSubview(tile("phone.fill", "Звонок") { call(false) })
-                tiles.addArrangedSubview(tile("video.fill", "Видео") { call(true) })
+                tiles.addArrangedSubview(tile("call", "Звонок") { call(false) })
+                tiles.addArrangedSubview(tile("videocam", "Видео") { call(true) })
             }
-            tiles.addArrangedSubview(tile("photo.on.rectangle", "Вложения", action: quick.onAttachments))
+            tiles.addArrangedSubview(tile("images", "Вложения", action: quick.onAttachments))
             rows.addArrangedSubview(tiles)
             let group = UIStackView()
             group.axis = .vertical
@@ -281,7 +298,7 @@ final class MiniProfileViewController: UIViewController {
             group.clipsToBounds = true
             if let friend = isFriend {
                 let words = friend ? "Удалить из друзей" : request == "outgoing" ? "Отменить заявку" : request == "incoming" ? "Принять в друзья" : "Добавить в друзья"
-                group.addArrangedSubview(row(friend ? "person.badge.minus" : request == "outgoing" ? "clock" : "person.badge.plus", words) { [weak self] in self?.toggleFriend() })
+                group.addArrangedSubview(row(friend ? "person-remove-outline" : request == "outgoing" ? "time-outline" : "person-add-outline", words) { [weak self] in self?.toggleFriend() })
             } else {
                 let spinner = UIActivityIndicatorView(style: .medium)
                 spinner.color = Theme.accent
@@ -290,7 +307,7 @@ final class MiniProfileViewController: UIViewController {
                 group.addArrangedSubview(spinner)
             }
             if let onNoCopy = quick.onNoCopy {
-                group.addArrangedSubview(row(quick.noCopy ? "lock" : "lock.open", "Запретить пересылку и копирование", on: quick.noCopy, hint: "Для обоих в этом чате") { [weak self] in
+                group.addArrangedSubview(row(quick.noCopy ? "lock-closed-outline" : "lock-open-outline", "Запретить пересылку и копирование", on: quick.noCopy, hint: "Для обоих в этом чате") { [weak self] in
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     let next = !(self?.quick?.noCopy ?? false)
                     onNoCopy(next)
@@ -298,22 +315,22 @@ final class MiniProfileViewController: UIViewController {
                 })
             }
             let blockWords = blocked ? "Разблокировать" : confirmBlock ? "Нажми ещё раз, чтобы заблокировать" : "Заблокировать"
-            group.addArrangedSubview(row(blocked ? "hand.raised" : "minus.circle", blockWords, danger: !blocked) { [weak self] in self?.blockPressed() })
+            group.addArrangedSubview(row(blocked ? "hand-left-outline" : "remove-circle-outline", blockWords, danger: !blocked) { [weak self] in self?.blockPressed() })
             rows.addArrangedSubview(group)
             note.font = .systemFont(ofSize: 13)
             note.textColor = Theme.muted
             note.textAlignment = .center
             note.numberOfLines = 0
             rows.addArrangedSubview(note)
-            if let onOpenProfile { rows.addArrangedSubview(actionButton("person.crop.circle", "Открыть профиль", primary: false, action: onOpenProfile)) }
+            if let onOpenProfile { rows.addArrangedSubview(actionButton("person-circle-outline", "Открыть профиль", primary: false, action: onOpenProfile)) }
             return
         }
         let line = UIStackView()
         line.axis = .horizontal
         line.spacing = 8
         line.distribution = .fillEqually
-        if !me, let onWrite { line.addArrangedSubview(actionButton("bubble.left", "Написать", primary: true, action: onWrite)) }
-        if let onOpenProfile { line.addArrangedSubview(actionButton("person.crop.circle", "Профиль", primary: me || onWrite == nil, action: onOpenProfile)) }
+        if !me, let onWrite { line.addArrangedSubview(actionButton("chatbubble-outline", "Написать", primary: true, action: onWrite)) }
+        if let onOpenProfile { line.addArrangedSubview(actionButton("person-circle-outline", "Профиль", primary: me || onWrite == nil, action: onOpenProfile)) }
         if !line.arrangedSubviews.isEmpty { rows.addArrangedSubview(line) }
     }
 

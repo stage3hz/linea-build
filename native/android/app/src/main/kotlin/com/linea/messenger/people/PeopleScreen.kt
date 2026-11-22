@@ -40,6 +40,8 @@ object PeopleList {
     data class Request(val person: Person, val incoming: Boolean) : Item()
     data class Friend(val person: Person) : Item()
     data class Empty(val heading: String, val words: String) : Item()
+    /** The 12 between the requests and the people (the screen puts it in; the rules do not). */
+    object Gap : Item()
   }
 
   /** A search begins with two characters. */
@@ -96,7 +98,11 @@ class PeopleScreen(
   private val caption: TextView get() = header.subtitleLabel
   private val searchBox = com.linea.messenger.design.GlassSearchField(context)
   private val field = EditText(context)
-  private val clearButton = RoundIconButton(context, "clear", RoundIconButton.Look.PLAIN, 19f)
+  private val clearButton = RoundIconButton(context, "close-circle", RoundIconButton.Look.PLAIN, 18f)
+  /** What did not work (the reference's `Notice error`), above the list, 17 from the sides. */
+  private val notice = PeopleNoticeView(context)
+  /** «ДРУЗЬЯ  5» / «РЕЗУЛЬТАТЫ ПОИСКА»: above the list, not in it (it does not scroll), 26 from the left. */
+  private val listLabel = PeopleLabelCell(context)
   private val spinner = ProgressBar(context)
   private val list = ListView(context)
 
@@ -128,23 +134,24 @@ class PeopleScreen(
     override fun getItemId(position: Int) = position.toLong()
     override fun getViewTypeCount() = 3
     override fun getItemViewType(position: Int) = when (items[position]) {
-      is PeopleList.Item.Label, is PeopleList.Item.Notice -> 0
+      is PeopleList.Item.Label, is PeopleList.Item.Notice, PeopleList.Item.Gap -> 0
       is PeopleList.Item.Request, is PeopleList.Item.Friend -> 1
       is PeopleList.Item.Empty -> 2
     }
     override fun areAllItemsEnabled() = false
     override fun isEnabled(position: Int) = getItemViewType(position) == 1
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View = when (val item = items[position]) {
-      is PeopleList.Item.Label -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { show(item.words, notice = false) }
-      is PeopleList.Item.Notice -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { show(item.words, notice = true) }
+      is PeopleList.Item.Label -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { show(item.words, first = items.getOrNull(position - 1) !is PeopleList.Item.Request) }
+      is PeopleList.Item.Notice -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { show("", first = true) }
+      PeopleList.Item.Gap -> (convertView as? PeopleLabelCell ?: PeopleLabelCell(context)).apply { gap() }
       is PeopleList.Item.Empty -> (convertView as? PeopleEmptyCell ?: PeopleEmptyCell(context)).apply { show(item.heading, item.words) }
       is PeopleList.Item.Request -> (convertView as? PersonCell ?: PersonCell(context)).apply {
         val person = item.person
         val buttons = if (item.incoming) listOf(
-          PersonCell.Action("check", "Принять: ${person.displayName}", RoundIconButton.Look.PRIMARY) { answer(person, accept = true) },
-          PersonCell.Action("cross", "Отклонить: ${person.displayName}", RoundIconButton.Look.OUTLINE) { answer(person, accept = false) },
+          PersonCell.Action("checkmark", "Принять: ${person.displayName}", RoundIconButton.Look.PRIMARY) { answer(person, accept = true) },
+          PersonCell.Action("close", "Отклонить: ${person.displayName}", RoundIconButton.Look.OUTLINE) { answer(person, accept = false) },
         ) else listOf(
-          PersonCell.Action("cross", "Отменить заявку: ${person.displayName}", RoundIconButton.Look.OUTLINE) { answer(person, accept = false) },
+          PersonCell.Action("close", "Отменить заявку: ${person.displayName}", RoundIconButton.Look.OUTLINE) { answer(person, accept = false) },
         )
         show(person, address(person), PeopleList.requestHandle(person, item.incoming), framed = true, dimmed = acting != null && acting != person.id,
           busy = acting == person.id, enabled = acting == null, actions = buttons)
@@ -153,8 +160,8 @@ class PeopleScreen(
       is PeopleList.Item.Friend -> (convertView as? PersonCell ?: PersonCell(context)).apply {
         val person = item.person
         val buttons = listOf(
-          PersonCell.Action("info", "Профиль ${person.displayName}", RoundIconButton.Look.PLAIN) { showProfile(person) },
-          PersonCell.Action("bubble", "Написать: ${person.displayName}", RoundIconButton.Look.SOFT) { openChat(person) },
+          PersonCell.Action("information-circle-outline", "Профиль ${person.displayName}", RoundIconButton.Look.PLAIN) { showProfile(person) },
+          PersonCell.Action("chatbubble-outline", "Написать: ${person.displayName}", RoundIconButton.Look.SOFT) { openChat(person) },
         )
         show(person, address(person), "@${person.username}", framed = false, dimmed = creating != null && creating != person.id,
           busy = creating == person.id, enabled = creating == null, actions = buttons)
@@ -187,6 +194,10 @@ class PeopleScreen(
     addView(header)
 
     addView(searchBox)
+    notice.visibility = View.GONE
+    addView(notice)
+    listLabel.visibility = View.GONE
+    addView(listLabel)
     field.hint = "@имя или имя"
     field.setHintTextColor(Theme.muted)
     field.setTextColor(Theme.text)
@@ -262,11 +273,23 @@ class PeopleScreen(
     put(header, dp(14f), top + dp(12f), width - dp(28f), dp(72f))
     // ChatsPlus: the switch «Друзья | Звонки» stands between the header and the search (14 under the pill).
     val boxTop = calls.place(width, height, top + dp(12f + 72f + 2f), edges.bottom) + dp(14f); val boxWidth = width - dp(34f); val boxHeight = dp(54f)
-    place(clearButton, boxWidth - dp(46f), dp(5f), dp(44f), dp(44f))
-    place(spinner, boxWidth - dp(46f) + dp(11f), dp(5f) + dp(11f), dp(22f), dp(22f))
-    place(field, searchBox.wordsLeft, 0, boxWidth - searchBox.wordsLeft - dp(48f), boxHeight)
+    // The clear button: `IconButton` 30 wide, 44 tall, at the end of the row (paddingHorizontal 15, gap 10).
+    place(clearButton, boxWidth - dp(45f), dp(5f), dp(30f), dp(44f))
+    place(spinner, boxWidth - dp(45f) + dp(5f), dp(5f) + dp(12f), dp(20f), dp(20f))
+    place(field, searchBox.wordsLeft, 0, boxWidth - searchBox.wordsLeft - dp(55f), boxHeight)
     put(searchBox, dp(17f), boxTop, boxWidth, boxHeight)
-    val listTop = boxTop + boxHeight + dp(17f)
+    var listTop = boxTop + boxHeight + dp(17f)
+    if (notice.visibility == View.VISIBLE) {
+      val tall = notice.heightFor(width - dp(34f))
+      put(notice, dp(17f), listTop, width - dp(34f), tall)
+      listTop += tall + dp(12f)
+    }
+    if (listLabel.visibility == View.VISIBLE) {
+      listLabel.measure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+      val tall = listLabel.measuredHeight
+      put(listLabel, 0, listTop, width, tall)
+      listTop += tall
+    }
     val barRoom = dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 12f)
     // Above the keyboard when it is up, above the bar otherwise.
     val bottom = maxOf(barRoom, edges.keyboard + dp(12f))
@@ -337,8 +360,27 @@ class PeopleScreen(
   private fun rebuild() {
     spinner.visibility = if (searching) View.VISIBLE else View.GONE
     clearButton.visibility = if (searching || field.text.isEmpty()) View.GONE else View.VISIBLE
-    items = PeopleList.items(query, problem, searching, incoming, outgoing, friends, found)
+    // The rules give the list as one column; the reference shows what did not work and the heading of the people
+    // above the list (they do not scroll), the people's heading above the requests, and 12 after the requests.
+    val all = PeopleList.items(query, problem, searching, incoming, outgoing, friends, found)
+    val wrong = all.firstOrNull { it is PeopleList.Item.Notice } as? PeopleList.Item.Notice
+    val headIndex = all.indexOfFirst { it is PeopleList.Item.Label && all.getOrNull(all.indexOf(it) + 1) is PeopleList.Item.Friend }
+    val head = all.getOrNull(headIndex) as? PeopleList.Item.Label
+    val rows = ArrayList<PeopleList.Item>()
+    all.forEachIndexed { index, item ->
+      if (item is PeopleList.Item.Notice || index == headIndex) return@forEachIndexed
+      if (item is PeopleList.Item.Friend && rows.lastOrNull() is PeopleList.Item.Request) rows.add(PeopleList.Item.Gap)
+      if (item is PeopleList.Item.Empty && rows.lastOrNull() is PeopleList.Item.Request) rows.add(PeopleList.Item.Gap)
+      rows.add(item)
+    }
+    if (rows.lastOrNull() is PeopleList.Item.Request) rows.add(PeopleList.Item.Gap)
+    notice.show(wrong?.words ?: "")
+    notice.visibility = if (wrong == null) View.GONE else View.VISIBLE
+    if (head != null) listLabel.show(head.words, first = true, outside = true)
+    listLabel.visibility = if (head == null) View.GONE else View.VISIBLE
+    items = rows
     adapter.notifyDataSetChanged()
+    requestLayout()
   }
 
   private fun address(person: Person): String = messenger?.personAvatarAddress(person.avatarId) ?: ""

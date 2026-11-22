@@ -128,7 +128,9 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
       canvas.drawRoundRect(cx - tile, cy - tile, cx + tile, cy + tile, 34f * d, 34f * d, paint)
       line.color = Theme.veil(0.14f)
       canvas.drawRoundRect(cx - tile, cy - tile, cx + tile, cy + tile, 34f * d, 34f * d, line)
-      PlusIcons.draw(canvas, symbol, cx, cy, 38f * d, Theme.accent)
+      // "ion:<name>": the reference's own Ionicons glyph at its size 35 (design/IonIcon.kt).
+      if (symbol.startsWith("ion:")) com.linea.messenger.design.IonIcon.draw(canvas, symbol.substring(4), cx, cy, 35f * d, Theme.accent)
+      else PlusIcons.draw(canvas, symbol, cx, cy, 38f * d, Theme.accent)
       canvas.restore()
     }
   }

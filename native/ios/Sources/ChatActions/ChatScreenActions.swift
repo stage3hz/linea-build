@@ -581,10 +581,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             let files = [file] + (shown.albumParts[key] ?? []).compactMap { shown.messages[$0]?["attachment"] as? [String: Any] }
             items.append(MessageMenuController.Item(symbol: "square.and.arrow.down", label: MediaSave.label(file), run: { [weak self] in self?.saveFiles(files) }))
         }
-        // ChatsPlus: «В Избранное» — the message goes to this device's saved messages (Sources/ChatsPlus/SavedMessages.swift).
-        if !locked && readable && !outgoing && SavedMessages.shared(messenger) != nil {
-            items.append(MessageMenuController.Item(symbol: "bookmark", label: "В Избранное", run: { [weak self] in self?.saveToFavorites([message]) }))
-        }
+        // The reference's menu has no «В Избранное»: a message goes there through «Переслать» → «Избранное».
         if readable && !outgoing {
             items.append(MessageMenuController.Item(symbol: pinnedNow ? "pin.slash" : "pin", label: pinnedNow ? "Открепить" : "Закрепить", run: { [weak self] in
                 var action: [String: Any] = ["type": "pin"]
