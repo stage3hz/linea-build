@@ -100,19 +100,20 @@ final class EqualizerState {
         return (gains.low, gains.mid, gains.high, enabled, version)
     }
 
-    // The music's loudness for the tab bar's wave (Shell/TabBar.swift): the RMS of the last buffer the tap saw and
-    // when (CACurrentMediaTime). Written by the audio thread, read on the main thread once a frame.
-    private var meterRms: Float = 0
+    // The music's loudness in three bands for the tab bar's wave (Shell/TabBar.swift): the RMS of the bass (below
+    // 150 Hz), the mids (150 Hz…2.5 kHz) and the highs (above 2.5 kHz) of the last buffer the tap saw, and when
+    // (CACurrentMediaTime). Written by the audio thread, read on the main thread once a frame.
+    private var meterBands: (low: Float, mid: Float, high: Float) = (0, 0, 0)
     private var meterAt: CFTimeInterval = 0
 
-    func meter(_ rms: Float) {
+    func meter(low: Float, mid: Float, high: Float) {
         let now = CACurrentMediaTime()
-        lock.lock(); meterRms = rms; meterAt = now; lock.unlock()
+        lock.lock(); meterBands = (low, mid, high); meterAt = now; lock.unlock()
     }
 
-    func meterReading() -> (rms: Float, at: CFTimeInterval) {
+    func meterReading() -> (low: Float, mid: Float, high: Float, at: CFTimeInterval) {
         lock.lock(); defer { lock.unlock() }
-        return (meterRms, meterAt)
+        return (meterBands.low, meterBands.mid, meterBands.high, meterAt)
     }
 }
 
@@ -164,6 +165,11 @@ final class EqualizerTapContext {
     var isFloat = false
     var nonInterleaved = true
     var channels = 2
+    // The meter's two one-pole low-passes (150 Hz and 2.5 kHz): their coefficients and memories.
+    var meterLowK: Float = 0.02
+    var meterHighK: Float = 0.3
+    var meterLow: Float = 0
+    var meterHigh: Float = 0
 
     init(state: EqualizerState) { self.state = state }
 
@@ -189,6 +195,11 @@ private let equalizerTapPrepare: MTAudioProcessingTapPrepareCallback = { tap, _,
     context.nonInterleaved = (asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved) != 0
     context.channels = Int(max(1, asbd.mChannelsPerFrame))
     context.state.sampleRate = asbd.mSampleRate > 0 ? asbd.mSampleRate : 44100
+    let rate = context.state.sampleRate
+    context.meterLowK = Float(1 - exp(-2 * Double.pi * 150 / rate))
+    context.meterHighK = Float(1 - exp(-2 * Double.pi * 2500 / rate))
+    context.meterLow = 0
+    context.meterHigh = 0
     context.filters = []
     context.version = -1
 }
@@ -196,20 +207,29 @@ private let equalizerTapUnprepare: MTAudioProcessingTapUnprepareCallback = { _ i
 private let equalizerTapProcess: MTAudioProcessingTapProcessCallback = { tap, frames, _, bufferList, framesOut, flagsOut in
     guard MTAudioProcessingTapGetSourceAudio(tap, frames, bufferList, flagsOut, nil, framesOut) == noErr else { return }
     let context = Unmanaged<EqualizerTapContext>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
-    // The level meter for the tab bar's wave: the RMS of every other sample of the first buffer (the first channel when
-    // the channels are apart, the left one when they are interleaved); whether the filter is on or not.
+    // The level meter for the tab bar's wave, in three bands: the first channel (the left one when the channels are
+    // interleaved) through two one-pole low-passes — bass below 150 Hz, highs above 2.5 kHz, mids between — whether
+    // the filter is on or not. A few multiplications a sample.
     if context.isFloat {
         let meterBuffers = UnsafeMutableAudioBufferListPointer(bufferList)
         if let first = meterBuffers.first, let samplesData = first.mData?.assumingMemoryBound(to: Float.self) {
             let frames = Int(framesOut.pointee)
-            let wanted = context.nonInterleaved ? frames : frames * context.channels
-            let samples = min(wanted, Int(first.mDataByteSize) / MemoryLayout<Float>.size)
-            if samples > 1 {
-                var sum: Float = 0
-                var index = 0
-                while index < samples { let x = samplesData[index]; sum += x * x; index += 2 }
-                let used = Float((samples + 1) / 2)
-                context.state.meter((sum / used).squareRoot())
+            let step = context.nonInterleaved ? 1 : context.channels
+            let frameCount = min(frames, Int(first.mDataByteSize) / MemoryLayout<Float>.size / max(1, step))
+            if frameCount > 1 {
+                var low = context.meterLow, high = context.meterHigh
+                let lowK = context.meterLowK, highK = context.meterHighK
+                var lowSum: Float = 0, midSum: Float = 0, highSum: Float = 0
+                for frame in 0..<frameCount {
+                    let x = samplesData[frame * step]
+                    low += (x - low) * lowK
+                    high += (x - high) * highK
+                    let mid = high - low, top = x - high
+                    lowSum += low * low; midSum += mid * mid; highSum += top * top
+                }
+                context.meterLow = low; context.meterHigh = high
+                let count = Float(frameCount)
+                context.state.meter(low: (lowSum / count).squareRoot(), mid: (midSum / count).squareRoot(), high: (highSum / count).squareRoot())
             }
         }
     }
