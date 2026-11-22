@@ -66,6 +66,9 @@ android {
     testOptions {
         // The page tests (PagesTest) build the real screens on the JVM: they need the manifest and the resources.
         unitTests.isIncludeAndroidResources = true
+        // The whole suite (≈490 tests, most of them Robolectric pages) outgrew the test JVM's default 512 MB: the
+        // worker died with OutOfMemoryError part way and only the classes finished before it left results.
+        unitTests.all { it.maxHeapSize = "2g" }
     }
 
     compileOptions {

@@ -138,7 +138,8 @@ class SettingsLookRulesTest {
     assertFalse(Theme.dark)
     // Over a light theme the veil is black, and the settings draw their lines with it.
     assertEquals(0x14000000, SettingsLook.line)
-    assertEquals(0x12000000, Theme.chatList.pressed)
+    // ChatListScreen.tsx nativePalette: pressed rgba(0,0,0,0.05) over a light theme.
+    assertEquals(0x0D000000, Theme.chatList.pressed)
     // A record that is not a theme is «Как в системе», as in the previous app: the system here is light.
     memory.kept[ThemeStore.MODE_KEY] = "sepia"
     assertEquals("system", ThemeStore.mode)
