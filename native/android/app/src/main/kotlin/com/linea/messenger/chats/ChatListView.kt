@@ -33,8 +33,6 @@ class ChatListView(context: Context) : FrameLayout(context) {
 
   /** A tap on a row. */
   var onRowPress: (id: String) -> Unit = {}
-  /** How far the rows have gone up under the floating header, px (0 at rest, at the top of the list). */
-  var onScrolledUnder: (Int) -> Unit = {}
   /** A long press on a row; `y` is the finger's place on the screen, px. */
   var onRowLongPress: (id: String, y: Float) -> Unit = { _, _ -> }
   /** One of the row's swipe buttons. */
@@ -193,8 +191,6 @@ class ChatListView(context: Context) : FrameLayout(context) {
         val top = list.getChildAt(0)?.top ?: 0
         if (first == 0) { if (top > lastFirstTop) pullDirection = -1 else if (top < lastFirstTop) pullDirection = 1 }
         lastFirstTop = top
-        // ChatsPlus: how far the rows have gone up under the floating header (0 at rest).
-        onScrolledUnder(if (first > 0) 10_000 else maxOf(0, list.paddingTop - top))
       }
     })
   }

@@ -72,8 +72,6 @@ final class ChatsViewController: UIViewController {
         actions.onReload = { [weak self] in self?.reload() }
         // Stories: the strip is the list's header.
         stories.install(host: self, list: list)
-        // ChatsPlus: the header's edge shows only once rows go up under it.
-        list.onScrolledUnder = { [weak self] (distance: CGFloat) -> Void in self?.plus.rowsUnder(distance) }
         list.onRowPress = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
             // ChatActions: «Архив», a found message, and the chats of an account are opened there.

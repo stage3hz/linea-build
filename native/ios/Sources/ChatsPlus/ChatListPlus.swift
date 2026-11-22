@@ -202,20 +202,10 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     /// The edge under the floating header, as tall as the header (the status bar included).
     func placeHeaderEdge(top: CGFloat, width: CGFloat) {
         headerEdge.color = Theme.bg
-        // Owner (device photo): at rest nothing under the header is blurred — the edge ends at the header's lower
-        // edge, not 24 pt into the first row, and it shows only once rows go up under the header.
+        // Owner (device photo): the edge is always there, but it ends at the header's lower edge — not 24 pt into
+        // the first row, which sits crisp right under the header until it is scrolled up behind it.
         headerEdge.reach = 0
         headerEdge.place(width: width, size: top)
-        headerEdge.alpha = scrolledUnder
-    }
-
-    /// 0 at rest, 1 once the rows have gone 16 pt up under the header (ChatListView.onScrolledUnder).
-    private var scrolledUnder: CGFloat = 0
-    func rowsUnder(_ distance: CGFloat) {
-        let next = max(0, min(1, distance / 16))
-        guard abs(next - scrolledUnder) > 0.001 else { return }
-        scrolledUnder = next
-        headerEdge.alpha = next
     }
 
     /// «Архив» goes behind the pull in «Все» (not while searching or choosing). True: it is there, the actions must

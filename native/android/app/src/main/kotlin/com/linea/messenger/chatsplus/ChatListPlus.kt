@@ -211,20 +211,10 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
   /** The edge under the floating header, as tall as the header (the status bar included). */
   fun placeHeaderEdge(top: Int, width: Int) {
     headerEdge.color = Theme.bg
-    // Owner (device photo): at rest nothing under the header is blurred — the edge ends at the header's lower edge,
-    // not 24 dp into the first row, and it shows only once rows go up under the header.
+    // Owner (device photo): the edge is always there, but it ends at the header's lower edge — not 24 dp into the
+    // first row, which sits crisp right under the header until it is scrolled up behind it.
     headerEdge.reach = 0f
     headerEdge.place(width, top, 0)
-    headerEdge.alpha = scrolledUnder
-  }
-
-  /** 0 at rest, 1 once the rows have gone 16 dp up under the header (ChatListView.onScrolledUnder). */
-  private var scrolledUnder = 0f
-  fun rowsUnder(distance: Int) {
-    val next = (distance / (16f * context.resources.displayMetrics.density)).coerceIn(0f, 1f)
-    if (Math.abs(next - scrolledUnder) < 0.001f) return
-    scrolledUnder = next
-    headerEdge.alpha = next
   }
 
   /** «Архив» goes behind the pull in «Все» (not while searching or choosing). True: it is there, the actions must not

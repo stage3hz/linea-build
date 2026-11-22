@@ -88,8 +88,6 @@ class ChatsScreen(
     }
     actions.onHeading = { words -> if (heading.text.toString() != words) heading.text = words }
     actions.onReload = { reload() }
-    // ChatsPlus: the header's edge shows only once rows go up under it.
-    list.onScrolledUnder = { distance -> plus.rowsUnder(distance) }
     list.onRowPress = { id ->
       // ChatActions: «Архив», a found message, and the chats of an account are opened there.
       if (!actions.pressed(id)) demo.firstOrNull { it.id == id }?.let { openChat(ChatTarget(it.title)) }
