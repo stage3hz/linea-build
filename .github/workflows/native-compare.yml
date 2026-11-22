@@ -101,8 +101,12 @@ jobs:
           for app in "$REF_APP" "$NATIVE_APP"; do
             id=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Info.plist"); echo "$app -> $id"
             [ "$id" = com.linea.messenger.preview ] || { echo "::error::$app has identifier $id, not com.linea.messenger.preview"; exit 1; }
-            codesign -d --entitlements :- "$app" > "$OUT/entitlements-$(basename "$app" .app).plist" 2>/dev/null || true
           done
+          # The two bundles are INVIZENT.app (reference) and Invizent.app (native): one name on the Mac's case-insensitive
+          # disk. Each is therefore kept, packed and unpacked in a folder of its own, never next to the other.
+          codesign -d --entitlements :- "$REF_APP" > "$OUT/entitlements-reference.plist" 2>/dev/null || true
+          codesign -d --entitlements :- "$NATIVE_APP" > "$OUT/entitlements-native.plist" 2>/dev/null || true
+          [ -f "$REF_APP/main.jsbundle" ] || { echo "::error::$REF_APP has no main.jsbundle: not the React Native app"; exit 1; }
           # Packed with tar: the bundles keep their symbolic links and signatures on the way to the other jobs.
           tar -C "$(dirname "$REF_APP")" -czf "$APPS/reference.tgz" "$(basename "$REF_APP")"
           tar -C "$(dirname "$NATIVE_APP")" -czf "$APPS/native.tgz" "$(basename "$NATIVE_APP")"
@@ -171,8 +175,14 @@ jobs:
           XC=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
           sudo xcode-select -s "$XC/Contents/Developer"; xcodebuild -version; uname -m
           APPS="$RUNNER_TEMP/apps"
-          tar -C "$APPS" -xzf "$APPS/reference.tgz"; tar -C "$APPS" -xzf "$APPS/native.tgz"
-          REF_APP="$APPS/$(cat "$APPS/reference-name.txt")"; NATIVE_APP="$APPS/Invizent.app"
+          # Separate folders: INVIZENT.app and Invizent.app are the same name on this disk (case-insensitive), so
+          # unpacked side by side the second would overwrite the first.
+          mkdir -p "$APPS/reference" "$APPS/native"
+          tar -C "$APPS/reference" -xzf "$APPS/reference.tgz"; tar -C "$APPS/native" -xzf "$APPS/native.tgz"
+          REF_APP="$APPS/reference/$(cat "$APPS/reference-name.txt")"; NATIVE_APP="$APPS/native/Invizent.app"
+          # The reference is the React Native build (its JavaScript bundle inside), the native one is not.
+          [ -f "$REF_APP/main.jsbundle" ] || { echo "::error::$REF_APP is not the React Native app (no main.jsbundle)"; ls "$REF_APP" | head -40; exit 1; }
+          [ ! -f "$NATIVE_APP/main.jsbundle" ] || { echo "::error::$NATIVE_APP carries main.jsbundle: the reference was unpacked over it"; exit 1; }
           FLOWS="$GITHUB_WORKSPACE/tools/maestro/compare"; PLAN="$FLOWS/plan.txt"
           # The rows of this shard in one phase: name, look, native wait, native launch arguments (tab-separated).
           rows() { awk -F'|' -v s="$SHARD" -v p="$1" '/^[[:space:]]*(#|$)/ { next }
