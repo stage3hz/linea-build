@@ -80,7 +80,7 @@ enum MediaSave {
     }
 
     /// Any other file: the system's share sheet with the opened copy, removed once the sheet is gone.
-    private static func share(_ attachment: [String: Any], messenger: Messenger, from host: UIViewController, say: @escaping (String, Bool) -> Void) {
+    static func share(_ attachment: [String: Any], messenger: Messenger, from host: UIViewController, say: @escaping (String, Bool) -> Void) {
         let fetch = MediaFetch()
         fetch.start(server: messenger.server, attachment: attachment, progress: { (_: Double) -> Void in }, done: { [weak host] (result: Result<MediaFetch.Brought, FileCore.Failure>) -> Void in
             _ = fetch

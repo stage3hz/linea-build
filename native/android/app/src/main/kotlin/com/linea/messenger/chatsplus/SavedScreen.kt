@@ -95,6 +95,8 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   private val selectCount = context.words("", 15f, Theme.text, 600)
   private val selectDelete = LinearLayout(context)
   private val attach = SavedAttach(this, messenger, saved)
+  /** Record: the layer over the composer's glass with the record button, the take and its preview. */
+  private val recordHolder = android.widget.FrameLayout(context)
 
   private var lines: List<Line> = emptyList()
   private var searching = false
@@ -214,6 +216,12 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     for (part in listOf(field, send, clip, editBanner, editClose, selectCancel, selectCount, selectDelete)) addView(part)
     attach.say = { flash(it) }
     attach.onBusy = { busy -> clip.isEnabled = !busy; refreshComposer() }
+    addView(recordHolder)
+    attach.installRecording(recordHolder, this)
+    attach.recording.control.clipView = clip
+    attach.recording.control.fieldViews = listOf(field)
+    attach.recording.control.onPhase = { refreshComposer(); requestLayout() }
+    attach.recording.willStart = { hideKeyboard(); voice.pause() }
     rebuild(scrollToNewest = true)
     refreshComposer()
   }
@@ -247,7 +255,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     notes.onState = { state -> setMediaState(state) }
     notes.onProblem = { words -> flash(words) }
     notes.onWillPlay = { voice.pause() }
-    notes.holdsSilence = { voice.isPlaying }
+    notes.holdsSilence = { voice.isPlaying || attach.isRecording }
     notes.onReadyChanged = { key -> noteRow(key)?.redraw(mediaState?.takeIf { it.key == key }) }
   }
 
@@ -304,6 +312,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
 
   override fun onDetachedFromWindow() {
     main.removeCallbacks(watch)
+    attach.recording.left() // Record: a take is called off, a preview thrown away
     voice.left()
     notes.left()
     SavedMessages.changed.unwatch(changed)
@@ -339,6 +348,17 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     put(field, fieldLeft, cy + dp(8f) + banner, fieldWidth, inner)
     put(send, cx + cw - dp(8f + 44f), cy + composerHeight - dp(8f + 44f), dp(44f), dp(44f))
     put(clip, cx + dp(8f), cy + composerHeight - dp(8f + 44f), dp(44f), dp(44f))
+    // Record: the take's dot, time and «slide to cancel» fill the glass up to the button; the preview starts after
+    // the trash, which stands in the «add» button's place.
+    put(recordHolder, cx, cy, cw, composerHeight)
+    val clipRight = dp(8f + 44f + 6f).toFloat()
+    val row = android.graphics.RectF(0f, 0f, (cw - dp(8f + 44f + 6f)).toFloat(), (composerHeight - dp(10f)).toFloat())
+    attach.recording.control.place(
+      android.graphics.RectF((cw - dp(8f + 44f)).toFloat(), (composerHeight - dp(8f + 44f)).toFloat(), (cw - dp(8f)).toFloat(), (composerHeight - dp(8f)).toFloat()),
+      android.graphics.RectF(clipRight, row.top, row.right, row.bottom), row,
+      android.graphics.RectF(dp(8f).toFloat(), (composerHeight - dp(8f + 44f)).toFloat(), dp(52f).toFloat(), (composerHeight - dp(8f)).toFloat()),
+      width, height,
+    )
     put(selectCancel, cx + dp(8f), cy + dp(8f), dp(80f), dp(44f))
     put(selectDelete, cx + cw - dp(8f + 110f), cy + dp(8f), dp(110f), dp(44f))
     put(selectCount, cx + dp(90f), cy + dp(8f), cw - dp(200f), dp(44f))
@@ -396,33 +416,43 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
 
   // Menu
 
+  /** SavedScreen.tsx: the same menu as in chats (ContextMenu over the note, `mine`), with the note's words or its
+   *  attachment as the preview: «Скопировать текст», «Изменить», «Выбрать», «Переслать в чат», «Сохранить видео» /
+   *  «Сохранить файл» (the share sheet, `shareEncryptedAttachment`), «Удалить из Избранного». */
   private fun held(position: Int, view: View) {
     if (selection != null) return
     val item = (lines.getOrNull(position) as? Line.Note)?.item ?: return
     view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
     val text = item["text"] as? String ?: ""
-    val choices = ArrayList<ChoiceSheet.Choice>()
-    if (text.isNotEmpty()) choices.add(ChoiceSheet.Choice("copy", "Скопировать текст") {
+    val choices = ArrayList<com.linea.messenger.chatactions.MessageMenu.Item>()
+    if (text.isNotEmpty()) choices.add(com.linea.messenger.chatactions.MessageMenu.Item("copy", "Скопировать текст") {
       (context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.setPrimaryClip(ClipData.newPlainText("Заметка", text))
       flash("Скопировано")
     })
-    if (!item.containsKey("origin") && text.isNotEmpty()) choices.add(ChoiceSheet.Choice("pencil", "Изменить") { startEditing(item) })
-    choices.add(ChoiceSheet.Choice("checkmark.circle", "Выбрать") {
-      val id = item["id"] as? String ?: return@Choice
+    if (!item.containsKey("origin") && text.isNotEmpty()) choices.add(com.linea.messenger.chatactions.MessageMenu.Item("pencil", "Изменить") { startEditing(item) })
+    choices.add(com.linea.messenger.chatactions.MessageMenu.Item("check.circle", "Выбрать") {
+      val id = item["id"] as? String ?: return@Item
       selection = setOf(id)
       adapter.notifyDataSetChanged()
       refreshComposer()
     })
-    choices.add(ChoiceSheet.Choice("forward", "Переслать в чат") { forward(item) })
+    choices.add(com.linea.messenger.chatactions.MessageMenu.Item("forward", "Переслать в чат") { forward(item) })
     Core.map(item["attachment"])?.let { attachment ->
-      choices.add(ChoiceSheet.Choice("arrow.down.circle", if (ChatRowLooks.isVideoNote(attachment)) "Сохранить видео" else "Сохранить файл") { open(attachment) })
+      choices.add(com.linea.messenger.chatactions.MessageMenu.Item("square.and.arrow.down", if (ChatRowLooks.isVideoNote(attachment)) "Сохранить видео" else "Сохранить файл") {
+        val messenger = messenger ?: return@Item
+        com.linea.messenger.attachments.MediaSave.share(context, attachment, messenger) { words, _ -> flash(words) }
+      })
     }
-    choices.add(ChoiceSheet.Choice("trash", "Удалить из Избранного", danger = true) {
-      val id = item["id"] as? String ?: return@Choice
+    choices.add(com.linea.messenger.chatactions.MessageMenu.Item("trash", "Удалить из Избранного", danger = true, separated = true) {
+      val id = item["id"] as? String ?: return@Item
       saved.remove(id) { failure -> failure?.let { flash(it.words) } }
     })
-    val preview = if (text.isEmpty()) SavedMessages.line(item).first else text.take(120)
-    ChoiceSheet(context, "Избранное", preview, choices).show()
+    val preview = if (text.isEmpty()) SavedMessages.line(item).first else text
+    val at = IntArray(2)
+    view.getLocationOnScreen(at)
+    val y = at[1] + ((view as? SavedNoteRow)?.downY ?: view.height / 2f)
+    hideKeyboard()
+    com.linea.messenger.chatactions.MessageMenu(context, y, true, preview, emptyList(), choices).show()
   }
 
   /** «Переслать в чат»: the same picker as in chats; a touch sends at once. */
@@ -466,6 +496,11 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     val text = field.text.toString()
     val ready = text.isNotBlank() && (messenger != null || isSample)
     send.visibility = if (choosing) View.GONE else View.VISIBLE
+    // Record: with an empty field the microphone stands there instead (not while changing a note or choosing).
+    val control = attach.recording.control
+    val canRecord = text.isEmpty() && editingRow == null && !choosing && (messenger != null || isSample) && !attach.busy
+    control.setVisible(canRecord)
+    if (canRecord || control.isBusy) send.visibility = View.INVISIBLE
     send.isEnabled = ready
     send.alpha = if (ready) 1f else 0.4f
     send.symbol = if (editingRow != null) "ion:checkmark" else "ion:arrow-up"

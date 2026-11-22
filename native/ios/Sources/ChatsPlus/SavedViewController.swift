@@ -457,37 +457,44 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
 
     // MARK: Menu
 
+    /// SavedScreen.tsx: the same menu as in chats (ContextMenu over the note, `mine`), with the note's words or
+    /// its attachment as the preview: «Скопировать текст», «Изменить», «Выбрать», «Переслать в чат»,
+    /// «Сохранить видео» / «Сохранить файл» (the share sheet, `shareEncryptedAttachment`), «Удалить из Избранного».
     @objc private func held(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began, selection == nil, let path = table.indexPathForRow(at: recognizer.location(in: table)),
               path.row < lines.count, case .note(let item) = lines[path.row], presentedViewController == nil else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         let text = item["text"] as? String ?? ""
-        var choices: [ChoiceSheet.Choice] = []
+        var items: [MessageMenuController.Item] = []
         if !text.isEmpty {
-            choices.append(ChoiceSheet.Choice(symbol: "doc.on.doc", label: "Скопировать текст", run: { [weak self] in
+            items.append(MessageMenuController.Item(symbol: "doc.on.doc", label: "Скопировать текст", run: { [weak self] in
                 UIPasteboard.general.string = text
                 self?.flash("Скопировано")
             }))
         }
         if item["origin"] == nil, !text.isEmpty {
-            choices.append(ChoiceSheet.Choice(symbol: "square.and.pencil", label: "Изменить", run: { [weak self] in self?.startEditing(item) }))
+            items.append(MessageMenuController.Item(symbol: "square.and.pencil", label: "Изменить", run: { [weak self] in self?.startEditing(item) }))
         }
-        choices.append(ChoiceSheet.Choice(symbol: "checkmark.circle", label: "Выбрать", run: { [weak self] in
+        items.append(MessageMenuController.Item(symbol: "checkmark.circle", label: "Выбрать", run: { [weak self] in
             guard let self, let id = item["id"] as? String else { return }
             self.selection = [id]
             self.table.reloadData()
             self.refreshComposer()
         }))
-        choices.append(ChoiceSheet.Choice(symbol: "arrowshape.turn.up.right", label: "Переслать в чат", run: { [weak self] in self?.forward(item) }))
+        items.append(MessageMenuController.Item(symbol: "arrowshape.turn.up.right", label: "Переслать в чат", run: { [weak self] in self?.forward(item) }))
         if let attachment = item["attachment"] as? [String: Any] {
-            choices.append(ChoiceSheet.Choice(symbol: "arrow.down.circle", label: ChatRowLooks.isVideoNote(attachment) ? "Сохранить видео" : "Сохранить файл", run: { [weak self] in self?.open(attachment) }))
+            items.append(MessageMenuController.Item(symbol: "square.and.arrow.down", label: ChatRowLooks.isVideoNote(attachment) ? "Сохранить видео" : "Сохранить файл", run: { [weak self] in
+                guard let self, let messenger = self.messenger else { return }
+                MediaSave.share(attachment, messenger: messenger, from: self, say: { [weak self] (words: String, _: Bool) -> Void in self?.flash(words) })
+            }))
         }
-        choices.append(ChoiceSheet.Choice(symbol: "trash", label: "Удалить из Избранного", danger: true, run: { [weak self] in
+        items.append(MessageMenuController.Item(symbol: "trash", label: "Удалить из Избранного", danger: true, separated: true, run: { [weak self] in
             guard let self, let id = item["id"] as? String else { return }
             self.saved.remove(id) { [weak self] (failure: SavedMessages.Failure?) -> Void in if let failure { self?.flash(failure.words) } }
         }))
-        let preview = text.isEmpty ? SavedMessages.line(item).text : String(text.prefix(120))
-        present(ChoiceSheet(heading: "Избранное", note: preview, choices: choices), animated: true)
+        let preview = text.isEmpty ? SavedMessages.line(item).text : text
+        view.endEditing(true)
+        present(MessageMenuController(anchorY: recognizer.location(in: nil).y, mine: true, preview: preview, reactions: [], items: items), animated: true)
     }
 
     /// «Переслать в чат»: the same picker as in chats; the chat opens with the forward waiting above its field.

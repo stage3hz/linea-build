@@ -100,7 +100,7 @@ class SettingsProfileChrome(private val context: Context) {
     avatar.show(person, person.look, base, animated = true)
     ring.addView(avatar, FrameLayout.LayoutParams(context.px(100f), context.px(100f), Gravity.CENTER))
     // Where the banner ends in the column: 200 under the status bar, the column starting 57 under it.
-    head.addView(ring, LinearLayout.LayoutParams(context.px(110f), context.px(110f)).apply { topMargin = context.px(200f - 57f - 8f - 58f); leftMargin = -context.px(1f) })
+    head.addView(ring, LinearLayout.LayoutParams(context.px(110f), context.px(110f)).apply { topMargin = context.px(200f - 57f - 8f - 58f); leftMargin = context.px(4f) }) // the avatar 25 from the screen, as the reference
     val nameRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     val name = PlatinaNameView(context)
     name.titled(Theme.TypeSize.profileName)
@@ -137,8 +137,13 @@ class SettingsProfileChrome(private val context: Context) {
     brand.letterSpacing = 0.22f
     brand.show("ИНВИЗ PLATINA", platina = true)
     card.addView(brand)
-    card.addView(context.words("Твой профиль —\nзаметнее любого другого", 18f, Theme.text, 800), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(8f) })
-    card.addView(context.words("Живой баннер и аватар, платиновое имя, рамки, невидимка и всё, что выйдет дальше.", 13f, Theme.muted), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(6f) })
+    // The reference: the title letter spacing −0.3, line 23; the words line 19.
+    card.addView(context.words("Твой профиль —\nзаметнее любого другого", 18f, Theme.text, 800).apply {
+      letterSpacing = -0.3f / 18f; if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = context.px(23f)
+    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(8f) })
+    card.addView(context.words("Живой баннер и аватар, платиновое имя, рамки, невидимка и всё, что выйдет дальше.", 13f, Theme.muted).apply {
+      if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = context.px(19f)
+    }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(6f) })
     val button = PlatinaButton(context, "Попробовать Platina", 15f, 15f)
     button.setOnClickListener {
       button.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)

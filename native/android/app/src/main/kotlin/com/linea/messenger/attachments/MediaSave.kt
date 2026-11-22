@@ -93,7 +93,7 @@ object MediaSave {
   }
 
   /** Any other file: the system's share sheet with the opened copy. */
-  private fun share(context: Context, attachment: Map<String, Any?>, messenger: Messenger, say: (String, Boolean) -> Unit) {
+  fun share(context: Context, attachment: Map<String, Any?>, messenger: Messenger, say: (String, Boolean) -> Unit) {
     bring(messenger, attachment) { result ->
       val bytes = result.getOrNull() ?: return@bring say((result.exceptionOrNull() as? FileCore.Failure)?.words ?: "Не удалось загрузить зашифрованный файл.", true)
       val written = DecryptedFiles.write(context, bytes, attachment["name"] as? String ?: "file") ?: return@bring say("Не удалось сохранить.", true)

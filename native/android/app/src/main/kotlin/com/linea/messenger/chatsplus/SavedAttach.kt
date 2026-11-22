@@ -38,6 +38,55 @@ class SavedAttach(private val host: View, private val messenger: Messenger?, pri
     private set(value) { field = value; onBusy?.invoke(value) }
   var onBusy: ((Boolean) -> Unit)? = null
 
+  /** Record: a voice note held on the microphone, a round video (a tap switches), with the same take, lock and
+   *  preview as a chat's composer (voice/MediaRecording.kt); what is recorded is sealed and uploaded as any file. */
+  val recording = com.linea.messenger.voice.MediaRecording(host.context)
+  val isRecording: Boolean get() = recording.isRecording
+
+  /** `holder`: a layer over the composer's glass; `screen`: the page (the blob and the lock stand over it). */
+  fun installRecording(holder: android.widget.FrameLayout, screen: android.view.ViewGroup) {
+    recording.install(holder, screen, null)
+    recording.brokenWords = "Микрофон записал тишину — голосовое не сохранено. Запиши ещё раз."
+    recording.canStart = { mode ->
+      if (messenger == null) (if (mode == com.linea.messenger.voice.RecordControl.Mode.VOICE) "Голосовые в Избранном доступны в приложении." else "Видео в Избранном доступны в приложении.") else null
+    }
+    recording.say = { words -> say?.invoke(words) }
+    recording.sendVoice = { file, ms, waveform -> saveVoice(file, ms, waveform) }
+    recording.sendNote = { file -> saveNote(file) }
+  }
+
+  private fun saveVoice(file: java.io.File, durationMs: Long, waveform: String?) {
+    val name = FileCore.call("voiceName", listOf(System.currentTimeMillis())) as? String ?: "voice.m4a"
+    val media = LinkedHashMap<String, Any?>()
+    media["durationMs"] = durationMs
+    waveform?.let { media["waveform"] = it }
+    busy = true
+    work.execute {
+      val bytes = try { file.readBytes() } catch (_: Exception) { null }
+      file.delete()
+      main.post {
+        if (bytes == null || bytes.isEmpty() || bytes.size > MAX_FILE) return@post done("Не удалось прочитать файл.")
+        upload(Prepared(bytes, name, "audio/mp4", media, null))
+      }
+    }
+  }
+
+  private fun saveNote(file: java.io.File) {
+    busy = true
+    com.linea.messenger.video.VideoPrepare.prepare(context, file, com.linea.messenger.video.VideoPrepare.Job()) { result ->
+      file.delete()
+      val prepared = result.getOrNull()
+      val noteName = FileCore.call("noteName", listOf(System.currentTimeMillis())) as? String ?: "video.mp4"
+      val bytes = try { prepared?.file?.readBytes() } catch (_: Exception) { null }
+      prepared?.file?.delete()
+      main.post {
+        if (prepared == null) return@post done(FileCore.words(result))
+        if (bytes == null || bytes.isEmpty() || bytes.size > MAX_FILE) return@post done("Не удалось обработать видео. Файл не отправлен.")
+        upload(Prepared(bytes, noteName, "video/mp4", prepared.media, prepared.preview))
+      }
+    }
+  }
+
   private fun activity(): Activity? {
     var current: Context? = context
     while (current is ContextWrapper && current !is Activity) current = current.baseContext
