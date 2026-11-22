@@ -21,6 +21,11 @@ adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 
 adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false >/dev/null || true
 # The emulator's own launcher sometimes stops answering on a slow runner; its "isn't responding" window would cover the shots.
 adb shell settings put global hide_error_dialogs 1 >/dev/null 2>&1 || true
+# A system question left open by one shot (camera for the round video, the gallery) stays over the following ones and
+# keeps the app paused: the emulator answers yes beforehand. On a phone the app asks at the moment of use.
+for perm in CAMERA RECORD_AUDIO READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_MEDIA_VISUAL_USER_SELECTED POST_NOTIFICATIONS; do
+  adb shell pm grant "$APP" "android.permission.$perm" >/dev/null 2>&1 || true
+done
 
 shot() { # name, launch arguments…
   name="$1"; shift

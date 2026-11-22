@@ -13,6 +13,9 @@ TLS="${2:?folder with ca.pem, leaf.pem and leaf.key}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 APP=com.linea.messenger.preview
+for perm in CAMERA RECORD_AUDIO READ_MEDIA_IMAGES READ_MEDIA_VIDEO READ_MEDIA_VISUAL_USER_SELECTED POST_NOTIFICATIONS; do
+  adb shell pm grant "$APP" "android.permission.$perm" >/dev/null 2>&1 || true
+done
 WORK="$(mktemp -d)"
 mkdir -p "$OUT" "$WORK/srvdata"
 
