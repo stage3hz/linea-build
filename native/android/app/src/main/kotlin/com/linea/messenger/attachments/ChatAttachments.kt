@@ -121,10 +121,24 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   /** ChatActions: the answer being written, taken by the first thing sent (see `ChatScreenActions.takeReply`). */
   var takeReply: (() -> Map<String, Any?>?)? = null
 
+  /** ChatActions: a forward into this chat came, went, started or failed. */
+  private val forwardsChanged: (String) -> Unit = { id -> if (id == chatId) onPendingChanged?.invoke() }
+
   init {
     val app = context.applicationContext
     sweeping.execute { DecryptedFiles.sweep(app); CaptureProvider.sweep(app) /* Media: camera shots of earlier runs */ }
     InlineMedia.use(messenger?.server) // Attachments: photos and files brought inside their rows
+    // ChatActions: forwards on their way into this chat stand among these rows (chatactions/ForwardQueue.kt), followed
+    // while the chat is in the window.
+    host.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+      override fun onViewAttachedToWindow(view: View) {
+        com.linea.messenger.chatactions.ForwardQueue.changed.watch(forwardsChanged)
+        onPendingChanged?.invoke() // what went or failed meanwhile
+      }
+      override fun onViewDetachedFromWindow(view: View) { com.linea.messenger.chatactions.ForwardQueue.changed.unwatch(forwardsChanged) }
+    })
+    if (host.isAttachedToWindow) com.linea.messenger.chatactions.ForwardQueue.changed.watch(forwardsChanged)
+    if (messenger == null) com.linea.messenger.chatactions.ForwardPendingDemo.seed(chatId) // `chatdemo forwardpending`
   }
 
   // The composer
@@ -446,7 +460,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
 
   /** The rows of what is on its way out, to stand after the chat's own. */
   val pendingRows: List<Map<String, Any?>>
-    get() = pending.map { item -> pendingRow(item.key, item.time, item.heading, item.note, item.thumb, item.wide, item.failed, uploading = item.transfer != null) }
+    get() = pending.map { item -> pendingRow(item.key, item.time, item.heading, item.note, item.thumb, item.wide, item.failed, uploading = item.transfer != null) } +
+      com.linea.messenger.chatactions.ForwardQueue.rows(chatId) // ChatActions: then the forwards on their way into this chat
 
   // A touch on a row
 
@@ -454,6 +469,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
    *  Attachments: `inRow` false — opened from elsewhere (an album's tile, the profile's media): straight to the
    *  viewer, not brought inside a row. */
   fun pressed(key: String, inRow: Boolean = true) {
+    // ChatActions: a forward on its way — ✕ stops it, a failed one offers «Повторить» (chatactions/ForwardQueue.kt).
+    if (com.linea.messenger.chatactions.ForwardQueue.pressed(key, context)) return
     // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
     if (mediaPressed?.invoke(key) == true) return
     val item = pending.firstOrNull { it.key == key }

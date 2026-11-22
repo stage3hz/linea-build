@@ -293,6 +293,8 @@ shot 450-edges-chatlist --ez demo true --es effects 1
 shot 451-edges-chat --ez demo true --ez chat true
 shot 452-edges-light --ez demo true --ez chat true --es settheme light
 shot 452b-reset --ez demo true --es settheme black
+# ChatActions: a video forwarded into the sample chat, its copy at 40 % — the ring with ✕ (chatactions/ForwardQueue.kt).
+shot 460-forward-pending --ez demo true --ez chat true --es chatdemo forwardpending
 # Last: on the runner's software-drawn emulator this page (eight frames drawn live) once took the emulator down.
 shot 101-avatar-code-frames --es profiledemo code
 

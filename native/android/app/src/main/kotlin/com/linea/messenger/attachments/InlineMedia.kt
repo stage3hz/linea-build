@@ -127,6 +127,19 @@ object InlineMedia {
     set(key, Entry())
   }
 
+  /** ChatActions (chatactions/ForwardQueue.kt): the ring and ✕ of a forwarded attachment being copied, on its row on
+   *  the way out (`progress` 0…1, the words in the pill or under the name). */
+  fun showSending(key: String, progress: Float, words: String) {
+    tried.add(key)
+    set(key, Entry(Status.LOADING, progress.coerceIn(0f, 1f), words))
+  }
+
+  /** ChatActions: the forward's row is gone or failed — its ring goes with it. */
+  fun forgetSending(key: String) {
+    if (entries.remove(key) == null) return
+    for (listener in listeners.toList()) listener(key)
+  }
+
   private fun light(view: View?) = com.linea.messenger.chatlook.Haptic.light(view)
 
   private fun set(key: String, entry: Entry) {

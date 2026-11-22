@@ -120,6 +120,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(localChanged), name: ChatLocal.changed, object: nil)
         center.addObserver(self, selector: #selector(localChanged), name: ChatTyping.changed, object: nil)
+        // ChatActions: «Отправка: Видео · 40%» while a forward goes to a chat (Sources/ChatActions/ForwardQueue.swift).
+        center.addObserver(self, selector: #selector(localChanged), name: ForwardQueue.changed, object: nil)
+        center.addObserver(self, selector: #selector(localChanged), name: ForwardQueue.progressed, object: nil)
     }
 
     /// Places the search button beside «Новый чат» and the search field under the heading. Gives the room the
@@ -275,6 +278,13 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
                 row["preview"] = draft
                 row["previewRed"] = (ChatListActions.draftWord as NSString).length
                 row["previewIcon"] = ""
+            } else if let sending = ForwardQueue.shared.listLine(chat.id) {
+                // ChatActions: a forward on its way there — «Отправка: …», or «Не отправлено: …» in red.
+                row["preview"] = sending.text
+                if sending.red > 0 { row["previewRed"] = sending.red } else { row["accentPreview"] = true }
+                row["previewIcon"] = ""
+                row["thumb"] = ""
+                row["quietPreview"] = false
             } else if !chat.last.isEmpty {
                 let mine = chat.last["senderId"] as? String == messenger?.userId
                 if let fill = fills[chat.id], fill.lastId == lastId(chat) {

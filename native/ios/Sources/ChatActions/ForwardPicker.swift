@@ -47,7 +47,10 @@ enum ChatForward {
     }
 
     /// Sends one message on. The answer comes on the main queue: nil when it went (or will go by itself when the
-    /// connection is back), else the words for the person.
+    /// connection is back), else the words for the person. Main queue.
+    /// A message with a file goes through the queue of forwards (Sources/ChatActions/ForwardQueue.swift): the chat
+    /// gets its row with the progress at once and the answer is nil as soon as it is queued; so does anything sent
+    /// on to a chat while something waits for it there, so the order stays. A text alone goes at once.
     static func send(messenger: Messenger, chatId: String, peerId: String, message: [String: Any], author: String, done: @escaping (String?) -> Void) {
         let text = message["text"] as? String ?? ""
         let original = message["attachment"] as? [String: Any]
@@ -56,38 +59,38 @@ enum ChatForward {
             return
         }
         let from = clipped(author.trimmingCharacters(in: .whitespacesAndNewlines), units: 80)
+        let shownFrom = from.isEmpty ? "собеседник" : from
         // The formatting travels with the forwarded text; an answer's quote, reactions and albums do not.
-        var meta: [String: Any] = ["forward": ["from": from.isEmpty ? "собеседник" : from]]
+        var meta: [String: Any] = ["forward": ["from": shownFrom]]
         if let entities = (message["meta"] as? [String: Any])?["entities"] as? [Any], !entities.isEmpty, !text.isEmpty { meta["entities"] = entities }
         let sentMeta = meta
-        DispatchQueue.global(qos: .userInitiated).async {
-            var attachment: Any = NSNull()
-            if let original {
-                switch copied(original, server: messenger.server) {
-                case .success(let made): attachment = made
-                case .failure(let failure):
-                    DispatchQueue.main.async { done(failure.words) }
-                    return
-                }
-            }
-            let sentAttachment = attachment
-            let clientId = UUID().uuidString.lowercased()
-            messenger.crypto.run({ (crypto: CryptoService) -> Result<Void, CryptoFailure> in
-                messenger.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: sentAttachment, meta: sentMeta)
-            }, done: { (result: Result<Void, CryptoFailure>) -> Void in
-                if case .failure(let failure) = result, failure.name != "NetworkError" {
-                    done(failure.message.isEmpty ? "Не удалось переслать." : failure.message)
-                    return
-                }
-                NotificationCenter.default.post(name: Messenger.changed, object: chatId)
-                done(nil)
-            })
+        if original != nil || ForwardQueue.shared.waiting(chatId) {
+            ForwardQueue.shared.add(messenger: messenger, chatId: chatId, peerId: peerId, text: text, attachment: original, meta: sentMeta, from: shownFrom)
+            done(nil)
+            return
         }
+        let clientId = UUID().uuidString.lowercased()
+        messenger.crypto.run({ (crypto: CryptoService) -> Result<Void, CryptoFailure> in
+            messenger.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: NSNull(), meta: sentMeta)
+        }, done: { (result: Result<Void, CryptoFailure>) -> Void in
+            if case .failure(let failure) = result, failure.name != "NetworkError" {
+                done(failure.message.isEmpty ? "Не удалось переслать." : failure.message)
+                return
+            }
+            NotificationCenter.default.post(name: Messenger.changed, object: chatId)
+            done(nil)
+        })
     }
 
     /// The comment of «Выбрать» → send: a plain message to another chat, end-to-end encrypted like any other
-    /// (the reference's `store.send(target.id, comment, null)`). The answer comes on the main queue.
+    /// (the reference's `store.send(target.id, comment, null)`). The answer comes on the main queue. Behind a
+    /// forward still on its way to that chat it waits in the same queue.
     static func sendText(messenger: Messenger, chatId: String, peerId: String, text: String, done: @escaping (String?) -> Void) {
+        if ForwardQueue.shared.waiting(chatId) {
+            ForwardQueue.shared.add(messenger: messenger, chatId: chatId, peerId: peerId, text: text, attachment: nil, meta: NSNull(), from: "")
+            done(nil)
+            return
+        }
         let clientId = UUID().uuidString.lowercased()
         messenger.crypto.run({ (crypto: CryptoService) -> Result<Void, CryptoFailure> in
             messenger.deliver(crypto, chatId: chatId, peerId: peerId, clientId: clientId, text: text, attachment: NSNull(), meta: NSNull())
@@ -103,7 +106,8 @@ enum ChatForward {
 
     /// «Выбрать» → send: to every chosen chat in turn, the comment first, then the messages in their order (the
     /// reference's `onSendMany`). «Избранное» among the targets is the caller's (`saved`). `done` gets the first
-    /// problem, if any, on the main queue.
+    /// problem, if any, on the main queue — once everything is sent or queued (a file's copy goes on afterwards,
+    /// one job per chat, its problems shown on its row).
     static func sendMany(messenger: Messenger, targets: [ForwardPickerController.Target], comment: String, items: [ForwardDraft.Item], done: @escaping (String?) -> Void) {
         var steps: [(ForwardPickerController.Target, ForwardDraft.Item?)] = []
         for target in targets where !target.isSaved {
@@ -132,17 +136,23 @@ enum ChatForward {
         return "Переслано в \(targets.count) " + ScheduleModel.plural(targets.count, "чат", "чата", "чатов")
     }
 
-    /// The file of a message as a new encrypted file on the server. Runs on a background queue.
-    private static func copied(_ attachment: [String: Any], server: Server) -> Result<[String: Any], FileCore.Failure> {
+    /// The file of a message as a new encrypted file on the server. Runs on a background queue. `progress` gets
+    /// 0…1: the first half is the download, the second the upload; `stop` stops the transfer that runs.
+    static func copied(_ attachment: [String: Any], server: Server, stop: ForwardStop, progress: @escaping (Double) -> Void) -> Result<[String: Any], FileCore.Failure> {
         // A big file (a long video, a round video, a file over 20 MB) goes in encrypted chunks: it is taken down
         // chunk by chunk into a private file and goes up again the same way, under a new key.
-        if ChunkCore.isChunked(attachment) { return copiedBig(attachment, server: server) }
+        if ChunkCore.isChunked(attachment) { return copiedBig(attachment, server: server, stop: stop, progress: progress) }
         let unable = FileCore.Failure(words: "Не удалось переслать.")
         let about = FileCore.describe(attachment)
         if let refusal = about.refusal { return .failure(FileCore.Failure(words: refusal)) }
         guard let id = attachment["id"] as? String, let cipherSize = about.cipherSize else { return .failure(unable) }
+        let down = FileTransfer()
+        down.onProgress = { (done: Int, total: Int) -> Void in
+            if total > 0 { progress(0.5 * Double(done) / Double(total)) }
+        }
+        stop.use(down)
         let sealed: Data
-        switch server.downloadSealedFile(id: id, cipherSize: cipherSize, transfer: FileTransfer()) {
+        switch server.downloadSealedFile(id: id, cipherSize: cipherSize, transfer: down) {
         case .success(let data): sealed = data
         case .failure(.words(let words)): return .failure(FileCore.Failure(words: words))
         case .failure: return .failure(FileCore.Failure(words: "Не удалось загрузить зашифрованный файл."))
@@ -159,8 +169,14 @@ enum ChatForward {
         case .success(let data): again = data
         case .failure(let failure): return .failure(failure)
         }
+        if stop.isCancelled { return .failure(unable) }
+        let up = FileTransfer()
+        up.onProgress = { (done: Int, total: Int) -> Void in
+            if total > 0 { progress(0.5 + 0.5 * Double(done) / Double(total)) }
+        }
+        stop.use(up)
         let newId: String
-        switch server.uploadSealedFile(again, transfer: FileTransfer()) {
+        switch server.uploadSealedFile(again, transfer: up) {
         case .success(let made): newId = made
         case .failure(.words(let words)): return .failure(FileCore.Failure(words: words))
         case .failure: return .failure(unable)
@@ -178,7 +194,7 @@ enum ChatForward {
     /// opened here and sent again as a new encrypted file; the key of the first one is never reused). One 4 MiB
     /// chunk is in memory at a time; the opened copy lives in a private folder that goes as soon as this ends.
     /// Runs on a background queue.
-    private static func copiedBig(_ attachment: [String: Any], server: Server) -> Result<[String: Any], FileCore.Failure> {
+    private static func copiedBig(_ attachment: [String: Any], server: Server, stop: ForwardStop, progress: @escaping (Double) -> Void) -> Result<[String: Any], FileCore.Failure> {
         let unable = FileCore.Failure(words: "Не удалось переслать.")
         let manager = FileManager.default
         let folder = manager.temporaryDirectory.appendingPathComponent("invizent-forward-" + UUID().uuidString, isDirectory: true)
@@ -189,17 +205,29 @@ enum ChatForward {
         }
         defer { try? manager.removeItem(at: folder) }
         let file = folder.appendingPathComponent("forward.bin")
-        let quiet: (Int, Int) -> Void = { (_: Int, _: Int) -> Void in }
-        switch BigFiles.download(server, attachment: attachment, to: file, transfer: BigTransfer(), progress: quiet) {
+        let down = BigTransfer()
+        stop.use(down)
+        let downProgress: (Int, Int) -> Void = { (done: Int, total: Int) -> Void in
+            if total > 0 { progress(0.5 * Double(done) / Double(total)) }
+        }
+        switch BigFiles.download(server, attachment: attachment, to: file, transfer: down, progress: downProgress) {
         case .failure(let failure): return .failure(failure)
         case .success: break
         }
+        if stop.isCancelled { return .failure(unable) }
         let name = attachment["name"] as? String ?? "file"
         let type = attachment["mimeType"] as? String ?? "application/octet-stream"
         // A video goes up under the video limit (the same for everyone), anything else under the file limit.
         let video = type.lowercased().hasPrefix("video/")
-        switch BigFiles.upload(server, file: file, video: video, transfer: BigTransfer(), progress: quiet) {
+        let up = BigTransfer()
+        stop.use(up)
+        let upProgress: (Int, Int) -> Void = { (done: Int, total: Int) -> Void in
+            if total > 0 { progress(0.5 + 0.5 * Double(done) / Double(total)) }
+        }
+        switch BigFiles.upload(server, file: file, video: video, transfer: up, progress: upProgress) {
         case .failure(let failure):
+            // A retry starts afresh under a new key: the unfinished upload is dropped on the server.
+            BigFiles.forget(server, state: up.state)
             return .failure(failure)
         case .success(let done):
             let media: Any = attachment["media"] ?? NSNull()

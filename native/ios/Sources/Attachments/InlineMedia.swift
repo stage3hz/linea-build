@@ -109,6 +109,20 @@ final class InlineMedia {
         set(key, Entry())
     }
 
+    /// ChatActions (Sources/ChatActions/ForwardQueue.swift): the ring and ✕ of a forwarded attachment being copied,
+    /// on its row on the way out (`progress` 0…1, the words in the pill or under the name).
+    func showSending(_ key: String, progress: CGFloat, words: String) {
+        tried.insert(key)
+        set(key, Entry(status: .loading, progress: min(1, max(0, progress)), words: words))
+    }
+
+    /// ChatActions: the forward's row is gone or failed — its ring goes with it.
+    func forgetSending(_ key: String) {
+        guard entries[key] != nil else { return }
+        entries[key] = nil
+        NotificationCenter.default.post(name: InlineMedia.changed, object: key)
+    }
+
     private static func light() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }

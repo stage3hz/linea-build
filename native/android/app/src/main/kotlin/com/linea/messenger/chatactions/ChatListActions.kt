@@ -70,6 +70,9 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     val sections: Boolean = true,
     /** ChatsPlus: «Люди» — people by @name the server found, who have no chat here yet. */
     val people: List<Map<String, Any?>> = emptyList(),
+    /** ChatActions: «Отправка: Видео · 40%» / «Не отправлено: …» (with its red length) while a forward goes to a chat
+     *  (chatactions/ForwardQueue.kt); null: nothing goes there. */
+    val sending: (String) -> Pair<String, Int>? = { null },
   )
 
   /** What `rows` made: the rows, the words for an empty list, the heading, and whether «Архив» stays open. */
@@ -119,6 +122,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   private var lastShown: List<String> = emptyList()
 
   private val localWatcher: (String?) -> Unit = { refresh() }
+  /** ChatActions: a forward on its way changed (chatactions/ForwardQueue.kt). */
+  private val forwardWatcher: (String) -> Unit = { refresh() }
 
   // Setting up
 
@@ -169,6 +174,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     attached = true
     ChatLocal.changed.watch(localWatcher)
     ChatTyping.changed.watch(localWatcher)
+    ForwardQueue.changed.watch(forwardWatcher)
+    ForwardQueue.progressed.watch(forwardWatcher)
   }
 
   fun detached() {
@@ -176,6 +183,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     attached = false
     ChatLocal.changed.unwatch(localWatcher)
     ChatTyping.changed.unwatch(localWatcher)
+    ForwardQueue.changed.unwatch(forwardWatcher)
+    ForwardQueue.progressed.unwatch(forwardWatcher)
     searchSoon?.let { main.removeCallbacks(it) }
   }
 
@@ -227,7 +236,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
       removed = { removed(it) }, marked = { marked(it) }, draft = { local?.draft(it) ?: sampleDrafts[it] ?: "" }, typing = { ChatTyping.isTyping(it) },
       keeps = { id, unread -> plus?.keeps(id, unread) ?: true }, savedRow = if (inArchive) null else plus?.savedRow(query), archivePulled = pulled,
       selecting = plus?.selecting ?: false, chosen = { plus?.isChosen(it) ?: false }, sections = plus?.showsSections ?: true,
-      people = if (wanted.isNotEmpty() && !inArchive) plus?.peopleRows(query) ?: emptyList() else emptyList()))
+      people = if (wanted.isNotEmpty() && !inArchive) plus?.peopleRows(query) ?: emptyList() else emptyList(),
+      sending = { ForwardQueue.listLine(it) }))
     archiveOpen = made.archiveOpen
     lastShown = made.shownIds
     onHeading?.invoke(made.heading)
@@ -820,6 +830,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         row["title"] = chat.row["title"] as? String ?: chat.title
         row["unread"] = if (count > 0) count else if (isMarked) 1 else 0
         val draft = draftLine(state.draft(chat.id))
+        val sending = state.sending(chat.id)
         // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
         if (state.typing(chat.id) || draft.isNotEmpty() || state.fills[chat.id] != null) row["quietPreview"] = false
         if (state.typing(chat.id)) {
@@ -830,6 +841,13 @@ class ChatListActions(private val context: Context, private val messenger: Messe
           row["preview"] = draft
           row["previewRed"] = draftWord.length
           row["previewIcon"] = ""
+        } else if (sending != null) {
+          // ChatActions: a forward on its way there — «Отправка: …», or «Не отправлено: …» in red.
+          row["preview"] = sending.first
+          if (sending.second > 0) row["previewRed"] = sending.second else row["accentPreview"] = true
+          row["previewIcon"] = ""
+          row["thumb"] = ""
+          row["quietPreview"] = false
         } else if (chat.last.isNotEmpty()) {
           val mine = chat.last["senderId"] as? String == state.userId
           val fill = state.fills[chat.id]

@@ -3,8 +3,6 @@ package com.linea.messenger.chatactions
 import android.app.Dialog
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
-import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.InputType
 import android.text.TextUtils
@@ -39,7 +37,6 @@ import com.linea.messenger.people.PersonAvatarView
 import com.linea.messenger.people.personAvatarAddress
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.Executors
 
 /** A forward that waits above the field of the chat it goes to (the reference's forward/forwardDraft.ts): the
  *  chat opens with «Переслать сообщение» over the field, a comment can be written, and sending sends both.
@@ -73,8 +70,6 @@ object ForwardDraft {
 /** Sending a message on to another chat. It is encrypted anew for that chat; a file is downloaded, opened here,
  *  sealed with a new key and uploaded again as a new encrypted file (the key of the first one is never reused). */
 object ChatForward {
-  private val work = Executors.newSingleThreadExecutor { run -> Thread(run, "invizent.forward").apply { isDaemon = true } }
-
   /** At most `units` UTF-16 units of a text, never cutting a character in two. */
   fun clipped(text: String, units: Int): String {
     if (text.length <= units) return text
@@ -100,40 +95,39 @@ object ChatForward {
   }
 
   /** Sends one message on. The answer comes on the main thread: null when it went (or will go by itself when the
-   *  connection is back), else the words for the person. */
+   *  connection is back), else the words for the person. Main thread.
+   *  A message with a file goes through the queue of forwards (chatactions/ForwardQueue.kt): the chat gets its row
+   *  with the progress at once and the answer is null as soon as it is queued; so does anything sent on to a chat
+   *  while something waits for it there, so the order stays. A text alone goes at once. */
   fun send(messenger: Messenger, chatId: String, peerId: String, message: Map<String, Any?>, author: String, done: (String?) -> Unit) {
-    val main = Handler(Looper.getMainLooper())
     val text = message["text"] as? String ?: ""
     val original = Core.map(message["attachment"] as? Map<*, *>)
     val meta = meta(message, author) ?: return done("Пустое сообщение нельзя переслать.")
-    work.execute {
-      var attachment: Map<String, Any?>? = null
-      if (original != null) {
-        val copied = copied(original, messenger.server)
-        attachment = copied.getOrNull()
-        if (attachment == null) {
-          val words = (copied.exceptionOrNull() as? FileCore.Failure)?.words ?: "Не удалось переслать."
-          main.post { done(words) }
-          return@execute
-        }
-      }
-      val sent = attachment
-      val clientId = UUID.randomUUID().toString().lowercase()
-      messenger.crypto.run({ crypto: CryptoService -> messenger.deliver(crypto, chatId, peerId, clientId, text, sent, meta) }, { result ->
-        val failure = CryptoService.failure(result)
-        if (result.isFailure && failure?.name != "NetworkError") {
-          done(failure?.words.orEmpty().ifEmpty { "Не удалось переслать." })
-        } else {
-          messenger.noteChanged(chatId)
-          done(null)
-        }
-      })
+    if (original != null || ForwardQueue.waiting(chatId)) {
+      val from = (meta["forward"] as? Map<*, *>)?.get("from") as? String ?: ""
+      ForwardQueue.add(messenger, chatId, peerId, text, original, meta, from)
+      return done(null)
     }
+    val clientId = UUID.randomUUID().toString().lowercase()
+    messenger.crypto.run({ crypto: CryptoService -> messenger.deliver(crypto, chatId, peerId, clientId, text, null, meta) }, { result ->
+      val failure = CryptoService.failure(result)
+      if (result.isFailure && failure?.name != "NetworkError") {
+        done(failure?.words.orEmpty().ifEmpty { "Не удалось переслать." })
+      } else {
+        messenger.noteChanged(chatId)
+        done(null)
+      }
+    })
   }
 
   /** Composer: the comment of «Выбрать» → send: a plain message to another chat, end-to-end encrypted like any other
    *  (the reference's `store.send(target.id, comment, null)`). The answer comes on the main thread. */
   fun sendText(messenger: Messenger, chatId: String, peerId: String, text: String, done: (String?) -> Unit) {
+    // Behind a forward still on its way to that chat it waits in the same queue.
+    if (ForwardQueue.waiting(chatId)) {
+      ForwardQueue.add(messenger, chatId, peerId, text, null, null, "")
+      return done(null)
+    }
     val clientId = UUID.randomUUID().toString().lowercase()
     messenger.crypto.run({ crypto: CryptoService -> messenger.deliver(crypto, chatId, peerId, clientId, text, null, null) }, { result ->
       val failure = CryptoService.failure(result)
@@ -144,7 +138,9 @@ object ChatForward {
   }
 
   /** Composer: «Выбрать» → send: to every chosen chat in turn, the comment first, then the messages in their order (the
-   *  reference's `onSendMany`). «Избранное» among the targets is the caller's. `done` gets the first problem, if any. */
+   *  reference's `onSendMany`). «Избранное» among the targets is the caller's. `done` gets the first problem, if any —
+   *  once everything is sent or queued (a file's copy goes on afterwards, one job per chat, its problems shown on its
+   *  row). */
   fun sendMany(messenger: Messenger, targets: List<ForwardPicker.Target>, comment: String, items: List<ForwardDraft.Item>, done: (String?) -> Unit) {
     val steps = ArrayList<Pair<ForwardPicker.Target, ForwardDraft.Item?>>()
     for (target in targets) {
@@ -170,18 +166,22 @@ object ChatForward {
   }
 
   /** The file of a message as a new encrypted file on the server. Runs on a background thread. A failure is a
-   *  `FileCore.Failure`. */
-  private fun copied(attachment: Map<String, Any?>, server: Server): Result<Map<String, Any?>> {
+   *  `FileCore.Failure`. `progress` gets 0…1: the first half is the download, the second the upload; `stop` stops the
+   *  transfer that runs. */
+  fun copied(attachment: Map<String, Any?>, server: Server, stop: ForwardStop, progress: (Double) -> Unit): Result<Map<String, Any?>> {
     // A big file (a long video, a round video, a file over 20 MB) goes in encrypted chunks: it is taken down chunk
     // by chunk into a private file and goes up again the same way, under a new key.
-    if (ChunkCore.isChunked(attachment)) return copiedBig(attachment, server)
+    if (ChunkCore.isChunked(attachment)) return copiedBig(attachment, server, stop, progress)
     fun failure(words: String) = Result.failure<Map<String, Any?>>(FileCore.Failure(words))
     val unable = failure("Не удалось переслать.")
     val about = FileCore.describe(attachment)
     about.refusal?.let { return failure(it) }
     val id = attachment["id"] as? String ?: return unable
     val cipherSize = about.cipherSize ?: return unable
-    val downloaded = server.downloadSealedFile(id, cipherSize, FileTransfer())
+    val down = FileTransfer()
+    down.onProgress = { done, total -> if (total > 0) progress(0.5 * done.toDouble() / total.toDouble()) }
+    stop.use(down)
+    val downloaded = server.downloadSealedFile(id, cipherSize, down)
     val sealed = downloaded.getOrNull()
       ?: return failure((downloaded.exceptionOrNull() as? FileTransfer.Failure.Words)?.words ?: "Не удалось загрузить зашифрованный файл.")
     val opened = FileCore.open(sealed, attachment)
@@ -190,7 +190,11 @@ object ChatForward {
     val encryption = Core.map(FileCore.call("newEncryption")) ?: return failure("Шифрование ещё не готово. Попробуй ещё раз.")
     val resealed = FileCore.seal(plain, encryption)
     val again = resealed.getOrNull() ?: return failure(FileCore.words(resealed))
-    val uploaded = server.uploadSealedFile(again, FileTransfer())
+    if (stop.isCancelled) return unable
+    val up = FileTransfer()
+    up.onProgress = { done, total -> if (total > 0) progress(0.5 + 0.5 * done.toDouble() / total.toDouble()) }
+    stop.use(up)
+    val uploaded = server.uploadSealedFile(again, up)
     val newId = uploaded.getOrNull() ?: return (uploaded.exceptionOrNull() as? FileTransfer.Failure.Words)?.let { failure(it.words) } ?: unable
     val name = attachment["name"] as? String ?: "file"
     val type = attachment["mimeType"] as? String ?: "application/octet-stream"
@@ -201,12 +205,21 @@ object ChatForward {
   /** A file of the chunked scheme as a new chunked file on the server (the reference's forward: the file is opened
    *  here and sent again as a new encrypted file; the key of the first one is never reused). One 4 MiB chunk is in
    *  memory at a time. Background thread. */
-  private fun copiedBig(attachment: Map<String, Any?>, server: Server): Result<Map<String, Any?>> {
+  private fun copiedBig(attachment: Map<String, Any?>, server: Server, stop: ForwardStop, progress: (Double) -> Unit): Result<Map<String, Any?>> {
     val cache = File(System.getProperty("java.io.tmpdir") ?: return Result.failure(FileCore.Failure("Не удалось открыть файл.")))
-    val quiet: (Long, Long) -> Unit = { _, _ -> }
+    val down = BigTransfer()
+    val up = BigTransfer()
+    stop.use(down)
     return copiedBig(attachment, cache,
-      download = { file -> BigFiles.download(server, attachment, file, BigTransfer(), quiet) },
-      upload = { file, video -> BigFiles.upload(server, file, video, BigTransfer(), progress = quiet) })
+      download = { file -> BigFiles.download(server, attachment, file, down) { done, total -> if (total > 0) progress(0.5 * done.toDouble() / total.toDouble()) } },
+      upload = upload@{ file, video ->
+        if (stop.isCancelled) return@upload Result.failure(FileCore.Failure("Не удалось переслать."))
+        stop.use(up)
+        val result = BigFiles.upload(server, file, video, up, progress = { done, total -> if (total > 0) progress(0.5 + 0.5 * done.toDouble() / total.toDouble()) })
+        // A retry starts afresh under a new key: the unfinished upload is dropped on the server.
+        if (result.isFailure) BigFiles.forget(server, up.state)
+        result
+      })
   }
 
   /** The steps of `copiedBig` around the transfers (given, so that the checks can run them without a server): the

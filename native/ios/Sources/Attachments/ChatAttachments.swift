@@ -87,6 +87,17 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         button.accessibilityLabel = "Вложения: галерея, файлы, опрос"
         button.addTarget(self, action: #selector(choose), for: .touchUpInside)
         composer.addSubview(button)
+        // ChatActions: forwards on their way into this chat stand among these rows (Sources/ChatActions/ForwardQueue.swift).
+        NotificationCenter.default.addObserver(self, selector: #selector(forwardsChanged(_:)), name: ForwardQueue.changed, object: nil)
+        #if targetEnvironment(simulator)
+        if messenger == nil { ForwardQueue.simulatorSeed(chatId: chatId) } // -chatdemo forwardpending
+        #endif
+    }
+
+    /// ChatActions: a forward into this chat came, went, started or failed.
+    @objc private func forwardsChanged(_ note: Notification) {
+        if let id = note.object as? String, id != chatId { return }
+        onPendingChanged?()
     }
 
     /// Places the paperclip at the composer's leading edge, on its own round glass (Sources/Composer/ComposerPills.swift);
@@ -458,7 +469,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
 
     /// The rows of what is on its way out, to stand after the chat's own.
     var pendingRows: [[String: Any]] {
-        pending.map { (item: Pending) -> [String: Any] in
+        let own: [[String: Any]] = pending.map { (item: Pending) -> [String: Any] in
             var label = ""
             if let failed = item.failed {
                 label = "Не отправлено · повторить\n" + failed
@@ -474,6 +485,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             }
             return row
         }
+        // ChatActions: then the forwards on their way into this chat (Sources/ChatActions/ForwardQueue.swift).
+        return own + ForwardQueue.shared.rows(for: chatId)
     }
 
     // MARK: A touch on a row
@@ -482,6 +495,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     /// Attachments: `inRow` false — opened from elsewhere (an album's tile, the profile's media): straight to the
     /// viewer, not brought inside a row.
     func pressed(_ key: String, inRow: Bool = true) {
+        // ChatActions: a forward on its way — ✕ stops it, a failed one offers «Повторить» (Sources/ChatActions/ForwardQueue.swift).
+        if ForwardQueue.shared.pressed(key, over: host) { return }
         // Voice/Video: voice messages, videos, round videos and big files are played and opened there.
         if mediaPressed?(key) == true { return }
         if let item = pending.first(where: { $0.key == key }) {

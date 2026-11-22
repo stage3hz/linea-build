@@ -314,6 +314,8 @@ jobs:
           else
             echo "no small iPhone simulator for the sign-in shots"
           fi
+          # ChatActions: a video forwarded into the sample chat, its copy at 40 % — the ring with ✕ (ChatActions/ForwardQueue.swift).
+          shot 460-forward-pending -demo 1 -chat 1 -chatdemo forwardpending
           shot 62-bar-with-track -musicdemo chats
           shot 63-light-chats -demo 1 -settheme light
           shot 64-light-chat -demo 1 -chat 1 -settheme light
