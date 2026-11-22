@@ -134,7 +134,6 @@ shot 303-mute-sheet-custom-row --ez demo true --es chatlist mute
 # Avatars / Profile / Platina: frames, art, Platina's marks, profiles, gifts, the showcase and the studio, the mini
 # profile, the photo viewer, the cropper, the pickers (avatars/, profile/, platina/), the same numbers as the iOS check.
 shot 100-avatar-rings --es profiledemo rings
-shot 101-avatar-code-frames --es profiledemo code
 shot 102-avatar-art --es profiledemo art
 shot 103-avatar-list-sizes --es profiledemo list
 shot 104-platina-marks --es profiledemo marks
@@ -248,6 +247,8 @@ shot 371-video-player-speed --ez demo true --ez chat true --es videodemo speed
 shot 372-video-player-locked --ez demo true --ez chat true --es videodemo locked
 shot 373-video-player-seek --ez demo true --ez chat true --es videodemo seek
 shot 374-note-recorder --ez demo true --ez chat true --es notedemo 1
+# Last: on the runner's software-drawn emulator this page (eight frames drawn live) once took the emulator down.
+shot 101-avatar-code-frames --es profiledemo code
 
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
