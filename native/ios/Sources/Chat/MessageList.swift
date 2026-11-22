@@ -46,6 +46,9 @@ struct MsgRow: Equatable {
   var bigEmoji = 0
   /// Composer: an own message sent «без звука» (a crossed bell before the time).
   var silent = false
+  /// The quoted message's small picture (base64), round for a round video (MessageRow.tsx replyThumb); empty: none.
+  var quoteThumb = ""
+  var quoteRound = false
 
   static func parse(_ rows: [[String: Any]]) -> [MsgRow] {
     func text(_ value: Any?) -> String { (value as? String) ?? "" }
@@ -68,6 +71,8 @@ struct MsgRow: Equatable {
       result[result.count - 1].album = MsgAlbum.parse(row["album"])
       result[result.count - 1].bigEmoji = min(3, max(0, int(row["bigEmoji"], 0)))
       result[result.count - 1].silent = flag(row["silent"])
+      result[result.count - 1].quoteThumb = text(row["quoteThumb"])
+      result[result.count - 1].quoteRound = flag(row["quoteRound"])
     }
     return result
   }
@@ -120,7 +125,16 @@ private func msgQuoteStyle() -> NSParagraphStyle {
   style.lineBreakMode = .byWordWrapping
   return style
 }
-private func msgQuoteHeight(_ textHeight: CGFloat) -> CGFloat { 5 + ceil(msgQuoteAuthorFont.lineHeight) + 1 + textHeight + 5 }
+private func msgQuoteHeight(_ textHeight: CGFloat, thumb: Bool = false) -> CGFloat {
+  5 + max(ceil(msgQuoteAuthorFont.lineHeight) + 1 + textHeight, thumb ? 32 : 0) + 5
+}
+/// MessageRow.tsx: under an own message that was refused, «Не отправлено · повторить» (11 semibold, danger) with
+/// 8 above and below.
+private let msgFailedFont = UIFont.systemFont(ofSize: 11, weight: .semibold)
+private func msgFailedRoom(_ row: MsgRow) -> CGFloat { row.mine && row.ticks == 4 ? 8 + ceil(msgFailedFont.lineHeight) + 8 : 0 }
+
+/// The words of a quote stand this far in: the bar 3 + 7, and with the picture 32 + 7 more (MessageRow.tsx).
+private func msgQuoteIndent(_ row: MsgRow) -> CGFloat { row.quoteThumb.isEmpty ? 10 : 10 + 32 + 7 }
 private let msgMetaFont = UIFont.systemFont(ofSize: 11)
 /// MessageRow.tsx DayChip and CallServiceRow.
 private let msgDayFont = UIFont.systemFont(ofSize: 10, weight: .semibold)
@@ -206,6 +220,12 @@ final class MsgText {
   var lastLine: CGRect {
     let glyphs = manager.numberOfGlyphs
     return glyphs > 0 ? manager.lineFragmentUsedRect(forGlyphAt: glyphs - 1, effectiveRange: nil) : .zero
+  }
+
+  /// The bottom of the line that holds a character.
+  func lineBottom(atCharacter index: Int) -> CGFloat {
+    let glyph = manager.glyphIndexForCharacter(at: index)
+    return manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).maxY
   }
 
   func rect(_ range: NSRange) -> CGRect {
@@ -304,6 +324,44 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
   return result
 }
 
+/// MessageRow.tsx `plainTime` (the open look): the time is a run of the words themselves — «\u00A0\u00A0[изм. ]time»
+/// in 11 pt and, for one's own, «\u00A0» and the 15-point mark — so it is glued to the last word and takes that word
+/// to the next line when it does not fit. Here the run is invisible; the time and the mark are drawn over it.
+private let msgMarkRoom: UIImage = UIGraphicsImageRenderer(size: CGSize(width: 15, height: 1)).image { (_: UIGraphicsImageRendererContext) -> Void in }
+private func msgTrailing(_ row: MsgRow) -> NSAttributedString {
+  let out = NSMutableAttributedString(string: "\u{00A0}\u{00A0}" + row.time, attributes: [.font: msgMetaFont, .foregroundColor: UIColor.clear])
+  if row.mine {
+    out.append(NSAttributedString(string: "\u{00A0}", attributes: [.font: msgMetaFont, .foregroundColor: UIColor.clear]))
+    let mark = NSTextAttachment()
+    mark.image = msgMarkRoom
+    mark.bounds = CGRect(x: 0, y: 0, width: 15, height: 1)
+    out.append(NSAttributedString(attachment: mark))
+  }
+  return out
+}
+/// MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside.
+private func msgInlineTime(_ row: MsgRow) -> Bool {
+  !row.text.isEmpty && row.bigEmoji == 0 && row.chips.isEmpty && row.reactions.isEmpty && row.linkCard == nil
+    && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 })
+}
+/// MessageRow.tsx `plainTime`: the open look, and no rare marks (silent).
+private func msgPlainTime(_ row: MsgRow) -> Bool { msgInlineTime(row) && msgOpenLook && row.media != "photo" && !row.silent }
+/// The words of a row as they are laid out and drawn, with the invisible run at their end that keeps the time's room:
+/// the open look's time itself (msgTrailing), or the bubbles' spacer «\u00A0\u00A0\u00A0[silent: 5 × \u00A0]time
+/// [mine: 7 × \u00A0]\u00A0» in 11 pt — glued to the last word, so both take it to the next line together.
+private func msgLaidBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quote: UIColor, revealed: Bool) -> NSAttributedString {
+  let body = msgBody(row, fontSize: fontSize, text: text, link: link, quote: quote, revealed: revealed)
+  guard msgInlineTime(row) else { return body }
+  let out = NSMutableAttributedString(attributedString: body)
+  if msgPlainTime(row) {
+    out.append(msgTrailing(row))
+  } else {
+    let spacer = "\u{00A0}\u{00A0}\u{00A0}" + (row.silent ? String(repeating: "\u{00A0}", count: 5) : "") + row.time + (row.mine ? String(repeating: "\u{00A0}", count: 7) : "") + "\u{00A0}"
+    out.append(NSAttributedString(string: spacer, attributes: [.font: msgMetaFont, .foregroundColor: UIColor.clear]))
+  }
+  return out
+}
+
 /// Where everything of one row goes, for the width it is shown at.
 /// The open look: no bubbles. A message is its text on the page — own at the right edge, the other side's at
 /// the left — and the time follows the last word on the same line.
@@ -391,11 +449,11 @@ struct MsgLayout {
     // MessageRow.tsx: a message is at most 85 % of the row (the list's own side margins taken off).
     let pads = msgPads(row)
     let inner = floor((width - 2 * msgEdge) * 0.85) - pads.left - pads.right
-    let laidBody = row.text.isEmpty ? nil : MsgText(msgBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
+    let laidBody = row.text.isEmpty ? nil : MsgText(msgLaidBody(row, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: inner)
     layout.textSize = laidBody?.size ?? .zero
     if !row.quoteText.isEmpty || !row.quoteAuthor.isEmpty {
       let words = NSAttributedString(string: row.quoteText.isEmpty ? " " : row.quoteText, attributes: [.font: msgQuoteFont, .paragraphStyle: msgQuoteStyle()])
-      let box = words.boundingRect(with: CGSize(width: max(1, inner - 18), height: ceil(msgQuoteFont.lineHeight * 2) + 1), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+      let box = words.boundingRect(with: CGSize(width: max(1, inner - msgQuoteIndent(row) - 8), height: ceil(msgQuoteFont.lineHeight * 2) + 1), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
       layout.quoteSize = CGSize(width: ceil(box.width), height: min(ceil(box.height), ceil(msgQuoteFont.lineHeight * 2)))
     }
     layout.labelSize = msgSize(row.label, msgSmallFont, inner, 36)
@@ -431,7 +489,7 @@ struct MsgLayout {
     w = max(w, layout.fileSize.width) // Attachments
     if layout.quoteSize != .zero {
       let author = ceil(NSAttributedString(string: row.quoteAuthor, attributes: [.font: msgQuoteAuthorFont]).size().width)
-      w = max(w, min(inner, max(layout.quoteSize.width, author) + 18))
+      w = max(w, min(inner, max(layout.quoteSize.width, author) + msgQuoteIndent(row) + 8))
     }
     if !row.forward.isEmpty { w = max(w, min(inner, ceil(NSAttributedString(string: row.forward, attributes: [.font: msgForwardFont]).size().width) + 2)) }
     // LinkPreview: the card stands under the text, and the time then goes under the card.
@@ -449,48 +507,32 @@ struct MsgLayout {
       layout.album = MsgAlbumLayout.make(album, screenWidth: width, inner: inner)
       w = max(w, layout.album.size.width)
     }
-    // MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside.
-    let endsInBlock = stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 })
-    if let laid = laidBody, layout.reactSize == .zero, layout.card.size == .zero, !endsInBlock, row.bigEmoji == 0 {
-      let last = laid.lastLine
-      let line = msgLineHeight(fontSize)
-      if msgOpenLook && !(row.media == "photo") {
-        // The open look: the time follows the last word («\u00A0\u00A0» + time, then the mark), on the next line
-        // when it does not fit.
-        let gap = ceil(NSAttributedString(string: "\u{00A0}\u{00A0}", attributes: [.font: msgMetaFont]).size().width)
+    // MessageRow.tsx `inlineTime`: the time's room is the invisible run at the end of the words (msgLaidBody).
+    if let laid = laidBody, msgInlineTime(row) {
+      w = max(w, laid.size.width)
+      if msgPlainTime(row) {
+        // The open look: the time stands where its run was laid out, on that line's baseline.
+        let start = (row.text as NSString).length + 2
+        let place = laid.rect(NSRange(location: start, length: (row.time as NSString).length))
         layout.timeInline = true
-        if last != .zero && ceil(last.maxX) + gap + timeWidth <= inner {
-          layout.timeAt = CGPoint(x: ceil(last.maxX) + gap, y: last.maxY)
-          w = max(w, ceil(last.maxX) + gap + timeWidth)
-        } else {
-          layout.textSize.height += line
-          layout.timeAt = CGPoint(x: 0, y: layout.textSize.height)
-        }
+        layout.timeAt = CGPoint(x: place.minX, y: laid.lineBottom(atCharacter: start))
       } else {
-        // Bubbles: the time sits in the lower corner (10 from the right, 6 from the bottom) and an invisible spacer
-        // at the end of the words keeps its room: «\u00A0\u00A0\u00A0[silent]time[mine: 7 × \u00A0]\u00A0» in 11 pt.
-        let spacer = "\u{00A0}\u{00A0}\u{00A0}" + (row.silent ? String(repeating: "\u{00A0}", count: 5) : "") + row.time + (row.mine ? String(repeating: "\u{00A0}", count: 7) : "") + "\u{00A0}"
-        let room = ceil(NSAttributedString(string: spacer, attributes: [.font: msgMetaFont]).size().width)
+        // Bubbles (and the open look with a rare mark): the time sits in the lower corner, 10 from the right and 6
+        // from the bottom.
         layout.timeCorner = true
-        if last != .zero && ceil(last.maxX) + room <= inner {
-          w = max(w, ceil(last.maxX) + room)
-        } else {
-          layout.textSize.height += line
-          w = max(w, min(inner, room))
-        }
       }
     }
     // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
     if row.media == "photo" && row.text.isEmpty && row.quoteText.isEmpty && row.quoteAuthor.isEmpty && row.forward.isEmpty && layout.reactSize == .zero {
       layout.photoBare = true
       layout.bubble = layout.thumbSize
-      layout.height = layout.thumbSize.height + (row.tail ? 6 : 2)
+      layout.height = layout.thumbSize.height + msgFailedRoom(row) + (row.tail ? 6 : 2)
       return layout
     }
     // MessageRow.tsx: 6 above the content.
     var h: CGFloat = 6
     if !row.forward.isEmpty { h += ceil(msgForwardFont.lineHeight) + 4 }
-    if layout.quoteSize != .zero { h += msgQuoteHeight(layout.quoteSize.height) + 6 }
+    if layout.quoteSize != .zero { h += msgQuoteHeight(layout.quoteSize.height, thumb: !row.quoteThumb.isEmpty) + 6 }
     if layout.thumbSize != .zero { h += layout.thumbSize.height + 6 }
     if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
@@ -503,14 +545,14 @@ struct MsgLayout {
     if layout.timeBeside {
       // The time stands beside the chips: only the plate's 5 below.
       layout.bubble = CGSize(width: max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h + 5)
-      layout.height = h + 5 + (row.tail ? 6 : 2)
+      layout.height = h + 5 + msgFailedRoom(row) + (row.tail ? 6 : 2)
       return layout
     }
     // Below: 6 under words that carry the time; else the time's own row (4 above it, 5 below).
     h += layout.timeInline || layout.timeCorner ? 6 : 4 + ceil(msgMetaFont.lineHeight) + 5
     // Bubbles are at least 60 wide; 6 under the last message of a run, 2 inside one (`groupNext`).
     layout.bubble = CGSize(width: max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h)
-    layout.height = h + (row.tail ? 6 : 2)
+    layout.height = h + msgFailedRoom(row) + (row.tail ? 6 : 2)
     return layout
   }
 }
@@ -521,6 +563,8 @@ final class MsgRowCanvas: UIView {
   var fontSize: CGFloat = 17
   var layoutInfo = MsgLayout()
   var thumbImage: UIImage?
+  /// The quoted message's small picture, decoded once per cell.
+  var quoteImage: UIImage?
   var pressed = false
   /// The spoilers of this message have been tapped open.
   var revealed = false
@@ -584,7 +628,7 @@ final class MsgRowCanvas: UIView {
   /// A link or a still hidden spoiler under a point of this view.
   func run(at point: CGPoint) -> (flags: Int, url: String, shown: String)? {
     guard let item = row, !item.fmt.isEmpty, bodyBox.contains(point) else { return nil }
-    let laid = MsgText(msgBody(item, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: bodyBox.width)
+    let laid = MsgText(msgLaidBody(item, fontSize: fontSize, text: .black, link: .black, quote: .clear, revealed: true), width: bodyBox.width)
     guard let index = laid.index(at: CGPoint(x: point.x - bodyBox.minX, y: point.y - bodyBox.minY)) else { return nil }
     let total = (item.text as NSString).length
     var link = 0
@@ -721,6 +765,12 @@ final class MsgRowCanvas: UIView {
     // ChatLook: «Углы сообщений» (8, 14, 20), the tail corner 6 at most (Sources/ChatLook/BubbleLook.swift).
     let shape = ChatBubbleLook.shape(box, mine: item.mine, tail: item.tail)
     // Attachments: a photo alone — the picture with the time in its corner, no plate and no line.
+    // MessageRow.tsx: a refused message has a 1-point danger border and «Не отправлено · повторить» under it (a touch
+    // on the row sends it again).
+    if item.mine && item.ticks == 4 {
+      let words = NSAttributedString(string: "Не отправлено · повторить", attributes: [.font: msgFailedFont, .foregroundColor: palette.danger])
+      words.draw(at: CGPoint(x: w - msgEdge - ceil(words.size().width), y: bubble.height + 8))
+    }
     if layoutInfo.photoBare {
       let outline = UIBezierPath(roundedRect: box, cornerRadius: 15)
       InlineMediaArt.drawPhoto(context, row: item, box: box, palette: palette, small: thumbImage, radius: 15, alone: true)
@@ -754,7 +804,7 @@ final class MsgRowCanvas: UIView {
       y += ceil(msgForwardFont.lineHeight) + 4
     }
     if layoutInfo.quoteSize != .zero {
-      let height = msgQuoteHeight(layoutInfo.quoteSize.height)
+      let height = msgQuoteHeight(layoutInfo.quoteSize.height, thumb: !item.quoteThumb.isEmpty)
       quoteBox = CGRect(x: x, y: y, width: inner, height: height)
       context.setFillColor((Theme.dark ? UIColor(white: 1, alpha: 0.06) : UIColor(white: 0, alpha: 0.04)).cgColor)
       context.addPath(UIBezierPath(roundedRect: quoteBox, cornerRadius: 10).cgPath)
@@ -765,10 +815,28 @@ final class MsgRowCanvas: UIView {
       context.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: 3, height: height), cornerRadius: 2).cgPath)
       context.fillPath()
       context.restoreGState()
-      let words = x + 3 + 7
-      draw(item.quoteAuthor, msgQuoteAuthorFont, markColor, CGRect(x: words, y: y + 5, width: inner - 18, height: ceil(msgQuoteAuthorFont.lineHeight)), lines: false)
+      // MessageRow.tsx replyThumb: 32 × 32 after the bar, centred, radius 5 (16 for a round video), on
+      // rgba(120,130,160,0.18) until it shows.
+      if !item.quoteThumb.isEmpty {
+        let box = CGRect(x: x + 10, y: y + (height - 32) / 2, width: 32, height: 32)
+        let corner: CGFloat = item.quoteRound ? 16 : 5
+        context.setFillColor(UIColor(red: 120 / 255, green: 130 / 255, blue: 160 / 255, alpha: 0.18).cgColor)
+        context.addPath(UIBezierPath(roundedRect: box, cornerRadius: corner).cgPath)
+        context.fillPath()
+        if let picture = quoteImage, picture.size.width > 0, picture.size.height > 0 {
+          context.saveGState()
+          UIBezierPath(roundedRect: box, cornerRadius: corner).addClip()
+          let scale = max(32 / picture.size.width, 32 / picture.size.height)
+          let size = CGSize(width: picture.size.width * scale, height: picture.size.height * scale)
+          picture.draw(in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height))
+          context.restoreGState()
+        }
+      }
+      let words = x + msgQuoteIndent(item)
+      let top = y + 5 // the words stand at the top of the block (paddingVertical 5); the picture is centred
+      draw(item.quoteAuthor, msgQuoteAuthorFont, markColor, CGRect(x: words, y: top, width: inner - msgQuoteIndent(item) - 8, height: ceil(msgQuoteAuthorFont.lineHeight)), lines: false)
       NSAttributedString(string: item.quoteText, attributes: [.font: msgQuoteFont, .foregroundColor: metaColor, .paragraphStyle: msgQuoteStyle()])
-        .draw(with: CGRect(x: words, y: y + 5 + ceil(msgQuoteAuthorFont.lineHeight) + 1, width: inner - 18, height: layoutInfo.quoteSize.height), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
+        .draw(with: CGRect(x: words, y: top + ceil(msgQuoteAuthorFont.lineHeight) + 1, width: inner - msgQuoteIndent(item) - 8, height: layoutInfo.quoteSize.height), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
       y += height + 6
     }
     // Attachments: the album's mosaic.
@@ -830,9 +898,9 @@ final class MsgRowCanvas: UIView {
       if hideBody && item.bigEmoji > 0 {
         // Avatars: the big emoji is drawn by its pop for the moment (Sources/Avatars/BigEmojiPop.swift).
       } else if item.fmt.isEmpty {
-        MsgText(msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner).draw(at: CGPoint(x: x, y: y))
+        MsgText(msgLaidBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner).draw(at: CGPoint(x: x, y: y))
       } else {
-        let laid = MsgText(msgBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner)
+        let laid = MsgText(msgLaidBody(item, fontSize: fontSize, text: palette.text, link: markColor, quote: palette.quote, revealed: revealed), width: inner)
         // The plates of quotes (with the accent bar, as in the React list) and of code blocks, under the text.
         let total = (item.text as NSString).length
         var i = 0
@@ -867,10 +935,19 @@ final class MsgRowCanvas: UIView {
       for chip in msgChips(item, width: layoutInfo.timeBeside ? max(40, inner - 10 - metaRoom) : inner).chips {
         let frame = chip.frame.offsetBy(dx: x, dy: y + 6)
         chipBoxes.append((frame, chip.emoji))
-        // MessageRow.tsx: mine in the accent, else white 0.10 on dark / black 0.06 on light; radius 14.
-        context.setFillColor((chip.mine ? palette.accent : Theme.dark ? UIColor(white: 1, alpha: 0.10) : UIColor(white: 0, alpha: 0.06)).cgColor)
+        // MessageRow.tsx: mine in the accent, else white 0.10 on dark / black 0.06 on light; radius 14. Under a round
+        // video or big emoji (reactions outside a bubble): white 0.07 on dark / white 0.7 on light, a 1-point border.
+        let outside = item.media == "note" || item.bigEmoji > 0
+        let quiet = outside ? (Theme.dark ? UIColor(white: 1, alpha: 0.07) : UIColor(white: 1, alpha: 0.7)) : (Theme.dark ? UIColor(white: 1, alpha: 0.10) : UIColor(white: 0, alpha: 0.06))
+        context.setFillColor((chip.mine ? palette.accent : quiet).cgColor)
         context.addPath(UIBezierPath(roundedRect: frame, cornerRadius: min(14, frame.height / 2)).cgPath)
         context.fillPath()
+        if outside {
+          context.setStrokeColor(ThemeStore.look.border.cgColor)
+          context.setLineWidth(1)
+          context.addPath(UIBezierPath(roundedRect: frame.insetBy(dx: 0.5, dy: 0.5), cornerRadius: min(13.5, frame.height / 2 - 0.5)).cgPath)
+          context.strokePath()
+        }
         let emoji = NSAttributedString(string: chip.emoji, attributes: [.font: msgChipEmoji])
         let emojiSize = emoji.size()
         emoji.draw(at: CGPoint(x: frame.minX + 8, y: frame.midY - emojiSize.height / 2))
@@ -883,11 +960,13 @@ final class MsgRowCanvas: UIView {
       draw(item.reactions, msgSmallFont, palette.text, CGRect(x: x, y: y + 6, width: inner, height: layoutInfo.reactSize.height + 2), lines: true)
     }
 
-    let marks: CGFloat = item.mine ? 19 : 0 // a 15-point mark 4 after the time
     let time = NSAttributedString(string: item.time, attributes: [.font: msgMetaFont, .foregroundColor: metaColor]) // the time keeps its colour; the red is the mark
     let timeSize = time.size()
     // After the last word of the text, or in the plate's lower corner.
     let inline = layoutInfo.timeInline && bodyBox != .zero
+    // The mark: 4 after the time in a row of marks; after a «\u00A0» when it follows the words.
+    let nbsp = NSAttributedString(string: "\u{00A0}", attributes: [.font: msgMetaFont]).size().width
+    let marks: CGFloat = item.mine ? (inline ? nbsp + 15 : 19) : 0
     // MessageRow.tsx: in the corner of a bubble 10 from the right and 6 from the bottom; on a row of its own at the
     // right of the content (justify flex-end), 5 above the plate's bottom.
     let corner = layoutInfo.timeCorner && bodyBox != .zero
@@ -907,6 +986,12 @@ final class MsgRowCanvas: UIView {
     // MessageRow.tsx: after the time (4 apart) <Icon name="checkmark"|"checkmark-done" size={15}>, read in the accent;
     // on its way <Icon name="time-outline" size={12}>; failed <Icon name="alert-circle" size={13} color={t.danger}>.
     let middle = timeBottom - timeSize.height / 2
+    if item.mine && item.ticks == 4 && (!msgOpenLook || item.media == "photo") {
+      context.setStrokeColor(palette.danger.cgColor)
+      context.setLineWidth(1)
+      context.addPath(ChatBubbleLook.shape(box.insetBy(dx: 0.5, dy: 0.5), mine: true, tail: item.tail).cgPath)
+      context.strokePath()
+    }
     if item.mine && (item.ticks == 1 || item.ticks == 2) {
       let tick = IonIcon.image(item.ticks == 2 ? "checkmark-done" : "checkmark", size: 15).withTintColor(item.ticks == 2 ? markColor : metaColor, renderingMode: .alwaysOriginal)
       tick.draw(at: CGPoint(x: right - 15, y: middle - 7.5))
@@ -922,6 +1007,7 @@ final class MsgRowCanvas: UIView {
 final class MsgRowCell: UITableViewCell {
   let canvas = MsgRowCanvas(frame: .zero)
   private var thumbOf = ""
+  private var quoteOf = ""
   /// LinkPreview: the picture of the card this cell decoded last.
   private var cardOf = ""
   /// Attachments: the album whose pictures this cell decoded last.
@@ -972,6 +1058,10 @@ final class MsgRowCell: UITableViewCell {
     if row.thumb != thumbOf {
       thumbOf = row.thumb
       canvas.thumbImage = row.thumb.isEmpty ? nil : Data(base64Encoded: row.thumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
+    }
+    if row.quoteThumb != quoteOf {
+      quoteOf = row.quoteThumb
+      canvas.quoteImage = row.quoteThumb.isEmpty ? nil : Data(base64Encoded: row.quoteThumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
     }
     if row.media == "photo" { InlineMedia.shared.want(row.key) } // Attachments: a photo up to 10 MB comes by itself
     // LinkPreview: the card's picture is decoded once per cell, not on every drawing.
@@ -1153,6 +1243,14 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   }
 
   /// Voice/Video: the rows on screen, by key.
+  /// ChatScreen.tsx `peek`: a picture of the row of `key` as it stands now (the whole width), for the message menu.
+  func rowSnapshot(_ key: String) -> UIView? {
+    guard let index = rows.firstIndex(where: { $0.key == key }), let cell = table.cellForRow(at: IndexPath(row: index, section: 0)) as? MsgRowCell else { return nil }
+    let picture = cell.canvas.snapshotView(afterScreenUpdates: false)
+    picture?.bounds = CGRect(origin: .zero, size: cell.canvas.bounds.size)
+    return picture
+  }
+
   func visibleKeys() -> [String] {
     table.visibleCells.compactMap { ($0 as? MsgRowCell)?.canvas.row?.key }
   }
@@ -1224,12 +1322,48 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
 
   private func layout(_ row: MsgRow) -> MsgLayout {
     let width = max(1, bounds.width)
+    if row.key == expandedNote, row.media == "note" { return grown(row, width: width) } // Videonote
     if let hit = layouts[row.key], hit.row == row, hit.width == width, hit.font == fontSize { return hit.layout }
     // Composer: 1–3 emoji alone are laid out large.
     let made = MsgLayout.make(row, width: width, fontSize: row.bigEmoji > 0 ? BigEmoji.fontSize(row.bigEmoji) : fontSize, hasThumb: !row.thumb.isEmpty)
     layouts[row.key] = (row, width, fontSize, made)
     return made
   }
+
+  // MARK: Videonote — a circle listened to grows in place (VideoNote.tsx `noteSizes`: 212 → min(404, the row))
+
+  /// The row whose round video is being listened to (its slot is large); empty: none.
+  private(set) var expandedNote = ""
+
+  /// The layout of a round video's row with its slot at the large size.
+  private func grown(_ row: MsgRow, width: CGFloat) -> MsgLayout {
+    var made = MsgLayout.make(row, width: width, fontSize: fontSize, hasThumb: !row.thumb.isEmpty)
+    let small = made.thumbSize.width
+    let big = max(small, min(404, floor(width - 18)))
+    let grow = big - small
+    guard grow > 0 else { return made }
+    made.thumbSize = CGSize(width: big, height: big)
+    made.bubble = CGSize(width: max(made.bubble.width, made.bubble.width + grow), height: made.bubble.height + grow)
+    made.height += grow
+    return made
+  }
+
+  /// Makes the slot of `key` large (or, with an empty key, gives the room back), at once and without moving the
+  /// list's other rows by animation.
+  func setExpandedNote(_ key: String) {
+    if key == expandedNote { return }
+    let keys = [expandedNote, key].filter { !$0.isEmpty }
+    expandedNote = key
+    let paths = keys.compactMap { (wanted: String) -> IndexPath? in rows.firstIndex(where: { $0.key == wanted }).map { IndexPath(row: $0, section: 0) } }
+    guard !paths.isEmpty else { return }
+    UIView.performWithoutAnimation {
+      table.reloadRows(at: paths, with: .none)
+      table.layoutIfNeeded()
+    }
+  }
+
+  /// Whether a row is one's own (its circle grows away from the right edge).
+  func isMine(_ key: String) -> Bool { rows.first(where: { $0.key == key })?.mine ?? true }
 
   func setRows(_ oldestFirst: [MsgRow]) {
     let next = Array(oldestFirst.reversed())

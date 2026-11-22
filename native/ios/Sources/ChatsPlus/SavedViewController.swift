@@ -48,6 +48,8 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private lazy var voice = VoicePlayer(server: messenger?.server)
     private var notes: NotePlayback?
     private var mediaState: MsgMediaState?
+    /// The note whose round video is being listened to (its slot is large); empty: none.
+    private var expandedNote = ""
     private var watch: Timer?
     private let hold = UILongPressGestureRecognizer()
 
@@ -242,6 +244,9 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
             return self.attach.isRecording || self.voice.isPlaying || self.presentedViewController != nil
         }
         made.onReadyChanged = { [weak self] (key: String) -> Void in self?.redraw(key) }
+        // VideoNote.tsx: a circle listened to grows to min(404, the row) at the right edge and shrinks back after.
+        made.anchorsRight = { (_: String) -> Bool in true }
+        made.onExpanded = { [weak self] (key: String, open: Bool) -> Void in self?.setExpanded(open ? key : "") }
     }
 
     /// The cell of a note on screen, by its key.
@@ -257,6 +262,21 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
 
     private func visibleKeys() -> [String] {
         table.visibleCells.compactMap { ($0 as? SavedNoteCell)?.canvas.key }
+    }
+
+    private func setExpanded(_ key: String) {
+        if key == expandedNote { return }
+        let keys = [expandedNote, key].filter { !$0.isEmpty }
+        expandedNote = key
+        var paths: [IndexPath] = []
+        for (index, line) in lines.enumerated() {
+            if case .note(let item) = line, keys.contains(SavedNoteCell.key(item)) { paths.append(IndexPath(row: index, section: 0)) }
+        }
+        guard !paths.isEmpty else { return }
+        UIView.performWithoutAnimation {
+            table.reloadRows(at: paths, with: .none)
+            table.layoutIfNeeded()
+        }
     }
 
     private func redraw(_ key: String) {
@@ -436,7 +456,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
             let id = item["id"] as? String ?? ""
             if let note = cell as? SavedNoteCell {
                 let key = SavedNoteCell.key(item)
-                note.show(item, own: ownName, checked: selection.map { $0.contains(id) }, state: mediaState?.key == key ? mediaState : nil, maxSide: noteRoom)
+                note.show(item, own: ownName, checked: selection.map { $0.contains(id) }, state: mediaState?.key == key ? mediaState : nil, maxSide: noteRoom, expanded: key == expandedNote)
                 note.tapWaits(for: hold)
                 note.onPart = { [weak self] (part: String) -> Void in self?.partPressed(item, part: part) }
             }
@@ -740,7 +760,7 @@ final class SavedNoteCell: UITableViewCell {
         onPart?(part)
     }
 
-    func show(_ item: [String: Any], own: String, checked: Bool?, state: MsgMediaState?, maxSide: CGFloat) {
+    func show(_ item: [String: Any], own: String, checked: Bool?, state: MsgMediaState?, maxSide: CGFloat, expanded: Bool) {
         // A circle playing in place belongs to one note; a cell given to another note lets it go.
         if canvas.key != SavedNoteCell.key(item) { canvas.subviews.forEach { $0.removeFromSuperview() } }
         self.checked = checked
@@ -749,7 +769,7 @@ final class SavedNoteCell: UITableViewCell {
         check.image = IonIcon.image(checked == true ? "checkmark-circle" : "ellipse-outline", size: 24).withRenderingMode(.alwaysTemplate)
         check.tintColor = checked == true ? Theme.accent : Theme.subtle
         canvas.isUserInteractionEnabled = checked == nil
-        canvas.show(item, own: own, state: state, maxSide: maxSide)
+        canvas.show(item, own: own, state: state, maxSide: maxSide, expanded: expanded)
         accessibilityLabel = canvas.spoken
         setNeedsLayout()
     }
@@ -800,6 +820,7 @@ final class SavedNoteCanvas: UIView {
     private var poster: UIImage?
     private var posterOf = ""
     private var maxSide: CGFloat = 212
+    private var expanded = false
     var state: MsgMediaState?
     private var laid = Laid()
     private var laidFor: CGFloat = -1
@@ -873,7 +894,8 @@ final class SavedNoteCanvas: UIView {
     /// A plate only when bubbles are chosen; the open look has none (the owner's rule).
     private var plated: Bool { !msgOpenLook && !circleOnly }
 
-    func show(_ next: [String: Any], own: String, state: MsgMediaState?, maxSide: CGFloat) {
+    func show(_ next: [String: Any], own: String, state: MsgMediaState?, maxSide: CGFloat, expanded: Bool) {
+        self.expanded = expanded
         item = next
         key = SavedNoteCell.key(next)
         self.state = state
@@ -910,7 +932,12 @@ final class SavedNoteCanvas: UIView {
 
     // MARK: Sizes
 
-    private var noteSide: CGFloat { maxSide > 0 ? min(212, floor(maxSide)) : 212 }
+    /// playback.ts `noteSizes`: 212 in the row (never past it), min(404, the row) while it is listened to.
+    private var noteSide: CGFloat {
+        let room = maxSide > 0 ? floor(maxSide) : 212
+        let collapsed = min(212, room)
+        return expanded ? max(collapsed, min(404, room)) : collapsed
+    }
 
     private var duration: String {
         let ms = ((attachment["media"] as? [String: Any])?["durationMs"] as? NSNumber)?.doubleValue ?? 0

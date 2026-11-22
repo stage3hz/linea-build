@@ -135,6 +135,20 @@ class MsgListView(context: Context) : FrameLayout(context) {
 
   /** Videonote: a row whose round video was brought, or whose player came or went, is drawn again. */
   fun redrawRow(key: String) = inlineMediaChanged(key)
+
+  /** Videonote: the slot of `key` becomes large (an empty key gives the room back); the rows are laid out anew. */
+  fun setExpandedNote(key: String) {
+    if (key == msgExpandedNote) return
+    val keys = listOf(msgExpandedNote, key).filter { it.isNotEmpty() }
+    msgExpandedNote = key
+    for (index in 0 until list.childCount) (list.getChildAt(index) as? MsgRowView)?.takeIf { it.rowKey in keys }?.regrow()
+  }
+
+  /** Whether a row is one's own (its circle grows away from the right edge). */
+  fun isMine(key: String): Boolean {
+    for (index in 0 until list.childCount) (list.getChildAt(index) as? MsgRowView)?.takeIf { it.rowKey == key }?.let { return it.mine }
+    return true
+  }
   override fun onAttachedToWindow() { super.onAttachedToWindow(); com.linea.messenger.attachments.InlineMedia.listen(inlineMediaChanged) } // Attachments
   override fun onDetachedFromWindow() { com.linea.messenger.attachments.InlineMedia.unlisten(inlineMediaChanged); super.onDetachedFromWindow() } // Attachments
 
@@ -261,6 +275,15 @@ class MsgListView(context: Context) : FrameLayout(context) {
   }
 
   /** The rows on screen, by key. */
+  /** ChatScreen.tsx `peek`: a picture of the row of `key` as it stands now (the whole width), for the message menu. */
+  fun rowPicture(key: String): android.graphics.Bitmap? {
+    val row = (0 until list.childCount).mapNotNull { list.getChildAt(it) as? MsgRowView }.firstOrNull { it.rowKey == key } ?: return null
+    if (row.width <= 0 || row.height <= 0) return null
+    val picture = android.graphics.Bitmap.createBitmap(row.width, row.height, android.graphics.Bitmap.Config.ARGB_8888)
+    row.draw(android.graphics.Canvas(picture))
+    return picture
+  }
+
   fun visibleKeys(): List<String> = (0 until list.childCount).mapNotNull { (list.getChildAt(it) as? MsgRowView)?.rowKey?.takeIf { key -> key.isNotEmpty() } }
 
   fun setPalette(next: MsgPalette) { if (next != palette) { palette = next; adapter.notifyDataSetChanged() } }

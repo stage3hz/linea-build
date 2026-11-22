@@ -626,8 +626,37 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         host.view.endEditing(true)
         let menu = MessageMenuController(anchorY: y, mine: mine, preview: Messenger.previewText(message), reactions: reactions, items: items)
         menu.onReact = { [weak self] (emoji: String) -> Void in self?.react(message, emoji) }
+        // ChatScreen.tsx: the menu shows the message's own row (peekRow), not only its words.
+        menu.peekView = list?.rowSnapshot(key)
+        // ContextMenu.tsx ReadDateRow: an own message the peer has read, younger than seven days.
+        let messageId = ChatHistory.number(message["id"])
+        let sentAt = Messenger.date(message["createdAt"] as? String)
+        if mine, readable, !outgoing, messageId > 0, messageId <= history.peerLastRead, let sentAt, Date().timeIntervalSince(sentAt) < 7 * 86_400, let messenger {
+            let chat = chatId
+            menu.readDate = { (done: @escaping (String?) -> Void) -> Void in
+                messenger.server.op("readDate", [chat, messageId]) { (result: Result<Any, ServerError>) -> Void in
+                    var words: String? = nil
+                    if case .success(let body) = result, let fields = body as? [String: Any] {
+                        if let at = Messenger.date(fields["readAt"] as? String) { words = ChatScreenActions.readDateText(at) }
+                        else if fields["reason"] as? String == "hidden" { words = "Прочитано" }
+                    }
+                    DispatchQueue.main.async { done(words) }
+                }
+            }
+        }
         openedMenu = menu
         host.present(menu, animated: true)
+    }
+
+    /// ContextMenu.tsx readDateText: «Прочитано сегодня в 18:36», «… вчера в …», «… 5 ноября в …».
+    static func readDateText(_ date: Date, now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let time = Messenger.clock.string(from: date)
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: now)).day ?? 2
+        if days == 0 { return "Прочитано сегодня в " + time }
+        if days == 1 { return "Прочитано вчера в " + time }
+        let months = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+        return "Прочитано \(calendar.component(.day, from: date)) \(months[calendar.component(.month, from: date) - 1]) в " + time
     }
 
     /// «Удалить у меня и у <имя>» — either side's messages, for both — and «Удалить у меня».

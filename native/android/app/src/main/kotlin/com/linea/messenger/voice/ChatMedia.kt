@@ -57,7 +57,14 @@ object MediaRows {
   private fun time(ms: Double): String = FileCore.call("voiceTime", listOf(ms)) as? String ?: ""
 
   /** The fields to put over a message's row; null for an attachment that is none of the three. */
-  fun fields(attachment: Map<String, Any?>): Map<String, Any?>? = fields(attachment, kind(attachment), ::time)
+  fun fields(attachment: Map<String, Any?>): Map<String, Any?>? {
+    val kind = kind(attachment)
+    val made = fields(attachment, kind, ::time) ?: return null
+    if (kind != "video") return made
+    // MediaBubble.tsx: a video's label is «0:42 · 12 МБ» (its length, then its size until it is here).
+    val ms = (Core.map(attachment["media"])?.get("durationMs") as? Number)?.toDouble() ?: 0.0
+    return made + ("mediaTime" to time(maxOf(0.0, ms)).ifEmpty { "0:00" } + " · " + FileCore.sizeText((attachment["size"] as? Number)?.toLong() ?: 0L))
+  }
 
   /** The same with the core's words given (so the rule can be checked without the core). */
   fun fields(attachment: Map<String, Any?>, kind: String, time: (Double) -> String): Map<String, Any?>? {
@@ -219,6 +226,9 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     notes.onProblem = { words -> say(words) }
     // A circle brought or dropped, its player come or gone: its row is drawn again.
     notes.onReadyChanged = { key -> list.redrawRow(key) }
+    // VideoNote.tsx: a circle listened to grows to min(404, the row) and gives the room back afterwards.
+    notes.onExpanded = { key, open -> list.setExpandedNote(if (open) key else "") }
+    notes.anchorsRight = { key -> list.isMine(key) }
     notes.onWillPlay = { voice.pause() }
     // Also while the round video recorder stands over the chat (it uses the microphone).
     notes.holdsSilence = { recording.isRecording || voice.isPlaying }

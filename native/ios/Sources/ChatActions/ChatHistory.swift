@@ -577,7 +577,19 @@ final class ChatHistory {
                                       "time": (message["edited"] as? Bool == true ? "изм. " : "") + clock, "ticks": ticks, "tail": tail, "chips": chips]
             if let reply = meta?["reply"] as? [String: Any] {
                 row["quoteAuthor"] = reply["senderId"] as? String == input.userId ? "Ты" : input.peerName
-                row["quoteText"] = quoteText(original: (reply["clientId"] as? String).flatMap { byClient[$0] }, stored: reply["preview"] as? String ?? "")
+                let original = (reply["clientId"] as? String).flatMap { byClient[$0] }
+                row["quoteText"] = quoteText(original: original, stored: reply["preview"] as? String ?? "")
+                // replyQuote.ts quoteContent: the original's small picture (a photo, a video or a round video, not a voice
+                // message or a poll), round for a round video.
+                if let original, (original["meta"] as? [String: Any])?["poll"] == nil, let file = original["attachment"] as? [String: Any],
+                   let preview = file["preview"] as? [String: Any], let picture = preview["base64"] as? String, !picture.isEmpty {
+                    let type = file["mimeType"] as? String ?? ""
+                    let round = ChatRowLooks.isVideoNote(file)
+                    if !ChatRowLooks.isVoice(file) && (round || type.hasPrefix("image/") || type.hasPrefix("video/")) {
+                        row["quoteThumb"] = picture
+                        row["quoteRound"] = round
+                    }
+                }
             } else if let story = meta?["story"] as? [String: Any] {
                 row["quoteAuthor"] = story["ownerId"] as? String == input.userId ? "Ты" : input.peerName
                 row["quoteText"] = "История"

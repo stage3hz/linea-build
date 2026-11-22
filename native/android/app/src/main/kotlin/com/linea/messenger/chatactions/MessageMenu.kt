@@ -98,7 +98,59 @@ class MessageMenu(
     } }
     override fun onMeasure(widthSpec: Int, heightSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(widthSpec), MeasureSpec.getSize(heightSpec))
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {}
-    override fun onDraw(canvas: Canvas) = glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), radius * d)
+    // ContextMenu.tsx on Android: an opaque plate — rgba(36,38,46,0.92) on dark, white 0.94 on light — with a
+    // hairline border of white 0.14 / black 0.08.
+    private val plate = Paint(Paint.ANTI_ALIAS_FLAG)
+    override fun onDraw(canvas: Canvas) {
+      plate.style = Paint.Style.FILL; plate.color = if (Theme.dark) 0xEB24262E.toInt() else 0xF0FFFFFF.toInt()
+      canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), radius * d, radius * d, plate)
+      plate.style = Paint.Style.STROKE; plate.strokeWidth = 1f; plate.color = if (Theme.dark) 0x24FFFFFF else 0x14000000
+      canvas.drawRoundRect(0.5f, 0.5f, width - 0.5f, height - 0.5f, radius * d, radius * d, plate)
+    }
+  }
+
+  /** ChatScreen.tsx `peek`: the message's own row as it stands in the chat, shown full width above the menu. */
+  private var peek: android.widget.ImageView? = null
+  fun showPeek(picture: android.graphics.Bitmap?) {
+    if (picture == null) return
+    val view = android.widget.ImageView(context).apply { setImageBitmap(picture); scaleType = android.widget.ImageView.ScaleType.FIT_XY; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+    peek = view
+    page.addView(view)
+    bubble.visibility = View.GONE
+    page.requestLayout()
+  }
+
+  /** ContextMenu.tsx ReadDateRow: «Прочитано …» over the items (40 tall, the 19-point checkmark-done, 12 to the words
+   *  in 14, muted; a grey bar while it loads; a 7-point band under it); no row when the answer is null. */
+  private var readRow: View? = null
+  private var readWords: String? = null
+  private var readLoading = true
+  fun askReadDate(load: ((String?) -> Unit) -> Unit) {
+    val row = object : View(context) {
+      private val ink = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * d; color = Theme.muted }
+      private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+      override fun onDraw(canvas: Canvas) {
+        ChatIcons.draw(canvas, "ion:checkmark-done", 14f * d + 9.5f * d, 20f * d, 19f * d, Theme.muted)
+        val x = (14f + 19f + 12f) * d
+        val words = readWords
+        if (readLoading || words == null) {
+          fill.color = if (Theme.dark) 0x1AFFFFFF else 0x12000000
+          canvas.drawRoundRect(x, 14f * d, x + 150f * d, 26f * d, 6f * d, 6f * d, fill)
+        } else {
+          val shown = TextUtils.ellipsize(words, ink, width - x - 14f * d, TextUtils.TruncateAt.END)
+          canvas.drawText(shown, 0, shown.length, x, 20f * d - (ink.ascent() + ink.descent()) / 2, ink)
+        }
+        fill.color = if (Theme.dark) 0x47000000 else 0x0F000000
+        canvas.drawRect(0f, 40f * d, width.toFloat(), height.toFloat(), fill)
+      }
+    }
+    readRow = row
+    panel.addView(row)
+    load { words ->
+      readLoading = false
+      if (words == null) { panel.removeView(row); readRow = null } else { readWords = words; row.contentDescription = words; row.invalidate() }
+      page.requestLayout()
+    }
   }
 
   private val pill = Plate(24f)
@@ -111,8 +163,9 @@ class MessageMenu(
     setTextColor(Theme.text)
     maxLines = 6
     ellipsize = TextUtils.TruncateAt.END
-    setPadding(dp(12f), dp(7f), dp(12f), dp(7f))
-    background = GradientDrawable().apply { setColor(Theme.panel(0xFF1F2023.toInt())); cornerRadius = 18f * d }
+    // ContextMenu.tsx: the words on the message's own colour, the chat's corner radius, padding 12 / 6.
+    setPadding(dp(12f), dp(6f), dp(12f), dp(6f))
+    background = GradientDrawable().apply { setColor(if (mine) com.linea.messenger.settings.ThemeStore.look.bubble else com.linea.messenger.settings.ThemeStore.look.incoming); cornerRadius = com.linea.messenger.chatlook.ChatBubbleLook.radius * d }
   }
   private var rowViews: List<Row> = emptyList()
 
@@ -174,13 +227,17 @@ class MessageMenu(
         }
       }
       var bubbleW = 0; var bubbleH = 0
-      bubble.visibility = if (preview.isEmpty()) GONE else VISIBLE
-      if (preview.isNotEmpty()) {
+      bubble.visibility = if (preview.isEmpty() || peek != null) GONE else VISIBLE
+      if (preview.isNotEmpty() && peek == null) {
         val widest = minOf(column.toFloat(), (width - 18f * d) * 0.85f).toInt()
         bubble.measure(MeasureSpec.makeMeasureSpec(widest.coerceAtLeast(1), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
         bubbleW = bubble.measuredWidth; bubbleH = bubble.measuredHeight
       }
       var panelHeight = 0
+      readRow?.let { put(it, 0, 0, panelWidth, dp(47f)); panelHeight = dp(47f) }
+      // ContextMenu.tsx `peekRow`: the copy of the message spans the screen.
+      val peekView = peek
+      val peekH = peekView?.drawable?.intrinsicHeight ?: 0
       rowViews.forEachIndexed { index, row ->
         // ContextMenu.tsx MenuItem: 44 tall; a «separated» one carries its 6-point band above.
         val band = if (row.item.separated && index > 0) dp(6f) else 0
@@ -192,6 +249,7 @@ class MessageMenu(
       var total = panelHeight
       if (pillH > 0) total += pillH + dp(8f)
       if (bubbleH > 0) total += bubbleH + dp(8f)
+      if (peekH > 0) total += peekH + dp(8f)
       getLocationOnScreen(here)
       val highest = safeTop + dp(8f)
       val lowest = height - safeBottom - dp(8f) - total
@@ -201,6 +259,7 @@ class MessageMenu(
         put(view, x, y, w, h)
       }
       if (pillH > 0) { placed(pill, pillW, pillH); y += pillH + dp(8f) }
+      if (peekView != null && peekH > 0) { put(peekView, 0, y, width, peekH); y += peekH + dp(8f) }
       if (bubbleH > 0) { placed(bubble, bubbleW, bubbleH); y += bubbleH + dp(8f) }
       placed(panel, panelWidth, panelHeight)
     }
@@ -234,9 +293,8 @@ class MessageMenu(
     window?.let { window ->
       window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
       window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-      window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-      // The thin veil behind the menu: dark on a dark theme; on a light one the page stays light (Theme.thinBlur on iOS).
-      window.setDimAmount(if (Theme.dark) 0.5f else 0.18f)
+      // ContextMenu.tsx: the veil behind the menu, black 0.34 on dark, rgba(20,30,60,0.14) on light.
+      page.setBackgroundColor(if (Theme.dark) 0x57000000 else 0x24141E3C)
       if (Build.VERSION.SDK_INT >= 31) Blur.behind(window, Math.round(18f * d))
       if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false)
       window.setWindowAnimations(android.R.style.Animation_Dialog)
@@ -267,6 +325,7 @@ class MessageMenu(
   fun replace(next: List<Item>) {
     items = next
     pillHidden = true
+    readRow?.let { panel.removeView(it) }; readRow = null // the read row is not part of «Удалить» → for whom
     buildRows()
   }
 

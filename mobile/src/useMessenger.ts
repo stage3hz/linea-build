@@ -14,6 +14,7 @@ import * as Crypto from 'expo-crypto';
 import { Api, ApiError, NetworkError } from './api';
 import type { Attachment, Chat, LocalFile, Message, PendingMessage, Presence, RecoveryRequest, User } from './types';
 import { CryptoRuntime } from './e2ee/runtime';
+import { HistoryRunner, historyRunner } from './e2ee/historyRuntime';
 import { cancelLargeUpload, clearDecryptedAttachmentCache, encryptAndUpload, encryptAndUploadLarge } from './e2ee/attachments';
 import type { TrustSnapshot } from './e2ee/types';
 import { ALBUM_SIZE, appendAttachments, messageAttachmentBatch } from './messageAttachments';
@@ -357,6 +358,16 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
     }catch(e){if(aliveRef.current)setError(quietError(e));}
     finally {if(aliveRef.current)setMessageLoading(false);}
   },[api,user.id,quietError,markRead,cryptoRuntime,hydrate]);
+  // Old chats on a new device (e2ee/historyRuntime.ts, docs/HISTORY-TRANSFER.md): a copy to or from the
+  // account's other devices after the server's 10-minute wait, and the encrypted backup when it is on.
+  const historyRefresh=useRef<()=>void>(()=>{});
+  historyRefresh.current=()=>{void refreshChats();if(selectedRef.current)void loadMessages(selectedRef.current);};
+  useEffect(()=>{
+    const runner=new HistoryRunner(api,cryptoRuntime,user.id,()=>historyRefresh.current());
+    let live=true;
+    void cryptoRuntime.get().then(service=>service.initialize()).then(()=>{if(live)runner.start();}).catch(()=>{});
+    return()=>{live=false;runner.stop();};
+  },[api,cryptoRuntime,user.id]);
   // The open chat's newest messages go to the vault cache a moment after they change (see loadMessages).
   useEffect(()=>{
     const chatId=selectedId;const list=chatId?messages[chatId]:undefined;const key=chatId?chatPageCacheKey(chatId):null;
@@ -435,6 +446,7 @@ export function useMessenger(api: Api, user: User, onExpired: ()=>void) {
         else if(data.type==='recovery.requested'||data.type==='recovery.updated'){void refreshRecoveryRequests();}
         else if(data.type==='session.new'){noteSocketEvent(data);}
         else if(data.type==='e2ee.devices'){if(selectedRef.current)void loadMessages(selectedRef.current);void refreshChats();}
+        else if(data.type==='history.request'||data.type==='history.ready'||data.type==='history.backup'){historyRunner()?.poke(data.type);}
         else if(data.type==='scheduled'){void refreshScheduled();}
       };
       socket.onclose=event=>{

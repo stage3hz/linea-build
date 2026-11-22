@@ -273,10 +273,10 @@ object InlineMedia {
   fun fileIcon(name: String): String {
     val lower = name.lowercase()
     return when {
-      Regex("\\.(mp3|m4a|aac|wav|flac|ogg|opus)$").containsMatchIn(lower) -> "music.note"
-      lower.endsWith("pdf") -> "doc.text.fill"
-      Regex("\\.(zip|rar|7z|tar|gz)$").containsMatchIn(lower) -> "archivebox.fill"
-      else -> "doc.fill"
+      Regex("\\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aiff?|alac|amr|caf|wma)$").containsMatchIn(lower) -> "ion:musical-notes"
+      lower.endsWith("pdf") -> "ion:document-text"
+      Regex("\\.(zip|rar|7z|tar|gz)$").containsMatchIn(lower) -> "ion:archive"
+      else -> "ion:document"
     }
   }
 
@@ -363,6 +363,8 @@ object InlineMediaArt {
 
   /** The small marks of the round buttons, in a box of 24 units: ↓, ✕, ↻ and the kinds of files. */
   private fun mark(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // "ion:<name>": the reference's own Ionicons glyph (MediaBubble.tsx <Icon>).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     stroke.color = color; fill.color = color
     canvas.save()
     canvas.translate(cx - size / 2, cy - size / 2)
@@ -428,10 +430,10 @@ object InlineMediaArt {
       when (state.status) {
         InlineMedia.Status.LOADING -> {
           ring(canvas, cx, cy, 48f * d, state.progress, 0xFFFFFFFF.toInt(), 0x40FFFFFF, d)
-          mark(canvas, "xmark", cx, cy, 20f * d, 0xFFFFFFFF.toInt())
+          mark(canvas, "ion:close", cx, cy, 22f * d, 0xFFFFFFFF.toInt())
         }
-        InlineMedia.Status.FAILED, InlineMedia.Status.READY -> mark(canvas, "arrow.clockwise", cx, cy, 22f * d, 0xFFFFFFFF.toInt())
-        InlineMedia.Status.IDLE -> mark(canvas, "arrow.down", cx, cy, 22f * d, 0xFFFFFFFF.toInt())
+        InlineMedia.Status.FAILED, InlineMedia.Status.READY -> mark(canvas, "ion:refresh", cx, cy, 24f * d, 0xFFFFFFFF.toInt())
+        InlineMedia.Status.IDLE -> mark(canvas, "ion:arrow-down", cx, cy, 24f * d, 0xFFFFFFFF.toInt())
       }
       // A photo row keeps the photo's size in `mediaTime` («2 КБ»).
       val words = if (state.status == InlineMedia.Status.LOADING) state.words else row.mediaTime
@@ -492,11 +494,11 @@ object InlineMediaArt {
     when (state.status) {
       InlineMedia.Status.LOADING -> {
         ring(canvas, cx, cy, 48f * d, state.progress, palette.onAccent, 0x4DFFFFFF, d)
-        mark(canvas, "xmark", cx, cy, 18f * d, palette.onAccent)
+        mark(canvas, "ion:close", cx, cy, 20f * d, palette.onAccent)
       }
       InlineMedia.Status.READY -> mark(canvas, InlineMedia.fileIcon(name), cx, cy, 22f * d, palette.onAccent)
-      InlineMedia.Status.FAILED -> mark(canvas, "arrow.clockwise", cx, cy, 20f * d, palette.onAccent)
-      InlineMedia.Status.IDLE -> mark(canvas, "arrow.down", cx, cy, 20f * d, palette.onAccent)
+      InlineMedia.Status.FAILED -> mark(canvas, "ion:refresh", cx, cy, 22f * d, palette.onAccent)
+      InlineMedia.Status.IDLE -> mark(canvas, "ion:arrow-down", cx, cy, 22f * d, palette.onAccent)
     }
     val textX = left + 59f * d
     val room = left + width - textX

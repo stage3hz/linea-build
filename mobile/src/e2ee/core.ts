@@ -46,8 +46,9 @@ export type Lane = 'scheduled';
  * Like the scheduled lane: a separate session per direction that is never answered in, so the chat
  * sessions with that device are untouched and the same age limit applies.
  */
-export type NoteLane = 'voice';
-const LANE_SUFFIX: Record<Lane | NoteLane, string> = { scheduled: '.scheduled', voice: '.voice' };
+export type NoteLane = 'voice' | 'history';
+/** `history`: the key of a copy of the chats (or the backup secret) for one of the account's OWN devices (HISTORY-TRANSFER.md). */
+const LANE_SUFFIX: Record<Lane | NoteLane, string> = { scheduled: '.scheduled', voice: '.voice', history: '.history' };
 export type SealedNote = { senderDeviceId: string; type: 2 | 3; body: string };
 /** Native/desktop cores accept `[A-Za-z0-9._:-]{1,160}` as an address name: uuid.uuid.scheduled is 83 chars. */
 const address = (userId: string, deviceId: string, lane?: Lane | NoteLane) => `${userId}.${deviceId}${lane ? LANE_SUFFIX[lane] : ''}`;
@@ -89,6 +90,16 @@ type HistoryMeta = { first: number; last: number };
 export type HistoryItem = { chatId: string; senderId: string; clientId: string; text: string; attachment: Attachment | null; sentAt: string; meta?: MessageMeta };
 /** One page of a chat's cached history, newest first; `previous` names the older page, null past the oldest kept. */
 export type HistoryPage = { items: HistoryItem[]; page: number; previous: number | null };
+/** A cached message as it travels in a copy of the chats (HISTORY-TRANSFER.md); `fingerprint`: of the server's ciphertext. */
+export type HistoryEntry = HistoryItem & { fingerprint: string };
+/** Where historyExport goes on: the chat's place in `history:chats`, the history page and the place in it (`page` -1: not started). */
+export type HistoryCursor = { chat: number; page: number; offset: number };
+/** `marks`: per chat, the mark of the newest message in this batch (kept by the backup after a successful upload). */
+export type HistoryBatch = { items: HistoryEntry[]; next: HistoryCursor | null; marks: Record<string, string> };
+/** About this many UTF-16 units of JSON per batch: even all in 3-byte UTF-8 it stays under a 512 KiB page. */
+export const HISTORY_EXPORT_CHARS = 150_000;
+const HISTORY_IMPORT_MAX = 5000;
+export const historyMark = (entry: Pick<HistoryEntry,'sentAt'|'senderId'|'clientId'>) => `${entry.sentAt}|${entry.senderId}|${entry.clientId}`;
 /** '1' for a normal session; for a lane session the ISO time it was started (see LANE_SESSION_MAX_AGE_MS). */
 const sessionKey = (device: Pick<CryptoDevice,'userId'|'id'>, lane?: Lane | NoteLane) => `session:${device.userId}:${device.id}${lane ? `:${lane}` : ''}`;
 /** Last device list seen from the server, so messages can still be encrypted without internet (Mesh). */
@@ -156,6 +167,14 @@ export function validAttachment(value: unknown): value is Attachment | null {
   if(!hasOnlyKeys(e,chunked?['scheme','key','nonce','fileKeyId','chunkSize']:['scheme','key','nonce','fileKeyId']))return false;
   if(chunked&&e.chunkSize!==4*1024*1024)return false;
   return uuid.test(a.id)&&typeof a.name==='string'&&a.name.length>0&&a.name.length<=240&&typeof a.mimeType==='string'&&a.mimeType.length<=150&&Number.isSafeInteger(a.size)&&a.size>=0&&a.size<=(chunked?10*1024*1024*1024:20*1024*1024)&&!!e&&(e.scheme==='aes-256-gcm-siv'||chunked)&&/^[A-Za-z0-9+/]{43}=$/.test(e.key)&&/^[A-Za-z0-9+/]{16}$/.test(e.nonce)&&uuid.test(e.fileKeyId)&&validMedia(a.media)&&validPreview(a.preview);
+}
+
+function validHistoryEntry(value: unknown): value is HistoryEntry {
+  if(!hasOnlyKeys(value,['chatId','senderId','clientId','fingerprint','text','attachment','sentAt','meta']))return false;
+  const e=value as HistoryEntry;
+  return typeof e.chatId==='string'&&uuid.test(e.chatId)&&typeof e.senderId==='string'&&uuid.test(e.senderId)&&typeof e.clientId==='string'&&uuid.test(e.clientId)
+    &&typeof e.fingerprint==='string'&&/^[0-9a-f]{64}$/.test(e.fingerprint)&&typeof e.text==='string'&&e.text.length<=8000&&e.attachment!==undefined&&validAttachment(e.attachment)
+    &&typeof e.sentAt==='string'&&Number.isFinite(Date.parse(e.sentAt))&&validMeta(e.meta);
 }
 
 /** Application integration of the official native Signal library, not a new cipher. */
@@ -233,6 +252,16 @@ export class CryptoService {
     const ownJson=JSON.stringify(own.devices),peerJson=JSON.stringify(peer.devices);
     if(await this.vault.get(devicesKey(this.userId))!==ownJson||await this.vault.get(devicesKey(peerId))!==peerJson)await this.vault.commit({[devicesKey(this.userId)]:ownJson,[devicesKey(peerId)]:peerJson});
     return result;
+  }
+  /** One of our own OTHER devices as the server lists it now (history notes); null when it is not active there. */
+  private async ownDevice(deviceId:string):Promise<CryptoDevice|null> {
+    const own=await this.transport.cryptoDevices(this.userId);const local=this.local!;
+    const self=own.devices.find(device=>device.id===local.id);
+    if(!self||self.userId!==this.userId||!self.active||!sameDevice(self,local.bundle))throw new Error('Устройство больше не разрешено для переписки. Войди в аккаунт снова.');
+    const device=own.devices.find(item=>item.id===deviceId&&item.id!==local.id);
+    if(!device)return null;
+    if(device.userId!==this.userId||!device.active||!Number.isSafeInteger(device.registrationId)||device.registrationId<1||device.registrationId>16383||typeof device.identityKey!=='string'||!/^[A-Za-z0-9+/]{44}$/.test(device.identityKey))throw new Error('Сервер вернул некорректный список ключей.');
+    return device;
   }
   private async snapshot(peerId:string):Promise<TrustSnapshot> {
     const targets=await this.targets(peerId);const local=this.local!;
@@ -334,6 +363,101 @@ export class CryptoService {
     const chats=await this.historyChats();if(chats.includes(chatId))changes[HISTORY_CHATS]=chats.length>1?JSON.stringify(chats.filter(id=>id!==chatId)):null;
     return changes;
   }
+  /** `sentAt|senderId|clientId`: the order of a cached message for an incremental copy (backup marks). */
+  private async historyNames(chatId:string,page:number):Promise<[string,string][]> {
+    let list:unknown[]=[];try{const raw=parse<unknown>(await this.vault.get(historyPageKey(chatId,page)));if(Array.isArray(raw))list=raw;}catch{list=[];}
+    return list.filter((item):item is [string,string]=>Array.isArray(item)&&typeof item[0]==='string'&&typeof item[1]==='string').map(item=>[item[0],item[1]]);
+  }
+  private async historyEntry(chatId:string,senderId:string,clientId:string):Promise<HistoryEntry|null> {
+    let cached:CachedMessage|FailedMessage|null=null;try{cached=parse<CachedMessage|FailedMessage>(await this.vault.get(messageKey({chatId,senderId,clientId})));}catch{cached=null;}
+    // A failed message has nothing to copy; a Mesh copy's fingerprint is not the server's.
+    if(!cached||isFailed(cached)||!cached.plain||cached.mesh||typeof cached.fingerprint!=='string')return null;
+    return {chatId,senderId,clientId,fingerprint:cached.fingerprint,text:cached.plain.text,attachment:cached.plain.attachment,sentAt:cached.plain.sentAt,...(cached.plain.meta?{meta:cached.plain.meta}:{})};
+  }
+  /**
+   * The decrypted messages cached on this device, for a copy to a new own device or the backup (HISTORY-TRANSFER.md):
+   * chat by chat, oldest kept first, up to about `maxChars` of JSON per batch (at least one message). `after`: per
+   * chat, the mark of the newest message already copied (only newer ones are given). Continue with `next`.
+   * Nothing leaves the device here: the caller encrypts the batch (history.ts) before it is uploaded.
+   */
+  async historyExport(after:Record<string,string>|null,cursor:HistoryCursor|null,maxChars=HISTORY_EXPORT_CHARS):Promise<HistoryBatch> {
+    return this.exclusive(async()=>{
+      const chats=await this.historyChats();const items:HistoryEntry[]=[];const marks:Record<string,string>={};let size=0;
+      let at:HistoryCursor=cursor&&Number.isSafeInteger(cursor.chat)&&Number.isSafeInteger(cursor.page)&&Number.isSafeInteger(cursor.offset)?{...cursor}:{chat:0,page:-1,offset:0};
+      while(at.chat>=0&&at.chat<chats.length){
+        const chatId=chats[at.chat];const meta=parse<HistoryMeta>(await this.vault.get(historyMetaKey(chatId)));
+        if(!meta||!Number.isSafeInteger(meta.first)||!Number.isSafeInteger(meta.last)||meta.first>meta.last){at={chat:at.chat+1,page:-1,offset:0};continue;}
+        const since=after&&typeof after[chatId]==='string'?after[chatId]:null;
+        if(at.page<0){
+          // Start at the newest page that still holds something already copied (pages are in arrival order).
+          let start=meta.first;
+          if(since!==null)for(let page=meta.last;page>=meta.first;page--){
+            let old=false;
+            for(const [senderId,clientId] of await this.historyNames(chatId,page)){const entry=await this.historyEntry(chatId,senderId,clientId);if(entry&&historyMark(entry)<=since){old=true;break;}}
+            if(old){start=page;break;}
+          }
+          at={chat:at.chat,page:start,offset:0};
+        }
+        if(at.page<meta.first)at={chat:at.chat,page:meta.first,offset:0};
+        if(at.page>meta.last){at={chat:at.chat+1,page:-1,offset:0};continue;}
+        const names=await this.historyNames(chatId,at.page);
+        for(let index=at.offset;index<names.length;index++){
+          const entry=await this.historyEntry(chatId,names[index][0],names[index][1]);
+          if(!entry)continue;
+          const mark=historyMark(entry);
+          if(since!==null&&mark<=since)continue;
+          const chars=JSON.stringify(entry).length;
+          if(items.length&&size+chars>maxChars)return {items,next:{chat:at.chat,page:at.page,offset:index},marks};
+          items.push(entry);size+=chars;
+          if(!(chatId in marks)||marks[chatId]<mark)marks[chatId]=mark;
+        }
+        at={chat:at.chat,page:at.page+1,offset:0};
+      }
+      return {items,next:null,marks};
+    });
+  }
+  /**
+   * Messages from a copy made by another own device (or the backup), already decrypted by the caller. Each one is
+   * checked like a message opened here; one that is not refuses the whole batch. A message this device already
+   * holds is kept as it is (a failed one is replaced). Its fingerprint is that of the server's copy: preview()
+   * shows it only next to exactly that ciphertext. Vault only.
+   */
+  async historyImport(items:unknown):Promise<{imported:number}> {
+    return this.exclusive(async()=>{
+      if(!Array.isArray(items)||items.length>HISTORY_IMPORT_MAX||!items.every(validHistoryEntry))throw new Error('Некорректная копия переписок.');
+      const changes:Record<string,string|null>={};const byChat=new Map<string,HistoryEntry[]>();let imported=0;
+      for(const entry of items as HistoryEntry[]){
+        const key=messageKey(entry);if(key in changes)continue;
+        let held:CachedMessage|FailedMessage|null=null;try{held=parse<CachedMessage|FailedMessage>(await this.vault.get(key));}catch{held=null;}
+        if(held&&!isFailed(held))continue;
+        const plain:PlainBody={text:entry.text,attachment:entry.attachment,sentAt:entry.sentAt,...(entry.meta?{meta:entry.meta}:{})};
+        changes[key]=JSON.stringify({fingerprint:entry.fingerprint,plain});imported++;
+        const list=byChat.get(entry.chatId)||[];list.push(entry);byChat.set(entry.chatId,list);
+      }
+      let chats=await this.historyChats();
+      for(const [chatId,added] of byChat){
+        const meta=parse<HistoryMeta>(await this.vault.get(historyMetaKey(chatId)));
+        const valid=!!meta&&Number.isSafeInteger(meta.first)&&Number.isSafeInteger(meta.last)&&meta.first<=meta.last&&meta.last-meta.first<HISTORY_PAGES*2;
+        const named:{name:[string,string];sentAt:string}[]=[];const seen=new Set<string>();
+        if(valid)for(let page=meta!.first;page<=meta!.last;page++)for(const name of await this.historyNames(chatId,page)){
+          const id=`${name[0]}:${name[1]}`;if(seen.has(id))continue;seen.add(id);
+          let sentAt='';try{const held=parse<CachedMessage>(await this.vault.get(messageKey({chatId,senderId:name[0],clientId:name[1]})));if(held&&!isFailed(held)&&held.plain&&typeof held.plain.sentAt==='string')sentAt=held.plain.sentAt;}catch{sentAt='';}
+          named.push({name,sentAt});
+        }
+        for(const entry of added){const id=`${entry.senderId}:${entry.clientId}`;if(seen.has(id))continue;seen.add(id);named.push({name:[entry.senderId,entry.clientId],sentAt:entry.sentAt});}
+        // Older messages go before newer ones (a stable sort keeps the order of equal times); the newest are kept.
+        const ordered=named.map((item,index)=>({...item,index})).sort((a,b)=>a.sentAt<b.sentAt?-1:a.sentAt>b.sentAt?1:a.index-b.index).slice(-HISTORY_PAGE*HISTORY_PAGES);
+        const first=valid?meta!.first:0;const count=Math.max(1,Math.ceil(ordered.length/HISTORY_PAGE));const last=first+count-1;
+        for(let page=0;page<count;page++)changes[historyPageKey(chatId,first+page)]=JSON.stringify(ordered.slice(page*HISTORY_PAGE,(page+1)*HISTORY_PAGE).map(item=>item.name));
+        if(valid)for(let page=last+1;page<=meta!.last;page++)changes[historyPageKey(chatId,page)]=null;
+        changes[historyMetaKey(chatId)]=JSON.stringify({first,last});
+        if(!chats.includes(chatId))chats=[...chats,chatId];
+      }
+      if(chats.length!==(await this.historyChats()).length)changes[HISTORY_CHATS]=JSON.stringify(chats);
+      if(Object.keys(changes).length)await this.vault.commit(changes);
+      return {imported};
+    });
+  }
   async trustSnapshot(peerId:string):Promise<TrustSnapshot> {await this.initialize();return this.exclusive(()=>this.snapshot(peerId));}
   async approveDevices(snapshot:TrustSnapshot):Promise<void> {
     await this.initialize();return this.exclusive(async()=>{
@@ -419,8 +543,9 @@ export class CryptoService {
    */
   async sealNote(peerId:string,deviceId:string,text:string,lane:NoteLane='voice'):Promise<SealedNote> {
     await this.initialize();return this.exclusive(async()=>{
-      if(!uuid.test(deviceId)||typeof text!=='string'||!text||text.length>4000||lane!=='voice')throw new Error('Некорректная заметка.');
-      const device=(await this.targets(peerId)).find(item=>item.userId===peerId&&item.id===deviceId);
+      if(!uuid.test(deviceId)||typeof text!=='string'||!text||text.length>4000||(lane!=='voice'&&lane!=='history')||(lane==='history'&&peerId!==this.userId))throw new Error('Некорректная заметка.');
+      // `history` goes to one of our own other devices only; `voice` to the other person's.
+      const device=lane==='history'?await this.ownDevice(deviceId):(await this.targets(peerId)).find(item=>item.userId===peerId&&item.id===deviceId);
       if(!device)throw new Error('Устройство собеседника не найдено.');
       let state=(await this.vault.get('protocol'))!;const changes:Record<string,string|null>={};
       const trusted=parse<TrustRecord>(await this.vault.get(trustKey(device)));let rekey=false;
@@ -453,11 +578,12 @@ export class CryptoService {
   /** Opens a note from `senderId`; throws unless it was sealed by that person's trusted device for this very device. */
   async openNote(senderId:string,note:SealedNote,lane:NoteLane='voice'):Promise<string> {
     await this.initialize();return this.exclusive(async()=>{
-      if(!uuid.test(senderId)||senderId===this.userId||!note||!uuid.test(note.senderDeviceId)||(note.type!==2&&note.type!==3)||!validCiphertextBody(note.body)||lane!=='voice')throw new Error('Некорректная заметка.');
+      const own=lane==='history';
+      if(!uuid.test(senderId)||(own?senderId!==this.userId:senderId===this.userId)||!note||!uuid.test(note.senderDeviceId)||(own&&note.senderDeviceId===this.local!.id)||(note.type!==2&&note.type!==3)||!validCiphertextBody(note.body)||(lane!=='voice'&&!own))throw new Error('Некорректная заметка.');
       const sender={userId:senderId,id:note.senderDeviceId};
       let trusted=parse<TrustRecord>(await this.vault.get(trustKey(sender)));const changes:Record<string,string>={};
       if(!trusted&&this.options.autoTrust){
-        const device=(await this.targets(senderId)).find(item=>item.userId===senderId&&item.id===sender.id);
+        const device=own?await this.ownDevice(sender.id):(await this.targets(senderId)).find(item=>item.userId===senderId&&item.id===sender.id);
         if(device){trusted={identityKey:device.identityKey,registrationId:device.registrationId,checkedAt:null,auto:true};changes[trustKey(sender)]=this.autoRecord(device);}
       }
       if(!trusted)throw new UntrustedDeviceError();
@@ -641,8 +767,9 @@ export class CryptoService {
   /** Other device-only data (AI chat history) shares the same encrypted vault under fixed keys. */
   // Only the local vault is read or written: no device registration first (it needs the server), so
   // Избранное, AI history and the cached chat list open without a network, as in Telegram.
-  async loadLocal(name:'saved:v1'|'ai:v1'|'drafts:v1'):Promise<string|null> {return this.exclusive(()=>this.vault.get(name));}
-  async storeLocal(name:'saved:v1'|'ai:v1'|'drafts:v1',value:string):Promise<void> {return this.exclusive(()=>this.vault.commit({[name]:value}));}
+  // `history:v1`: old chats on a new device (historySync.ts) — whether a copy was asked for, the backup secret and marks.
+  async loadLocal(name:'saved:v1'|'ai:v1'|'drafts:v1'|'history:v1'):Promise<string|null> {return this.exclusive(()=>this.vault.get(name));}
+  async storeLocal(name:'saved:v1'|'ai:v1'|'drafts:v1'|'history:v1',value:string):Promise<void> {return this.exclusive(()=>this.vault.commit({[name]:value}));}
   /** The last shown chat list (`chats:v1`) and chat pages (`page:v1:<chat>`), see chatListCache.ts. Local only. */
   // A plain read of a cache entry, outside the queue: the queue's first job at start (initialize) waits for the server
   // while it publishes the keys, and the saved chat list stood behind it — the «instant» list waited for the network.

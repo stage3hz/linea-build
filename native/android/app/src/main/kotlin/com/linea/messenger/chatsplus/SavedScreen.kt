@@ -81,6 +81,8 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   private val voice = com.linea.messenger.voice.VoicePlayer(context, messenger?.server)
   private val notes = com.linea.messenger.video.NotePlayback(context, messenger?.server, listHost, { key -> noteHost(key) }, { visibleKeys() })
   private var mediaState: MsgMediaState? = null
+  /** The note whose round video is being listened to (its slot is large); empty: none. */
+  private var expandedNote = ""
   private val watch = object : Runnable {
     override fun run() { notes.refresh(); main.postDelayed(this, 500) }
   }
@@ -119,7 +121,7 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
       is Line.Note -> (convertView as? SavedNoteRow ?: SavedNoteRow(context)).also {
         val id = line.item["id"] as? String ?: ""
         val key = "saved:$id"
-        it.show(line.item, ownName, selection?.contains(id), mediaState?.takeIf { state -> state.key == key }, noteRoom)
+        it.show(line.item, ownName, selection?.contains(id), mediaState?.takeIf { state -> state.key == key }, noteRoom, key == expandedNote)
       }
     }
   }
@@ -251,6 +253,9 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     notes.onWillPlay = { voice.pause() }
     notes.holdsSilence = { voice.isPlaying || attach.isRecording }
     notes.onReadyChanged = { key -> noteRow(key)?.redraw(mediaState?.takeIf { it.key == key }) }
+    // VideoNote.tsx: a circle listened to grows to min(404, the row) at the right edge and shrinks back after.
+    notes.anchorsRight = { true }
+    notes.onExpanded = { key, open -> expandedNote = if (open) key else ""; adapter.notifyDataSetChanged() }
   }
 
   private fun noteRow(key: String): SavedNoteRow? {
@@ -629,6 +634,7 @@ private class SavedNoteRow(context: Context) : View(context) {
   private var poster: android.graphics.Bitmap? = null
   private var posterOf = ""
   private var maxSide = 212f
+  private var expanded = false
   var state: MsgMediaState? = null
   private val boxes = MsgMediaBoxes()
   /** Where the parts stand (px, in this view). */
@@ -679,7 +685,8 @@ private class SavedNoteRow(context: Context) : View(context) {
     return if (seconds > 0) "${seconds / 60}:" + String.format(java.util.Locale.ROOT, "%02d", seconds % 60) else ""
   }
 
-  fun show(next: Map<String, Any?>, own: String, checked: Boolean?, state: MsgMediaState?, maxSide: Float) {
+  fun show(next: Map<String, Any?>, own: String, checked: Boolean?, state: MsgMediaState?, maxSide: Float, expanded: Boolean) {
+    this.expanded = expanded
     item = next
     key = "saved:" + (next["id"] as? String ?: "")
     this.checked = checked
@@ -784,7 +791,13 @@ private class SavedNoteRow(context: Context) : View(context) {
     if (kind.isNotEmpty()) {
       val size = when (kind) {
         "voice" -> Pair(minOf(inner, com.linea.messenger.voice.MediaRowArt.voiceWidth * d), com.linea.messenger.voice.MediaRowArt.voiceHeight * d)
-        "note" -> { val side = minOf(212f * d, Math.floor(maxSide.toDouble()).toFloat()); Pair(side, side) }
+        "note" -> {
+          // playback.ts `noteSizes`: 212 in the row (never past it), min(404, the row) while it is listened to.
+          val room = Math.floor(maxSide.toDouble()).toFloat()
+          val collapsed = minOf(212f * d, room)
+          val side = if (expanded) maxOf(collapsed, minOf(404f * d, room)) else collapsed
+          Pair(side, side)
+        }
         else -> cardSize(inner)
       }
       media.set(0f, y, size.first, y + size.second)

@@ -611,8 +611,37 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     hideKeyboard()
     val menu = MessageMenu(context, y, message["senderId"] as? String == history.userId, Messenger.previewText(message), reactions, items)
     menu.onReact = { emoji -> react(message, emoji) }
+    // ChatScreen.tsx: the menu shows the message's own row (peekRow), not only its words.
+    menu.showPeek(list?.rowPicture(key))
+    // ContextMenu.tsx ReadDateRow: an own message the peer has read, younger than seven days.
+    val messageId = (message["id"] as? Number)?.toLong() ?: 0L
+    val sentAt = Messenger.date(message["createdAt"] as? String)
+    val server = messenger?.server
+    if (server != null && message["senderId"] as? String == history.userId && readable(message) && !outgoing(message) && messageId > 0 && messageId <= history.peerLastRead &&
+      sentAt != null && System.currentTimeMillis() - sentAt.toEpochMilli() < 7L * 86_400_000L) {
+      val main = android.os.Handler(android.os.Looper.getMainLooper())
+      menu.askReadDate { done ->
+        server.op("readDate", listOf(chatId, messageId)) { result ->
+          val fields = Core.map(result.getOrNull() as? Map<*, *>)
+          val at = Messenger.date(fields?.get("readAt") as? String)
+          val words = if (at != null) readDateText(at, java.time.Instant.now(), java.time.ZoneId.systemDefault()) else if (fields?.get("reason") == "hidden") "Прочитано" else null
+          main.post { done(words) }
+        }
+      }
+    }
     openedMenu = menu
     menu.show()
+  }
+
+  /** ContextMenu.tsx readDateText: «Прочитано сегодня в 18:36», «… вчера в …», «… 5 ноября в …». */
+  fun readDateText(at: java.time.Instant, now: java.time.Instant, zone: java.time.ZoneId): String {
+    val day = at.atZone(zone).toLocalDate()
+    val ago = java.time.temporal.ChronoUnit.DAYS.between(day, now.atZone(zone).toLocalDate())
+    val time = Messenger.clock(at, zone)
+    if (ago == 0L) return "Прочитано сегодня в $time"
+    if (ago == 1L) return "Прочитано вчера в $time"
+    val months = listOf("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
+    return "Прочитано ${day.dayOfMonth} ${months[day.monthValue - 1]} в $time"
   }
 
   /** The menu on the screen now, if any (for the checks). */

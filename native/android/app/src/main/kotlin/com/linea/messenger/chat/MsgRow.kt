@@ -30,6 +30,9 @@ data class MsgRow(
   val silent: Boolean = false,
   /** Media: several photos sent together, drawn as one mosaic (attachments/AlbumGrid.kt); null: none. */
   val album: com.linea.messenger.attachments.MsgAlbum? = null,
+  /** The quoted message's small picture (base64), round for a round video (MessageRow.tsx replyThumb); empty: none. */
+  val quoteThumb: String = "",
+  val quoteRound: Boolean = false,
 ) {
   companion object {
     private fun text(value: Any?) = value as? String ?: ""
@@ -46,6 +49,7 @@ data class MsgRow(
         // Polls, Composer: what those parts add to a row.
         com.linea.messenger.polls.MsgPoll.parse(row["poll"]), int(row["bigEmoji"], 0).coerceIn(0, 3), flag(row["silent"]),
         com.linea.messenger.attachments.MsgAlbum.parse(row["album"]), // Media
+        text(row["quoteThumb"]), flag(row["quoteRound"]),
       )
     }
   }

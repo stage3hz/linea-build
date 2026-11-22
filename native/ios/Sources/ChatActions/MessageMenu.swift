@@ -28,6 +28,18 @@ final class MessageMenuController: UIViewController {
     private var items: [Item]
     /// A reaction was chosen (the menu is already closed).
     var onReact: ((String) -> Void)?
+    /// ChatScreen.tsx `peek`: the message's own row as it stands in the chat (the real bubble, photo included), shown
+    /// full width above the menu instead of the words alone. Set before presenting.
+    var peekView: UIView?
+    /// ContextMenu.tsx ReadDateRow: asks when the peer read the message; the answer is «Прочитано …» or nil (no row).
+    /// Set before presenting, for an own read message younger than seven days.
+    var readDate: ((@escaping (String?) -> Void) -> Void)?
+    private let readRow = UIView()
+    private let readIcon = UIImageView()
+    private let readLabel = UILabel()
+    private let readSkeleton = UIView()
+    private let readBand = UIView()
+    private var readShown = false
 
     private let backdrop = UIVisualEffectView(effect: Theme.thinBlur)
     private let dim = UIButton(type: .custom)
@@ -58,7 +70,8 @@ final class MessageMenuController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .clear
         view.addSubview(backdrop)
-        dim.backgroundColor = UIColor(white: 0, alpha: 0.34)
+        // ContextMenu.tsx: black 0.34 on a dark theme, rgba(20,30,60,0.14) on a light one.
+        dim.backgroundColor = Theme.dark ? UIColor(white: 0, alpha: 0.34) : UIColor(red: 20 / 255, green: 30 / 255, blue: 60 / 255, alpha: 0.14)
         dim.accessibilityLabel = "Закрыть меню"
         dim.addTarget(self, action: #selector(closeNow), for: .touchUpInside)
         view.addSubview(dim)
@@ -68,6 +81,7 @@ final class MessageMenuController: UIViewController {
         pill.layer.cornerRadius = 24
         pill.layer.cornerCurve = .continuous
         pill.isHidden = reactions.isEmpty
+        MessageMenuController.tint(pill)
         view.addSubview(pill)
         for (index, reaction) in reactions.enumerated() {
             let button = UIButton(type: .custom)
@@ -88,14 +102,15 @@ final class MessageMenuController: UIViewController {
         moreButton.addTarget(self, action: #selector(showAll), for: .touchUpInside)
         pill.contentView.addSubview(moreButton)
 
-        bubble.backgroundColor = Theme.panel(UIColor(hex: 0x1F2023))
-        bubble.layer.cornerRadius = 18
+        // ContextMenu.tsx: the words on the message's own colour, the chat's corner radius, padding 12 / 6.
+        bubble.backgroundColor = mine ? ThemeStore.look.bubble : ThemeStore.look.incoming
+        bubble.layer.cornerRadius = ChatBubbleLook.radius
         bubble.layer.cornerCurve = .continuous
         bubble.isHidden = previewWords.isEmpty
         bubble.isUserInteractionEnabled = false
         view.addSubview(bubble)
         bubbleLabel.text = previewWords
-        bubbleLabel.font = .systemFont(ofSize: 17)
+        bubbleLabel.font = .systemFont(ofSize: ThemeStore.textSize)
         bubbleLabel.textColor = Theme.text
         bubbleLabel.numberOfLines = 6
         bubble.addSubview(bubbleLabel)
@@ -104,8 +119,62 @@ final class MessageMenuController: UIViewController {
         panel.clipsToBounds = true
         panel.layer.cornerRadius = 26 // ContextMenu.tsx: the menu's radius
         panel.layer.cornerCurve = .continuous
+        MessageMenuController.tint(panel)
         view.addSubview(panel)
+        if let peek = peekView {
+            bubble.isHidden = true
+            peek.isUserInteractionEnabled = false
+            view.addSubview(peek)
+        }
+        if let ask = readDate {
+            // ContextMenu.tsx ReadDateRow: <Icon name="checkmark-done" size={19} color={t.muted}>, 12 to the words (14,
+            // muted), 40 tall, padding 14; a grey bar while it loads; a 7-point band under it.
+            readShown = true
+            readIcon.image = IonIcon.image("checkmark-done", size: 19)
+            readIcon.tintColor = Theme.muted
+            readIcon.contentMode = .center
+            readRow.addSubview(readIcon)
+            readLabel.font = .systemFont(ofSize: 14)
+            readLabel.textColor = Theme.muted
+            readLabel.isHidden = true
+            readRow.addSubview(readLabel)
+            readSkeleton.backgroundColor = Theme.dark ? UIColor(white: 1, alpha: 0.10) : UIColor(white: 0, alpha: 0.07)
+            readSkeleton.layer.cornerRadius = 6
+            readRow.addSubview(readSkeleton)
+            readRow.isAccessibilityElement = true
+            readRow.accessibilityTraits = .staticText
+            readBand.backgroundColor = UIColor(white: 0, alpha: Theme.dark ? 0.28 : 0.06)
+            panel.contentView.addSubview(readRow)
+            panel.contentView.addSubview(readBand)
+            ask { [weak self] (words: String?) -> Void in
+                guard let self else { return }
+                if let words {
+                    self.readLabel.text = words
+                    self.readLabel.isHidden = false
+                    self.readSkeleton.isHidden = true
+                    self.readRow.accessibilityLabel = words
+                } else {
+                    self.readShown = false
+                    self.readRow.isHidden = true
+                    self.readBand.isHidden = true
+                }
+                self.view.setNeedsLayout()
+            }
+        }
         buildRows()
+    }
+
+    /// ContextMenu.tsx glass: over the blur rgba(40,42,50,0.55) on dark / white 0.55 on light, a hairline border of
+    /// white 0.14 / black 0.08.
+    private static func tint(_ glass: UIVisualEffectView) {
+        let veil = UIView()
+        veil.backgroundColor = Theme.dark ? UIColor(red: 40 / 255, green: 42 / 255, blue: 50 / 255, alpha: 0.55) : UIColor(white: 1, alpha: 0.55)
+        veil.isUserInteractionEnabled = false
+        veil.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        veil.frame = glass.contentView.bounds
+        glass.contentView.insertSubview(veil, at: 0)
+        glass.layer.borderWidth = 1 / UIScreen.main.scale
+        glass.layer.borderColor = (Theme.dark ? UIColor(white: 1, alpha: 0.14) : UIColor(white: 0, alpha: 0.08)).cgColor
     }
 
     /// The bands above «separated» items, by the item's index.
@@ -137,6 +206,10 @@ final class MessageMenuController: UIViewController {
     func replace(items next: [Item]) {
         items = next
         pill.isHidden = true
+        // ChatScreen.tsx: the read row is not part of «Удалить» → for whom.
+        readShown = false
+        readRow.isHidden = true
+        readBand.isHidden = true
         buildRows()
     }
 
@@ -201,9 +274,20 @@ final class MessageMenuController: UIViewController {
         if !bubble.isHidden {
             let widest = min(column, (bounds.width - 18) * 0.85) - 24
             let fit = bubbleLabel.sizeThatFits(CGSize(width: max(1, widest), height: CGFloat.greatestFiniteMagnitude))
-            bubbleSize = CGSize(width: min(widest, ceil(fit.width)) + 24, height: ceil(fit.height) + 14)
+            bubbleSize = CGSize(width: min(widest, ceil(fit.width)) + 24, height: ceil(fit.height) + 12)
         }
         var panelHeight: CGFloat = 0
+        if readShown {
+            readRow.frame = CGRect(x: 0, y: 0, width: panelWidth, height: 40)
+            readIcon.frame = CGRect(x: 14, y: 0, width: 19, height: 40)
+            readLabel.frame = CGRect(x: 14 + 19 + 12, y: 0, width: max(0, panelWidth - 45 - 14), height: 40)
+            readSkeleton.frame = CGRect(x: 14 + 19 + 12, y: 14, width: 150, height: 12)
+            readBand.frame = CGRect(x: 0, y: 40, width: panelWidth, height: 7)
+            panelHeight = 47
+        }
+        // ContextMenu.tsx `peekRow`: the copy of the message spans the screen.
+        var peekSize = CGSize.zero
+        if let peek = peekView { peekSize = CGSize(width: bounds.width, height: peek.bounds.height) }
         for (index, row) in rowViews.enumerated() {
             // ContextMenu.tsx MenuItem: 44 tall; «separated» is a 6-point band (black 0.22 on dark, 0.05 on light).
             if index < items.count, items[index].separated, index > 0 {
@@ -218,6 +302,7 @@ final class MessageMenuController: UIViewController {
         var total = panelHeight
         if pillSize != .zero { total += pillSize.height + 8 }
         if bubbleSize != .zero { total += bubbleSize.height + 8 }
+        if peekSize != .zero { total += peekSize.height + 8 }
         let highest = safe.top + 8
         let lowest = bounds.height - safe.bottom - 8 - total
         var y = max(highest, min(anchorY - 70, lowest))
@@ -230,9 +315,13 @@ final class MessageMenuController: UIViewController {
             pill.layer.cornerRadius = allShown ? 26 : 24
             y += pillSize.height + 8
         }
+        if let peek = peekView, peekSize != .zero {
+            peek.frame = CGRect(x: 0, y: y, width: peekSize.width, height: peekSize.height)
+            y += peekSize.height + 8
+        }
         if bubbleSize != .zero {
             bubble.frame = placed(bubbleSize)
-            bubbleLabel.frame = bubble.bounds.insetBy(dx: 12, dy: 7)
+            bubbleLabel.frame = bubble.bounds.insetBy(dx: 12, dy: 6)
             y += bubbleSize.height + 8
         }
         panel.frame = placed(CGSize(width: panelWidth, height: panelHeight))

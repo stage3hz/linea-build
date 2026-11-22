@@ -157,10 +157,10 @@ class AttachmentRulesTest {
     assertEquals("40 Б / 100 Б", com.linea.messenger.attachments.InlineMedia.loadingWords(100, 0.4f, photo = true, sizeText = sizes))
     assertEquals("100 Б из 100 Б", com.linea.messenger.attachments.InlineMedia.loadingWords(100, 1.5f, photo = false, sizeText = sizes))
     // The file's icon once it is here (FileBubble `fileIcon`).
-    assertEquals("doc.text.fill", com.linea.messenger.attachments.InlineMedia.fileIcon("a.PDF"))
-    assertEquals("music.note", com.linea.messenger.attachments.InlineMedia.fileIcon("song.mp3"))
-    assertEquals("archivebox.fill", com.linea.messenger.attachments.InlineMedia.fileIcon("x.tar.gz"))
-    assertEquals("doc.fill", com.linea.messenger.attachments.InlineMedia.fileIcon("notes.txt"))
+    assertEquals("ion:document-text", com.linea.messenger.attachments.InlineMedia.fileIcon("a.PDF"))
+    assertEquals("ion:musical-notes", com.linea.messenger.attachments.InlineMedia.fileIcon("song.mp3"))
+    assertEquals("ion:archive", com.linea.messenger.attachments.InlineMedia.fileIcon("x.tar.gz"))
+    assertEquals("ion:document", com.linea.messenger.attachments.InlineMedia.fileIcon("notes.txt"))
     assertEquals(10 * 1024 * 1024, com.linea.messenger.attachments.InlineMedia.AUTO_PHOTO_BYTES)
   }
 }

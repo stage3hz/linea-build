@@ -553,7 +553,19 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         val story = Core.map(meta?.get("story"))
         if (reply != null) {
           row["quoteAuthor"] = if (reply["senderId"] as? String == input.userId) "Ты" else input.peerName
-          row["quoteText"] = quoteText((reply["clientId"] as? String)?.let { byClient[it] }, reply["preview"] as? String ?: "")
+          val original = (reply["clientId"] as? String)?.let { byClient[it] }
+          row["quoteText"] = quoteText(original, reply["preview"] as? String ?: "")
+          // replyQuote.ts quoteContent: the original's small picture (a photo, a video or a round video, not a voice
+          // message or a poll), round for a round video.
+          val file = Core.map(original?.get("attachment"))
+          val picture = Core.map(file?.get("preview"))?.get("base64") as? String ?: ""
+          if (original != null && Core.map(original["meta"])?.get("poll") == null && file != null && picture.isNotEmpty()) {
+            val type = file["mimeType"] as? String ?: ""
+            val round = com.linea.messenger.chatsplus.ChatRowLooks.isVideoNote(file)
+            if (!com.linea.messenger.chatsplus.ChatRowLooks.isVoice(file) && (round || type.startsWith("image/") || type.startsWith("video/"))) {
+              row["quoteThumb"] = picture; row["quoteRound"] = round
+            }
+          }
         } else if (story != null) {
           row["quoteAuthor"] = if (story["ownerId"] as? String == input.userId) "Ты" else input.peerName
           row["quoteText"] = "История"

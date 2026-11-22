@@ -184,36 +184,28 @@ object MediaRowArt {
       if (!hosted) noteMarks(canvas, row.key, row.mediaTime, state, at, d)
       return
     }
+    // MediaBubble.tsx `MediaTile` (a video): the 48 dp round of rgba(10,15,30,.55) with «play» 24 (while it is
+    // brought: its ring and «close» 22), and «0:42 · 12 МБ» at the upper left (7 in, 6 × 3 inside, radius 8).
     val cx = at.centerX(); val cy = at.centerY()
     val live = state?.takeIf { it.key == row.key }
-    val inPlace = live?.inPlace ?: false
+    fill.color = 0x8C0A0F1E.toInt()
+    canvas.drawCircle(cx, cy, 24f * d, fill)
     if (live?.loading == true) {
-      fill.color = 0x73000000
-      canvas.drawCircle(cx, cy, 26f * d, fill)
-      loadingArc(canvas, cx, cy, 17f * d, 0xFFFFFFFF.toInt(), d)
-    } else if (!inPlace || live?.playing != true) {
-      fill.color = 0x73000000
-      canvas.drawCircle(cx, cy, 26f * d, fill)
-      triangle(canvas, cx, cy, 22f * d, 0xFFFFFFFF.toInt())
-    }
-    if (row.media == "note" && live != null && live.inPlace && live.progress > 0f) {
-      stroke.color = palette.accent
-      stroke.strokeWidth = 3f * d
-      val radius = minOf(at.width(), at.height()) / 2 - 1.5f * d
-      canvas.drawArc(cx - radius, cy - radius, cx + radius, cy + radius, -90f, 360f * minOf(1f, live.progress), false, stroke)
-    }
-    val words = live?.time?.takeIf { it.isNotEmpty() } ?: row.mediaTime
+      progressRing(canvas, cx, cy, 48f * d, live.progress, d)
+      IonIcon.draw(canvas, "close", cx, cy, 22f * d, 0xFFFFFFFF.toInt())
+    } else IonIcon.draw(canvas, "play", cx, cy, 24f * d, 0xFFFFFFFF.toInt())
+    val words = live?.takeIf { it.loading }?.time?.takeIf { it.isNotEmpty() } ?: row.mediaTime
     if (words.isEmpty()) return
     pillPaint.textSize = 11f * d
     pillPaint.color = 0xFFFFFFFF.toInt()
+    pillPaint.fontFeatureSettings = null
     val wide = Math.ceil(pillPaint.measureText(words).toDouble()).toFloat()
-    // A circle's lower left corner is outside the circle: its pill stands at the lower middle.
-    val pillWidth = wide + 12f * d
-    val pillX = if (row.media == "note") cx - pillWidth / 2 else at.left + 6f * d
-    box.set(pillX, at.bottom - 6f * d - 18f * d, pillX + pillWidth, at.bottom - 6f * d)
-    fill.color = 0x80000000.toInt()
-    canvas.drawRoundRect(box, 9f * d, 9f * d, fill)
+    val tall = Math.ceil((pillPaint.descent() - pillPaint.ascent()).toDouble()).toFloat() + 6f * d
+    box.set(at.left + 7f * d, at.top + 7f * d, at.left + 7f * d + wide + 12f * d, at.top + 7f * d + tall)
+    fill.color = 0x8C0A0F1E.toInt()
+    canvas.drawRoundRect(box, 8f * d, 8f * d, fill)
     canvas.drawText(words, box.left + 6f * d, box.centerY() - (pillPaint.ascent() + pillPaint.descent()) / 2, pillPaint)
+    pillPaint.fontFeatureSettings = "tnum"
   }
 
   private val monoPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.MONOSPACE; letterSpacing = 0.3f / 11f }

@@ -81,6 +81,9 @@ class MsgRowView(context: Context) : View(context) {
   private var fontSize = 17f
   private var thumbOf = ""
   private var thumb: Bitmap? = null
+  /** The quoted message's small picture, decoded once per row. */
+  private var quoteOf = ""
+  private var quotePicture: Bitmap? = null
   /** The spoilers of this message have been tapped open. */
   private var revealed = false
   /** Where the body text was drawn last (for taps on links and spoilers). */
@@ -118,6 +121,35 @@ class MsgRowView(context: Context) : View(context) {
       fm.ascent -= up; fm.descent += extra - up
       fm.top = fm.ascent; fm.bottom = fm.descent
     }
+  }
+
+  /** MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside. */
+  private fun inlineTime(item: MsgRow): Boolean = item.text.isNotEmpty() && item.bigEmoji == 0 && item.chips.isEmpty() && item.reactions.isEmpty() &&
+    item.linkCard == null && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }
+  /** MessageRow.tsx `plainTime`: the open look, and no rare marks (silent). */
+  private fun plainTime(item: MsgRow): Boolean = inlineTime(item) && MSG_OPEN_LOOK && item.media != "photo" && !item.silent
+
+  /** Room of a fixed width in a line (the 15-point mark after the time), drawing nothing. */
+  private class Room(val size: Int) : android.text.style.ReplacementSpan() {
+    override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int = size
+    override fun draw(canvas: Canvas, text: CharSequence?, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) {}
+  }
+
+  /** The words with the invisible run at their end that keeps the time's room, glued to the last word so both go to
+   *  the next line together: the open look's time itself («\u00A0\u00A0[изм. ]time», then «\u00A0» and the 15-point
+   *  mark for one's own), or the bubbles' spacer «\u00A0\u00A0\u00A0[silent: 5 × \u00A0]time[mine: 7 × \u00A0]\u00A0», in 11 pt. */
+  private fun withTrailing(text: CharSequence, item: MsgRow): CharSequence {
+    if (!inlineTime(item)) return text
+    val plain = plainTime(item)
+    val tail = if (plain) "\u00A0\u00A0" + item.time + (if (item.mine) "\u00A0\uFFFC" else "")
+      else "\u00A0\u00A0\u00A0" + (if (item.silent) "\u00A0".repeat(5) else "") + item.time + (if (item.mine) "\u00A0".repeat(7) else "") + "\u00A0"
+    val out = android.text.SpannableStringBuilder(text)
+    val start = out.length
+    out.append(tail)
+    out.setSpan(AbsoluteSizeSpan(Math.round(11f * d)), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    out.setSpan(ForegroundColorSpan(Color.TRANSPARENT), start, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    if (plain && item.mine) out.setSpan(Room(Math.round(15f * d)), out.length - 1, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    return out
   }
 
   private fun bodyLayout(text: CharSequence, width: Int): StaticLayout {
@@ -163,6 +195,8 @@ class MsgRowView(context: Context) : View(context) {
 
   /** The key of the row this view shows. */
   val rowKey: String get() = row?.key ?: ""
+  /** Whether the row is one's own. */
+  val mine: Boolean get() = row?.mine ?: true
 
   /** ChatActions: whether a point of this view is on the quote of an answer. */
   fun quoteAt(px: Float, py: Float): Boolean =
@@ -261,6 +295,10 @@ class MsgRowView(context: Context) : View(context) {
       thumbOf = next.thumb
       thumb = if (next.thumb.isEmpty()) null else try { val bytes = Base64.decode(next.thumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
     }
+    if (next.quoteThumb != quoteOf) {
+      quoteOf = next.quoteThumb
+      quotePicture = if (next.quoteThumb.isEmpty()) null else try { val bytes = Base64.decode(next.quoteThumb, Base64.DEFAULT); BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } catch (_: Throwable) { null }
+    }
     // LinkPreview: the card's picture is decoded once per row, not on every drawing.
     val cardImage = next.linkCard?.image ?: ""
     if (cardImage != cardOf) { cardOf = cardImage; cardPicture = next.linkCard?.picture() }
@@ -274,6 +312,9 @@ class MsgRowView(context: Context) : View(context) {
 
   /** One tap shows every spoiler of the message. */
   fun reveal() { if (revealed) return; revealed = true; builtFor = null; requestLayout(); invalidate() }
+
+  /** Videonote: the row's circle grew or gave its room back — laid out again. */
+  fun regrow() { builtFor = null; requestLayout(); invalidate() }
 
   private fun alpha(color: Int, a: Int) = (color and 0x00FFFFFF) or (a shl 24)
 
@@ -346,7 +387,15 @@ class MsgRowView(context: Context) : View(context) {
       .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).setLineSpacing(2f * d, 1f).build()
 
   /** The quote's block: 5 above, the author, 1, the words, 5 below. */
-  private fun quoteHeight(quote: StaticLayout): Float = 5f * d + Math.ceil((quoteAuthorPaint.descent() - quoteAuthorPaint.ascent()).toDouble()).toFloat() + 1f * d + quote.height + 5f * d
+  private fun quoteHeight(quote: StaticLayout): Float =
+    5f * d + maxOf(Math.ceil((quoteAuthorPaint.descent() - quoteAuthorPaint.ascent()).toDouble()).toFloat() + 1f * d + quote.height, if (row?.quoteThumb?.isNotEmpty() == true) 32f * d else 0f) + 5f * d
+  /** MessageRow.tsx: under an own message that was refused, «Не отправлено · повторить» (11 semibold, danger), 8 above
+   *  and below. */
+  private val failedPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Theme.weight(600) }
+  private fun failedRoom(item: MsgRow): Float = if (item.mine && item.ticks == 4) 16f * d + (failedPaint.descent() - failedPaint.ascent()) else 0f
+
+  /** The words of a quote stand this far in: the bar 3 + 7, and with the picture 32 + 7 more (MessageRow.tsx). */
+  private fun quoteIndent(item: MsgRow): Float = if (item.quoteThumb.isEmpty()) 10f * d else (10f + 32f + 7f) * d
 
   private fun widest(layout: StaticLayout?): Float { var w = 0f; if (layout != null) for (i in 0 until layout.lineCount) w = maxOf(w, layout.getLineWidth(i)); return w }
 
@@ -383,8 +432,8 @@ class MsgRowView(context: Context) : View(context) {
       timeCorner = false; timeBeside = false; timeX = 0f; timeBase = 0f
       // Composer: 1–3 emoji alone stand large, each in its box (the reference's 112 / 84 / 68).
       if (item.bigEmoji > 0) { bigGlyphs = com.linea.messenger.composer.BigEmoji.graphemes(item.text).take(3); bigBox = com.linea.messenger.composer.BigEmoji.box(bigGlyphs.size) * d }
-      if (item.text.isNotEmpty() && bigGlyphs.isEmpty()) textLayout = bodyLayout(styled(item), inner)
-      if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = StaticLayout.Builder.obtain(item.quoteText, 0, item.quoteText.length, quotePaint, (inner - 18f * d).toInt().coerceAtLeast(1))
+      if (item.text.isNotEmpty() && bigGlyphs.isEmpty()) textLayout = bodyLayout(withTrailing(styled(item), item), inner)
+      if (item.quoteText.isNotEmpty() || item.quoteAuthor.isNotEmpty()) quoteLayout = StaticLayout.Builder.obtain(item.quoteText, 0, item.quoteText.length, quotePaint, (inner - quoteIndent(item) - 8f * d).toInt().coerceAtLeast(1))
         .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
       if (item.label.isNotEmpty() && item.media != "photo" && item.media != "file") labelLayout = layout(item.label, small, inner, 2) // Attachments: a file's card draws its own words
       // MessageRow.tsx `reactionsInside`: the chips and, 10 to their right, the time share one row.
@@ -395,8 +444,14 @@ class MsgRowView(context: Context) : View(context) {
       if (thumb != null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
       // Voice/Video: a round video is a circle, a video keeps its place even before its picture is known, a voice
       // message is a block of its own.
-      if (item.media == "note") { thumbW = minOf(inner.toFloat(), MediaRowArt.noteSide * d); thumbH = thumbW }
-      else if (item.media == "video" && thumb == null) { thumbW = minOf(inner.toFloat(), 220f * d); thumbH = (thumbW / item.thumbWide.toFloat()).coerceIn(90f * d, 300f * d) }
+      if (item.media == "note") {
+        thumbW = minOf(inner.toFloat(), MediaRowArt.noteSide * d)
+        // Videonote: a circle listened to grows to min(404, the row) (VideoNote.tsx `noteSizes`).
+        if (item.key == msgExpandedNote) thumbW = maxOf(thumbW, minOf(404f * d, Math.floor((width - 18f * d).toDouble()).toFloat()))
+        thumbH = thumbW
+      }
+      // MediaBubble.tsx `mediaBox` / `captionedMediaBox`: a video takes a photo's place.
+      else if (item.media == "video") com.linea.messenger.attachments.InlineMediaArt.photoSize(item, width.toFloat(), d).let { thumbW = it.first; thumbH = it.second }
       else if (item.media == "voice") { voiceW = minOf(inner.toFloat(), MediaRowArt.voiceWidth * d); voiceH = MediaRowArt.voiceHeight * d }
       // Attachments: a photo shown whole, a file as a card (MediaBubble.tsx; attachments/InlineMedia.kt).
       else if (item.media == "photo") com.linea.messenger.attachments.InlineMediaArt.photoSize(item, width.toFloat(), d).let { thumbW = it.first; thumbH = it.second }
@@ -405,7 +460,7 @@ class MsgRowView(context: Context) : View(context) {
       var w = maxOf(maxOf(widest(textLayout), metaWidth, thumbW, widest(labelLayout)), maxOf(widest(reactLayout), chipsW, voiceW))
       if (timeBeside) w = maxOf(w, minOf(inner.toFloat(), chipsW + 10f * d + metaRoom))
       w = maxOf(w, fileW) // Attachments
-      if (quoteLayout != null) w = maxOf(w, minOf(inner.toFloat(), maxOf(widest(quoteLayout), quoteAuthorPaint.measureText(item.quoteAuthor)) + 18f * d))
+      if (quoteLayout != null) w = maxOf(w, minOf(inner.toFloat(), maxOf(widest(quoteLayout), quoteAuthorPaint.measureText(item.quoteAuthor)) + quoteIndent(item) + 8f * d))
       if (item.forward.isNotEmpty()) w = maxOf(w, minOf(inner.toFloat(), forwardPaint.measureText(item.forward) + 2f * d))
       // LinkPreview: the card stands under the text, and the time then goes under the card.
       item.linkCard?.let { link -> card = com.linea.messenger.linkpreview.MsgLinkCardLayout.make(link, inner.toFloat(), d).also { w = maxOf(w, it.width) } }
@@ -414,27 +469,16 @@ class MsgRowView(context: Context) : View(context) {
       if (bigGlyphs.isNotEmpty()) w = maxOf(w, bigBox * bigGlyphs.size)
       // Media: an album's mosaic stands above its caption.
       item.album?.let { album -> albumLayout = com.linea.messenger.attachments.MsgAlbumLayout.make(album, width.toFloat(), inner.toFloat(), d).also { w = maxOf(w, it.width) } }
-      // MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside.
+      // MessageRow.tsx `inlineTime`: the time's room is the invisible run at the end of the words (withTrailing).
       val text = textLayout
-      val line = lineOf(fontSize) * d
-      if (text != null && text.lineCount > 0 && reactLayout == null && chips.isEmpty() && card == null && (0 until item.fmt.size step 3).none { item.fmt[it] and (128 or 256) != 0 }) {
-        val last = text.lineCount - 1
-        val end = Math.ceil(text.getLineMax(last).toDouble()).toFloat()
-        val ltr = text.getParagraphDirection(last) == Layout.DIR_LEFT_TO_RIGHT
-        if (MSG_OPEN_LOOK && item.media != "photo") {
-          // The open look: the time follows the last word («\u00A0\u00A0» + time, then the mark), else on the next line.
-          val gap = meta.measureText("\u00A0\u00A0")
-          timeInline = true
-          if (ltr && end + gap + metaWidth <= inner) { timeX = end + gap; timeBase = text.getLineBaseline(last).toFloat(); w = maxOf(w, end + gap + metaWidth) }
-          else { timeX = 0f; timeBase = text.getLineBaseline(last) + line }
-        } else {
-          // Bubbles: the time in the lower corner (10 from the right, 6 from the bottom); an invisible spacer at the end
-          // of the words keeps its room: «\u00A0\u00A0\u00A0[silent]time[mine: 7 × \u00A0]\u00A0» in 11 pt.
-          val spacer = "\u00A0\u00A0\u00A0" + (if (item.silent) "\u00A0".repeat(5) else "") + item.time + (if (item.mine) "\u00A0".repeat(7) else "") + "\u00A0"
-          val room = meta.measureText(spacer)
-          timeCorner = true
-          if (ltr && end + room <= inner) w = maxOf(w, end + room) else { timeBase = line; w = maxOf(w, minOf(inner.toFloat(), room)) }
-        }
+      if (text != null && text.lineCount > 0 && inlineTime(item)) {
+        w = maxOf(w, widest(text))
+        if (plainTime(item)) {
+          // The open look: the time stands where its run was laid out, on that line's baseline.
+          val start = item.text.length + 2
+          val line = text.getLineForOffset(start)
+          timeInline = true; timeX = text.getPrimaryHorizontal(start); timeBase = text.getLineBaseline(line).toFloat()
+        } else timeCorner = true // bubbles (and the open look with a rare mark): the lower corner, 10 / 6
       }
       // Attachments: a photo without words is the picture alone (MessageRow.tsx `bare`).
       if (item.media == "photo" && item.text.isEmpty() && item.quoteText.isEmpty() && item.quoteAuthor.isEmpty() && item.forward.isEmpty() && reactLayout == null && chips.isEmpty()) {
@@ -453,7 +497,7 @@ class MsgRowView(context: Context) : View(context) {
       if (fileH > 0f) h += fileH + 4f * d // Attachments
       pollLayout?.let { h += it.height + 4f * d } // Polls
       if (bigGlyphs.isNotEmpty()) h += bigBox // Composer
-      if (textLayout != null) h += textLayout!!.height + (if (timeCorner && timeBase > 0f) line else 0f) + (if (timeInline && timeX == 0f && textLayout!!.lineCount > 0) line else 0f)
+      if (textLayout != null) h += textLayout!!.height
       card?.let { h += it.height + 7f * d }
       if (reactLayout != null) h += reactLayout!!.height + 6f * d
       if (chipsH > 0f) h += chipsH + 6f * d
@@ -472,7 +516,7 @@ class MsgRowView(context: Context) : View(context) {
     if (builtFor != item || builtWidth != width || builtFont != fontSize) build(item, width)
     // MessageRow.tsx: the day chip 15 above and 18 below, a call's row 6 below, a message 6 after a run and 2 inside one.
     val gap = if (item.kind == 2) 20f * d else if (item.kind == 1 && item.label == "day") 33f * d else if (item.kind == 1 && item.label.startsWith("call")) 6f * d
-      else if (item.kind == 1) 8f * d else if (item.tail) 6f * d else 2f * d
+      else if (item.kind == 1) 8f * d else (if (item.tail) 6f * d else 2f * d) + failedRoom(item)
     setMeasuredDimension(width, (bubbleH + gap).toInt())
   }
 
@@ -606,11 +650,20 @@ class MsgRowView(context: Context) : View(context) {
       path.reset(); path.addRoundRect(x, y, x + inner, y + height, 10f * d, 10f * d, Path.Direction.CW); canvas.clipPath(path)
       fill.color = markColor; canvas.drawRoundRect(x, y, x + 3f * d, y + height, 2f * d, 2f * d, fill)
       canvas.restore()
+      // MessageRow.tsx replyThumb: 32 × 32 after the bar, centred, radius 5 (16 for a round video), on
+      // rgba(120,130,160,0.18) until it shows.
+      if (item.quoteThumb.isNotEmpty()) {
+        val tx = x + 10f * d; val ty = y + (height - 32f * d) / 2; val corner = if (item.quoteRound) 16f * d else 5f * d
+        fill.color = 0x2E7882A0
+        canvas.drawRoundRect(tx, ty, tx + 32f * d, ty + 32f * d, corner, corner, fill)
+        quotePicture?.let { drawPicture(canvas, it, tx, ty, 32f * d, 32f * d, corner) }
+      }
+      val wordsX = x + quoteIndent(item)
       quoteAuthorPaint.color = markColor
-      val author = TextUtils.ellipsize(item.quoteAuthor, quoteAuthorPaint, inner - 18f * d, TextUtils.TruncateAt.END)
-      canvas.drawText(author, 0, author.length, x + 10f * d, y + 5f * d - quoteAuthorPaint.ascent(), quoteAuthorPaint)
+      val author = TextUtils.ellipsize(item.quoteAuthor, quoteAuthorPaint, inner - quoteIndent(item) - 8f * d, TextUtils.TruncateAt.END)
+      canvas.drawText(author, 0, author.length, wordsX, y + 5f * d - quoteAuthorPaint.ascent(), quoteAuthorPaint)
       quotePaint.color = metaColor
-      canvas.save(); canvas.translate(x + 10f * d, y + 5f * d + Math.ceil((quoteAuthorPaint.descent() - quoteAuthorPaint.ascent()).toDouble()).toFloat() + 1f * d); quote.draw(canvas); canvas.restore()
+      canvas.save(); canvas.translate(wordsX, y + 5f * d + Math.ceil((quoteAuthorPaint.descent() - quoteAuthorPaint.ascent()).toDouble()).toFloat() + 1f * d); quote.draw(canvas); canvas.restore()
       y += height + 6f * d
     }
     val image = thumb
@@ -654,8 +707,11 @@ class MsgRowView(context: Context) : View(context) {
     for (chip in chips) {
       val cx = chipsX + chip.x; val cy = chipsY + chip.y
       // MessageRow.tsx: mine in the accent, else white 0.10 on dark / black 0.06 on light.
-      fill.color = if (chip.mine) palette.accent else if (Theme.dark) 0x1AFFFFFF else 0x0F000000
+      // Under a round video or big emoji (reactions outside a bubble): white 0.07 on dark / white 0.7 on light, a border.
+      val outside = item.media == "note" || item.bigEmoji > 0
+      fill.color = if (chip.mine) palette.accent else if (outside) (if (Theme.dark) 0x12FFFFFF else 0xB3FFFFFF.toInt()) else if (Theme.dark) 0x1AFFFFFF else 0x0F000000
       canvas.drawRoundRect(cx, cy, cx + chip.w, cy + 24f * d, 12f * d, 12f * d, fill)
+      if (outside) { stroke.color = com.linea.messenger.settings.ThemeStore.look.border; stroke.strokeWidth = 1f * d; canvas.drawRoundRect(cx + 0.5f * d, cy + 0.5f * d, cx + chip.w - 0.5f * d, cy + 23.5f * d, 11.5f * d, 11.5f * d, stroke) }
       chipEmoji.color = palette.text
       canvas.drawText(chip.emoji, cx + 8f * d, cy + 12f * d - (chipEmoji.ascent() + chipEmoji.descent()) / 2, chipEmoji)
       if (chip.count > 1) {
@@ -665,7 +721,9 @@ class MsgRowView(context: Context) : View(context) {
     }
 
     meta.color = metaColor // the time keeps its colour; a failed message's red is its mark
-    val marks = if (item.mine) 19f * d else 0f
+    val inlineNow = timeInline && textLayout != null
+    // The mark: 4 after the time in a row of marks; after a «\u00A0» when it follows the words.
+    val marks = if (!item.mine) 0f else if (inlineNow) meta.measureText("\u00A0") + 15f * d else 19f * d
     // MessageRow.tsx: after the last word (the open look), in a bubble's corner 10 from the right and 6 from the
     // bottom, beside the chips, or on a row of its own at the right (5 above the plate's bottom).
     val inline = timeInline && textLayout != null
@@ -675,6 +733,14 @@ class MsgRowView(context: Context) : View(context) {
     val base = if (inline) textTop + timeBase else bubbleH - (if (corner || timeBeside) 6f * d else 5f * d) - meta.descent()
     canvas.drawText(item.time, right - marks - meta.measureText(item.time), base, meta)
     val middle = base + (meta.ascent() + meta.descent()) / 2
+    if (item.mine && item.ticks == 4) {
+      // MessageRow.tsx: a refused message — a 1-point danger border on its plate, and «Не отправлено · повторить» under it
+      // (a touch on the row sends it again).
+      if (!MSG_OPEN_LOOK || item.media == "photo") { com.linea.messenger.chatlook.ChatBubbleLook.shape(path, plateBox, item.mine, item.tail, d); stroke.color = palette.danger; stroke.strokeWidth = 1f * d; canvas.drawPath(path, stroke) }
+      failedPaint.color = palette.danger
+      val words = "Не отправлено · повторить"
+      canvas.drawText(words, w - edge - failedPaint.measureText(words), bubbleH + 8f * d - failedPaint.ascent(), failedPaint)
+    }
     // Composer: «без звука» — <Icon name="notifications-off" size={11} color={t.subtle}> before the time, 4 apart.
     if (item.silent) com.linea.messenger.design.IonIcon.draw(canvas, "notifications-off", right - marks - meta.measureText(item.time) - 4f * d - 5.5f * d, middle, 11f * d, palette.subtle)
     // After the time, 4 apart: <Icon name="checkmark"|"checkmark-done" size={15}> (read in the accent); on its way
@@ -687,3 +753,6 @@ class MsgRowView(context: Context) : View(context) {
     }
   }
 }
+
+/** Videonote: the row whose round video is being listened to (its slot is large); empty: none. Main thread. */
+var msgExpandedNote = ""

@@ -15,6 +15,8 @@ import type { Attachment, Chat, DeviceSession, LocalFile, Message, RecoveryChall
 import type { ClaimedBundle, CryptoDevice, EncryptedMessage, PublicBundle } from './e2ee/types';
 import type { ScheduledMessage } from './scheduled/model';
 import type { PlainUploadState } from './media/plainUploadCore';
+import type { BackupState, HistoryTransfer } from './e2ee/historySync';
+import type { SealedNote } from './e2ee/core';
 
 /** Progress and resume of a chunked plaintext upload (a channel file, a post or a story above 20 MB). */
 export type PlainUploadExtras = { state?: PlainUploadState; onState?: (state: PlainUploadState) => void; onProgress?: (sent: number, total: number) => void; signal?: AbortSignal };
@@ -253,6 +255,23 @@ export class Api {
   ownCryptoDevices = () => this.request<{devices: CryptoDevice[]}>('/e2ee/devices/self');
   claimPreKey = (userId: string, deviceId: string) => this.request<{device: CryptoDevice; bundle: ClaimedBundle}>('/e2ee/prekeys/claim', {method: 'POST', body: JSON.stringify({userId, deviceId})});
   revokeCryptoDevice = (deviceId: string) => this.request<{ok: true}>('/e2ee/devices/revoke', {method: 'POST', body: JSON.stringify({deviceId})});
+  // Old chats on a new device (server history.js, e2ee/historySync.ts): only ciphertext pages and Signal-sealed notes.
+  requestHistory = (deviceId: string) => this.request<{transfer: HistoryTransfer}>('/history/transfers', {method: 'POST', body: JSON.stringify({deviceId})});
+  outgoingHistory = (deviceId: string) => this.request<{transfers: HistoryTransfer[]}>(`/history/transfers/outgoing?deviceId=${encodeURIComponent(deviceId)}`);
+  incomingHistory = (deviceId: string) => this.request<{transfer: HistoryTransfer | null}>(`/history/transfers/incoming?deviceId=${encodeURIComponent(deviceId)}`);
+  claimHistory = (id: string, deviceId: string) => this.request<{transfer: HistoryTransfer}>(`/history/transfers/${encodeURIComponent(id)}/claim`, {method: 'POST', body: JSON.stringify({deviceId})});
+  putHistoryPage = (id: string, index: number, deviceId: string, body: string) => this.request<{pageCount: number}>(`/history/transfers/${encodeURIComponent(id)}/pages/${index}`, {method: 'PUT', body: JSON.stringify({deviceId, body})});
+  completeHistory = (id: string, deviceId: string, note: SealedNote, pageCount: number) => this.request<{transfer: HistoryTransfer}>(`/history/transfers/${encodeURIComponent(id)}/complete`, {method: 'POST', body: JSON.stringify({deviceId, note, pageCount})});
+  historyPage = (id: string, index: number, deviceId: string) => this.request<{body: string}>(`/history/transfers/${encodeURIComponent(id)}/pages/${index}?deviceId=${encodeURIComponent(deviceId)}`);
+  ackHistory = (id: string, deviceId: string) => this.request<{ok: true}>(`/history/transfers/${encodeURIComponent(id)}/ack`, {method: 'POST', body: JSON.stringify({deviceId})});
+  cancelHistory = (id: string, deviceId: string) => this.request<{ok: true}>(`/history/transfers/${encodeURIComponent(id)}/cancel`, {method: 'POST', body: JSON.stringify({deviceId})});
+  backupState = (deviceId: string) => this.request<BackupState>(`/history/backup?deviceId=${encodeURIComponent(deviceId)}`);
+  enableBackup = (deviceId: string, generation: number, keyCheck: string) => this.request<BackupState>('/history/backup', {method: 'PUT', body: JSON.stringify({deviceId, generation, keyCheck})});
+  disableBackup = (deviceId: string) => this.request<{ok: true}>(`/history/backup?deviceId=${encodeURIComponent(deviceId)}`, {method: 'DELETE'});
+  putBackupNote = (deviceId: string, targetDeviceId: string, generation: number, note: SealedNote) => this.request<{ok: true}>('/history/backup/notes', {method: 'POST', body: JSON.stringify({deviceId, targetDeviceId, generation, note})});
+  appendBackupPage = (deviceId: string, generation: number, body: string, reset: boolean) => this.request<{index: number; pageCount: number}>('/history/backup/pages', {method: 'POST', body: JSON.stringify({deviceId, generation, body, reset})});
+  startRestore = (deviceId: string) => this.request<{salt: string; keyCheck: string; generation: number; pageCount: number; attemptsLeft: number}>('/history/backup/restore', {method: 'POST', body: JSON.stringify({deviceId})});
+  backupPage = (index: number, deviceId: string) => this.request<{body: string}>(`/history/backup/pages/${index}?deviceId=${encodeURIComponent(deviceId)}`);
   /** The device's encrypted inbox for a chat, straight from the server. */
   inboxPage = (deviceId: string, chatId: string, after: number) => this.request<{messages: Message[]; nextCursor: number; hasMore: boolean}>(`/e2ee/inbox?lean=1&deviceId=${encodeURIComponent(deviceId)}&chatId=${encodeURIComponent(chatId)}&after=${after}&limit=100`);
   /** …and as the app reads it: a page the background run has kept for exactly this request comes first

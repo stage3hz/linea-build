@@ -50,6 +50,19 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
   private var videoHeight = 0
   private var pillWords = ""
   private var pillMuted = true
+  /** VideoNote.tsx: while a listen is rewound — the picture dimmed by 0.28 black, the play mark, and the white
+   *  14 dp knob on the ring. */
+  private var scrubbing = false
+  private var knobShown = 0f
+  /** A rewind along the ring: "begin", "to", "end" with the share (0…0.985). */
+  var onScrub: ((String, Float) -> Unit)? = null
+  /** Rewinding is possible (the circle is open, being listened to). */
+  var canScrub = false
+  /** A tap on the ring band that did not become a rewind. */
+  var onTap: (() -> Unit)? = null
+  private var downX = 0f
+  private var downY = 0f
+  private var tracking = false
   private val marks = object : View(context) {
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -62,10 +75,25 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
         val radius = maxOf(1f, (minOf(width, height) - 3f * d) / 2f)
         canvas.drawArc(cx - radius, cy - radius, cx + radius, cy + radius, -90f, 360f * progress, false, stroke)
       }
-      if (paused) {
+      if (scrubbing) {
+        fill.color = 0x47000000
+        canvas.drawCircle(cx, cy, minOf(width, height) / 2f, fill)
+      }
+      if (paused || scrubbing) {
         fill.color = 0x730A1423
         canvas.drawCircle(cx, cy, 26f * d, fill)
         IonIcon.draw(canvas, "play", cx, cy, 26f * d, 0xFFFFFFFF.toInt())
+      }
+      if (knobShown > 0f) {
+        val radius = minOf(width, height) / 2f - 1.5f * d
+        val angle = progress * 2 * Math.PI
+        val kx = cx + radius * Math.sin(angle).toFloat(); val ky = cy - radius * Math.cos(angle).toFloat()
+        fill.color = 0xFFFFFFFF.toInt()
+        fill.alpha = (knobShown * 255).toInt()
+        fill.setShadowLayer(3f * d, 0f, 1f * d, Theme.alpha(0xFF000000.toInt(), 0.3f * knobShown))
+        canvas.drawCircle(kx, ky, 7f * d, fill)
+        fill.clearShadowLayer()
+        fill.alpha = 255
       }
     }
   }
@@ -90,6 +118,7 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
     isClickable = false
     isFocusable = false
     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    setWillNotDraw(true)
     round.clipToOutline = true
     round.outlineProvider = object : ViewOutlineProvider() {
       override fun getOutline(view: View, outline: Outline) = outline.setOval(0, 0, view.width, view.height)
@@ -132,6 +161,75 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
     pill.invalidate()
   }
 
+  /** playback.ts `onScrubBand`: a rewind starts on the outer 56 dp of the ring (to 12 past it). */
+  private fun onBand(x: Float, y: Float): Boolean {
+    val distance = Math.hypot((x - width / 2f).toDouble(), (y - height / 2f).toDouble()).toFloat(); val radius = minOf(width, height) / 2f
+    return distance >= radius - 56f * d && distance <= radius + 12f * d
+  }
+
+  /** playback.ts `scrubFraction`: the share clockwise from 12 o'clock; crossing 12 does not wrap. */
+  private fun share(x: Float, y: Float, previous: Float?): Float {
+    var value = (Math.atan2((x - width / 2f).toDouble(), -(y - height / 2f).toDouble()) / (2 * Math.PI)).toFloat()
+    if (value < 0f) value += 1f
+    if (previous != null) { if (previous > 0.75f && value < 0.25f) value = 1f else if (previous < 0.25f && value > 0.75f) value = 0f }
+    return value.coerceIn(0f, 0.985f)
+  }
+
+  private fun knob(to: Float, duration: Long) {
+    android.animation.ValueAnimator.ofFloat(knobShown, to).apply {
+      this.duration = duration
+      addUpdateListener { knobShown = it.animatedValue as Float; marks.invalidate() }
+      start()
+    }
+  }
+
+  // VideoNote.tsx: the rewind starts on the ring band after 8 dp of movement, so a tap still pauses (the row
+  // under it gets the tap) and a drag from the middle still scrolls the list.
+  override fun onInterceptTouchEvent(event: android.view.MotionEvent): Boolean = canScrub
+  override fun onTouchEvent(event: android.view.MotionEvent): Boolean {
+    if (!canScrub) return false
+    when (event.actionMasked) {
+      android.view.MotionEvent.ACTION_DOWN -> {
+        if (!onBand(event.x, event.y)) return false
+        downX = event.x; downY = event.y; tracking = true
+        return true
+      }
+      android.view.MotionEvent.ACTION_MOVE -> {
+        if (!tracking) return false
+        if (!scrubbing) {
+          if (Math.hypot((event.x - downX).toDouble(), (event.y - downY).toDouble()) <= 8f * d) return true
+          scrubbing = true
+          parent?.requestDisallowInterceptTouchEvent(true)
+          progress = share(event.x, event.y, null)
+          onScrub?.invoke("begin", progress)
+          knob(1f, 120)
+          marks.invalidate()
+          return true
+        }
+        val next = share(event.x, event.y, progress)
+        if (Math.abs(next - progress) >= 0.01f) onScrub?.invoke("to", next)
+        progress = next
+        marks.invalidate()
+        return true
+      }
+      android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+        val was = scrubbing
+        tracking = false
+        if (!was) {
+          // A tap on the ring: the row under it pauses or plays, as a tap anywhere on the circle.
+          if (event.actionMasked == android.view.MotionEvent.ACTION_UP) onTap?.invoke()
+          return true
+        }
+        scrubbing = false
+        onScrub?.invoke("end", progress)
+        knob(0f, 160)
+        marks.invalidate()
+        return true
+      }
+    }
+    return tracking
+  }
+
   /** Shows or hides the play mark without touching the ring. */
   fun showPause(value: Boolean) {
     if (paused == value) return
@@ -140,6 +238,7 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
   }
 
   fun show(progress: Float, paused: Boolean) {
+    if (scrubbing) return
     val next = progress.coerceIn(0f, 1f)
     if (next == this.progress && paused == this.paused) return
     this.progress = next
@@ -188,6 +287,90 @@ class NotePlayback(
 
   /** A circle of this row was brought (or its copy dropped): the row is drawn again. */
   var onReadyChanged: ((String) -> Unit)? = null
+  /** VideoNote.tsx: a circle listened to grows in place to min(404, the row's width) and gives the room back when
+   *  the listen ends. The list makes the row's slot large (true) or small again (false); the circle itself is
+   *  scaled meanwhile (200 ms, ease-out cubic), anchored at the lower corner on the message's side. */
+  var onExpanded: ((String, Boolean) -> Unit)? = null
+  /** Whether a row's circle stands at the right edge (own messages); it grows away from that edge. */
+  var anchorsRight: ((String) -> Boolean)? = null
+  /** The row whose slot is large now (empty: none). */
+  var expandedKey = ""; private set
+  private var smallScale = 1f
+  private var resumeAfterScrub = false
+  private val easeOutCubic = android.view.animation.PathInterpolator(0.215f, 0.61f, 0.355f, 1f)
+
+  /** After the list has laid its rows out anew: `then` runs once, before the next frame is drawn. */
+  private fun afterLayout(then: () -> Unit) {
+    val observer = list.viewTreeObserver
+    observer.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+      override fun onPreDraw(): Boolean {
+        if (list.viewTreeObserver.isAlive) list.viewTreeObserver.removeOnPreDrawListener(this)
+        then()
+        return true
+      }
+    })
+    list.invalidate()
+  }
+
+  /** The slot of `rowKey` becomes large, and the circle grows into it from its small size. */
+  private fun grow(rowKey: String) {
+    val small = hostOf(rowKey)?.width() ?: return
+    if (expandedKey == rowKey || small <= 0f) return
+    expandedKey = rowKey
+    onExpanded?.invoke(rowKey, true)
+    afterLayout {
+      if (key != rowKey || expandedKey != rowKey) return@afterLayout
+      val frame = hostOf(rowKey) ?: return@afterLayout
+      smallScale = minOf(1f, small / frame.width())
+      place(frame)
+      if (smallScale >= 1f || !com.linea.messenger.effects.Motion.enabled) return@afterLayout
+      val right = anchorsRight?.invoke(rowKey) ?: true
+      screen.pivotX = if (right) frame.width() else 0f
+      screen.pivotY = frame.height()
+      screen.scaleX = smallScale; screen.scaleY = smallScale
+      screen.animate().scaleX(1f).scaleY(1f).setDuration(200).setInterpolator(easeOutCubic).start()
+    }
+  }
+
+  /** The listen is over: the circle shrinks back, then the slot gives its room back. `animated` false: at once. */
+  private fun shrink(animated: Boolean) {
+    val was = expandedKey
+    if (was.isEmpty()) return
+    screen.canScrub = false
+    val finish = {
+      if (expandedKey == was) {
+        expandedKey = ""
+        screen.animate().cancel()
+        screen.scaleX = 1f; screen.scaleY = 1f
+        onExpanded?.invoke(was, false)
+        if (key == was) afterLayout { if (key == was) hostOf(was)?.let { place(it) } }
+      }
+    }
+    if (!animated || smallScale >= 1f || screen.parent == null || !com.linea.messenger.effects.Motion.enabled) { finish(); return }
+    val right = anchorsRight?.invoke(was) ?: true
+    screen.pivotX = if (right) screen.width.toFloat() else 0f
+    screen.pivotY = screen.height.toFloat()
+    screen.animate().scaleX(smallScale).scaleY(smallScale).setDuration(200).setInterpolator(easeOutCubic).withEndAction { finish() }.start()
+  }
+
+  /** A rewind along the ring (VideoNote.tsx `scrubBegin` / `scrubTo` / `scrubEnd`). */
+  private fun scrub(phase: String, share: Float) {
+    val player = player ?: return
+    if (!sound) return
+    val total = try { player.duration } catch (_: IllegalStateException) { 0 }
+    if (total <= 0) return
+    if (phase == "begin") {
+      resumeAfterScrub = !pausedByTap
+      try { player.pause() } catch (_: Exception) {}
+    }
+    try { player.seekTo((total * share).toLong(), MediaPlayer.SEEK_CLOSEST) } catch (_: Exception) {}
+    if (phase == "end") {
+      if (resumeAfterScrub) {
+        try { player.start(); if (VoicePlayer.rate != 1f) player.playbackParams = player.playbackParams.setSpeed(VoicePlayer.rate) } catch (_: Exception) {}
+      } else pausedByTap = true
+      screen.show(share, !resumeAfterScrub)
+    }
+  }
   private val main = Handler(Looper.getMainLooper())
   private val files = LinkedHashMap<String, MediaFetch.Brought>()
   private val isNote = HashMap<String, Boolean>()
@@ -215,6 +398,8 @@ class NotePlayback(
 
   init {
     screen.picture.surfaceTextureListener = this
+    screen.onScrub = { phase, share -> scrub(phase, share) }
+    screen.onTap = { val current = key; AttachmentStore.attachment(current)?.let { toggle(current, it) } }
   }
 
   private fun note(rowKey: String): Map<String, Any?>? {
@@ -249,6 +434,7 @@ class NotePlayback(
   }
 
   private fun drop() {
+    shrink(animated = false)
     tick(false)
     player?.let { old ->
       old.setOnCompletionListener(null)
@@ -313,9 +499,11 @@ class NotePlayback(
     sound = withSound
     pausedByTap = false
     screen.show(0f, false)
+    screen.canScrub = withSound
     // VideoNote.tsx: the seconds played while it is listened to, the length and the speaker-off mark while it loops.
     screen.showPill(if (withSound) "0:00" else length(AttachmentStore.attachment(rowKey)), muted = !withSound)
     place(frame)
+    if (withSound) grow(rowKey)
     made.setOnVideoSizeChangedListener { _, width, height -> if (made === player) screen.setVideoSize(width, height) }
     made.setOnCompletionListener { if (made === player) reachedEnd() }
     made.setOnErrorListener { _, _, _ ->
@@ -386,6 +574,7 @@ class NotePlayback(
     quietFocus()
     screen.show(0f, false)
     screen.showPill(length(AttachmentStore.attachment(key)), muted = true)
+    shrink(animated = true)
     try {
       player.setVolume(0f, 0f)
       player.isLooping = true
@@ -510,11 +699,11 @@ class NotePlayback(
 
   /** Something else is about to sound: a circle that is listened to goes quiet. */
   fun quiet() {
-    val player = player ?: return
-    if (!sound || pausedByTap) return
-    pausedByTap = true
-    try { player.pause() } catch (_: Exception) {}
-    screen.showPause(true)
+    // playback.ts `interrupt`: a voice message, music or another circle took the sound — the circle goes back to
+    // its silent loop from the first frame and shrinks.
+    if (player == null || !sound) return
+    pausedByTap = false
+    reachedEnd()
   }
 
   /** The chat is left: everything stops, the decrypted copies go. */

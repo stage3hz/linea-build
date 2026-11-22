@@ -825,11 +825,17 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
     /// A short note for exactly one device of `peer_id`, outside every chat (nothing goes to the history or
     /// to the unsent list). It travels in its own session, like a scheduled message; the trust rules are those
     /// of chat messages. Gives `{senderDeviceId, type, body}`.
-    pub fn seal_note(&mut self, peer_id: &str, device_id: &str, text: &str) -> Result<Value, CryptoError> {
+    pub fn seal_note(&mut self, peer_id: &str, device_id: &str, text: &str) -> Result<Value, CryptoError> { self.seal_note_in(peer_id, device_id, text, "voice") }
+
+    /// `lane`: `voice` (a device of the other person) or `history` (one of our own other devices: the key of a
+    /// copy of the chats or the backup secret, docs/HISTORY-TRANSFER.md).
+    pub fn seal_note_in(&mut self, peer_id: &str, device_id: &str, text: &str, lane: &str) -> Result<Value, CryptoError> {
         self.initialize()?;
-        const LANE: Option<&str> = Some("voice");
-        if !uuid_str(device_id) || text.is_empty() || text.encode_utf16().count() > 4000 { return refuse("Некорректная заметка.") }
-        let Some(device) = self.targets(peer_id)?.into_iter().find(|item| is_text(item.get("userId"), peer_id) && is_text(item.get("id"), device_id)) else { return refuse("Устройство собеседника не найдено.") };
+        let lane_name = if lane == "history" { "history" } else { "voice" };
+        let lane_ref: Option<&str> = Some(lane_name);
+        if !uuid_str(device_id) || text.is_empty() || text.encode_utf16().count() > 4000 || (lane != "voice" && lane != "history") || (lane == "history" && peer_id != self.user_id) { return refuse("Некорректная заметка.") }
+        let found = if lane == "history" { self.own_device(device_id)? } else { self.targets(peer_id)?.into_iter().find(|item| is_text(item.get("userId"), peer_id) && is_text(item.get("id"), device_id)) };
+        let Some(device) = found else { return refuse("Устройство собеседника не найдено.") };
         let mut state = self.vault.get(keys::PROTOCOL).unwrap_or_default();
         let mut changes: Vec<(String, Option<String>)> = Vec::new();
         let trusted = parse(self.vault.get(&device_key(&device, keys::trust)))?.filter(|record| truthy(Some(record)));
@@ -841,15 +847,15 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
             changes.push((device_key(&device, keys::trust), Some(auto_record(&device))));
             rekey = trusted.is_some();
         }
-        state = self.bridge.trust_identity(&state, &device_address(&device, LANE), 1, &identity_key)?;
+        state = self.bridge.trust_identity(&state, &device_address(&device, lane_ref), 1, &identity_key)?;
         let now = self.env.now_iso();
-        let session = self.vault.get(&session_key(&device, LANE)).filter(|session| !session.is_empty());
+        let session = self.vault.get(&session_key(&device, lane_ref)).filter(|session| !session.is_empty());
         let stale = session.as_ref().is_some_and(|started| !(parse_iso_ms(started).unwrap_or(f64::NAN) > parse_iso_ms(&now).unwrap_or(f64::NAN) - LANE_SESSION_MAX_AGE_MS));
         let mut bundle = if rekey || session.is_none() || stale { Some(self.claim(&device)?) } else { None };
         let local_id = self.local_id();
-        let payload = json::stringify(&json::object(vec![("version", Value::Number(1.0)), ("note", Value::str("voice")), ("senderId", Value::str(&self.user_id)), ("senderDeviceId", Value::str(&local_id)),
+        let payload = json::stringify(&json::object(vec![("version", Value::Number(1.0)), ("note", Value::str(lane_name)), ("senderId", Value::str(&self.user_id)), ("senderDeviceId", Value::str(&local_id)),
             ("recipientId", device.get("userId").cloned().unwrap_or(Value::Null)), ("recipientDeviceId", device.get("id").cloned().unwrap_or(Value::Null)), ("text", Value::str(text))]));
-        let address = device_address(&device, LANE);
+        let address = device_address(&device, lane_ref);
         let sealed = match self.bridge.encrypt(&state, &address, 1, &payload, bundle.as_ref()) {
             Ok(sealed) => sealed,
             Err(error) if bundle.is_none() && error.name != "NetworkError" && lane_session_error(&error) => {
@@ -858,28 +864,35 @@ impl<S: SignalBridge, V: Vault, T: CryptoTransport, E: Env> Crypto<S, V, T, E> {
             }
             Err(error) => return Err(error.into()),
         };
-        changes.push((session_key(&device, LANE), Some(if bundle.is_some() { now } else { session.unwrap_or_default() })));
+        changes.push((session_key(&device, lane_ref), Some(if bundle.is_some() { now } else { session.unwrap_or_default() })));
         changes.push((keys::PROTOCOL.to_string(), Some(sealed.state)));
         self.vault.commit(changes);
         Ok(json::object(vec![("senderDeviceId", Value::str(&local_id)), ("type", Value::Number(sealed.kind)), ("body", Value::str(&sealed.body))]))
     }
 
     /// Opens a note from `sender_id`; refuses unless that person's trusted device sealed it for this very device.
-    pub fn open_note(&mut self, sender_id: &str, note: &Value) -> Result<String, CryptoError> {
+    pub fn open_note(&mut self, sender_id: &str, note: &Value) -> Result<String, CryptoError> { self.open_note_in(sender_id, note, "voice") }
+
+    /// `lane`: `voice` (from the other person) or `history` (from one of our own other devices).
+    pub fn open_note_in(&mut self, sender_id: &str, note: &Value, lane: &str) -> Result<String, CryptoError> {
         self.initialize()?;
+        let own = lane == "history";
+        let lane_name = if own { "history" } else { "voice" };
         let kind = match note.get("type") { Some(Value::Number(kind)) if *kind == 2.0 || *kind == 3.0 => *kind, _ => f64::NAN };
-        if !uuid_str(sender_id) || sender_id == self.user_id || !truthy(Some(note)) || !uuid_test(note.get("senderDeviceId")) || kind.is_nan() || !valid_ciphertext_body(note.get("body")) { return refuse("Некорректная заметка.") }
+        let local_id = self.local_id();
+        let wrong_sender = if own { sender_id != self.user_id } else { sender_id == self.user_id };
+        if !uuid_str(sender_id) || wrong_sender || !truthy(Some(note)) || !uuid_test(note.get("senderDeviceId")) || (own && is_text(note.get("senderDeviceId"), &local_id)) || kind.is_nan() || !valid_ciphertext_body(note.get("body")) || (lane != "voice" && !own) { return refuse("Некорректная заметка.") }
         let sender = (sender_id.to_string(), text_of(note.get("senderDeviceId")));
-        let (trusted, new_record) = self.sender_trust(&sender, false)?;
+        let (trusted, new_record) = if own { self.own_sender_trust(&sender.1)? } else { self.sender_trust(&sender, false)? };
         let Some(trusted) = trusted else { return Err(CryptoError::Untrusted) };
-        let from = format!("{}.in", keys::address(&sender.0, &sender.1, Some("voice")));
+        let from = format!("{}.in", keys::address(&sender.0, &sender.1, Some(lane_name)));
         let state = self.vault.get(keys::PROTOCOL).unwrap_or_default();
         let state = self.bridge.trust_identity(&state, &from, 1, &text_of(trusted.get("identityKey")))?;
         let result = self.bridge.decrypt(&state, &from, 1, kind, &text_of(note.get("body")))?;
         let body = json::parse(&result.plaintext).map_err(|_| CryptoError::Syntax)?;
         if matches!(body, Value::Null) { return Err(CryptoError::Type) }
         let local_id = self.local_id();
-        let ours = matches!(body.get("version"), Some(Value::Number(version)) if *version == 1.0) && is_text(body.get("note"), "voice") && is_text(body.get("senderId"), sender_id)
+        let ours = matches!(body.get("version"), Some(Value::Number(version)) if *version == 1.0) && is_text(body.get("note"), lane_name) && is_text(body.get("senderId"), sender_id)
             && strict_eq(body.get("senderDeviceId"), note.get("senderDeviceId")) && is_text(body.get("recipientId"), &self.user_id) && is_text(body.get("recipientDeviceId"), &local_id)
             && matches!(body.get("text"), Some(Value::String(text)) if text.0.len() <= 4000);
         if !ours { return refuse("Заметка адресована не этому устройству.") }

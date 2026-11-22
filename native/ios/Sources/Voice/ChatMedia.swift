@@ -171,6 +171,9 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         notes?.onProblem = { [weak self] (words: String) -> Void in self?.say(words) }
         // A circle brought or dropped: its row is drawn again (the download mark, the speaker-off mark).
         notes?.onReadyChanged = { (key: String) -> Void in NotificationCenter.default.post(name: InlineMedia.changed, object: key) }
+        // VideoNote.tsx: a circle listened to grows to min(404, the row) and gives the room back afterwards.
+        notes?.onExpanded = { [weak list] (key: String, open: Bool) -> Void in list?.setExpandedNote(open ? key : "") }
+        notes?.anchorsRight = { [weak list] (key: String) -> Bool in list?.isMine(key) ?? true }
         notes?.onWillPlay = { [weak self] in self?.voice.pause() }
         notes?.holdsSilence = { [weak self] () -> Bool in
             guard let self else { return true }
