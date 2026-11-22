@@ -412,9 +412,9 @@ struct MsgLayout {
     if row.media == "note" {
       let side = min(inner, 212)
       layout.thumbSize = CGSize(width: side, height: side)
-    } else if row.media == "video" && !hasThumb {
-      let w = min(inner, 220)
-      layout.thumbSize = CGSize(width: w, height: min(300, max(90, w / row.thumbWide)))
+    } else if row.media == "video" {
+      // MediaBubble.tsx `mediaBox` / `captionedMediaBox`: a video takes a photo's place (Attachments/InlineMedia.swift).
+      layout.thumbSize = InlineMediaArt.photoSize(row, width: width)
     } else if row.media == "voice" {
       layout.voiceSize = CGSize(width: min(inner, MediaRowArt.voiceWidth), height: MediaRowArt.voiceHeight) // VoiceMessage.tsx: 262 wide
     } else if row.media == "photo" {

@@ -284,3 +284,65 @@ CREATE TABLE IF NOT EXISTS profile_gifts (
 );
 CREATE INDEX IF NOT EXISTS profile_gifts_recipient ON profile_gifts(recipient_id, created_ms);
 CREATE INDEX IF NOT EXISTS profile_gifts_sender ON profile_gifts(sender_id, created_ms);
+
+-- Old chats on a new device (history.js, docs/HISTORY-TRANSFER.md). Only ciphertext and the sealed
+-- (Signal) keys of the account's own devices; nothing here can be read by the server.
+-- state: waiting (the 10-minute wait or no device has taken it), sending, ready (sealed key handed
+-- over), done (the target imported it, pages gone), cancelled (another own device stopped it).
+CREATE TABLE IF NOT EXISTS history_transfers (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  target_device_id TEXT NOT NULL UNIQUE,
+  source_device_id TEXT,
+  state TEXT NOT NULL CHECK(state IN ('waiting','sending','ready','done','cancelled')),
+  not_before INTEGER NOT NULL,
+  claimed_at INTEGER,
+  note_json TEXT,
+  page_count INTEGER NOT NULL DEFAULT 0,
+  bytes INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS history_transfers_user ON history_transfers(user_id, state);
+CREATE INDEX IF NOT EXISTS history_transfers_expiry ON history_transfers(expires_at);
+CREATE TABLE IF NOT EXISTS history_transfer_pages (
+  transfer_id TEXT NOT NULL,
+  idx INTEGER NOT NULL,
+  body TEXT NOT NULL,
+  PRIMARY KEY(transfer_id, idx)
+);
+-- The encrypted backup: a random salt (made before the backup is enabled), the key check derived from
+-- the device-made backup secret, and an append-only log of pages written by one device at a time.
+CREATE TABLE IF NOT EXISTS history_backups (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  salt TEXT NOT NULL,
+  key_check TEXT,
+  generation INTEGER NOT NULL DEFAULT 0,
+  page_count INTEGER NOT NULL DEFAULT 0,
+  bytes INTEGER NOT NULL DEFAULT 0,
+  writer_device_id TEXT,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS history_backup_pages (
+  user_id TEXT NOT NULL,
+  idx INTEGER NOT NULL,
+  body TEXT NOT NULL,
+  PRIMARY KEY(user_id, idx)
+);
+-- The backup secret sealed with Signal for one own device (never for one younger than 10 minutes).
+CREATE TABLE IF NOT EXISTS history_secret_notes (
+  target_device_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  source_device_id TEXT NOT NULL,
+  generation INTEGER NOT NULL,
+  note_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS history_secret_notes_user ON history_secret_notes(user_id);
+CREATE TABLE IF NOT EXISTS history_restore_attempts (
+  user_id TEXT PRIMARY KEY,
+  device_id TEXT,
+  window_start INTEGER NOT NULL,
+  attempts INTEGER NOT NULL
+);

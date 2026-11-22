@@ -66,11 +66,12 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
 
   private val main = Handler(Looper.getMainLooper())
   private val bar = GlassPlate(context, 27f)
-  private val back = PlusIconView(context, "chevron.left", 19f, Theme.text)
+  // SavedScreen.tsx IconButtons: rounds of clear glass with the reference's glyphs (design/GlassKit.kt).
+  private val back = com.linea.messenger.design.GlassRoundButton(context, "ion:chevron-back", "Назад к чатам", 23f, painter = PlusIcons::draw)
   private val tile = FrameLayout(context)
   private val titleLabel = context.words("Избранное", 16f, Theme.text, 700)
   private val countLabel = context.words("", 11f, Theme.muted)
-  private val searchButton = PlusIconView(context, "ion:search-outline", 23f, Theme.muted)
+  private val searchButton = com.linea.messenger.design.GlassRoundButton(context, "ion:search-outline", "Поиск в Избранном", 23f, painter = PlusIcons::draw).apply { tint = Theme.muted }
   private val searchBox = GlassPlate(context, 22f)
   private val searchField = EditText(context)
   private val list = ListView(context)
@@ -88,9 +89,9 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   private val composer = GlassPlate(context, 28f)
   private val field = EditText(context)
   private val send = PlusIconView(context, "ion:arrow-up", 23f, Theme.onAccent)
-  private val clip = PlusIconView(context, "ion:add", 23f, Theme.accent)
+  private val clip = com.linea.messenger.design.GlassRoundButton(context, "ion:add", "Сохранить фото, видео или файл", 23f, painter = PlusIcons::draw).apply { tint = Theme.accent }
   private val editBanner = context.words("Редактирование заметки", 12f, Theme.accent, 700)
-  private val editClose = PlusIconView(context, "ion:close", 18f, Theme.muted)
+  private val editClose = com.linea.messenger.design.GlassRoundButton(context, "ion:close", "Отменить редактирование", 18f, side = 36f, painter = PlusIcons::draw).apply { tint = Theme.muted }
   private val selectCancel = context.words("Отмена", 16f, Theme.accent)
   private val selectCount = context.words("", 15f, Theme.text, 600)
   private val selectDelete = LinearLayout(context)
@@ -147,13 +148,10 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     addView(empty)
 
     addView(bar)
-    back.contentDescription = "Назад к чатам"
-    back.isClickable = true
-    back.setOnClickListener { pages()?.pop() }
+    back.onPress = { pages()?.pop() }
     tile.background = context.plate(Theme.accent, 16f)
     tile.addView(PlusIconView(context, "ion:bookmark", 21f, Theme.onAccent), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-    searchButton.isClickable = true
-    searchButton.setOnClickListener { toggleSearch() }
+    searchButton.onPress = { toggleSearch() }
     titleLabel.maxLines = 1
     countLabel.maxLines = 1
     for (part in listOf(back, tile, titleLabel, countLabel, searchButton)) addView(part)
@@ -194,14 +192,10 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     send.contentDescription = "Сохранить заметку"
     send.isClickable = true
     send.setOnClickListener { submit() }
-    clip.contentDescription = "Сохранить фото, видео или файл"
-    clip.isClickable = true
-    clip.setOnClickListener { hideKeyboard(); attach.openMenu() }
+    clip.onPress = { hideKeyboard(); attach.openMenu() }
     editBanner.visibility = View.GONE
-    editClose.contentDescription = "Отменить редактирование"
-    editClose.isClickable = true
     editClose.visibility = View.GONE
-    editClose.setOnClickListener { stopEditing() }
+    editClose.onPress = { stopEditing() }
     selectCancel.gravity = Gravity.CENTER
     selectCancel.isClickable = true
     selectCancel.setOnClickListener { stopSelecting() }
@@ -288,6 +282,11 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
   /** A part of a note was touched: the voice message's button or waveform (start / pause — never a seek, the
    *  owner's rule), its speed, a round video (with sound / pause), a file's card (open). */
   private fun partPressed(item: Map<String, Any?>, part: String) {
+    if (part.startsWith("link:")) {
+      val href = part.removePrefix("link:")
+      com.linea.messenger.linkpreview.LinkOpen.pressed(context, href, href)
+      return
+    }
     val attachment = Core.map(item["attachment"]) ?: return
     val key = "saved:" + (item["id"] as? String ?: "")
     when (part) {
@@ -384,9 +383,8 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
     val count = saved.items.size
     countLabel.text = if (count > 0) "$count · только на этом устройстве" else "Хранится только на этом устройстве"
     searchButton.symbol = if (searching) "ion:close" else "ion:search-outline"
-    searchButton.color = if (searching) Theme.accent else Theme.muted
+    searchButton.tint = if (searching) Theme.accent else Theme.muted
     searchButton.contentDescription = if (searching) "Закрыть поиск" else "Поиск в Избранном"
-    searchButton.invalidate()
     adapter.notifyDataSetChanged()
     val nothing = shown.isEmpty() && saved.loaded
     empty.visibility = if (nothing) View.VISIBLE else View.GONE
@@ -612,6 +610,8 @@ class SavedScreen(context: Context, private val messenger: Messenger?, private v
  *  with no words and no origin stands alone with the time in a pill under it (`circleOnly`). The owner's open look:
  *  no plate unless bubbles are chosen in «Оформление» (then the reference's plate: radius 23, 8 at the lower right).
  *  iOS: native/ios/Sources/ChatsPlus/SavedViewController.swift (SavedNoteCanvas). */
+private val URL_RE = Regex("\\b((?:https?://|www\\.)[^\\s<>\"'«»]+[^\\s<>\"'«».,:;!?)\\]])", RegexOption.IGNORE_CASE)
+
 @SuppressLint("ViewConstructor")
 private class SavedNoteRow(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
@@ -718,9 +718,27 @@ private class SavedNoteRow(context: Context) : View(context) {
   /** Where a round video stands in this view (null: none). */
   fun noteBox(): android.graphics.RectF? = if (kind == "note" && !media.isEmpty) android.graphics.RectF(media) else null
 
-  /** The part under a point: "play", "wave", "rate", "thumb" (a round video) or "card". */
+  /** linkify.tsx / format/markdown.ts `URL_RE`: the addresses in the words (their places and where each leads),
+   *  drawn in the text's own colour, underlined. */
+  private fun links(): List<Pair<IntRange, String>> = URL_RE.findAll(words).map { match ->
+    val raw = match.groupValues[1]
+    val range = match.groups[1]!!.range
+    Pair(range, if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) raw else "https://$raw")
+  }.toList()
+
+  /** The part under a point: "play", "wave", "rate", "thumb" (a round video), "card" or "link:<address>". */
   fun part(x: Float, y: Float): String? {
     if (checked != null) return null
+    textLayout?.let { layout ->
+      val lx = x - textAt.x; val ly = y - textAt.y
+      if (lx >= -4f * d && ly >= -4f * d && lx <= layout.width + 4f * d && ly <= layout.height + 4f * d) {
+        val line = layout.getLineForVertical(ly.toInt().coerceAtLeast(0))
+        if (lx <= layout.getLineWidth(line) + 4f * d) {
+          val offset = layout.getOffsetForHorizontal(line, lx)
+          links().firstOrNull { offset in it.first }?.let { return "link:" + it.second }
+        }
+      }
+    }
     if (kind == "voice") return boxes.part(x, y, d)?.first
     if (kind == "note" && media.contains(x, y)) return "thumb"
     if (kind == "card" && media.contains(x, y)) return "card"
@@ -782,7 +800,9 @@ private class SavedNoteRow(context: Context) : View(context) {
       val (size, lineHeight) = metrics
       textPaint.textSize = size * d; textPaint.typeface = Theme.weight(400); textPaint.color = Theme.text
       val natural = textPaint.fontMetrics.let { it.descent - it.ascent }
-      val made = android.text.StaticLayout.Builder.obtain(words, 0, words.length, textPaint, inner.toInt()).setIncludePad(false)
+      val spanned = android.text.SpannableString(words)
+      for (link in links()) spanned.setSpan(android.text.style.UnderlineSpan(), link.first.first, link.first.last + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+      val made = android.text.StaticLayout.Builder.obtain(spanned, 0, spanned.length, textPaint, inner.toInt()).setIncludePad(false)
         .setLineSpacing(lineHeight * d - natural, 1f).build()
       textLayout = made
       var widest = 0f

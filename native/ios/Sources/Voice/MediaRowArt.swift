@@ -168,37 +168,28 @@ enum MediaRowArt {
             if !hosted { noteMarks(context, key: row.key, length: row.mediaTime, state: state, box: box) }
             return
         }
+        // MediaBubble.tsx `MediaTile` (a video): the 48 pt round of rgba(10,15,30,.55) with «play» 24 (while it is
+        // brought: its ring and «close» 22), and «0:42 · 12 МБ» at the upper left (7 in, 6 × 3 inside, radius 8).
         let center = CGPoint(x: box.midX, y: box.midY)
         let live = state?.key == row.key ? state : nil
-        let inPlace = live?.inPlace ?? false
+        let veil = UIColor(red: 10 / 255, green: 15 / 255, blue: 30 / 255, alpha: 0.55)
+        context.setFillColor(veil.cgColor)
+        context.fillEllipse(in: CGRect(x: center.x - 24, y: center.y - 24, width: 48, height: 48))
         if live?.loading ?? false {
-            context.setFillColor(UIColor(white: 0, alpha: 0.45).cgColor)
-            context.fillEllipse(in: CGRect(x: center.x - 26, y: center.y - 26, width: 52, height: 52))
-            loadingArc(context, center: center, radius: 17, color: .white)
-        } else if !inPlace || !(live?.playing ?? false) {
-            context.setFillColor(UIColor(white: 0, alpha: 0.45).cgColor)
-            context.fillEllipse(in: CGRect(x: center.x - 26, y: center.y - 26, width: 52, height: 52))
-            triangle(context, center: center, size: 22, color: .white)
-        }
-        if row.media == "note", inPlace, let live, live.progress > 0 {
-            context.setStrokeColor(palette.accent.cgColor)
-            context.setLineWidth(3)
-            context.setLineCap(.round)
-            let radius = min(box.width, box.height) / 2 - 1.5
-            context.addArc(center: center, radius: radius, startAngle: -CGFloat.pi / 2, endAngle: -CGFloat.pi / 2 + 2 * CGFloat.pi * min(1, live.progress), clockwise: false)
-            context.strokePath()
+            progressRing(context, center: center, size: 48, progress: live?.progress ?? 0)
+            glyph("close", size: 22, center: center)
+        } else {
+            glyph("play", size: 24, center: center)
         }
         var words = row.mediaTime
-        if let live, !live.time.isEmpty { words = live.time }
+        if let live, live.loading, !live.time.isEmpty { words = live.time }
         if words.isEmpty { return }
-        let text = NSAttributedString(string: words, attributes: [.font: pillFont, .foregroundColor: UIColor.white])
+        let font = UIFont.systemFont(ofSize: 11)
+        let text = NSAttributedString(string: words, attributes: [.font: font, .foregroundColor: UIColor.white])
         let size = text.size()
-        // A circle's lower left corner is outside the circle: its pill stands at the lower middle.
-        let pillWidth = ceil(size.width) + 12
-        let pillX = row.media == "note" ? box.midX - pillWidth / 2 : box.minX + 6
-        let pill = CGRect(x: pillX, y: box.maxY - 6 - 18, width: pillWidth, height: 18)
-        context.setFillColor(UIColor(white: 0, alpha: 0.5).cgColor)
-        context.addPath(UIBezierPath(roundedRect: pill, cornerRadius: 9).cgPath)
+        let pill = CGRect(x: box.minX + 7, y: box.minY + 7, width: ceil(size.width) + 12, height: ceil(font.lineHeight) + 6)
+        context.setFillColor(veil.cgColor)
+        context.addPath(UIBezierPath(roundedRect: pill, cornerRadius: 8).cgPath)
         context.fillPath()
         text.draw(at: CGPoint(x: pill.minX + 6, y: pill.midY - size.height / 2))
     }

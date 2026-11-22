@@ -271,7 +271,7 @@ class NoteRecorder(
       root.alpha = 0f
       root.animate().alpha(1f).setDuration(400).start()
       circle.post {
-        circle.translationY = (resources.displayMetrics.heightPixels - circle.top).toFloat()
+        circle.translationY = (context.resources.displayMetrics.heightPixels - circle.top).toFloat()
         circle.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.voice.SpringCurve(0.8f, 500)).start()
       }
     }

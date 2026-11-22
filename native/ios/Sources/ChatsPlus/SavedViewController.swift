@@ -278,6 +278,11 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     /// A part of a note was touched: the voice message's button or waveform (start / pause — never a seek, the
     /// owner's rule), its speed, a round video (with sound / pause), a file's card (open).
     private func partPressed(_ item: [String: Any], part: String) {
+        if part.hasPrefix("link:") {
+            let href = String(part.dropFirst(5))
+            LinkOpen.pressed(url: href, shown: href, over: self)
+            return
+        }
         guard let attachment = item["attachment"] as? [String: Any] else { return }
         let key = SavedNoteCell.key(item)
         switch part {
@@ -842,6 +847,26 @@ final class SavedNoteCanvas: UIView {
         return [.font: font, .foregroundColor: Theme.text, .paragraphStyle: style, .baselineOffset: (metrics.line - font.lineHeight) / 4]
     }
 
+    /// linkify.tsx / format/markdown.ts `URL_RE`: an address in the words, in the text's own colour, underlined.
+    private static let urlPattern = try? NSRegularExpression(pattern: "\\b((?:https?://|www\\.)[^\\s<>\"'«»]+[^\\s<>\"'«».,:;!?)\\]])", options: [.caseInsensitive])
+
+    /// The addresses in the words: their ranges and where each leads.
+    private var links: [(range: NSRange, href: String)] {
+        guard let pattern = SavedNoteCanvas.urlPattern, !words.isEmpty else { return [] }
+        let all = words as NSString
+        return pattern.matches(in: words, options: [], range: NSRange(location: 0, length: all.length)).map { (match: NSTextCheckingResult) -> (range: NSRange, href: String) in
+            let raw = all.substring(with: match.range(at: 1))
+            let href = raw.lowercased().hasPrefix("http://") || raw.lowercased().hasPrefix("https://") ? raw : "https://" + raw
+            return (range: match.range(at: 1), href: href)
+        }
+    }
+
+    private var attributedWords: NSAttributedString {
+        let made = NSMutableAttributedString(string: words, attributes: textAttributes)
+        for link in links { made.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: link.range) }
+        return made
+    }
+
     /// `circleOnly` (SavedScreen.tsx): a round video with no words and no origin, shown alone.
     private var circleOnly: Bool { kind == "note" && words.isEmpty && item["origin"] == nil }
 
@@ -936,7 +961,7 @@ final class SavedNoteCanvas: UIView {
         let timeText = NSAttributedString(string: (edited ? "изм. " : "") + timeWords, attributes: [.font: SavedNoteCanvas.timeFont])
         let timeSize = CGSize(width: ceil(timeText.size().width), height: ceil(SavedNoteCanvas.timeFont.lineHeight))
         if !words.isEmpty {
-            let text = MsgText(NSAttributedString(string: words, attributes: textAttributes), width: inner)
+            let text = MsgText(attributedWords, width: inner)
             let size = text.size
             next.text = CGRect(x: 0, y: y, width: size.width, height: size.height)
             width = max(width, size.width)
@@ -986,6 +1011,17 @@ final class SavedNoteCanvas: UIView {
     var noteBox: CGRect { kind == "note" ? laid.media : .zero }
 
     func part(at point: CGPoint) -> String? {
+        // A tap on an address opens it ("link:<address>").
+        if !words.isEmpty, laid.text.insetBy(dx: -4, dy: -4).contains(point) {
+            let found = links
+            if !found.isEmpty {
+                let text = MsgText(attributedWords, width: max(1, laid.text.width + 1))
+                if let index = text.index(at: CGPoint(x: point.x - laid.text.minX, y: point.y - laid.text.minY)),
+                   let hit = found.first(where: { NSLocationInRange(index, $0.range) }) {
+                    return "link:" + hit.href
+                }
+            }
+        }
         if kind == "voice" { return boxes.part(at: point)?.part }
         if kind == "note", laid.media.contains(point) { return "thumb" }
         if kind == "card", laid.media.contains(point) { return "card" }
@@ -1026,7 +1062,7 @@ final class SavedNoteCanvas: UIView {
             break
         }
         if !words.isEmpty {
-            NSAttributedString(string: words, attributes: textAttributes).draw(with: laid.text, options: .usesLineFragmentOrigin, context: nil)
+            attributedWords.draw(with: laid.text, options: .usesLineFragmentOrigin, context: nil)
         }
         if circleOnly {
             context.setFillColor(UIColor(white: 0, alpha: Theme.dark ? 0.45 : 0.32).cgColor)

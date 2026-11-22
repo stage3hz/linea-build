@@ -293,7 +293,9 @@ enum InlineMediaArt {
     }
 
     private static func symbol(_ name: String, _ size: CGFloat, _ weight: UIImage.SymbolWeight, _ color: UIColor) -> UIImage? {
-        UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))?.withTintColor(color, renderingMode: .alwaysOriginal)
+        // "ion:<name>": the reference's own Ionicons glyph, `size` points square (MediaBubble.tsx <Icon>).
+        if name.hasPrefix("ion:") { return IonIcon.image(String(name.dropFirst(4)), size: size).withTintColor(color, renderingMode: .alwaysOriginal) }
+        return UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: size, weight: weight))?.withTintColor(color, renderingMode: .alwaysOriginal)
     }
 
     private static func drawCentered(_ image: UIImage?, at center: CGPoint) {
@@ -340,11 +342,11 @@ enum InlineMediaArt {
             switch state.status {
             case .loading:
                 ring(context, center: center, side: 48, progress: state.progress, color: .white, track: UIColor(white: 1, alpha: 0.25))
-                drawCentered(symbol("xmark", 18, .medium, .white), at: center)
+                drawCentered(symbol("ion:close", 22, .medium, .white), at: center)
             case .failed, .ready:
-                drawCentered(symbol("arrow.clockwise", 19, .medium, .white), at: center)
+                drawCentered(symbol("ion:refresh", 24, .medium, .white), at: center)
             case .idle:
-                drawCentered(symbol("arrow.down", 19, .medium, .white), at: center)
+                drawCentered(symbol("ion:arrow-down", 24, .medium, .white), at: center)
             }
             let words = state.status == .loading ? state.words : sizeWords(row)
             if !words.isEmpty {
@@ -413,10 +415,11 @@ enum InlineMediaArt {
 
     private static func fileIcon(_ name: String) -> String {
         let lower = name.lowercased()
-        if lower.range(of: "\\.(mp3|m4a|aac|wav|flac|ogg|opus)$", options: .regularExpression) != nil { return "music.note" }
-        if lower.hasSuffix("pdf") { return "doc.text.fill" }
-        if lower.range(of: "\\.(zip|rar|7z|tar|gz)$", options: .regularExpression) != nil { return "archivebox.fill" }
-        return "doc.fill"
+        // MediaBubble.tsx `fileIcon` (formats.ts `mediaPreviewKind` for sound files).
+        if lower.range(of: "\\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aiff?|alac|amr|caf|wma)$", options: .regularExpression) != nil { return "ion:musical-notes" }
+        if lower.hasSuffix("pdf") { return "ion:document-text" }
+        if lower.range(of: "\\.(zip|rar|7z|tar|gz)$", options: .regularExpression) != nil { return "ion:archive" }
+        return "ion:document"
     }
 
     /// A file's card in `box`: the round button, the name, the size line (or the progress, or the failure).
@@ -429,13 +432,13 @@ enum InlineMediaArt {
         switch state.status {
         case .loading:
             ring(context, center: center, side: 48, progress: state.progress, color: palette.onAccent, track: UIColor(white: 1, alpha: 0.3))
-            drawCentered(symbol("xmark", 16, .medium, palette.onAccent), at: center)
+            drawCentered(symbol("ion:close", 20, .medium, palette.onAccent), at: center)
         case .ready:
-            drawCentered(symbol(fileIcon(pieces.name), 18, .regular, palette.onAccent), at: center)
+            drawCentered(symbol(fileIcon(pieces.name), 22, .regular, palette.onAccent), at: center)
         case .failed:
-            drawCentered(symbol("arrow.clockwise", 18, .medium, palette.onAccent), at: center)
+            drawCentered(symbol("ion:refresh", 22, .medium, palette.onAccent), at: center)
         case .idle:
-            drawCentered(symbol("arrow.down", 18, .medium, palette.onAccent), at: center)
+            drawCentered(symbol("ion:arrow-down", 22, .medium, palette.onAccent), at: center)
         }
         let textX = box.minX + 48 + 11
         let room = box.maxX - textX

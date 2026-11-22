@@ -29,7 +29,22 @@ object PlusIcons {
   fun adds(name: String): Boolean = name in own || name == "plus"
 
   /** Draws `name` in a square of `size` px with its centre at (cx, cy). */
+  /** px in a dp for a canvas (the stroke floor of BackChevron is 1.6 dp). */
+  private fun canvasDensity(canvas: Canvas): Float = if (canvas.density > 0) canvas.density / 160f else android.content.res.Resources.getSystem().displayMetrics.density
+
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
+    // components.tsx `BackChevron`: the reference draws its back chevron itself (h .78, w .39, stroke max(1.6, .095)).
+    if (name == "ion:chevron-back") {
+      val h = size * 0.78f; val w = size * 0.39f
+      val ccx = cx - size * 0.05f
+      val pen = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.STROKE; strokeCap = android.graphics.Paint.Cap.ROUND; strokeJoin = android.graphics.Paint.Join.ROUND
+        strokeWidth = maxOf(1.6f * canvasDensity(canvas), size * 0.095f); this.color = color
+      }
+      val line = android.graphics.Path().apply { moveTo(ccx + w / 2, cy - h / 2); lineTo(ccx - w / 2, cy); lineTo(ccx + w / 2, cy + h / 2) }
+      canvas.drawPath(line, pen)
+      return
+    }
     // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
     if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     if (name in fromAI) return AIIcons.draw(canvas, name, cx, cy, size, color)

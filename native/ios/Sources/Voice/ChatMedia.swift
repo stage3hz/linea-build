@@ -24,6 +24,12 @@ enum MediaRows {
             fields["wave"] = media["waveform"] as? String ?? ""
             return fields
         }
+        // MediaBubble.tsx: a video's label is «0:42 · 12 МБ» (its length, then its size until it is here).
+        if kind == "video" {
+            let ms = (media["durationMs"] as? NSNumber)?.doubleValue ?? 0
+            let clock = FileCore.call("voiceTime", [max(0, ms)]) as? String ?? "0:00"
+            fields["mediaTime"] = clock + " · " + FileCore.sizeText((attachment["size"] as? NSNumber)?.intValue ?? 0)
+        }
         // The small picture was checked by the core when the message was opened (`photo::valid_preview`).
         if let preview = attachment["preview"] as? [String: Any], let picture = preview["base64"] as? String,
            let width = (preview["width"] as? NSNumber)?.doubleValue, let height = (preview["height"] as? NSNumber)?.doubleValue, width > 0, height > 0 {

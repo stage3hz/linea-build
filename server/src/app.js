@@ -27,6 +27,7 @@ import { installPlainUploadRoutes } from './plainuploads.js';
 import { installAuthRoutes, RECOVERY_LOCK_MS, rateLimitIp } from './auth.js';
 import { installDeviceBinding, PROOF_HEADER, PROOF_REQUIRED, proofAccepted } from './devicebind.js';
 import { installE2eeRoutes, installScheduledRoutes, parseEncryptedMessage } from './e2ee.js';
+import { installHistoryRoutes } from './history.js';
 import { registerAiRoutes, aiProvider } from './ai.js';
 import { installUsernameRoutes } from './username.js';
 import { installSocialRoutes } from './social.js';
@@ -607,6 +608,8 @@ export async function buildApp({
     diskReserveBytes, ...(freeDisk ? { freeDisk } : {}) });
   expireEncryptionDevices = e2ee.expireDevices;
   expireEncryptionDevices();
+  // Old chats on a new device: ciphertext pages between the account's own devices (history.js).
+  const history = installHistoryRoutes({ app, db, now, authOptions, emitUser, limiter });
 
   app.get('/me', authOptions, async request => {
     const user = db.prepare('SELECT * FROM users WHERE id=?').get(request.auth.user_id);
@@ -1163,6 +1166,7 @@ export async function buildApp({
     db.prepare('DELETE FROM recovery_attempts WHERE updated_at<=? AND locked_until<=?')
       .run(now() - RECOVERY_LOCK_MS, now());
     expireEncryptionDevices();
+    history.sweep();
     scheduled.releaseDue();
     limiter.sweep();
     recordSeen([...socketsByUser.keys()].filter(isOnline));
