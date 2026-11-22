@@ -110,12 +110,14 @@ class LinkPreviewPagesTest {
     // The own message stands at the right edge of the page and its card starts where its text does (with a
     // picture the card is as wide as the text may be, so it reaches the edge); the other side's at the left one.
     val ownBox = cardBox(own, long); val theirBox = cardBox(theirs, short)
-    assertTrue(ownBox.toString(), ownBox[0] > own.width * 0.2f && ownBox[2] <= own.width - 13f * d)
-    assertEquals(Pair(long, long), own.runAt(ownBox[0] + 30f * d, ownBox[1] - 16f * d))
+    assertTrue(ownBox.toString(), ownBox[0] > own.width * 0.15f && ownBox[2] <= own.width - 13f * d)
+    // (the long address wraps: its last line may be a single character, so the nearest line above the card that
+    // holds words is looked for)
+    assertEquals(Pair(long, long), (16..120).asSequence().mapNotNull { up -> own.runAt(ownBox[0] + 30f * d, ownBox[1] - up * d) }.firstOrNull())
     if (Core.loaded) assertTrue(ownBox.toString(), ownBox[2] > own.width - 20f * d)
     assertTrue(theirBox.toString(), theirBox[0] >= 13f * d && theirBox[0] < 20f * d)
     // At most 320 dp wide; with a picture it takes all it may, without one it is as wide as its words.
-    val widest = minOf(320f * d, own.width * 0.78f - 26f * d)
+    val widest = minOf(320f * d, own.width * 0.85f - 26f * d) // MessageRow.tsx bubbleMax: 85 % on a phone
     if (Core.loaded) assertTrue(ownBox.toString(), ownBox[2] - ownBox[0] > widest - 8 && ownBox[2] - ownBox[0] <= widest)
     assertTrue(theirBox.toString(), theirBox[2] - theirBox[0] <= widest && theirBox[2] - theirBox[0] >= 140f * d - 4)
     // The picture makes the own card much the taller one.
@@ -151,10 +153,10 @@ class LinkPreviewPagesTest {
     val own = cardBox(views[0], short); val theirs = cardBox(views[1], short)
     // With a picture the card is as wide as a message's text may be (at most 320 dp): the own one reaches the
     // right edge of the page, the other side's starts at the left one.
-    val widest = minOf(320f * d, width * 0.78f - 26f * d)
+    val widest = minOf(320f * d, width * 0.85f - 26f * d) // MessageRow.tsx bubbleMax: 85 % on a phone
     for (box in listOf(own, theirs)) assertTrue(box.toString(), box[2] - box[0] > widest - 8 && box[2] - box[0] <= widest)
-    assertTrue(own.toString(), own[2] > width - 20f * d && own[2] <= width - 13f * d)
-    assertTrue(theirs.toString(), theirs[0] >= 13f * d && theirs[0] < 20f * d)
+    assertTrue(own.toString(), own[2] > width - 20f * d && own[2] <= width - 6f * d) // the list's edge: 6 (open look) or 9
+    assertTrue(theirs.toString(), theirs[0] >= 6f * d && theirs[0] < 20f * d)
     // Site, title in two lines, description, the picture at its proportions under them, the time under the card.
     val column = widest - 24f * d
     assertTrue(own.toString(), own[3] - own[1] > column * 252f / 480f + 100f * d)

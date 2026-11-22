@@ -173,7 +173,7 @@ class ProfilePhotoChange(private val context: Context, private val messenger: Me
       val size = (attachment["size"] as? Number)?.toLong() ?: 0L
       if (!type.startsWith("image/")) return@upload fail("Для профиля нужна фотография.")
       if (size > PROFILE_LIMIT) return@upload fail("После обработки фото больше 4 МБ. Выбери изображение меньшего размера.")
-      // Like Telegram: the new photo is applied at once (the name / bio draft stays a draft).
+      // The new photo is applied at once (the name / bio draft stays a draft).
       patch(mapOf("avatarId" to (attachment["id"] as? String ?: "")), "Фото профиля обновлено.", "Не удалось сохранить фото.")
     }
   }

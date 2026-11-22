@@ -142,7 +142,7 @@ class PeopleRulesTest {
     assertEquals("ion:person-add" to "В друзья", ProfileWords.friendTile(null, null))
     assertEquals("ion:person-remove" to "В друзьях", ProfileWords.friendTile(true, null))
     assertEquals("ion:time-outline" to "Заявка", ProfileWords.friendTile(false, "outgoing"))
-    assertEquals("person.plus" to "Принять", ProfileWords.friendTile(false, "incoming"))
+    assertEquals("ion:person-add" to "Принять", ProfileWords.friendTile(false, "incoming")) // UserProfile.tsx: person-add for an incoming request too
     assertEquals("Удалить из друзей", ProfileWords.friendMenu(true, null))
     assertEquals("Отменить заявку", ProfileWords.friendMenu(false, "outgoing"))
     assertEquals("Принять в друзья", ProfileWords.friendMenu(false, "incoming"))

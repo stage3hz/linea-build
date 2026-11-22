@@ -15,7 +15,6 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.view.Choreographer
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -143,7 +142,18 @@ class RecordControl(private val context: Context) {
       if (iconAlpha > 0f) IonIcon.draw(canvas, iconName, width / 2f, height / 2f, (if (phase == Phase.PREVIEW) 22f else 24f) * d * iconScale, withAlpha(ink, iconAlpha))
     }
     override fun onTouchEvent(event: MotionEvent): Boolean = touched(event)
-    override fun performClick(): Boolean { super.performClick(); return true }
+    /** A tap (and a screen reader's «activate», which only clicks): switches voice ↔ round video at rest; sends a
+     *  locked take or the preview, as a touch on it does. */
+    override fun performClick(): Boolean {
+      super.performClick()
+      when (phase) {
+        Phase.IDLE -> switchMode()
+        Phase.LOCKED -> finish(Ending.SEND)
+        Phase.PREVIEW -> onPreviewSend?.invoke()
+        Phase.HOLDING -> {}
+      }
+      return true
+    }
     /** 10 dp beyond its sides also count. */
     fun covers(x: Float, y: Float): Boolean = x >= -10f * d && x <= width + 10f * d && y >= 0 && y <= height
   }
@@ -243,7 +253,6 @@ class RecordControl(private val context: Context) {
 
     blob = RecordBlobView(context)
     blob.visibility = View.GONE
-    blob.contentDescription = "Отправить"
     blob.setOnClickListener { if (phase == Phase.LOCKED) finish(Ending.SEND) }
     lockPanel = RecordLockPanel(context, source)
     lockPanel.visibility = View.GONE
@@ -267,8 +276,11 @@ class RecordControl(private val context: Context) {
   /** `button`, `fieldIdle` (the field's pill at rest and for the preview), `fieldTake` (the pill while a take runs)
    *  and `trash` (the paperclip's place): px in the composer. `hostWidth`/`hostHeight`: the screen. */
   fun place(button: RectF, fieldIdle: RectF, fieldTake: RectF, trash: RectF, hostWidth: Int, hostHeight: Int) {
+    val changed = buttonRect != button || this.fieldIdle != fieldIdle || this.fieldTake != fieldTake || trashRect != trash
     buttonRect.set(button); this.fieldIdle.set(fieldIdle); this.fieldTake.set(fieldTake); trashRect.set(trash)
-    layer.requestLayout()
+    // Called from the screen's own layout pass: asking the layer for a layout here would ask for another pass every
+    // frame, without end. The layer's parts are placed right away instead, and only when something moved.
+    if (changed) { if (layer.width > 0 && layer.height > 0) layoutLayer() else layer.requestLayout() }
     overlay.measure(View.MeasureSpec.makeMeasureSpec(hostWidth, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(hostHeight, View.MeasureSpec.EXACTLY))
     overlay.layout(0, 0, hostWidth, hostHeight)
     overlay.bringToFront()
@@ -343,8 +355,9 @@ class RecordControl(private val context: Context) {
   private fun idleIcon(): String = if (mode == Mode.VOICE) "mic-outline" else "videocam-outline"
 
   private fun showIdleIcon(animated: Boolean) {
-    button.contentDescription = if (mode == Mode.VOICE) "Голосовое: удерживайте для записи, влево — отмена, вверх — без рук. Нажмите — видео"
-      else "Видеосообщение: удерживайте для записи. Нажмите — голосовое"
+    // RecordButton.tsx: the button's accessibilityLabel, word for word.
+    button.contentDescription = if (mode == Mode.VOICE) "Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео"
+      else "Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое"
     if (!animated) { button.iconName = idleIcon(); button.ghost = null; button.invalidate(); return }
     // The icon turns into the other one in 0.25 s.
     button.ghost = button.iconName
@@ -430,8 +443,7 @@ class RecordControl(private val context: Context) {
         if (holdPending) {
           holdPending = false
           main.removeCallbacks(holdReached)
-          switchMode()
-          button.performClick()
+          button.performClick() // switches the mode
           return true
         }
         if (phase != Phase.HOLDING) return true
@@ -749,9 +761,8 @@ class RecordControl(private val context: Context) {
 
   // The frame loop
 
-  private val frame = object : Choreographer.FrameCallback {
-    override fun doFrame(frameTimeNanos: Long) {
-      if (!looping) return
+  private val frame = FrameClock {
+    if (looping) {
       translation = minOf(0f, translation * (1 - RecordSpec.follow) + targetTranslation * RecordSpec.follow)
       cancelShift = minOf(0f, cancelShift * (1 - RecordSpec.follow) + cancelTarget * RecordSpec.follow)
       if (!blobAnimating) {
@@ -760,19 +771,18 @@ class RecordControl(private val context: Context) {
         blob.translationX = cancelShift * scale * d
         lockPanel.translationY = translation * d
       }
-      Choreographer.getInstance().postFrameCallback(this)
     }
   }
 
   private fun startLoop() {
     if (looping) return
     looping = true
-    Choreographer.getInstance().postFrameCallback(frame)
+    frame.start()
   }
 
   private fun stopLoop() {
     looping = false
-    Choreographer.getInstance().removeFrameCallback(frame)
+    frame.stop()
     translation = 0f; targetTranslation = 0f; cancelShift = 0f; cancelTarget = 0f; scale = 1f
   }
 
@@ -782,6 +792,9 @@ class RecordControl(private val context: Context) {
     val busy = phase != Phase.IDLE
     for (view in fieldViews) view.animate().alpha(if (busy) 0f else 1f).setDuration(150).start()
     button.visibility = if (busy || visible) View.VISIBLE else View.GONE
+    // The blob is a send button only once the take is locked; while the finger holds it is just under the finger.
+    blob.contentDescription = if (phase == Phase.LOCKED) "Отправить" else null
+    blob.importantForAccessibility = if (phase == Phase.LOCKED) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_NO
     if (busy && !(clipSlides && phase != Phase.PREVIEW)) clipView?.alpha = 0f
     onPhase?.invoke(phase)
   }

@@ -9,7 +9,6 @@ import android.graphics.Path
 import android.graphics.PathMeasure
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.view.Choreographer
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.PathInterpolator
@@ -151,18 +150,16 @@ class RecordBlobView(context: Context) : View(context) {
   var ghostAlpha = 0f
   private var stopAt = 0L
 
-  private val frame = object : Choreographer.FrameCallback {
-    override fun doFrame(frameTimeNanos: Long) {
-      shownLevel = shownLevel * (1 - RecordSpec.levelFollow) + level * RecordSpec.levelFollow
-      val now = System.currentTimeMillis()
-      if (presenceMs > 0) {
-        val progress = ((now - presenceStart).toFloat() / presenceMs).coerceIn(0f, 1f)
-        presence = presenceFrom + (presenceTo - presenceFrom) * RecordSpec.smooth(progress)
-        if (progress >= 1f) presenceMs = 0
-      }
-      invalidate()
-      if (running || now < stopAt) Choreographer.getInstance().postFrameCallback(this)
+  private val frame: FrameClock = FrameClock {
+    shownLevel = shownLevel * (1 - RecordSpec.levelFollow) + level * RecordSpec.levelFollow
+    val now = System.currentTimeMillis()
+    if (presenceMs > 0) {
+      val progress = ((now - presenceStart).toFloat() / presenceMs).coerceIn(0f, 1f)
+      presence = presenceFrom + (presenceTo - presenceFrom) * RecordSpec.smooth(progress)
+      if (progress >= 1f) presenceMs = 0
     }
+    invalidate()
+    if (!running && now >= stopAt) frame.stop()
   }
 
   override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -184,8 +181,7 @@ class RecordBlobView(context: Context) : View(context) {
     animatePresence(1f, 350)
     val now = System.currentTimeMillis()
     for (wave in waves) if (!wave.round) { wave.from = points(wave.minRandom); nextShape(wave, now) }
-    Choreographer.getInstance().removeFrameCallback(frame)
-    Choreographer.getInstance().postFrameCallback(frame)
+    frame.start()
   }
 
   fun stop() {
@@ -315,18 +311,22 @@ class RecordLockPanel(context: Context, source: GlassSource?) : View(context) {
     contentDescription = "Остановить и прослушать"
   }
 
-  private val ticker = object : Choreographer.FrameCallback {
-    override fun doFrame(frameTimeNanos: Long) {
-      if (lockness <= 0f && isAttachedToWindow && visibility == VISIBLE) { invalidate(); Choreographer.getInstance().postFrameCallback(this) }
-    }
+  /** The resting bob: runs while the lock is shown and not pulled. */
+  private val ticker: FrameClock = FrameClock {
+    if (lockness <= 0f && isAttachedToWindow && visibility == VISIBLE) invalidate() else ticker.stop()
   }
 
-  override fun onAttachedToWindow() { super.onAttachedToWindow(); Choreographer.getInstance().postFrameCallback(ticker) }
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); ticker.start() }
+  override fun onDetachedFromWindow() { ticker.stop(); super.onDetachedFromWindow() }
+  override fun onVisibilityChanged(changedView: View, visibility: Int) {
+    super.onVisibilityChanged(changedView, visibility)
+    if (isAttachedToWindow && lockness <= 0f && isShown) ticker.start()
+  }
 
   fun update(value: Float) {
     val was = lockness
     lockness = value.coerceIn(0f, 1f)
-    if (lockness <= 0f && was > 0f) { Choreographer.getInstance().removeFrameCallback(ticker); Choreographer.getInstance().postFrameCallback(ticker) }
+    if (lockness <= 0f && was > 0f) ticker.start()
     invalidate()
   }
 
@@ -824,5 +824,49 @@ class VideoTrimPanel(context: Context) : View(context) {
       MotionEvent.ACTION_CANCEL -> dragging = 0
     }
     return true
+  }
+}
+
+/** A loop that calls `onFrame` once a frame until [stop]: for the parts that move for as long as a take runs (the
+ *  blob's waves, the lock's resting bob, the finger's follow). It is a repeating animator rather than a frame
+ *  callback that asks for the next frame by itself, so the JVM page tests (whose animators repeat a bounded number
+ *  of times) see an animation with an end instead of a request for frames without end. With the system's
+ *  animations turned off a repeating animator would end at once, so then the frames are asked for directly. */
+internal class FrameClock(private val onFrame: () -> Unit) {
+  private var animator: android.animation.ValueAnimator? = null
+  private var direct = false
+  private val callback = object : android.view.Choreographer.FrameCallback {
+    override fun doFrame(frameTimeNanos: Long) {
+      if (!direct) return
+      onFrame()
+      if (direct) android.view.Choreographer.getInstance().postFrameCallback(this)
+    }
+  }
+  val running: Boolean get() = animator != null || direct
+
+  fun start() {
+    if (running) return
+    if (!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+      direct = true
+      android.view.Choreographer.getInstance().postFrameCallback(callback)
+      return
+    }
+    animator = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
+      duration = 1000
+      repeatCount = android.animation.ValueAnimator.INFINITE
+      interpolator = android.view.animation.LinearInterpolator()
+      addUpdateListener { if (animator === it) onFrame() }
+      addListener(object : android.animation.AnimatorListenerAdapter() {
+        override fun onAnimationEnd(animation: android.animation.Animator) { if (animator === animation) animator = null }
+      })
+      start()
+    }
+  }
+
+  fun stop() {
+    if (direct) { direct = false; android.view.Choreographer.getInstance().removeFrameCallback(callback) }
+    val running = animator ?: return
+    animator = null
+    running.cancel()
   }
 }

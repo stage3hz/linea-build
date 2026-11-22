@@ -299,8 +299,8 @@ class ChatActionsRulesTest {
     assertEquals(listOf("Закреплённые", "Печатает…", true, 2), listOf(rows[1].section, rows[1].preview, rows[1].accentPreview, rows[1].unread))
     assertEquals(listOf("read:Прочитано", "unpin:Открепить"), rows[1].lead)
     assertEquals(listOf("archive:В архив", "delete:Удалить", "mute:Без звука"), rows[1].trail)
-    // Without sound, with a draft: «Черновик:» is the red part.
-    assertEquals(listOf("Мама", "Черновик: Не забыть", 9, "Сегодня"), listOf(rows[2].title, rows[2].preview, rows[2].previewRed, rows[2].section))
+    // Without sound, with a draft: «Черновик:» is the red part; the title ends with « 🔕» (ChatListScreen.tsx).
+    assertEquals(listOf("Мама 🔕", "Черновик: Не забыть", 9, "Сегодня"), listOf(rows[2].title, rows[2].preview, rows[2].previewRed, rows[2].section))
     assertEquals(listOf("archive:В архив", "delete:Удалить", "unmute:Со звуком"), rows[2].trail)
     // Marked as unread by hand: one, and the button reads it back.
     assertEquals(listOf(1, "Раньше", "read:Прочитано"), listOf(rows[3].unread, rows[3].section, rows[3].lead[0]))

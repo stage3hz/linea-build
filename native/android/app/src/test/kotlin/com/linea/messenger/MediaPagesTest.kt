@@ -94,7 +94,7 @@ class MediaPagesTest {
 
   private fun demo() = Intent(Intent.ACTION_MAIN).putExtra("demo", true).putExtra("chat", true)
   private val voiceWords = "Голосовое: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на видео"
-  private val videoWords = "Видеосообщение: удерживай для записи. Нажми — переключить на голосовое"
+  private val videoWords = "Видеосообщение: удерживай для записи, свайп влево — отмена, вверх — без рук. Нажми — переключить на голосовое"
 
   @Test fun theSampleVoiceMessages() {
     val activity = launch("40-voice", demo().putExtra("voicedemo", "1"))
@@ -115,18 +115,24 @@ class MediaPagesTest {
     assertNull(playing.mediaAt(300f * d, 34f * d))
     assertNull(playing.mediaThumb())
     // Nothing to send: the microphone stands where the send button does. A tap switches it to the round video
-    // and back, and says so in the field for a moment.
+    // and back, and says so for a moment.
     val button = described(chat, "Голосовое:")!!
     assertEquals(voiceWords, button.contentDescription.toString())
     assertFalse(names.contains("Отправить"))
     val field = field(chat)!!
-    button.performClick(); idle(activity, 100)
-    assertEquals(listOf(videoWords, "Видео — удерживайте. Звук — нажмите."), listOf(button.contentDescription.toString(), field.hint.toString()))
+    // The owner's spec (voice/RecordControl.kt, the iPhone's RecordControl.swift): the field keeps its placeholder
+    // and a tooltip above the button says what a hold and a tap do now; it goes away after 2 s.
+    val tooltip = find(chat, "RecordTooltip")!!
+    button.performClick(); idle(activity, 300)
+    assertEquals(listOf(videoWords, "Сообщение"), listOf(button.contentDescription.toString(), field.hint.toString()))
+    assertEquals("Удерживайте, чтобы записать видео. Нажмите, чтобы переключиться на голосовое.", tooltip.contentDescription.toString())
+    assertEquals(1f, tooltip.alpha, 0.01f)
     snap("40b-voice-video-mode", activity.window.decorView)
     idle(activity, 2500)
-    assertEquals("Сообщение", field.hint.toString())
-    button.performClick(); idle(activity, 100)
-    assertEquals(listOf(voiceWords, "Звук — удерживайте. Видео — нажмите."), listOf(button.contentDescription.toString(), field.hint.toString()))
+    assertEquals(0f, tooltip.alpha, 0.01f)
+    button.performClick(); idle(activity, 300)
+    assertEquals(listOf(voiceWords, "Сообщение"), listOf(button.contentDescription.toString(), field.hint.toString()))
+    assertEquals("Удерживайте, чтобы записать голосовое. Нажмите, чтобы переключиться на видео.", tooltip.contentDescription.toString())
     // With words in the field the send button is back.
     field.setText("Привет"); idle(activity)
     assertTrue(named(chat).contains("Отправить"))
@@ -146,7 +152,13 @@ class MediaPagesTest {
     val activity = launch("41-voice-recording", demo().putExtra("voicedemo", "recording"))
     val chat = find(activity.window.decorView, "ChatScreen")!!
     val words = texts(chat)
-    assertTrue(words.toString(), words.containsAll(listOf("0:04,63", "‹ Влево — отмена", "Вверх — без рук")))
+    // The owner's spec (voice/RecordControl.kt, the iPhone's RecordControl.swift): the time in the field, the
+    // drawn chevron with «Влево — отмена» beside it (one view, read as «Отменить запись»), the lock above the blob.
+    assertTrue(words.toString(), words.contains("0:04,63"))
+    val indicator = find(chat, "RecordCancelIndicator") as com.linea.messenger.voice.RecordCancelIndicator
+    assertEquals(View.VISIBLE, indicator.visibility)
+    assertFalse(indicator.showingCancel)
+    assertNotNull(described(chat, "Отменить запись"))
     // While the finger holds there is no «Отмена» and no pause: they come with the lock.
     assertFalse(words.contains("Отмена"))
     assertNull(described(chat, "Пауза"))
@@ -154,7 +166,8 @@ class MediaPagesTest {
     // Without the argument nothing of it is there.
     val plain = launch("41-voice-none", demo())
     val quiet = texts(find(plain.window.decorView, "ChatScreen")!!)
-    assertFalse(quiet.toString(), quiet.contains("0:04,63") || quiet.contains("‹ Влево — отмена") || quiet.contains("Вверх — без рук"))
+    assertFalse(quiet.toString(), quiet.contains("0:04,63"))
+    assertNull(described(plain.window.decorView, "Отменить запись"))
     assertFalse(named(plain.window.decorView).any { it.startsWith("Голосовое сообщение") || it.startsWith("Видео") })
   }
 
@@ -164,10 +177,11 @@ class MediaPagesTest {
     val names = named(chat)
     assertTrue(names.toString(), names.containsAll(listOf("Видео. 09:44", "Видеосообщение. 09:45")))
     val d = chat.resources.displayMetrics.density
-    // A video keeps its shape (16:9 here); a round video is a circle 212 wide. A touch on either is a touch on its picture.
+    // A video keeps its shape (16:9 here, 300 wide); a round video is a circle 212 wide. A touch on either is a touch on its picture.
     val video = rows(chat).single { it.rowKey == "sample-video-1" }.mediaThumb()!!
-    assertEquals(220f * d, video.width(), 1f)
-    assertEquals(220f * d * 9 / 16, video.height(), 1f)
+    // MessageRow.tsx: mediaMax = min(300, screen − 72) on a phone, so a 16:9 video is 300 wide here.
+    assertEquals(300f * d, video.width(), 1f)
+    assertEquals(300f * d * 9 / 16, video.height(), 1.5f * d)
     val note = rows(chat).single { it.rowKey == "sample-video-2" }
     val circle = note.mediaThumb()!!
     assertEquals(listOf(212f * d, 212f * d), listOf(circle.width(), circle.height()))
