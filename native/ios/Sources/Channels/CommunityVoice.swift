@@ -194,12 +194,15 @@ final class CommunityVoicePanel: UIView {
         column.spacing = 12
         column.translatesAutoresizingMaskIntoConstraints = false
         for part in [heading, screenPanel, alone, problem, row] as [UIView] { column.addArrangedSubview(part) } // ScreenShare: screenPanel
-        glass.contentView.addSubview(column)
+        // The column stands on the panel itself, over the glass: a visual effect's contentView is sized by its
+        // autoresizing mask, so a column inside it never made the panel's fitting height grow (the card was cut).
+        glass.isUserInteractionEnabled = false
+        addSubview(column)
         NSLayoutConstraint.activate([
             glass.topAnchor.constraint(equalTo: topAnchor), glass.bottomAnchor.constraint(equalTo: bottomAnchor),
             glass.leadingAnchor.constraint(equalTo: leadingAnchor), glass.trailingAnchor.constraint(equalTo: trailingAnchor),
-            column.topAnchor.constraint(equalTo: glass.contentView.topAnchor, constant: 14), column.bottomAnchor.constraint(equalTo: glass.contentView.bottomAnchor, constant: -14),
-            column.leadingAnchor.constraint(equalTo: glass.contentView.leadingAnchor, constant: 14), column.trailingAnchor.constraint(equalTo: glass.contentView.trailingAnchor, constant: -14),
+            column.topAnchor.constraint(equalTo: topAnchor, constant: 14), column.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
+            column.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14), column.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
         ])
     }
 
@@ -216,6 +219,13 @@ final class CommunityVoicePanel: UIView {
         soundButton.show(symbol: voice.deafened ? "volume-mute" : "headset", words: voice.deafened ? "Звук выкл." : "Звук", active: !voice.deafened, danger: false)
         speakerButton.show(symbol: voice.speaker ? "volume-high" : "ear", words: voice.speaker ? "Динамик" : "Телефон", active: voice.speaker, danger: false)
         leaveButton.show(symbol: "call", words: "Выйти", active: false, danger: true)
+    }
+
+    /// The height the panel needs at this width: its column, measured on its own, and 14 above and below.
+    func fittingHeight(width: CGFloat) -> CGFloat {
+        let inner = CGSize(width: max(0, width - 28), height: 0)
+        let tall = column.systemLayoutSizeFitting(inner, withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel).height
+        return ceil(tall) + 28
     }
 
     @objc private func clearProblem() { RoomVoice.shared.clearError() }

@@ -134,7 +134,7 @@ class MiniProfile(
   private fun actionButton(symbol: String, label: String, primary: Boolean, action: () -> Unit): View {
     val c = context
     val line = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = c.plate(if (primary) Theme.accent else Theme.surface2, 14f); minimumHeight = c.px(44f) }
-    val ink = if (primary) 0xFFFFFFFF.toInt() else Theme.text // the reference writes #FFFFFF on the accent
+    val ink = if (primary) Theme.onAccent else Theme.text // onAccent: readable on every theme's accent (the reference's #FFFFFF vanishes on «Чёрная»)
     line.addView(ProfileIconView(c, symbol, 18f, ink), LinearLayout.LayoutParams(c.px(18f), c.px(18f))) // Ionicons 18
     line.addView(c.words(label, 14f, ink, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = c.px(7f) })
     line.isClickable = true

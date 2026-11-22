@@ -723,6 +723,36 @@ class SettingsButton(context: Context, label: String, kind: Kind = Kind.PRIMARY,
   }
 }
 
+/** The pair under a colour grid, «Как в теме» / «Свой цвет» (the reference's ColorSettings): 44 tall, radius 14,
+ *  the label 15 Semibold in the text colour; the one that is on is `accentSoft` with an accent rim, the other
+ *  `surface2` with the border. */
+@SuppressLint("ViewConstructor")
+class ColorChoiceButton(context: Context, label: String, on: Boolean) : TextView(context) {
+  var onPress: (() -> Unit)? = null
+
+  init {
+    val d = resources.displayMetrics.density
+    text = label
+    setTextColor(Theme.text)
+    setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    gravity = Gravity.CENTER
+    maxLines = 1
+    ellipsize = TextUtils.TruncateAt.END
+    minHeight = context.px(44f)
+    background = android.graphics.drawable.GradientDrawable().apply {
+      cornerRadius = 14f * d
+      setColor(if (on) ThemeStore.look.accentSoft else Theme.surface2)
+      setStroke(maxOf(1, context.px(1f)), if (on) Theme.accent else ThemeStore.look.border)
+    }
+    isSelected = on
+    isClickable = true
+    isFocusable = true
+    contentDescription = label
+    setOnClickListener { onPress?.invoke() }
+  }
+}
+
 /** One line of typing with its caption. A secret is hidden while typed (the eye shows it) and is typed by hand
  *  only: no paste, as in the reference. */
 @SuppressLint("ViewConstructor")

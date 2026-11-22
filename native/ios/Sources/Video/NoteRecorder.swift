@@ -119,8 +119,9 @@ final class NoteRecorder: NSObject {
         circle.addSubview(zoomPill)
         circle.addGestureRecognizer(UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:))))
         circle.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(circleTapped)))
-        problem.font = .systemFont(ofSize: 15)
-        problem.textColor = Theme.text
+        // The reference's error line (VideoNote.tsx): #FFB4B4, 13, centred, at most 320 wide, under the circle.
+        problem.font = .systemFont(ofSize: 13)
+        problem.textColor = UIColor(red: 1, green: 180 / 255, blue: 180 / 255, alpha: 1)
         problem.textAlignment = .center
         problem.numberOfLines = 0
         problem.isHidden = true
@@ -202,7 +203,9 @@ final class NoteRecorder: NSObject {
         ring.setAffineTransform(CGAffineTransform(rotationAngle: -.pi / 2))
         CATransaction.commit()
         zoomPill.frame = CGRect(x: (side - 46) / 2, y: side - 24 - 9, width: 46, height: 18)
-        problem.frame = CGRect(x: 32, y: center.y + side / 2 + 16, width: width - 64, height: 64)
+        let problemWidth = min(320, width - 64)
+        let problemHeight = ceil(problem.sizeThatFits(CGSize(width: problemWidth, height: 200)).height)
+        problem.frame = CGRect(x: (width - problemWidth) / 2, y: y + side + 18, width: problemWidth, height: problemHeight)
         // The buttons: 8 pt above the composer, 8 pt from the left (26 on a phone without a home indicator).
         let panelTop = composer.convert(composer.bounds, to: host).minY
         let sideInset: CGFloat = host.safeAreaInsets.bottom <= 32 ? 26 : 8
@@ -220,6 +223,7 @@ final class NoteRecorder: NSObject {
     private func fail(_ words: String) {
         problem.text = words
         problem.isHidden = false
+        layout()
         onFailure?(words)
     }
 
@@ -456,16 +460,6 @@ final class NoteRecorder: NSObject {
         }
     }
 
-    #if targetEnvironment(simulator)
-    /// `-notedemo 1`: the circle over a screen (the simulator has no camera: «Камера недоступна.»).
-    static func demo(over host: UIView) -> NoteRecorder {
-        let anchor = UIView(frame: CGRect(x: 0, y: host.bounds.height - 60, width: host.bounds.width, height: 60))
-        host.addSubview(anchor)
-        let made = NoteRecorder(host: host, composer: anchor)
-        made.open()
-        return made
-    }
-    #endif
 }
 
 extension NoteRecorder {

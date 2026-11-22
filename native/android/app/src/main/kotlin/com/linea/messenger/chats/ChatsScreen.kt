@@ -116,6 +116,8 @@ class ChatsScreen(
     actions.attached()
     plus.attached() // ChatsPlus
     com.linea.messenger.shell.ShellInsets.changed.watch(shellChanged) // Shell: the mini-player's room
+    // Security: a notice that arrives while the list is open takes its room under the heading at once.
+    com.linea.messenger.security.AccountNotices.changed.watch(shellChanged)
     appeared()
   }
 
@@ -124,6 +126,7 @@ class ChatsScreen(
     actions.detached()
     plus.detached() // ChatsPlus
     com.linea.messenger.shell.ShellInsets.changed.unwatch(shellChanged) // Shell
+    com.linea.messenger.security.AccountNotices.changed.unwatch(shellChanged) // Security
     removeCallbacks(reloadSoon)
     showing = false
     super.onDetachedFromWindow()

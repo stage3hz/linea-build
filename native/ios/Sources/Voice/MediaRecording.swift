@@ -140,6 +140,19 @@ final class MediaRecording: NSObject {
         return true
     }
 
+    #if targetEnvironment(simulator)
+    /// `-notedemo 1`: the round-video recorder opened by the composer's own path (the simulator has no camera: the
+    /// circle shows «Камера недоступна.» under it), the composer's strip held as while the finger is down.
+    func demoNote() {
+        guard let host, let composer, note == nil else { return }
+        let made = NoteRecorder(host: host, composer: composer)
+        made.onFailure = { [weak self] (words: String) -> Void in self?.say?(words) }
+        note = made
+        control.demoHoldingVideo()
+        made.open()
+    }
+    #endif
+
     /// The camera's microphone is read every 25 ms for the blob (the voice recorder reports by itself).
     private func startLevels() {
         levelTimer?.invalidate()

@@ -21,6 +21,7 @@ import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
+import com.linea.messenger.settings.ColorChoiceButton
 import com.linea.messenger.settings.DevicePreferences
 import com.linea.messenger.settings.SettingsButton
 import com.linea.messenger.settings.SettingsLook
@@ -154,9 +155,9 @@ class BubbleColorPage(context: Context) : SettingsPage(context, "Цвет сво
       line.addView(place, LinearLayout.LayoutParams(0, wrap, 1f))
     }
 
-    val asTheme = SettingsButton(context, "Как в теме", if (current == null) SettingsButton.Kind.PRIMARY else SettingsButton.Kind.SECONDARY)
+    val asTheme = ColorChoiceButton(context, "Как в теме", current == null)
     asTheme.onPress = { custom = false; set(null) }
-    val ownColour = SettingsButton(context, "Свой цвет", if (custom) SettingsButton.Kind.PRIMARY else SettingsButton.Kind.SECONDARY)
+    val ownColour = ColorChoiceButton(context, "Свой цвет", custom)
     ownColour.onPress = { toggleCustom() }
     val buttons = LinearLayout(context)
     buttons.orientation = LinearLayout.HORIZONTAL

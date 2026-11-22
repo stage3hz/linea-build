@@ -68,7 +68,7 @@ extension SceneDelegate {
         case "cropper":
             later { stack.present(AvatarCropperViewController(picture: ProfileSamples.picture(1, size: CGSize(width: 1200, height: 900))), animated: false, completion: nil) }
         case "banner":
-            later { stack.present(BannerPreviewViewController(messenger: nil, picture: ProfileSamples.picture(3, size: CGSize(width: 1200, height: 800))), animated: false, completion: nil) }
+            later { stack.present(BannerPreviewViewController(messenger: nil, picture: ProfileSamples.picture(3, size: CGSize(width: 1200, height: 800)), sample: ProfileSamples.me), animated: false, completion: nil) }
         case "pattern":
             later { stack.present(PatternPickerViewController(current: "🦋", done: { (_: String?) -> Void in }), animated: false, completion: nil) }
         case "status":

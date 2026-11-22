@@ -201,12 +201,12 @@ final class BubbleColorViewController: SettingsPage {
             line.addArrangedSubview(ball)
         }
 
-        let asTheme = SettingsButton(label: "Как в теме", kind: current == nil ? .primary : .secondary)
+        let asTheme = ColorChoiceButton(label: "Как в теме", on: current == nil)
         asTheme.onPress = { [weak self] in
             BubbleColorViewController.custom = false
             self?.set(nil)
         }
-        let ownColour = SettingsButton(label: "Свой цвет", kind: BubbleColorViewController.custom ? .primary : .secondary)
+        let ownColour = ColorChoiceButton(label: "Свой цвет", on: BubbleColorViewController.custom)
         ownColour.onPress = { [weak self] in self?.toggleCustom() }
         let buttons = UIStackView(arrangedSubviews: [asTheme, ownColour])
         buttons.axis = .horizontal

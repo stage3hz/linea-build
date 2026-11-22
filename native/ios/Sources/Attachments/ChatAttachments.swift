@@ -583,13 +583,10 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             }
             return
         }
-        // Video: -notedemo 1 opens the round-video recorder (the simulator has no camera: it shows the screen and
-        // «Камера недоступна.»; on a phone with two cameras at once the turn is instant).
+        // Video: -notedemo 1 is opened by the composer's recording (Voice/ChatMedia.swift `demo`), so the
+        // recorder is kept alive and its strip is the real one.
         if !simulatorOpened, UserDefaults.standard.string(forKey: "notedemo") != nil {
             simulatorOpened = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                if let view = self?.host?.view { _ = NoteRecorder.demo(over: view) }
-            }
             return
         }
         // Composer: -attachdemo panel|panellimited|paneldenied|panelselected opens the paperclip's panel with drawn tiles.

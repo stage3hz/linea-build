@@ -249,8 +249,8 @@ class RecordBlobView(context: Context) : View(context) {
       blobPath(current, cx, cy, half * scale)
       canvas.drawPath(path, paint)
     }
-    ghostIcon?.let { if (ghostAlpha > 0f) IonIcon.draw(canvas, it, cx, cy, 28f * d * ghostScale, applyAlpha(0xFFFFFFFF.toInt(), ghostAlpha)) }
-    if (iconAlpha > 0f) IonIcon.draw(canvas, icon, cx, cy, 28f * d * iconScale, applyAlpha(0xFFFFFFFF.toInt(), iconAlpha))
+    ghostIcon?.let { if (ghostAlpha > 0f) IonIcon.draw(canvas, it, cx, cy, 28f * d * ghostScale, applyAlpha(Theme.onAccent, ghostAlpha)) }
+    if (iconAlpha > 0f) IonIcon.draw(canvas, icon, cx, cy, 28f * d * iconScale, applyAlpha(Theme.onAccent, iconAlpha))
   }
 
   private fun applyAlpha(color: Int, alpha: Float): Int = (((color ushr 24) * alpha).toInt().coerceIn(0, 255) shl 24) or (color and 0xFFFFFF)
@@ -655,7 +655,7 @@ class VoicePreviewPanel(context: Context) : View(context) {
       }
     }
     if (trims) {
-      paint.color = 0xFFFFFFFF.toInt()
+      paint.color = Theme.onAccent // the grips sit on the accent capsule
       rect.set(left + 8f * d, 14f * d, left + 11f * d, 26f * d); canvas.drawRoundRect(rect, d, d, paint)
       rect.set(right + handle * d - 11f * d, 14f * d, right + handle * d - 8f * d, 26f * d); canvas.drawRoundRect(rect, d, d, paint)
     }
@@ -790,7 +790,7 @@ class VideoTrimPanel(context: Context) : View(context) {
     canvas.restore()
     canvas.drawRect(left + handle * d, top, right, top + 2f * d, paint)
     canvas.drawRect(left + handle * d, bottom - 2f * d, right, bottom, paint)
-    paint.color = 0xFFFFFFFF.toInt()
+    paint.color = Theme.onAccent // the grips sit on the accent handles
     val gripTop = top + (track - 12f) / 2 * d
     canvas.drawRoundRect(RectF(left + 7f * d, gripTop, left + 10f * d, gripTop + 12f * d), d, d, paint)
     canvas.drawRoundRect(RectF(right + (handle - 10f) * d, gripTop, right + (handle - 7f) * d, gripTop + 12f * d), d, d, paint)

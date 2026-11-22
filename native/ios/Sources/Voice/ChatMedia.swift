@@ -649,6 +649,13 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
                 }
             }
         }
+        // Video: -notedemo 1 opens the round-video recorder through the composer (Voice/MediaRecording.swift).
+        if defaults.string(forKey: "notedemo") != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.recording.demoNote()
+                self?.relayout()
+            }
+        }
         if defaults.string(forKey: "videodemo") != nil {
             let wide = ChatAttachments.demoPicture(width: 240, height: 135).jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? ""
             let square = ChatAttachments.demoPicture(width: 212, height: 212).jpegData(compressionQuality: 0.6)?.base64EncodedString() ?? ""

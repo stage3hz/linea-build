@@ -122,6 +122,7 @@ final class WallpaperPickerController: UIViewController, PHPickerViewControllerD
             gradient.endPoint = CGPoint(x: 1, y: 1)
             gradient.frame = CGRect(x: 0, y: 0, width: 96, height: 160)
             button.layer.insertSublayer(gradient, at: 0)
+            gradient.zPosition = -1
         } else if let image {
             let picture = UIImageView(image: image)
             picture.contentMode = .scaleAspectFill

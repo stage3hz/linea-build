@@ -193,7 +193,7 @@ final class MiniProfileViewController: UIViewController {
         config.imagePadding = 7
         config.attributedTitle = AttributedString(NSAttributedString(string: label, attributes: [.font: UIFont.systemFont(ofSize: 14, weight: .bold)]))
         config.baseBackgroundColor = primary ? Theme.accent : Theme.surface2
-        config.baseForegroundColor = primary ? UIColor.white : Theme.text // the reference writes #FFFFFF on the accent
+        config.baseForegroundColor = primary ? Theme.onAccent : Theme.text // onAccent: readable on every theme's accent (the reference's #FFFFFF vanishes on «Чёрная»)
         config.background.cornerRadius = 14
         let button = UIButton(configuration: config)
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true

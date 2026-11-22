@@ -199,7 +199,7 @@ class NoteRecorder(
         val side = minOf(dp(369f), width - dp(24f))
         val circleTop = maxOf(statusBar, (screen * 0.4f - side / 2f).toInt())
         put(circle, (width - side) / 2, circleTop, side, side)
-        put(problem, dp(32f), circleTop + side + dp(16f), width - dp(64f), dp(64f))
+        put(problem, (width - minOf(dp(320f), width - dp(64f))) / 2, circleTop + side + dp(18f), minOf(dp(320f), width - dp(64f)), dp(64f))
         put(flipButton, dp(8f), height - dp(8f) - dp(40f), dp(40f), dp(40f))
         put(flashButton, dp(8f + 40f + 11f), height - dp(8f) - dp(40f), dp(40f), dp(40f))
         put(screenFlash, 0, 0, width, height)
@@ -211,7 +211,7 @@ class NoteRecorder(
       val circleLeft = (width - side) / 2; val circleTop = maxOf(dp(72f), (height - side) / 2 - dp(40f))
       put(circle, circleLeft, circleTop, side, side)
       put(heading, dp(24f), circleTop - dp(56f), width - dp(48f), dp(24f))
-      put(problem, dp(32f), circleTop + side + dp(16f), width - dp(64f), dp(64f))
+      put(problem, (width - minOf(dp(320f), width - dp(64f))) / 2, circleTop + side + dp(18f), minOf(dp(320f), width - dp(64f)), dp(64f))
       val low = rootWindowInsets?.let { if (Build.VERSION.SDK_INT >= 30) it.getInsets(android.view.WindowInsets.Type.systemBars()).bottom else @Suppress("DEPRECATION") it.systemWindowInsetBottom } ?: 0
       val line = minOf(height - low - dp(70f), circleTop + side + dp(130f))
       put(recordButton, width / 2 - dp(39f), line - dp(39f), dp(78f), dp(78f))
@@ -255,8 +255,9 @@ class NoteRecorder(
     heading.gravity = Gravity.CENTER
     heading.includeFontPadding = false
     root.addView(heading)
-    problem.textSize = 15f
-    problem.setTextColor(Color.WHITE)
+    // The reference's error line (VideoNote.tsx): #FFB4B4, 13, centred, at most 320 wide, under the circle.
+    problem.textSize = 13f
+    problem.setTextColor(0xFFFFB4B4.toInt())
     problem.gravity = Gravity.CENTER_HORIZONTAL
     problem.visibility = View.GONE
     root.addView(problem)

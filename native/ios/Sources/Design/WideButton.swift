@@ -32,6 +32,7 @@ final class WideButton: UIButton {
         glass.layer.cornerRadius = 21
         glass.layer.cornerCurve = .continuous
         insertSubview(glass, at: 0)
+        glass.layer.zPosition = -1 // behind the title and image views, whenever the button makes them
         if !secondary {
             let colors = ThemeStore.look.accentGradient
             fill.colors = (colors.isEmpty ? [Theme.accent, Theme.accent] : colors).map { $0.cgColor }

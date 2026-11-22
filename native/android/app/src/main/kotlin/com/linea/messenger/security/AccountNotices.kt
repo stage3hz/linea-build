@@ -158,9 +158,13 @@ object AccountNotices {
 
   /** Puts the notices under the heading of the chats (chats/ChatsScreen.kt); returns where the list begins below them. */
   fun place(screen: ViewGroup, top: Int, width: Int, account: Boolean): Int {
-    // The samples of the emulator check are the only notices without an account.
-    if (!account && !samples) return top
+    // Kept even while there is nothing to show: a notice that comes later lays this screen out again.
     host = WeakReference(screen)
+    // The samples of the emulator check are the only notices without an account.
+    if (!account && !samples) {
+      card?.let { if (it.parent === screen) screen.removeView(it) }
+      return top
+    }
     var shown = card
     if (shown == null || shown.parent !== screen) {
       shown?.let { (it.parent as? ViewGroup)?.removeView(it) }

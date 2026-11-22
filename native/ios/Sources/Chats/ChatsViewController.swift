@@ -81,6 +81,8 @@ final class ChatsViewController: UIViewController {
             }
         }
         if messenger != nil { NotificationCenter.default.addObserver(self, selector: #selector(changed), name: Messenger.changed, object: nil) }
+        // Security: a notice that arrives while the list is open takes its room under the heading at once.
+        NotificationCenter.default.addObserver(self, selector: #selector(noticesChanged), name: AccountNotices.changed, object: nil)
         if messenger == nil {
             #if targetEnvironment(simulator)
             demo = SimulatorDemo.chats()
@@ -111,6 +113,11 @@ final class ChatsViewController: UIViewController {
     }
 
     @objc private func reloadSoon() { reload() }
+
+    @objc private func noticesChanged() {
+        guard isViewLoaded else { return }
+        view.setNeedsLayout()
+    }
 
     @objc private func openPeople() { (parent as? RootViewController)?.show("people") }
 

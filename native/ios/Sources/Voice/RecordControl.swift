@@ -116,6 +116,7 @@ final class RecordControl: NSObject {
         sendFill.backgroundColor = Theme.accent
         sendFill.alpha = 0
         button.insertSubview(sendFill, at: 0)
+        sendFill.layer.zPosition = -1 // the glyph's view stays above the fill, in whatever order it is made
         button.isAccessibilityElement = true
         button.accessibilityTraits = .button
         composer.addSubview(button)
@@ -412,7 +413,7 @@ final class RecordControl: NSObject {
         placeOverlay()
         blob.setColor(Theme.accent)
         blob.iconView.image = blobIcon(locked: false)
-        blob.iconView.tintColor = .white
+        blob.iconView.tintColor = Theme.onAccent // on the accent: «Чёрная»'s accent is nearly white
         blob.iconView.transform = .identity
         blob.layer.removeAllAnimations()
         flying = false
@@ -535,7 +536,7 @@ final class RecordControl: NSObject {
         // The blob's icon becomes the send arrow: the old one shrinks away (0.3 s), the arrow grows from 0.3.
         if let old = blob.iconView.image {
             let ghost = UIImageView(image: old)
-            ghost.tintColor = .white
+            ghost.tintColor = Theme.onAccent
             ghost.contentMode = .center
             ghost.frame = blob.bounds
             blob.insertSubview(ghost, belowSubview: blob.iconView)
@@ -968,8 +969,13 @@ final class RecordControl: NSObject {
     }
 
     #if targetEnvironment(simulator)
-    fileprivate func demoBegin() {
-        timeWords = { () -> String in "0:04,63" }
+    fileprivate func demoBegin(video: Bool = false) {
+        if video {
+            mode = .video
+            showIdleIcon(animated: false)
+        } else {
+            timeWords = { () -> String in "0:04,63" }
+        }
         begin(locked: false)
     }
     #endif
@@ -993,6 +999,12 @@ extension RecordControl {
     /// `-voicedemo recording`: the take as it stands while the finger holds the button.
     func demoHolding() {
         demoBegin()
+    }
+
+    /// `-notedemo 1`: a round video being held — the circle over the chat and the composer's strip (the time,
+    /// «slide to cancel») with the blob, as on a phone.
+    func demoHoldingVideo() {
+        demoBegin(video: true)
     }
     #endif
 }

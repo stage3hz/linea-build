@@ -131,7 +131,9 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         return messenger?.userId ?? ""
     }
     private let header = ChannelHeaderView()
-    private let table = UITableView(frame: .zero, style: .plain)
+    // Grouped: the section titles scroll with their channels (the reference's ScrollView); a plain table pins them
+    // to the top, over the rows passing under it.
+    private let table = UITableView(frame: .zero, style: .grouped)
     private let about = UILabel()
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let notice = UIButton(type: .system)
@@ -160,6 +162,10 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         table.rowHeight = 44
         table.estimatedRowHeight = 0
         table.sectionHeaderTopPadding = 0
+        table.sectionFooterHeight = 0
+        table.estimatedSectionFooterHeight = 0
+        table.estimatedSectionHeaderHeight = 0
+        table.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNonzeroMagnitude)) // no grouped top gap
         table.register(ChannelCell.self, forCellReuseIdentifier: "channel")
         table.register(VoiceMemberCell.self, forCellReuseIdentifier: "voiceMember")
         table.dataSource = self
@@ -205,6 +211,9 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
             #endif
         }
         NotificationCenter.default.addObserver(self, selector: #selector(voiceChanged), name: RoomVoice.changed, object: nil)
+        // ScreenShare: the panel's «Демонстрация экрана» part changes on its own (starting, error, screens): the card
+        // is measured again so its height follows the content.
+        NotificationCenter.default.addObserver(self, selector: #selector(voiceChanged), name: ScreenShare.changed, object: nil)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -239,7 +248,8 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         let words = community?.summary.about ?? ""
         let width = view.bounds.width
         guard !words.isEmpty, width > 0 else {
-            if table.tableHeaderView != nil { table.tableHeaderView = nil }
+            // Grouped: an empty header would leave the style's own gap on top.
+            if (table.tableHeaderView?.bounds.height ?? 1) > 1 { table.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNonzeroMagnitude)) }
             return
         }
         about.text = words
@@ -351,8 +361,7 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         let box = table.tableFooterView ?? UIView()
         voicePanel.translatesAutoresizingMaskIntoConstraints = true
         if voicePanel.superview !== box { box.addSubview(voicePanel) }
-        let inner = CGSize(width: width - 24, height: 0)
-        let tall = voicePanel.systemLayoutSizeFitting(inner, withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel).height
+        let tall = voicePanel.fittingHeight(width: width - 24)
         voicePanel.frame = CGRect(x: 12, y: 16, width: width - 24, height: tall)
         box.frame = CGRect(x: 0, y: 0, width: width, height: tall + 16 + 8)
         table.tableFooterView = box
@@ -494,9 +503,13 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
 
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat { return 36 }
 
+    func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat { return CGFloat.leastNonzeroMagnitude }
+
+    func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? { return nil }
+
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         let box = UIView()
-        box.backgroundColor = Theme.bg
+        box.backgroundColor = .clear // it scrolls with its rows now: nothing passes under it to hide
         let label = UILabel(frame: CGRect(x: 20, y: 14, width: tableView.bounds.width - 40, height: 16))
         label.attributedText = NSAttributedString(string: groups[section].name.uppercased(), attributes: [.kern: 1.0, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         label.accessibilityTraits = .header

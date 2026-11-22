@@ -783,7 +783,7 @@ final class VoicePreviewPanel: UIView {
         waveInside.mask = insideMask
         wavePlayed.mask = playedMask
         for (handle, grip) in [(leftHandle, leftGrip), (rightHandle, rightGrip)] {
-            grip.backgroundColor = .white
+            grip.backgroundColor = Theme.onAccent // the grip sits on the accent
             grip.layer.cornerRadius = 1
             grip.isUserInteractionEnabled = false
             handle.addSubview(grip)
@@ -811,6 +811,7 @@ final class VoicePreviewPanel: UIView {
 
     func recolor() {
         capsule.backgroundColor = Theme.accent
+        for grip in [leftGrip, rightGrip] { grip.backgroundColor = Theme.onAccent }
         playCapsule.backgroundColor = Theme.bg.withAlphaComponent(0.7)
         playIcon.tintColor = Theme.text.withAlphaComponent(0.7)
         timeLabel.textColor = Theme.text.withAlphaComponent(0.7)
@@ -975,7 +976,7 @@ final class VoicePreviewPanel: UIView {
 // MARK: - The preview of a stopped round video
 
 /// The stopped round video in the field: a strip of its frames 33 pt tall with round ends, two accent handles 16 pt
-/// wide with white grips (3 × 12, 10 pt in from the outer edge) that trim it, accent lines along the kept part, the
+/// wide with grips in onAccent (3 × 12, 10 pt in from the outer edge) that trim it, accent lines along the kept part, the
 /// rest of the strip dimmed. A tap plays or pauses the circle.
 final class VideoTrimPanel: UIView {
     var onToggle: (() -> Void)?
@@ -1013,7 +1014,7 @@ final class VideoTrimPanel: UIView {
         for (handle, grip, left) in [(leftHandle, leftGrip, true), (rightHandle, rightGrip, false)] {
             handle.layer.cornerRadius = 16.5
             handle.layer.maskedCorners = left ? [.layerMinXMinYCorner, .layerMinXMaxYCorner] : [.layerMaxXMinYCorner, .layerMaxXMaxYCorner]
-            grip.backgroundColor = .white
+            grip.backgroundColor = Theme.onAccent // the grip sits on the accent
             grip.layer.cornerRadius = 1
             grip.isUserInteractionEnabled = false
             handle.addSubview(grip)
@@ -1032,6 +1033,7 @@ final class VideoTrimPanel: UIView {
 
     func recolor() {
         for view in [leftHandle, rightHandle, topLine, bottomLine] { view.backgroundColor = Theme.accent }
+        for grip in [leftGrip, rightGrip] { grip.backgroundColor = Theme.onAccent }
         dimLeft.backgroundColor = Theme.bg.withAlphaComponent(0.6)
         dimRight.backgroundColor = Theme.bg.withAlphaComponent(0.6)
         strip.backgroundColor = Theme.surface2

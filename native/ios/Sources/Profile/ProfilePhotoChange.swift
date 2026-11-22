@@ -279,12 +279,15 @@ final class ProfilePhotoChange: NSObject, PHPickerViewControllerDelegate, UIImag
 final class BannerPreviewViewController: UIViewController {
     private let messenger: Messenger?
     private let picture: UIImage
+    /// Whose head is shown when there is no account to read it from (the simulator's sample).
+    private let sample: Person?
     var onSet: (() -> Void)?
     var onAgain: (() -> Void)?
 
-    init(messenger: Messenger?, picture: UIImage) {
+    init(messenger: Messenger?, picture: UIImage, sample: Person? = nil) {
         self.messenger = messenger
         self.picture = picture
+        self.sample = sample
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .pageSheet
         if let sheet = sheetPresentationController {
@@ -304,7 +307,7 @@ final class BannerPreviewViewController: UIViewController {
         heading.attributedText = Theme.titleWords("Так будет выглядеть профиль", size: Theme.TypeSize.sheetTitle, color: Theme.text)
         heading.numberOfLines = 2
         let hero = ProfileHeroCard(frame: .zero)
-        var person = Person(id: "", username: "", displayName: "", bio: "", birthday: "", avatarColor: 0x5E7BFF, avatarId: "")
+        var person = sample ?? Person(id: "", username: "", displayName: "", bio: "", birthday: "", avatarColor: 0x5E7BFF, avatarId: "")
         if let messenger, let own = Person(messenger.ownProfile) { person = own }
         hero.show(person, look: person.look, base: messenger?.server.endpoint ?? "", localPicture: picture)
         let set = SettingsButton(label: "Установить баннер", icon: "checkmark")

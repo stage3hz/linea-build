@@ -537,12 +537,12 @@ class AccentColorScreen(context: Context) : SettingsPage(context, "Цвет ин
       line.addView(place, LinearLayout.LayoutParams(0, wrap, 1f))
     }
 
-    val asTheme = SettingsButton(context, "Как в теме", if (current == null) SettingsButton.Kind.PRIMARY else SettingsButton.Kind.SECONDARY)
+    val asTheme = ColorChoiceButton(context, "Как в теме", current == null)
     asTheme.onPress = {
       custom = false
       set(null)
     }
-    val ownColour = SettingsButton(context, "Свой цвет", if (custom) SettingsButton.Kind.PRIMARY else SettingsButton.Kind.SECONDARY)
+    val ownColour = ColorChoiceButton(context, "Свой цвет", custom)
     ownColour.onPress = { toggleCustom() }
     val buttons = LinearLayout(context)
     buttons.orientation = LinearLayout.HORIZONTAL

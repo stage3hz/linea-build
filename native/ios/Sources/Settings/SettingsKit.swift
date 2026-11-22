@@ -796,6 +796,10 @@ final class SettingsButton: UIButton {
             shine.startPoint = CGPoint(x: 0, y: 0)
             shine.endPoint = CGPoint(x: 0.4, y: 0.65)
             layer.insertSublayer(shine, above: gradient)
+            // UIKit adds the configuration's title and image views later, and may insert their layers at index 0,
+            // under these: the negative z keeps the fill behind whatever the button puts in, in any order.
+            gradient.zPosition = -2
+            shine.zPosition = -1
             layer.borderWidth = 1
             layer.borderColor = (Theme.dark ? UIColor(red: 235 / 255, green: 245 / 255, blue: 1, alpha: 0.58) : UIColor(white: 1, alpha: 0.35)).cgColor
         case .secondary:
@@ -805,6 +809,7 @@ final class SettingsButton: UIButton {
             glass.frame = bounds
             glass.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             insertSubview(glass, at: 0)
+            glass.layer.zPosition = -1 // behind the configuration's title and image, whenever they are made
         case .danger:
             ink = Theme.danger
             backgroundColor = ThemeStore.look.dangerBg
@@ -847,6 +852,36 @@ final class SettingsButton: UIButton {
         isEnabled = !busy
         if busy { alpha = 1 }
     }
+
+    @objc private func pressed() {
+        onPress?()
+    }
+}
+
+/// The pair under a colour grid, «Как в теме» / «Свой цвет» (the reference's ColorSettings): 44 tall, radius 14,
+/// the label 15 Semibold in the text colour; the one that is on is `accentSoft` with an accent rim, the other
+/// `surface2` with the border.
+final class ColorChoiceButton: UIButton {
+    var onPress: (() -> Void)?
+
+    init(label: String, on: Bool) {
+        super.init(frame: .zero)
+        layer.cornerRadius = 14
+        layer.cornerCurve = .continuous
+        layer.borderWidth = 1
+        layer.borderColor = (on ? Theme.accent : ThemeStore.look.border).cgColor
+        backgroundColor = on ? ThemeStore.look.accentSoft : Theme.surface2
+        setTitle(label, for: .normal)
+        setTitleColor(Theme.text, for: .normal)
+        titleLabel?.font = .systemFont(ofSize: 15, weight: .semibold)
+        titleLabel?.adjustsFontSizeToFitWidth = true
+        titleLabel?.minimumScaleFactor = 0.8
+        if on { accessibilityTraits.insert(.selected) }
+        heightAnchor.constraint(equalToConstant: 44).isActive = true
+        addTarget(self, action: #selector(pressed), for: .touchUpInside)
+    }
+
+    required init?(coder: NSCoder) { return nil }
 
     @objc private func pressed() {
         onPress?()

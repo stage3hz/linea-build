@@ -56,6 +56,11 @@ final class AccountNotices: NSObject {
 
     @objc private func heard(_ note: Notification) {
         guard let data = note.userInfo?["event"] as? [String: Any], let type = data["type"] as? String else { return }
+        // The live line may tell from its own queue: the notices are views, changed on the main one.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in self?.heard(note) }
+            return
+        }
         if type == "session.new" {
             noteLogin(data)
         } else {
@@ -148,9 +153,13 @@ final class AccountNotices: NSObject {
 
     /// Puts the notices under the heading of the chats; returns where the list begins below them.
     func place(in view: UIView, top: CGFloat, account: Bool) -> CGFloat {
-        // The samples of the simulator check are the only notices without an account.
-        guard account || samples else { return top }
+        // Kept even while there is nothing to show: a notice that comes later lays this screen out again.
         host = view
+        // The samples of the simulator check are the only notices without an account.
+        guard account || samples else {
+            if card.superview === view { card.removeFromSuperview() }
+            return top
+        }
         if card.superview !== view {
             card.onOpen = { [weak self, weak view] (kind: String) -> Void in
                 guard let self, let view else { return }
