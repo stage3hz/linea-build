@@ -529,22 +529,43 @@ final class ChoiceSheet: UIViewController {
         dismiss(animated: true)
     }
 
-    /// The reference's swipe-to-dismiss: the card follows the finger down, the dim fades with it; past a quarter of the
-    /// card's height or with a flick it closes, otherwise it springs back.
+    /// The reference's swipe-to-dismiss (swipeDismiss.tsx, swipeDismissModel.ts): the card follows the finger down 1:1 and
+    /// up only a little (a rubber band of 14), the dim fades with it. On release it closes past a quarter of its height
+    /// (at least 56, at most 240) or on a flick of 1000 pt/s (8 pt down at least) unless flicked back up (−400): it slides
+    /// below the screen in 120…280 ms (easeOutQuad) and the sheet fades away. Otherwise it springs back (damping 22,
+    /// stiffness 260, mass 0.8, from the finger's speed).
     @objc private func pulled(_ pan: UIPanGestureRecognizer) {
-        let moved = max(0, pan.translation(in: view).y)
+        let travel = pan.translation(in: view).y
+        let offset = travel >= 0 ? travel : -14 * (1 - exp(travel / (14 * 3)))
+        let height = card.bounds.height > 0 ? card.bounds.height : 400
         switch pan.state {
         case .changed:
-            card.transform = CGAffineTransform(translationX: 0, y: moved)
-            dim.alpha = 1 - min(1, moved / max(1, card.bounds.height))
+            card.transform = CGAffineTransform(translationX: 0, y: offset)
+            dim.alpha = offset > 0 ? max(0, min(1, 1 - offset / height)) : 1
         case .ended, .cancelled:
-            if moved > card.bounds.height / 4 || pan.velocity(in: view).y > 900 {
-                dismiss(animated: true)
+            let speed = pan.velocity(in: view).y
+            let distance = min(240, max(56, height * 0.25))
+            let closes = offset > 0 && speed > -400 && ((speed >= 1000 && offset >= 8) || offset >= distance)
+            if closes {
+                let target = max(height, view.bounds.height) + 24
+                let left = max(0, target - max(0, offset))
+                let duration = max(120, min(280, left / max(1200, speed) * 1000)) / 1000
+                let slide = UIViewPropertyAnimator(duration: Double(duration), timingParameters: UICubicTimingParameters(controlPoint1: CGPoint(x: 0.25, y: 0.46), controlPoint2: CGPoint(x: 0.45, y: 0.94)))
+                slide.addAnimations { () -> Void in
+                    self.card.transform = CGAffineTransform(translationX: 0, y: target)
+                    self.dim.alpha = 0
+                }
+                slide.addCompletion { [weak self] (_: UIViewAnimatingPosition) -> Void in self?.dismiss(animated: true) }
+                slide.startAnimation()
             } else {
-                UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0, options: [.allowUserInteraction], animations: { () -> Void in
+                let start = card.transform.ty
+                let velocity = abs(start) > 0.5 ? CGVector(dx: 0, dy: -speed / start) : .zero
+                let spring = UIViewPropertyAnimator(duration: 0.5, timingParameters: UISpringTimingParameters(mass: 0.8, stiffness: 260, damping: 22, initialVelocity: velocity))
+                spring.addAnimations { () -> Void in
                     self.card.transform = .identity
                     self.dim.alpha = 1
-                })
+                }
+                spring.startAnimation()
             }
         default: break
         }

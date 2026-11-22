@@ -569,23 +569,42 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     card.addView(scroll, LinearLayout.LayoutParams(wide, wrap))
     val screen = context.resources.displayMetrics.widthPixels
     root.addView(card, android.widget.FrameLayout.LayoutParams(minOf(dp(580f), screen - dp(24f)), wrap, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(12f) })
-    // A pull down on the card closes it past a quarter of its height (or with a flick), else it springs back.
+    // The reference's swipe-to-dismiss (swipeDismiss.tsx, swipeDismissModel.ts): the card follows the finger down 1:1 and
+    // up only a little (a rubber band of 14), the dim fades with it. On release it closes past a quarter of its height
+    // (at least 56, at most 240) or on a flick of 1000 dp/s (8 down at least) unless flicked back up (−400): it slides
+    // below the screen in 120…280 ms (easeOutQuad), then the sheet goes. Otherwise it springs back (damping 22, stiffness
+    // 260, mass 0.8: ratio 0.763, settled in 0.5 s).
     var startY = 0f
     var tracker: android.view.VelocityTracker? = null
     card.setOnTouchListener { view, event ->
+      val travel = (event.rawY - startY) / d
+      val offset = if (travel >= 0) travel else (-14f * (1f - Math.exp(travel / 42.0).toFloat()))
+      val tall = if (view.height > 0) view.height / d else 400f
       when (event.actionMasked) {
         android.view.MotionEvent.ACTION_DOWN -> { startY = event.rawY; tracker = android.view.VelocityTracker.obtain().also { it.addMovement(event) } }
         android.view.MotionEvent.ACTION_MOVE -> {
           tracker?.addMovement(event)
-          val moved = maxOf(0f, event.rawY - startY)
-          view.translationY = moved; dim.alpha = 1f - minOf(1f, moved / maxOf(1, view.height))
+          view.translationY = offset * d
+          dim.alpha = if (offset > 0) (1f - offset / tall).coerceIn(0f, 1f) else 1f
         }
         android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
           tracker?.addMovement(event); tracker?.computeCurrentVelocity(1000)
-          val flick = (tracker?.yVelocity ?: 0f) > 900f * d
+          val speed = (tracker?.yVelocity ?: 0f) / d
           tracker?.recycle(); tracker = null
-          if (view.translationY > view.height / 4f || flick) dismiss()
-          else { view.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.8f)).start(); dim.animate().alpha(1f).setDuration(200).start() }
+          val distance = (tall * 0.25f).coerceIn(56f, 240f)
+          val closes = offset > 0 && speed > -400f && ((speed >= 1000f && offset >= 8f) || offset >= distance)
+          if (closes) {
+            val target = maxOf(tall, context.resources.displayMetrics.heightPixels / d) + 24f
+            val left = maxOf(0f, target - maxOf(0f, offset))
+            val duration = (left / maxOf(1200f, speed) * 1000f).coerceIn(120f, 280f).toLong()
+            dim.animate().alpha(0f).setDuration(duration).start()
+            view.animate().translationY(target * d).setDuration(duration).setInterpolator(android.view.animation.PathInterpolator(0.25f, 0.46f, 0.45f, 0.94f))
+              .withEndAction { dismiss() }.start()
+          } else {
+            val velocity = if (offset > 0.5f) -speed * 0.5f / offset else 0f
+            view.animate().translationY(0f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.763f, velocity)).start()
+            dim.animate().alpha(1f).setDuration(500).setInterpolator(com.linea.messenger.shell.SpringCurve(0.763f, velocity)).start()
+          }
         }
       }
       true
