@@ -293,6 +293,8 @@ final class AppearanceViewController: SettingsPage {
         addGroup("Свои цвета", rows: [accentRow, ChatLookSettings.colourRow(page: self)])
         // Effects: «Пиксельный след», «Снег», «Ледяное стекло» (Settings/AppearanceEffects.swift).
         addEffectGroups()
+        // «Свечение панели»: the bottom bar's lights on or off, and their own colour (Settings/BarGlowSettings.swift).
+        addBarGlowGroup(refresh: { [weak self] in self?.fill() })
 
         // «Размер текста в чатах»: a sample message, then the sizes.
         let chosenSize = DevicePreferences.word("textSize") ?? "medium"

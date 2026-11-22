@@ -545,7 +545,8 @@ private class TabListOverlay(context: Context, entries: List<TabEntry>, behind: 
  *    from the playback's position. The lights are a liquid sealed in the capsule (`TabLiquid`): the tilt leans them to
  *    the low side, a shake sloshes them from end to end, bouncing off the capsule's ends (the accelerometer, no
  *    permission). One frame clock (DecorTicker) and the sensor only while the bar is shown and animations are on (the
- *    sensor also rests in power saving); otherwise the gradient holds still. Looks 0 (the first three lights, still) and 6 (a small halo behind the
+ *    sensor also rests in power saving); otherwise the gradient holds still. «Оформление» › «Свечение панели» (`BarGlow`)
+ *    turns the lights off (plain glass, no line, no clock, no sensor) or gives all three one own colour (no drift). Looks 0 (the first three lights, still) and 6 (a small halo behind the
  *    chosen icon) stay for comparison: `--es barlook N` in the debug build.
  *  - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
  *    above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list

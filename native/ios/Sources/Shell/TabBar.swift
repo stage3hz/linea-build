@@ -14,7 +14,9 @@ import UIKit
 ///   left, highs the right: the equalizer's audio tap meters them; a beat from the playback's position when no level
 ///   comes); they are a liquid sealed in the capsule: the phone's tilt leans them to the low side, a shake sloshes them
 ///   from end to end, bouncing off the capsule's ends (`TabFlow`, `TabLiquid`). Animations off or power saving: the
-///   gradient holds still and the sensor rests. Looks 0…8 stay for comparison.
+///   gradient holds still and the sensor rests. «Оформление» › «Свечение панели» (`BarGlow`) turns the lights off
+///   (plain glass, no line, no display link, no sensor) or gives all three one own colour (no drift). Looks 0…8 stay
+///   for comparison.
 /// - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
 ///   above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
 ///   open: a tap on a row opens it, a tap beside closes the list.
@@ -130,6 +132,23 @@ enum TabFlow {
   ]
   static let apart: Double = 1.0 / 6
   static let storeKey = "linea.tabflow.v1"
+
+  /// The person's own colour («Свечение панели» › «Свой цвет», `BarGlow`): all three lights in it, no drift — the
+  /// centre the colour itself, the left a little deeper (more saturated, darker), the right a little paler and
+  /// brighter, so the one colour still reads as three lights.
+  static let ownLeftSaturation: CGFloat = 1.12
+  static let ownLeftBrightness: CGFloat = 0.78
+  static let ownRightSaturation: CGFloat = 0.72
+  static let ownRightLift: CGFloat = 0.12
+
+  /// The three lights' colours (left, centre, right) for the own colour `color`, opaque.
+  static func ownTones(_ color: UIColor) -> [UIColor] {
+    var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, opacity: CGFloat = 0
+    _ = color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &opacity)
+    let left = UIColor(hue: hue, saturation: min(1, saturation * ownLeftSaturation), brightness: brightness * ownLeftBrightness, alpha: 1)
+    let right = UIColor(hue: hue, saturation: saturation * ownRightSaturation, brightness: min(1, brightness + ownRightLift), alpha: 1)
+    return [left, color.withAlphaComponent(1), right]
+  }
 
   /// A smooth value in −1…1: the weighted sum of sines (period s, weight, phase in turns).
   static func noise(_ time: Double, _ parts: [(period: Double, weight: Double, phase: Double)]) -> Double {
@@ -308,6 +327,69 @@ final class TabLiquid {
     let squeeze = min(1, max(-1, squash[index]))
     let slosh = min(1, abs(speed[index]) / TabLiquid.sloshSpeed)
     return (CGFloat(1 - TabLiquid.squashWide * squeeze), CGFloat(1 + TabLiquid.squashTall * squeeze + TabLiquid.sloshTall * slosh), CGFloat(1 + TabLiquid.flash * glow[index]))
+  }
+}
+
+/// «Свечение панели» in «Оформление» (Settings/BarGlowSettings.swift): look 9's lights on or off, and the person's own
+/// colour for them (nil: the colours drift — «Переливается»). Kept on this device in the app's preferences store
+/// (UserDefaults, as DevicePreferences), under keys of their own; every bar follows at once (`changed`). The same in
+/// Android's shell/TabBar.kt `BarGlow`.
+enum BarGlow {
+  static let changed = Notification.Name("linea.bar-glow")
+  static let onKey = "linea.bar-glow.v1"
+  static let colorKey = "linea.bar-glow-color.v1"
+  /// A colour being tried (the picker under the finger): shown by the bar, not kept yet.
+  private static var trying: String?
+
+  /// The lights are on (the default). Off: the bar is plain glass — no lights, no line, no display link, no sensor.
+  static var on: Bool {
+    get { return UserDefaults.standard.string(forKey: onKey) != "off" }
+    set {
+      if newValue { UserDefaults.standard.removeObject(forKey: onKey) } else { UserDefaults.standard.set("off", forKey: onKey) }
+      NotificationCenter.default.post(name: changed, object: nil)
+    }
+  }
+
+  /// The own colour as `#RRGGBB`, or nil for the drift.
+  static var color: String? {
+    get {
+      if let trying { return trying }
+      guard let kept = UserDefaults.standard.string(forKey: colorKey) else { return nil }
+      return normal(kept)
+    }
+    set {
+      trying = nil
+      if let value = newValue, let hex = normal(value) { UserDefaults.standard.set(hex, forKey: colorKey) } else { UserDefaults.standard.removeObject(forKey: colorKey) }
+      NotificationCenter.default.post(name: changed, object: nil)
+    }
+  }
+
+  /// Shows `value` on the bar without keeping it (nil: back to what is kept).
+  static func tryColor(_ value: String?) {
+    if let value { trying = normal(value) } else { trying = nil }
+    NotificationCenter.default.post(name: changed, object: nil)
+  }
+
+  /// `#RRGGBB` in capitals from «RRGGBB» or «#rrggbb»; nil for anything else.
+  static func normal(_ text: String) -> String? {
+    var digits = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    if digits.hasPrefix("#") { digits.removeFirst() }
+    guard digits.count == 6, digits.allSatisfy({ (letter: Character) -> Bool in letter.isHexDigit }) else { return nil }
+    return "#" + digits.uppercased()
+  }
+
+  /// The colour of a `#RRGGBB` code.
+  static func uiColor(_ text: String) -> UIColor? {
+    guard let hex = normal(text), let value = UInt32(hex.dropFirst(), radix: 16) else { return nil }
+    return UIColor(hex: value)
+  }
+
+  /// `#RRGGBB` of a colour (sRGB, clamped).
+  static func hex(_ color: UIColor) -> String {
+    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, opacity: CGFloat = 0
+    _ = color.getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+    let part = { (value: CGFloat) -> Int in Int((min(1, max(0, value)) * 255).rounded()) }
+    return String(format: "#%02X%02X%02X", part(red), part(green), part(blue))
   }
 }
 
@@ -535,9 +617,13 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       spot.startPoint = halo ? CGPoint(x: 0.5, y: 0.5) : CGPoint(x: 0.5, y: 1)
       spot.endPoint = halo ? CGPoint(x: 1, y: 1) : CGPoint(x: 1, y: 0)
       laidOut = .zero; setNeedsLayout(); paintGlow(animated: false)
+      showGlow()
       refreshFlow()
     }
   }
+  /// «Свечение панели» (`BarGlow`): look 9's lights on, and the own colours of the three (nil: the drift).
+  private var glowOn = BarGlow.on
+  private var ownTones: [UIColor]? = TabBarView.ownTonesNow()
 
   // Look 9's clock: one display link, only while the bar is in a window, shown, the app in front and animations on.
   private let flowProxy = TabFlowLinkProxy()
@@ -647,7 +733,11 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
 
     flowProxy.bar = self
     restoreFlow()
+    showGlow()
     let centre = NotificationCenter.default
+    flowObservers.append(centre.addObserver(forName: BarGlow.changed, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
+      self?.readGlow()
+    })
     flowObservers.append(centre.addObserver(forName: Motion.changed, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
       self?.refreshFlow()
     })
@@ -871,7 +961,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   /// The display link (and the motion sensor) run only while the bar can be seen and animations are allowed; otherwise
   /// the gradient holds still. The sensor also rests in power saving.
   private func refreshFlow() {
-    let run = look == TabBarView.flowLook && window != nil && !isHidden && alpha > 0.01 && appInFront && Motion.enabled
+    let run = look == TabBarView.flowLook && glowOn && window != nil && !isHidden && alpha > 0.01 && appInFront && Motion.enabled
     let sense = run && !Motion.saving && TabBarView.motionSensor.isDeviceMotionAvailable
     if sense != sensing {
       sensing = sense
@@ -899,6 +989,28 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       waveLevel = [0, 0, 0]; waveSlow = [0, 0, 0]; waveAmount = 0
       paintGlow(animated: false)
     }
+  }
+
+  /// The own colour's three tones, or nil for the drift.
+  private static func ownTonesNow() -> [UIColor]? {
+    guard let hex = BarGlow.color, let color = BarGlow.uiColor(hex) else { return nil }
+    return TabFlow.ownTones(color)
+  }
+
+  /// «Свечение панели» changed in «Оформление»: the bar follows at once.
+  private func readGlow() {
+    glowOn = BarGlow.on
+    ownTones = TabBarView.ownTonesNow()
+    showGlow()
+    refreshFlow()
+    paintGlow(animated: false)
+  }
+
+  /// Look 9 with «Свечение панели» off: plain glass — the lights and the line are not there at all.
+  private func showGlow() {
+    let plain = look == TabBarView.flowLook && !glowOn
+    glowView.isHidden = plain
+    flowLine.isHidden = plain
   }
 
   /// The drift's clock and turn, kept for the next launch.
@@ -989,7 +1101,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     for index in 0..<3 {
       let layer = layers[index]
       let push = waveLevel[index] * waveAmount
-      let color = UIColor(hue: CGFloat(hues[index]), saturation: TabFlow.saturation[index], brightness: TabFlow.brightness, alpha: 1)
+      let color = ownTones?[index] ?? UIColor(hue: CGFloat(hues[index]), saturation: TabFlow.saturation[index], brightness: TabFlow.brightness, alpha: 1)
       if index == 1 { centreColor = color }
       let blob = liquid.shape(index)
       let strength = min(TabFlow.alphaMost, TabFlow.alpha[index] * (1 + TabFlow.punchAlpha[index] * push) * blob.bright)
