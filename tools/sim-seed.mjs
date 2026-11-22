@@ -2,7 +2,9 @@
 // avatars, each in a chat with the walked test account, sending really Signal-encrypted messages (short, long,
 // emoji, a burst). Uses the app's own code — mobile/src/api.ts and mobile/src/e2ee/core.ts — the way mobile/test
 // does. Never talks to anything but the address given (the workflow passes http://127.0.0.1:<port>).
-//   node tools/sim-seed.mjs <base url> <public @username of the test account>
+//   node tools/sim-seed.mjs <base url> <public @username of the test account> [<server data folder> [<login> <password> <word>]]
+// SIM_SEED_RICH=1 (the side-by-side comparison) adds the realistic data of tools/sim-seed-rich.mjs; with
+// SIM_SEED_SERVE=<port> as well, the process then stays running (typing, people online, rings on request).
 import { randomUUID } from 'node:crypto';
 import { deflateSync } from 'node:zlib';
 

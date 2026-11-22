@@ -527,6 +527,8 @@ class RecordTooltip(context: Context) : View(context) {
   override fun onDraw(canvas: Canvas) {
     val w = width.toFloat(); val h = height.toFloat()
     val r = 10f * d; val inset = 9f * d; val aw = 18f * d
+    // Not laid out yet (or narrower than its own arrow): nothing to draw. An empty range used to crash here.
+    if (w < 2 * r + aw || h <= 2 * inset) return
     val ax = arrowX.coerceIn(r + aw / 2, w - r - aw / 2)
     path.reset()
     path.addRoundRect(0f, inset, w, h - inset, r, r, Path.Direction.CW)
