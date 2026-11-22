@@ -126,13 +126,17 @@ object Demo {
    *    --es chatsdemo waiting|connecting|updating|skeleton|empty|folders|folder|foldereditor|foldersettings|savedmenu|saved|savedsearch|calls|hint|select|mutecustom|archivepull
    *                                                the chat list's extras (chatsplus/ChatsPlusDemo.kt)
    *    --es shelldemo mini|chatstrip|swipe|long|home / --es updatedemo required|optional    the shell (shell/ShellDemo.kt)
-   *    --es motionblur 1|0|hold                    motion blur of slides forced on / off / on and held (effects/MotionBlur.kt) */
+   *    --es motionblur 1|0|hold                    motion blur of slides forced on / off / on and held (effects/MotionBlur.kt)
+   *    --es barlook 0|6|9                          the tab bar's glow: 9 the turning colours with the music's wave (the
+   *                                                default), 0 the first still lights, 6 the small halo (shell/TabBar.kt) */
   fun start(intent: Intent?, launcher: Launcher): Boolean {
     if (intent == null) return false
     testServer = intent.getStringExtra("server")?.takeIf { local.matches(it) }
     // MotionBlur: `--es motionblur 1` on whatever the screen and the power, `0` off, `hold` on and the strongest blur kept
     // on a view once it has moved (for a still shot mid-slide, e.g. with `--es shelldemo swipe`) (effects/MotionBlur.kt).
     intent.getStringExtra("motionblur")?.let { com.linea.messenger.effects.MotionBlur.forced = it != "0"; com.linea.messenger.effects.MotionBlur.hold = it == "hold" }
+    // TabBar: `--es barlook N` — the glow's look of the bar made from now on (as the iPhone's `-barlook N`).
+    intent.getStringExtra("barlook")?.toIntOrNull()?.let { com.linea.messenger.shell.TabBarView.demoLook = it }
     AttachmentsDemo.read(intent)
     // Settings: `settheme`, `setaccent`, `settextsize`, `setnight`, `setplatina` — the look for the shot (settings/SettingsDemo.kt).
     com.linea.messenger.settings.SettingsSimulator.look(intent)

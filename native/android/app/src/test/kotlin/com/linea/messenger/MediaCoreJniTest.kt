@@ -49,7 +49,8 @@ class MediaCoreJniTest {
     assertEquals("video", MediaRows.kind(attachment))
     // The small-file road still refuses it; the row is a video's all the same.
     assertNotEquals(null, FileCore.describe(attachment).refusal)
-    assertEquals(mapOf("text" to "", "fmt" to emptyList<Int>(), "urls" to emptyList<String>(), "media" to "video", "mediaTime" to "0:04", "thumbWide" to 1280.0 / 720.0),
+    // MediaBubble.tsx: a video not yet here says its length and its size («0:04 · 4.0 МБ»).
+    assertEquals(mapOf("text" to "", "fmt" to emptyList<Int>(), "urls" to emptyList<String>(), "media" to "video", "mediaTime" to "0:04 · " + FileCore.sizeText(size.toLong()), "thumbWide" to 1280.0 / 720.0),
       AttachmentRows.fields(mapOf("text" to "", "attachment" to attachment), "peer:big"))
 
     val message = Core.text(attachment)!!

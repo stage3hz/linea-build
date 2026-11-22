@@ -4,16 +4,22 @@ import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Color
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.TextPaint
 import android.text.TextUtils
 import android.view.HapticFeedbackConstants
@@ -24,12 +30,18 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import com.linea.messenger.R
+import com.linea.messenger.avatars.DecorTicker
 import com.linea.messenger.design.Glass
 import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.Icons
 import com.linea.messenger.design.Theme
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.exp
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sin
 
 /** One section as the bar knows it: its icon, its name for a screen reader and the list, what waits in it. */
 data class TabEntry(val id: String, val label: String, val symbol: String, val badge: Int = 0, val dot: String = "")
@@ -82,6 +94,56 @@ private fun tabKick(view: View, id: String) {
 
 private const val BADGE_RED = 0xFFFF4D5E.toInt()
 private const val WHITE = 0xFFFFFFFF.toInt()
+
+/** Look 9's numbers (the same in iOS Shell/TabBar.swift `TabFlow`): look 0's three lights — one at each side, a
+ *  brighter one under the chosen tab — whose colours keep turning round the hue circle, a third apart, and which rise,
+ *  brighten and sway as a wave while the music plays. */
+internal object TabFlow {
+  /** The look's number (the default). */
+  const val LOOK = 9
+  /** One full turn of the hue circle, seconds. */
+  const val HUE_PERIOD = 14.0
+  /** Where the turn starts (the still gradient): cyan-blue at the left, magenta under the chosen tab, lime at the right. */
+  const val HUE_BASE = 0.55
+  /** Each light's place on the circle: left, centre (the chosen tab), right — a third apart. */
+  val HUE_PHASE = doubleArrayOf(0.0, 1.0 / 3, 2.0 / 3)
+  /** One run of the music's wave along the three lights, seconds. */
+  const val WAVE_PERIOD = 2.0
+  /** Strongest colour at the lights' hearts (centre, sides), dark and light theme. */
+  const val SPOT_DARK = 0.7f
+  const val SIDE_DARK = 0.5f
+  const val SPOT_LIGHT = 0.5f
+  const val SIDE_LIGHT = 0.38f
+  const val SATURATION_DARK = 0.62f
+  const val SATURATION_LIGHT = 0.55f
+  const val BRIGHTNESS_DARK = 1f
+  const val BRIGHTNESS_LIGHT = 0.92f
+  const val GRAIN = 0.08f
+  /** The most a light's heart gets with the wave. */
+  const val ALPHA_MAX = 0.95f
+
+  /** Hue (0…1) of light `light` (0 left, 1 centre, 2 right) at `time` seconds of the loop. */
+  fun hue(time: Double, light: Int): Double { val turn = HUE_BASE + HUE_PHASE[light] + time / HUE_PERIOD; return turn - floor(turn) }
+
+  /** The wave's height at a light (0…1): a sine running from the left light to the right one. */
+  fun wave(phase: Double, light: Int): Double = 0.5 + 0.5 * sin(2 * PI * (phase - light / 3.0))
+
+  /** A level without a meter: a soft kick on every beat at 120 a minute from the playback's position, over a slow swell. */
+  fun synthetic(position: Double): Double {
+    val beat = position * 2
+    val kick = exp(-(beat - floor(beat)) * 6)
+    val swell = 0.5 + 0.5 * sin(2 * PI * position * 0.23)
+    return min(1.0, 0.25 + 0.5 * kick * (0.6 + 0.4 * swell) + 0.15 * swell)
+  }
+}
+
+/** A small tile of random grey, made once, for the grain over the glow (a gradient reads as material, without bands). */
+private val tabNoise: Bitmap by lazy {
+  val side = 96
+  val random = java.util.Random(7)
+  val pixels = IntArray(side * side) { val v = random.nextInt(256); Color.rgb(v, v, v) }
+  Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888)
+}
 
 /** What the bar draws with: white on a dark theme, black on a light one, as the iPhone's bar (`setDark`). */
 private val ink: Int get() = if (Theme.dark) WHITE else 0xFF000000.toInt()
@@ -251,8 +313,13 @@ private class TabListOverlay(context: Context, entries: List<TabEntry>, behind: 
  *    theme, light with dark icons on a light one.
  *  - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
  *    faint second capsule follows a little late and fades — the trail.
- *  - A light lives in the bar: two quiet colours at the sides, a brighter one under the chosen tab; with a
- *    track playing, the three colours of its cover.
+ *  - A light lives in the bar (look 9, the default, `TabFlow`): three lights — one at each side, a brighter one under
+ *    the chosen tab (the bar's middle in a section without an icon) — whose colours keep turning round the hue circle;
+ *    while the player plays they rise, brighten and sway as a wave. The platform's MediaPlayer gives no sound to
+ *    measure (only the Visualizer would, and it asks for the microphone), so the wave is a smooth one on the beat of
+ *    the playback's position. One frame clock (DecorTicker), only while the bar is shown and animations are on;
+ *    otherwise the gradient holds still. Looks 0 (the first three lights, still) and 6 (a small halo behind the
+ *    chosen icon) stay for comparison: `--es barlook N` in the debug build.
  *  - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
  *    above the bar; the row under the finger is lit, letting go on a row opens it. A plain hold leaves the list
  *    open: a tap on a row opens it, a tap beside closes the list.
@@ -279,6 +346,29 @@ class TabBarView(context: Context) : ViewGroup(context) {
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = max(1f, d) }
   private val lights = Array(3) { Paint(Paint.ANTI_ALIAS_FLAG) }
+  /** The grain over look 9's lights. */
+  private val grain = Paint().apply {
+    shader = BitmapShader(tabNoise, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT).apply { setLocalMatrix(Matrix().apply { setScale(d, d) }) }
+    xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+    alpha = (255 * TabFlow.GRAIN).toInt()
+  }
+  /** Look 9's frame clock: on while the bar is in a window and shown and the look is on (DecorTicker stops it while
+   *  the app's animations are off or the system saves power). */
+  private val clock = DecorTicker.Link(this)
+  /** Which glow look is on: 9 (`TabFlow`), the owner's choice; 0 and 6 stay for comparison (any other number draws 9). */
+  var look: Int = normalLook(demoLook ?: TabFlow.LOOK)
+    set(value) { field = normalLook(value); flowKeys.fill(-1); paintGlow(); clock.want(field == TabFlow.LOOK) }
+  // Look 9's state: seconds of the hue loop (still while the clock is off), the music's wave (level 0…1 smoothed, how
+  // much of it shows, where it runs), the wave's own copy of the playback's position.
+  private var flowTime = 0.0
+  private var flowLast = 0L
+  private var waveLevel = 0.0
+  private var waveAmount = 0.0
+  private var wavePhase = 0.0
+  private var waveClock = 0.0
+  private var waveSeen = -1.0
+  /** The colour (hue in 2° steps, theme) each light's gradient was made for: made again only when it changes. */
+  private val flowKeys = IntArray(3) { -1 }
   private val clip = Path()
   private var icons: List<TabIconView> = emptyList()
 
@@ -333,6 +423,13 @@ class TabBarView(context: Context) : ViewGroup(context) {
     setWillNotDraw(false)
     clipChildren = false
     paintGlow()
+    clock.want(look == TabFlow.LOOK)
+  }
+
+  companion object {
+    /** The debug build's `--es barlook N`: the look of the bars made from now on. */
+    var demoLook: Int? = null
+    private fun normalLook(value: Int): Int = if (value == 0 || value == 6) value else TabFlow.LOOK
   }
 
   // MARK: What the owner sets
@@ -391,6 +488,7 @@ class TabBarView(context: Context) : ViewGroup(context) {
   // MARK: Looks
 
   private fun paintGlow() {
+    if (look == TabFlow.LOOK) { flowKeys.fill(-1); invalidate(); return } // made as it is drawn (flowShader)
     // Calm: a cool silver. With colours (a track's cover): centre, left, right.
     val coloured = glow.size == 3
     val dark = Theme.dark
@@ -398,7 +496,16 @@ class TabBarView(context: Context) : ViewGroup(context) {
       else if (dark) listOf(0xFFE8EDF5.toInt(), 0xFF808FA8.toInt(), 0xFFC9D1E0.toInt())
       else listOf(0xFF8F99AD.toInt(), 0xFFB5BDCC.toInt(), 0xFF99A6B8.toInt())
     val strength = if (coloured) 1f else if (dark) 0.7f else 0.45f
-    // The owner's choice: one small round glow right behind the chosen icon; a track's colour a little softened.
+    if (look == 0) {
+      // The first look: each light in a square of one unit, stretched to its place: bright at the bar's lower edge.
+      for (index in 0 until 3) {
+        val color = colors[index]
+        lights[index].shader = RadialGradient(0f, 0f, 1f, Theme.alpha(color, (if (index == 0) 0.8f else 0.6f) * strength), Theme.alpha(color, 0f), Shader.TileMode.CLAMP)
+      }
+      invalidate()
+      return
+    }
+    // Look 6: one small round glow right behind the chosen icon; a track's colour a little softened.
     val hsv = FloatArray(3)
     Color.colorToHSV(colors[0], hsv)
     if (coloured) hsv[1] *= 0.8f
@@ -407,12 +514,75 @@ class TabBarView(context: Context) : ViewGroup(context) {
     invalidate()
   }
 
-  private fun shine(canvas: Canvas, left: Float, wide: Float, paint: Paint) {
+  private fun shine(canvas: Canvas, left: Float, wide: Float, paint: Paint, tall: Float = height.toFloat()) {
     canvas.save()
     canvas.translate(left + wide / 2, height.toFloat())
-    canvas.scale(wide / 2, height.toFloat())
+    canvas.scale(wide / 2, tall)
     canvas.drawRect(-1f, -1f, 1f, 0f, paint)
     canvas.restore()
+  }
+
+  /** Look 9: moves its clock on by the time since the last frame (nothing while the clock is off: the colours stay
+   *  where they stood and the wave lies down). */
+  private fun stepFlow() {
+    if (!(DecorTicker.allowed && DecorTicker.ticking(this))) { flowLast = 0L; waveLevel = 0.0; waveAmount = 0.0; return }
+    val now = SystemClock.uptimeMillis()
+    val dt = if (flowLast == 0L) 1.0 / 60 else ((now - flowLast) / 1000.0).coerceIn(0.0, 0.1)
+    flowLast = now
+    if (dt <= 0.0) return
+    flowTime += dt
+    wavePhase += dt / TabFlow.WAVE_PERIOD
+    if (wavePhase > 1000) wavePhase -= floor(wavePhase)
+    val player = com.linea.messenger.music.MusicPlayer.shared
+    val playing = player.playing
+    var target = 0.0
+    if (playing) {
+      // The wave's own clock follows the playback: set again when the player's position moves somewhere else (a seek,
+      // a new track), runs on by itself between the player's updates and where its position stands still.
+      waveClock += dt
+      val position = player.position
+      if (position != waveSeen) {
+        if (abs(position - waveClock) > 0.6) waveClock = position
+        waveSeen = position
+      }
+      target = TabFlow.synthetic(waveClock)
+    }
+    // Rises quickly, falls slowly; the whole wave fades in and out with playback.
+    val rate = if (target > waveLevel) 0.05 else 0.22
+    waveLevel += (target - waveLevel) * (1 - exp(-dt / rate))
+    waveAmount += ((if (playing) 1.0 else 0.0) - waveAmount) * (1 - exp(-dt / 0.6))
+  }
+
+  /** Light `index`'s gradient in its colour of this moment, at the strongest alpha (the paint's alpha lowers it). */
+  private fun flowShader(index: Int, dark: Boolean) {
+    val step = (TabFlow.hue(flowTime, index) * 180).toInt() % 180
+    val key = step + if (dark) 1000 else 0
+    if (flowKeys[index] == key) return
+    flowKeys[index] = key
+    val color = Color.HSVToColor(floatArrayOf(step * 2f, if (dark) TabFlow.SATURATION_DARK else TabFlow.SATURATION_LIGHT, if (dark) TabFlow.BRIGHTNESS_DARK else TabFlow.BRIGHTNESS_LIGHT))
+    lights[index].shader = RadialGradient(0f, 0f, 1f, Theme.alpha(color, TabFlow.ALPHA_MAX), Theme.alpha(color, 0f), Shader.TileMode.CLAMP)
+  }
+
+  /** Look 9: look 0's lights (left, the chosen tab's, right) in the colours of this moment, raised by the wave. */
+  private fun drawFlow(canvas: Canvas, w: Float, h: Float) {
+    stepFlow()
+    val dark = Theme.dark
+    val pulse = waveLevel * waveAmount
+    val spot = max(110f * d, w * 0.7f)
+    for (index in 0 until 3) {
+      flowShader(index, dark)
+      val shape = TabFlow.wave(wavePhase, index)
+      val push = (pulse * (0.6 + 0.4 * shape)).toFloat()
+      val strongest = if (index == 1) (if (dark) TabFlow.SPOT_DARK else TabFlow.SPOT_LIGHT) else (if (dark) TabFlow.SIDE_DARK else TabFlow.SIDE_LIGHT)
+      val alpha = min(TabFlow.ALPHA_MAX, strongest * (1 + 0.5f * push))
+      lights[index].alpha = (255 * alpha / TabFlow.ALPHA_MAX).toInt().coerceIn(0, 255)
+      // The wave lifts the light, widens it a little and sways it along the bar.
+      val mid = when (index) { 0 -> w * 0.2f; 1 -> spotX; else -> w * 0.82f }
+      val wide = (if (index == 1) spot else w * 0.72f) * (1 + 0.18f * push)
+      val sway = ((shape - 0.5) * 0.08 * w * pulse).toFloat()
+      shine(canvas, mid - wide / 2 + sway, wide, lights[index], h * (1 + 0.35f * push))
+    }
+    canvas.drawRect(0f, 0f, w, h, grain)
   }
 
   override fun onDraw(canvas: Canvas) {
@@ -422,13 +592,27 @@ class TabBarView(context: Context) : ViewGroup(context) {
 
     clip.reset(); clip.addRoundRect(0f, 0f, w, h, h / 2, h / 2, Path.Direction.CW)
     canvas.save(); canvas.clipPath(clip)
-    // The glow behind the chosen icon: a circle almost the bar's height, centred on the icon.
-    val halo = h * 0.95f / 2
-    // In a section without an icon on the bar there is no glow (it showed as a smudge between the icons).
-    lights[0].alpha = (255 * capsuleAlpha).toInt().coerceIn(0, 255)
-    canvas.save(); canvas.translate(spotX, h / 2); canvas.scale(halo, halo)
-    canvas.drawCircle(0f, 0f, 1f, lights[0])
-    canvas.restore()
+    when (look) {
+      // Look 9's gradient spans the bar: it stays in a section without an icon too.
+      TabFlow.LOOK -> drawFlow(canvas, w, h)
+      0 -> {
+        for (index in 1..2) lights[index].alpha = 255
+        shine(canvas, -w * 0.16f, w * 0.72f, lights[1])
+        shine(canvas, w * 0.46f, w * 0.72f, lights[2])
+        val spot = max(110f * d, w * 0.7f)
+        // In a section without an icon on the bar there is no spot (it showed as a smudge between the icons).
+        lights[0].alpha = (255 * capsuleAlpha).toInt().coerceIn(0, 255)
+        shine(canvas, spotX - spot / 2, spot, lights[0])
+      }
+      else -> {
+        // Look 6: the glow behind the chosen icon, a circle almost the bar's height, centred on the icon.
+        val halo = h * 0.95f / 2
+        lights[0].alpha = (255 * capsuleAlpha).toInt().coerceIn(0, 255)
+        canvas.save(); canvas.translate(spotX, h / 2); canvas.scale(halo, halo)
+        canvas.drawCircle(0f, 0f, 1f, lights[0])
+        canvas.restore()
+      }
+    }
     canvas.restore()
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2
@@ -641,7 +825,19 @@ class TabBarView(context: Context) : ViewGroup(context) {
     onListChange(false)
   }
 
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    clock.attached(true)
+  }
+
+  override fun onVisibilityAggregated(isVisible: Boolean) {
+    super.onVisibilityAggregated(isVisible)
+    clock.shown(isVisible)
+    if (isVisible) invalidate()
+  }
+
   override fun onDetachedFromWindow() {
+    clock.attached(false)
     timers.removeCallbacks(holdTimer)
     dismissList(now = true)
     super.onDetachedFromWindow()

@@ -235,8 +235,9 @@ class CoreJniTest {
     // How a message with a photo that cannot be opened here looks: by the core's own word.
     val row = AttachmentRows.fields(mapOf("text" to "", "attachment" to mapOf("name" to "a.jpg", "mimeType" to "image/jpeg", "size" to 2048.0)), "peer:c9")
     assertEquals(listOf("", "🖼 Фотография\n" + FileCore.sizeText(2048)), listOf(row["text"], row["label"]))
-    // Voice/Video: a video is a row of its own now (the play mark over its picture or a plate), not a label.
-    assertEquals(mapOf("media" to "video", "thumbWide" to 1.5), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.mkv", "mimeType" to "video/x-matroska", "size" to 3221225472.0,
+    // Voice/Video: a video is a row of its own now (the play mark over its picture or a plate), not a label; it says
+    // its length and its size until it is here (MediaBubble.tsx: «0:00 · 3.0 ГБ» without a known length).
+    assertEquals(mapOf("media" to "video", "thumbWide" to 1.5, "mediaTime" to "0:00 · " + FileCore.sizeText(3_221_225_472)), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.mkv", "mimeType" to "video/x-matroska", "size" to 3221225472.0,
       "encryption" to mapOf("scheme" to "aes-256-gcm-siv-chunked"))), "peer:c10"))
     // A big file of another kind is a file card (InlineMedia), and is opened chunk by chunk (voice/ChatMedia.kt).
     assertEquals("big.iso\n" + FileCore.sizeText(3_221_225_472) + " · ISO", AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "big.iso", "mimeType" to "application/octet-stream", "size" to 3221225472.0,

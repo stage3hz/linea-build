@@ -1,5 +1,6 @@
 import AVFoundation
 import MediaToolbox
+import QuartzCore
 
 // The music equalizer: one setting for the speaker, wired and Bluetooth headphones — «Рекомендованный» (the track as
 // it is) or «Пользовательский» with НЧ / СЧ / ВЧ in dB. The settings are the reference's mobile/src/music/equalizer.ts
@@ -98,6 +99,21 @@ final class EqualizerState {
         lock.lock(); defer { lock.unlock() }
         return (gains.low, gains.mid, gains.high, enabled, version)
     }
+
+    // The music's loudness for the tab bar's wave (Shell/TabBar.swift): the RMS of the last buffer the tap saw and
+    // when (CACurrentMediaTime). Written by the audio thread, read on the main thread once a frame.
+    private var meterRms: Float = 0
+    private var meterAt: CFTimeInterval = 0
+
+    func meter(_ rms: Float) {
+        let now = CACurrentMediaTime()
+        lock.lock(); meterRms = rms; meterAt = now; lock.unlock()
+    }
+
+    func meterReading() -> (rms: Float, at: CFTimeInterval) {
+        lock.lock(); defer { lock.unlock() }
+        return (meterRms, meterAt)
+    }
 }
 
 /// RBJ audio-EQ-cookbook biquad.
@@ -180,6 +196,23 @@ private let equalizerTapUnprepare: MTAudioProcessingTapUnprepareCallback = { _ i
 private let equalizerTapProcess: MTAudioProcessingTapProcessCallback = { tap, frames, _, bufferList, framesOut, flagsOut in
     guard MTAudioProcessingTapGetSourceAudio(tap, frames, bufferList, flagsOut, nil, framesOut) == noErr else { return }
     let context = Unmanaged<EqualizerTapContext>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
+    // The level meter for the tab bar's wave: the RMS of every other sample of the first buffer (the first channel when
+    // the channels are apart, the left one when they are interleaved); whether the filter is on or not.
+    if context.isFloat {
+        let meterBuffers = UnsafeMutableAudioBufferListPointer(bufferList)
+        if let first = meterBuffers.first, let samplesData = first.mData?.assumingMemoryBound(to: Float.self) {
+            let frames = Int(framesOut.pointee)
+            let wanted = context.nonInterleaved ? frames : frames * context.channels
+            let samples = min(wanted, Int(first.mDataByteSize) / MemoryLayout<Float>.size)
+            if samples > 1 {
+                var sum: Float = 0
+                var index = 0
+                while index < samples { let x = samplesData[index]; sum += x * x; index += 2 }
+                let used = Float((samples + 1) / 2)
+                context.state.meter((sum / used).squareRoot())
+            }
+        }
+    }
     let (_, _, _, enabled, _) = context.state.snapshot()
     guard enabled, context.isFloat else { return }
     context.refresh()

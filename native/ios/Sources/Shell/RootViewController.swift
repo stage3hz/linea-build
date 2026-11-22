@@ -51,7 +51,7 @@ final class RootViewController: UIViewController {
         bar.setBar(inBar)
         bar.setDark(Theme.dark) // Settings: the theme that is on (Settings/ThemeStore.swift)
         #if targetEnvironment(simulator)
-        // For choosing the glow on a screenshot: `-barlook 0…5`.
+        // For choosing the glow on a screenshot: `-barlook 0…9` (9, the turning colours with the music's wave, is the default).
         if UserDefaults.standard.object(forKey: "barlook") != nil { bar.look = UserDefaults.standard.integer(forKey: "barlook") }
         #endif
         bar.moreWords = "Остальные разделы"
