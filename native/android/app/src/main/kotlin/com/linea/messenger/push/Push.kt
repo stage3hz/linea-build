@@ -48,7 +48,7 @@ object Push {
 
   /** Posted on the main thread when `status` changed. */
   val changed = Live.Signal<Unit>()
-  private val main = Handler(Looper.getMainLooper())
+  private val main by lazy { Handler(Looper.getMainLooper()) }
 
   @Volatile var status: Status = Status.PENDING
     private set(value) { if (field != value) { field = value; main.post { changed.post(Unit) } } }

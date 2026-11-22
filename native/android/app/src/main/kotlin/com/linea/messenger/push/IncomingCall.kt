@@ -38,7 +38,7 @@ object IncomingCall {
   @Volatile private var pending: Pair<String, Boolean>? = null
   /** When it was set: an opening that no call followed must not answer a later call by itself. */
   @Volatile private var pendingAt = 0L
-  private val main = Handler(Looper.getMainLooper())
+  private val main by lazy { Handler(Looper.getMainLooper()) }
   private var release: Runnable? = null
 
   private fun open(context: Context, chatId: String, answer: Boolean, code: Int): PendingIntent {
