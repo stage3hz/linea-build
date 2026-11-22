@@ -6,9 +6,9 @@ import UIKit
 /// - The bar is the system's own glass (iOS 26: UIGlassEffect, clear and interactive; before: a thin blur).
 /// - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
 ///   faint second capsule follows a little late and fades — the trail.
-/// - A light lives in the bar (look 9, the default): the first look's three lights — one at each side, a brighter one
-///   under the chosen tab (the bar's middle in a section without an icon) — whose colours keep turning round the hue
-///   circle, each a third of the way from the next (`TabFlow`); while the player plays they rise, brighten and sway as
+/// - A light lives in the bar (look 9, the default; the sketch «2. Сияние»): violet at the left, pink under the chosen
+///   tab (the bar's middle in a section without an icon), cyan at the right, rising from the lower edge, and a white
+///   line on the top edge above the chosen tab glowing pink; the hues keep turning together (`TabFlow`); while the player plays they rise, brighten and sway as
 ///   a wave with the music's loudness (the equalizer's audio tap meters it; a smooth wave on the playback's beat when
 ///   no level comes). Animations off or power saving: the gradient holds still. Looks 0…8 stay for comparison.
 /// - The first tab also holds the other sections: hold it (or move the finger up from it) and their list appears
@@ -77,30 +77,53 @@ private func tabKick(_ view: UIView, id: String) {
 
 private let badgeRed = UIColor(red: 1, green: 0.30, blue: 0.37, alpha: 1)
 
-/// Look 9's numbers (the same in Android's shell/TabBar.kt `TabFlow`).
+/// Look 9's numbers (the same in Android's shell/TabBar.kt `TabFlow`): the sketch «2. Сияние» — three lights rising
+/// from the bar's lower edge (`.aur`: radial-gradient(46% 70% at 50% 100%, #ff5fb0cc, transparent 70%), the same
+/// 40% 60% at 34% #7a2cffaa and at 68% #35d6ffaa, blur 14px over a box 150 tall for a bar 96 tall), and a white
+/// 54×3 line on the top edge above the chosen tab with a glow of the centre light's colour. The hues then turn.
 enum TabFlow {
   /// One full turn of the hue circle, seconds.
   static let huePeriod: Double = 14
-  /// Where the turn starts (the still gradient): cyan-blue at the left, magenta under the chosen tab, lime at the right.
-  static let hueBase: Double = 0.55
-  /// Each light's place on the circle: left, centre (the chosen tab), right — a third apart, so red, green and blue
-  /// always share the bar and the gradient flows from one side to the other.
-  static let huePhase: [Double] = [0, 1.0 / 3, 2.0 / 3]
+  /// The sketch's colours as hue, saturation, brightness — left (violet #7a2cff), centre (pink #ff5fb0, under the
+  /// chosen tab), right (cyan #35d6ff). All three turn together, so they keep the sketch's distances on the circle.
+  static let hue0: [Double] = [0.7283, 0.9156, 0.5338]
+  static let saturation: [CGFloat] = [0.827, 0.627, 0.792]
+  static let brightness: CGFloat = 1
+  /// The sketch's alphas (cc, aa, aa), before the wave.
+  static let alpha: [CGFloat] = [0.667, 0.8, 0.667]
+  /// The most a light's heart gets with the wave.
+  static let alphaMost: CGFloat = 0.95
+  /// Where the side lights stand (× the bar's width); the centre one stands under the chosen tab (the middle without one).
+  static let sideAt: [CGFloat] = [0.34, 0.68]
+  /// Visible half-width (× the bar's width) and height (× the bar's height) of each light: 0.7 of the sketch's radii
+  /// (the gradient is clear at 70 %), the box 150/96 of the bar.
+  static let reachX: [CGFloat] = [0.28, 0.322, 0.28]
+  static let reachY: [CGFloat] = [0.656, 0.766, 0.656]
+  /// The sketch's 14 px blur, as extra reach (× the bar's height) and a soft fall: alpha × `fall` at `stops`.
+  static let blurReach: CGFloat = 0.22
+  static let stops: [CGFloat] = [0, 0.3, 0.55, 0.8, 1]
+  static let fall: [CGFloat] = [1, 0.85, 0.55, 0.2, 0]
+  /// The line on the top edge: 54×3, white; its glow (box-shadow 0 0 18px 5px) the centre's colour, lightened, at 0.8.
+  static let lineWidth: CGFloat = 54
+  static let lineHeight: CGFloat = 3
+  static let lineGlow: CGFloat = 0.8
+  static let lineBlur: CGFloat = 18
+  static let lineSpread: CGFloat = 5
+  /// How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6).
+  static let lineWhite: CGFloat = 0.3
   /// One run of the music's wave along the three lights, seconds.
   static let wavePeriod: Double = 2
-  /// Strongest colour at the lights' hearts (centre, sides), dark and light theme.
-  static let alphaDark: (spot: CGFloat, side: CGFloat) = (0.7, 0.5)
-  static let alphaLight: (spot: CGFloat, side: CGFloat) = (0.5, 0.38)
-  static let saturationDark: CGFloat = 0.62
-  static let saturationLight: CGFloat = 0.55
-  static let brightnessDark: CGFloat = 1
-  static let brightnessLight: CGFloat = 0.92
   static let grain: CGFloat = 0.08
 
   /// Hue (0…1) of light `light` (0 left, 1 centre, 2 right) at `time` seconds of the loop.
   static func hue(_ time: Double, light: Int) -> CGFloat {
-    let turn = hueBase + huePhase[light] + time / huePeriod
+    let turn = hue0[light] + time / huePeriod
     return CGFloat(turn - floor(turn))
+  }
+
+  /// Light `light`'s colour at `time`.
+  static func color(_ time: Double, light: Int) -> UIColor {
+    return UIColor(hue: hue(time, light: light), saturation: saturation[light], brightness: brightness, alpha: 1)
   }
 
   /// The wave's height at a light (0…1): a sine running from the left light to the right one.
@@ -333,6 +356,9 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
   private let gloss = CAGradientLayer()
   /// Fine grain over the glow, so a gradient reads as material rather than as a smooth fill.
   private let grain = UIView()
+  /// Look 9: the white line on the top edge above the chosen tab, glowing in the centre light's colour (out of the
+  /// glass, so its glow also shows above the bar, as in the sketch).
+  private let flowLine = UIView()
   /// Look 9, the owner's choice: the first look's three lights turning through the colours, waving with the music.
   static let flowLook = 9
   /// Which glow look is on: 9 (`TabFlow`). Others stay for comparison (`-barlook N` in the simulator); 6 was the small
@@ -428,6 +454,17 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     capsule.layer.addSublayer(gloss)
     capsule.layer.addSublayer(capsuleRim)
     glass.contentView.addSubview(capsule)
+    flowLine.isUserInteractionEnabled = false
+    flowLine.backgroundColor = .white
+    flowLine.layer.cornerRadius = TabFlow.lineHeight
+    flowLine.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+    flowLine.layer.shadowOpacity = Float(TabFlow.lineGlow)
+    flowLine.layer.shadowRadius = TabFlow.lineBlur / 2
+    flowLine.layer.shadowOffset = .zero
+    let spread = TabFlow.lineSpread
+    flowLine.layer.shadowPath = UIBezierPath(roundedRect: CGRect(x: -spread, y: -spread, width: TabFlow.lineWidth + spread * 2, height: TabFlow.lineHeight + spread * 2), cornerRadius: TabFlow.lineHeight + spread).cgPath
+    flowLine.alpha = 0
+    addSubview(flowLine)
 
     let press = UILongPressGestureRecognizer(target: self, action: #selector(pressed(_:)))
     press.minimumPressDuration = 0
@@ -565,6 +602,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     capsule.frame = capsuleFrame(activeIndex)
     capsule.alpha = activeIndex < 0 ? 0 : 1
     spotView.alpha = spotShown(activeIndex)
+    flowLine.frame = lineFrame(activeIndex)
+    flowLine.alpha = lineShown(activeIndex)
     trail.frame = capsule.frame
     shapeCapsules()
     CATransaction.commit()
@@ -602,6 +641,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
 
   private func paintGlow(animated: Bool) {
     if look == TabBarView.flowLook { paintFlow(); return }
+    // Look 9's soft stops off: the other looks fade in two steps.
+    for layer in [glowLeft, spot, glowRight] { layer.locations = nil }
     // Calm: a cool silver. With colours (a track's cover): centre, left, right.
     let calm: [UIColor] = dark
       ? [UIColor(red: 0.91, green: 0.93, blue: 0.96, alpha: 1), UIColor(red: 0.50, green: 0.56, blue: 0.66, alpha: 1), UIColor(red: 0.79, green: 0.82, blue: 0.88, alpha: 1)]
@@ -711,21 +752,16 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
     paintFlow()
   }
 
-  /// Look 9: look 0's lights (left, the chosen tab's, right) in the colours of this moment, raised by the wave.
+  /// Look 9: the sketch's three lights (violet left, pink under the chosen tab, cyan right) rising from the lower
+  /// edge in the colours of this moment, raised by the wave; the line on the top edge glows in the centre's colour.
   private func paintFlow() {
     let width = bounds.width, height = bounds.height
     guard width > 0, height > 0 else { return }
     let pulse = waveLevel * waveAmount
-    let strongest = dark ? TabFlow.alphaDark : TabFlow.alphaLight
-    let saturation = dark ? TabFlow.saturationDark : TabFlow.saturationLight
-    let brightness = dark ? TabFlow.brightnessDark : TabFlow.brightnessLight
-    let spotBox = spotView.bounds
-    // Each light's resting place: x of its middle, its width (the spot in its own view's coordinates).
-    let rest: [(mid: CGFloat, wide: CGFloat)] = [
-      (width * 0.2, width * 0.72),
-      (spotBox.midX, spotBox.width),
-      (width * 0.82, width * 0.72),
-    ]
+    let blur = TabFlow.blurReach * height
+    // Where each light's middle stands: the side ones in the bar's coordinates, the centre one in its view's.
+    let mids: [CGFloat] = [width * TabFlow.sideAt[0], spotView.bounds.midX, width * TabFlow.sideAt[1]]
+    let lows: [CGFloat] = [height, spotView.bounds.height, height]
     let layers: [CAGradientLayer] = [glowLeft, spot, glowRight]
     CATransaction.begin()
     CATransaction.setDisableActions(true)
@@ -733,19 +769,35 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       let layer = layers[index]
       let shape = TabFlow.wave(wavePhase, light: index)
       let push = pulse * (0.6 + 0.4 * shape)
-      let color = UIColor(hue: TabFlow.hue(flowTime, light: index), saturation: saturation, brightness: brightness, alpha: 1)
-      let alpha = min(0.95, (index == 1 ? strongest.spot : strongest.side) * (1 + 0.5 * push))
-      layer.colors = [color.withAlphaComponent(alpha).cgColor, color.withAlphaComponent(0).cgColor]
+      let color = TabFlow.color(flowTime, light: index)
+      let strength = min(TabFlow.alphaMost, TabFlow.alpha[index] * (1 + 0.5 * push))
+      layer.colors = TabFlow.fall.map { (part: CGFloat) -> CGColor in color.withAlphaComponent(strength * part).cgColor }
+      layer.locations = TabFlow.stops.map { (stop: CGFloat) -> NSNumber in NSNumber(value: Double(stop)) }
       // The wave lifts the light, widens it a little and sways it along the bar.
-      let tall = height * (1 + 0.35 * push)
-      let wide = rest[index].wide * (1 + 0.18 * push)
+      let halfWide = (TabFlow.reachX[index] * width + blur) * (1 + 0.18 * push)
+      let tall = (TabFlow.reachY[index] * height + blur) * (1 + 0.35 * push)
       let sway = (shape - 0.5) * 0.08 * width * pulse
-      layer.frame = CGRect(x: rest[index].mid - wide / 2 + sway, y: height - tall, width: wide, height: tall)
+      layer.frame = CGRect(x: mids[index] - halfWide + sway, y: lows[index] - tall, width: halfWide * 2, height: tall)
     }
     sheen.colors = [UIColor.white.withAlphaComponent(0).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
     gloss.colors = [UIColor.white.withAlphaComponent(0).cgColor, UIColor.white.withAlphaComponent(0).cgColor]
     grain.alpha = TabFlow.grain
+    // The line's glow: the centre light's colour, lightened as the sketch's #ff8cc6 is #ff5fb0.
+    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, opacity: CGFloat = 0
+    _ = TabFlow.color(flowTime, light: 1).getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+    let white = TabFlow.lineWhite
+    flowLine.layer.shadowColor = UIColor(red: red + (1 - red) * white, green: green + (1 - green) * white, blue: blue + (1 - blue) * white, alpha: 1).cgColor
     CATransaction.commit()
+  }
+
+  /// The line on the top edge above the chosen tab (look 9).
+  private func lineFrame(_ index: Int) -> CGRect {
+    let centre = index < 0 ? bounds.midX : (CGFloat(index) + 0.5) * cell
+    return CGRect(x: centre - TabFlow.lineWidth / 2, y: 0, width: TabFlow.lineWidth, height: TabFlow.lineHeight)
+  }
+
+  private func lineShown(_ index: Int) -> CGFloat {
+    return index >= 0 && look == TabBarView.flowLook ? 1 : 0
   }
 
   private func rebuildIcons() {
@@ -808,6 +860,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       capsule.alpha = index < 0 ? 0 : 1
       spotView.alpha = spotShown(index)
       spotView.frame = spotFrame(index)
+      flowLine.frame = lineFrame(index)
+      flowLine.alpha = lineShown(index)
       trail.alpha = 0
       shapeCapsules()
       return
@@ -819,6 +873,8 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
         self.capsule.alpha = index < 0 ? 0 : 1
         self.spotView.alpha = self.spotShown(index)
         self.spotView.frame = self.spotFrame(index)
+        self.flowLine.alpha = self.lineShown(index)
+        if index >= 0 { self.flowLine.frame = self.lineFrame(index) }
       }
       return
     }
@@ -831,6 +887,7 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       self.capsule.alpha = 1
       self.spotView.alpha = 1
       self.spotView.frame = self.spotFrame(index)
+      self.flowLine.frame = self.lineFrame(index)
     }
     UIView.animate(withDuration: 0.62, delay: 0.05, usingSpringWithDamping: 0.9, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
       self.trail.frame = target
