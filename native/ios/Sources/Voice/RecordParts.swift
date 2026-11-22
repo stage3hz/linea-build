@@ -72,7 +72,7 @@ final class RecordMicButton: UIControl {
     private var lastPoint = CGPoint.zero
     private var lastTime = 0.0
     private var velocity = CGPoint.zero
-    private var tracking = false
+    private var holding = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -108,12 +108,12 @@ final class RecordMicButton: UIControl {
         lastPoint = start
         lastTime = touch.timestamp
         velocity = .zero
-        tracking = true
+        holding = true
         return true
     }
 
     override func continueTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
-        guard tracking else { return false }
+        guard holding else { return false }
         let point = touch.location(in: self)
         let elapsed = touch.timestamp - lastTime
         if elapsed > 0.001 {
@@ -122,20 +122,20 @@ final class RecordMicButton: UIControl {
         lastPoint = point
         lastTime = touch.timestamp
         let keep = onMove?(offset(touch), velocity) ?? false
-        if !keep { tracking = false }
+        if !keep { holding = false }
         return keep
     }
 
     override func endTracking(_ touch: UITouch?, with event: UIEvent?) {
-        guard tracking else { return }
-        tracking = false
+        guard holding else { return }
+        holding = false
         let end = touch.map { offset($0) } ?? .zero
         onUp?(end, velocity)
     }
 
     override func cancelTracking(with event: UIEvent?) {
-        guard tracking else { return }
-        tracking = false
+        guard holding else { return }
+        holding = false
         onCancel?()
     }
 }
