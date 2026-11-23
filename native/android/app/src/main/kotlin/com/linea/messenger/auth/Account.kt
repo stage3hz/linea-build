@@ -58,9 +58,19 @@ object Account {
     return if (maker.isNotEmpty() && !kind.lowercase().startsWith(maker.lowercase())) maker.replaceFirstChar { it.uppercase() } + " " + kind else kind
   }
 
+  /** The profile inside what is kept. The previous app kept the server's whole answer — `{user, securitySetupRequired}`
+   *  (mobile/App.tsx:129, 133, 146) — and that record is taken over as it is (storage/OldAppSettings.kt), so the
+   *  profile may lie one level down. Without an id it is no profile: the app then asks the server instead. */
+  fun profileOf(kept: Map<String, Any?>?): Map<String, Any?>? {
+    if (kept == null) return null
+    if (kept["id"] is String) return kept
+    val inner = Core.map(kept["user"])
+    return if (inner != null && inner["id"] is String) inner else null
+  }
+
   /** The account's public profile as the server last gave it: lets the app open without waiting for the network. */
   var cachedUser: Map<String, Any?>?
-    get() = Core.map(Core.value(app?.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)?.getString(USER_KEY, null)))
+    get() = profileOf(Core.map(Core.value(app?.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)?.getString(USER_KEY, null))))
     set(value) {
       val kept = app?.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE) ?: return
       val text = value?.let { Core.text(it) }

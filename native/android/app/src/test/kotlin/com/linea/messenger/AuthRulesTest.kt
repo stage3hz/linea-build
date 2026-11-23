@@ -13,6 +13,17 @@ import org.junit.Test
 /** The checks of the sign-in screen and the kept recovery request: the rules of native/ios/Sources/Auth/AuthRules.swift
  *  and RecoveryStore.swift (and, behind them, mobile/src/AuthScreen.tsx and mobile/src/auth/recoveryStorage.ts). */
 class AuthRulesTest {
+  /** The previous app kept the server's whole answer as the last profile; the profile is found inside it, and a
+   *  record without an id is no profile (the app then asks the server). */
+  @Test fun theProfileKeptByThePreviousAppIsFoundInsideItsRecord() {
+    val profile = mapOf<String, Any?>("id" to "50e81076", "displayName" to "Мария")
+    assertEquals(profile, com.linea.messenger.auth.Account.profileOf(profile))
+    assertEquals(profile, com.linea.messenger.auth.Account.profileOf(mapOf("user" to profile, "securitySetupRequired" to false)))
+    assertNull(com.linea.messenger.auth.Account.profileOf(mapOf("securitySetupRequired" to false)))
+    assertNull(com.linea.messenger.auth.Account.profileOf(mapOf("user" to mapOf("displayName" to "Мария"))))
+    assertNull(com.linea.messenger.auth.Account.profileOf(null))
+  }
+
   @Test fun aLoginIsSentTrimmedAndInSmallLetters() {
     assertEquals("native_tester", AuthRules.name("  Native_Tester\n"))
     for (good in listOf("abc", "native_tester", "A1_", " abc ", "x".repeat(24))) assertTrue(good, AuthRules.validName(good))
