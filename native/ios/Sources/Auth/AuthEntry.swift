@@ -215,5 +215,13 @@ final class AuthNotice: UIView {
         isHidden = true
     }
 
+    /// The box's height at a width, counted from the words themselves: the fitting pass of the layout engine may count
+    /// a wrapped label one line short, and the card then runs under the keyboard.
+    func fitHeight(_ width: CGFloat) -> CGFloat {
+        if words.isEmpty { return 0 }
+        let inside = label.sizeThatFits(CGSize(width: max(0, width - 28), height: CGFloat.greatestFiniteMagnitude))
+        return ceil(inside.height) + 26
+    }
+
     required init?(coder: NSCoder) { return nil }
 }

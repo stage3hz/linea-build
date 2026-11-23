@@ -503,6 +503,7 @@ final class AuthViewController: UIViewController {
             if (label.text ?? "").isEmpty { return 0 }
             return ceil(label.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)).height)
         }
+        if let box = part as? AuthNotice { return box.fitHeight(width) }
         let size = part.systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
         return ceil(size.height)
