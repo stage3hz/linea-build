@@ -91,6 +91,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.security.LockGate.wentAway() // Security: «Сразу» locks now; the time away is kept
     com.linea.messenger.security.AccountNotices.front = false // Security
     messenger?.sleep()
+    com.linea.messenger.intro.IntroOverlay.wentAway() // Intro: no taps while away; it does not come back
     super.onStop()
   }
 
@@ -99,6 +100,7 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.calls.Calls.changed.unwatch(overLockWatch) // Push
     com.linea.messenger.security.LockGate.changed.unwatch(callWatch) // Security
     said?.dismiss()
+    com.linea.messenger.intro.IntroOverlay.close() // Intro
     messenger?.close()
     messenger = null
     super.onDestroy()
@@ -144,7 +146,8 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
     com.linea.messenger.push.IncomingCall.opened(this, intent) // Push: opened by the ringing notification of a call
     com.linea.messenger.push.OngoingCall.opened(intent) // Push/Calls: the ongoing-call notification opens the call screen
     com.linea.messenger.push.Push.tapped(intent) // Push: opened by a tapped notification (it waits for the account)
-    val token = Account.token ?: return showAuth()
+    // Intro: the first start of an install with no session shows the intro once, over the sign-in screen (intro/IntroOverlay.kt).
+    val token = Account.token ?: return showAuth().also { com.linea.messenger.intro.IntroOverlay.firstStart(this) }
     Account.cachedUser?.let { return open(token, it) }
     // Signed in by the previous app: the token is there, the profile is asked from the server once.
     showWaiting("Загрузка…")

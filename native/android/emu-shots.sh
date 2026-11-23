@@ -52,6 +52,11 @@ shot 02-sections --ez demo true --ez sections true
 shot 03-settings --ez demo true --es tab profile
 shot 04-chat --ez demo true --ez chat true
 shot 05-auth
+# Intro: the first-launch intro over the sign-in screen, frozen at four moments (the word, the break-in, the field, the end).
+shot 05i-intro-0.9 --es intro hold --es introat 0.9
+shot 05j-intro-1.8 --es intro hold --es introat 1.8
+shot 05k-intro-2.9 --es intro hold --es introat 2.9
+shot 05l-intro-4.6 --es intro hold --es introat 4.6
 shot 06b-register --ez auth true --es authmode register
 shot 06c-recover --ez auth true --es authmode recover
 shot 06d-waiting --ez auth true --es authmode waiting

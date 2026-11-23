@@ -126,6 +126,7 @@ object Demo {
    *    --es chatsdemo waiting|connecting|updating|skeleton|empty|folders|folder|foldereditor|foldersettings|savedmenu|saved|savedsearch|calls|hint|select|mutecustom|archivepull
    *                                                the chat list's extras (chatsplus/ChatsPlusDemo.kt)
    *    --es shelldemo mini|chatstrip|swipe|long|home / --es updatedemo required|optional    the shell (shell/ShellDemo.kt)
+   *    --es intro hold --es introat <s>          the sign-in screen with the first-launch intro frozen at that time (intro/IntroOverlay.kt)
    *    --es motionblur 1|0|hold                    motion blur of slides forced on / off / on and held (effects/MotionBlur.kt)
    *    --es barlook 0|6|9                          the tab bar's glow: 9 the turning colours with the music's wave (the
    *                                                default), 0 the first still lights, 6 the small halo (shell/TabBar.kt) */
@@ -157,6 +158,14 @@ object Demo {
     if (com.linea.messenger.profile.ProfileSimulator.demo(intent, launcher)) return true
     // Calls: `calldemo` — a sample call in each state (calls/CallsDemo.kt).
     if (com.linea.messenger.calls.CallsDemo.start(intent, launcher)) return true
+    // Intro: `--es intro hold --es introat 2.9` — the sign-in screen with the first-launch intro frozen at that time, no
+    // haptics, the seen flag untouched (intro/IntroOverlay.kt).
+    if (intent.getStringExtra("intro") == "hold") {
+      launcher.showAuth()
+      val at = intent.getStringExtra("introat")?.toDoubleOrNull() ?: 0.0
+      (launcher as? android.app.Activity)?.let { com.linea.messenger.intro.IntroOverlay.hold(it, at.coerceIn(0.0, com.linea.messenger.intro.IntroModel.DURATION)) }
+      return true
+    }
     if (intent.getBooleanExtra("auth", false)) { launcher.showAuth(); return true }
     intent.getStringExtra("settings")?.let { openSettings(launcher, it) }
     // Stories: `storiesdemo` — the strip, the viewer, the screen that publishes, a profile's posts (stories/StoriesDemo.kt).

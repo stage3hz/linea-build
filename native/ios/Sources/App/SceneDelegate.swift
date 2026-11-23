@@ -26,7 +26,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         #if targetEnvironment(simulator)
         if simulatorStart() { return }
         #endif
-        guard let token = Account.token else { return showAuth() }
+        guard let token = Account.token else {
+            showAuth()
+            IntroOverlay.shared.firstStart(over: window) // Intro: once per install, over the sign-in screen (Intro/IntroOverlay.swift)
+            return
+        }
         if let user = Account.cachedUser { return open(token: token, user: user) }
         // Signed in by the previous app: the token is there, the profile is asked from the server once.
         showWaiting("Загрузка…")
@@ -121,12 +125,22 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -storiesdemo strip|viewer|viewers|compose|posts|own / -stories viewer|own|ownstories|compose    stories and posts: samples with drawn pictures, no account; with an account, the strip's first person, the account's own page (Stories/StoriesSimulator.swift)
     ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
     ///   -profiledemo rings|code|art|list|marks|fonts|person|birthday|own|gifts|showcase|studio|confetti|offer|mini|mini-chat|media|cropper|banner|pattern|status|giftsheet    avatars, profiles, Platina, gifts, fonts with samples, no account (Profile/ProfileSimulator.swift)
+    ///   -intro hold <seconds>          the sign-in screen with the first-launch intro frozen at that time (Intro/IntroOverlay.swift)
     ///   -motionblur 1|0|hold           motion blur of slides forced on / off / on with the strongest smear held for a still shot (Effects/MotionBlur.swift) // MotionBlur:
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
         // Update check: what the previous app left on the phone, read only (Storage/TakeoverCheck.swift).
         if args.bool(forKey: "takeovercheck") { window?.rootViewController = TakeoverCheckViewController(); return true }
+        // Intro: -intro hold <seconds> — the sign-in screen with the first-launch intro frozen at that time, no haptics,
+        // the seen flag untouched (Intro/IntroOverlay.swift).
+        let arguments = ProcessInfo.processInfo.arguments
+        if let at = arguments.firstIndex(of: "-intro"), at + 1 < arguments.count, arguments[at + 1] == "hold" {
+            let seconds = at + 2 < arguments.count ? (Double(arguments[at + 2]) ?? 0) : 0
+            showAuth()
+            IntroOverlay.shared.hold(over: window, at: seconds)
+            return true
+        }
         if args.bool(forKey: "auth") { showAuth(); return true }
         if simulatorScreenShare() { return true } // ScreenShare: -screendemo panel|viewer|starting|sharing|error|room|bar (ScreenShare/ScreenShareSimulator.swift)
         if simulatorChannels() { return true }

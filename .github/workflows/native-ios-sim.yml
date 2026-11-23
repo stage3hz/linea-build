@@ -79,6 +79,11 @@ jobs:
           shot 04-settings -demo 1 -tab profile
           shot 05-chat -demo 1 -chat 1
           shot 06-auth -auth 1
+          # Intro: the first-launch intro over the sign-in screen, frozen at four moments (Intro/IntroOverlay.swift).
+          shot 06i-intro-0.9 -intro hold 0.9
+          shot 06j-intro-1.8 -intro hold 1.8
+          shot 06k-intro-2.9 -intro hold 2.9
+          shot 06l-intro-4.6 -intro hold 4.6
           shot 06b-register -auth 1 -authmode register
           shot 06c-recover -auth 1 -authmode recover
           shot 06d-waiting -auth 1 -authmode waiting
