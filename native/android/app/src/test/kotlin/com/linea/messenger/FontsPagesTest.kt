@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  *  password field turned fixed-width. The system's default face is never replaced on a phone, so such a text
  *  would show in Roboto there. Monospaced texts (the reference's MONO: codes, keys) are the one exception. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], qualifiers = "w411dp-h914dp-port-420dpi")
+@Config(sdk = [34], qualifiers = "w411dp-h914dp-port-420dpi", shadows = [FontsSandbox.Mark::class])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FontsPagesTest {
   /** The canvas that notes each text drawn in a face that is not the app's. */
@@ -148,4 +148,12 @@ class FontsPagesTest {
     assertTrue("pages not drawn: $broken", broken.size <= shots.size / 5)
     assertEquals("texts in the system's face:\n" + wrong.entries.joinToString("\n") { (page, texts) -> "$page: ${texts.joinToString("; ")}" }, 0, wrong.size)
   }
+}
+
+/** The walk opens some 170 demo pages, and a demo leaves its state in the app's objects (the chat look with bubbles,
+ *  a track playing, a theme): the walk runs in a sandbox of its own (a shadow no other test names gives it its own
+ *  class loader), so the other page tests see the app as it starts. */
+class FontsSandbox {
+  @org.robolectric.annotation.Implements(FontsSandbox::class)
+  class Mark
 }
