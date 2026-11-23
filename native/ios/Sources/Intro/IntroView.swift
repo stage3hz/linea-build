@@ -44,7 +44,7 @@ final class IntroView: UIView {
     private var glowContext: CGContext?
     private var glowWork: UnsafeMutableRawPointer?
     private var glowWorkSize = 0
-    private let sheen: CGGradient? = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colorComponents: [1, 1, 1, 0.22, 1, 1, 1, 0, 1, 1, 1, 0.08], locations: [0, 0.55, 1], count: 3)
+    private let sheen: CGGradient? = CGGradient(colorSpace: CGColorSpaceCreateDeviceRGB(), colorComponents: [1, 1, 1, 0.22, 1, 1, 1, 0, 1, 1, 1, 0.08], locations: [0, 0.55, 1], count: 3)
 
     override init(frame: CGRect) {
         let count = IntroModel.scene.particles.count
