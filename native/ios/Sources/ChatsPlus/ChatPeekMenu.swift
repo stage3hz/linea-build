@@ -13,15 +13,14 @@ final class ChatPeekMenu: UIViewController {
     private let anchorY: CGFloat
     private let name: String
     private let username: String
-    private let initials: String
-    private let avatarColor: UIColor
+    private let face: FolderChat
     private let choices: [ChoiceSheet.Choice]
     private var lines: [Line]
 
     private let backdrop = UIVisualEffectView(effect: nil)
     private let dim = UIButton(type: .custom)
     private let card = UIView()
-    private let avatar = UILabel()
+    private let avatar = SmallAvatarView()
     private let nameLabel = UILabel()
     private let userLabel = UILabel()
     private let rule = UIView()
@@ -32,12 +31,11 @@ final class ChatPeekMenu: UIViewController {
     private var rows: [PeekMenuRow] = []
     private var shown = false
 
-    init(anchorY: CGFloat, name: String, username: String, initials: String, avatarColor: UIColor, lines: [Line], choices: [ChoiceSheet.Choice]) {
+    init(anchorY: CGFloat, name: String, username: String, face: FolderChat, lines: [Line], choices: [ChoiceSheet.Choice]) {
         self.anchorY = anchorY
         self.name = name
         self.username = username
-        self.initials = initials
-        self.avatarColor = avatarColor
+        self.face = face
         self.lines = Array(lines.suffix(14))
         self.choices = choices
         super.init(nibName: nil, bundle: nil)
@@ -73,13 +71,8 @@ final class ChatPeekMenu: UIViewController {
         card.clipsToBounds = true
         card.isUserInteractionEnabled = false
         view.addSubview(card)
-        avatar.text = initials
-        avatar.font = Theme.font(14, .bold)
-        avatar.textColor = .white
-        avatar.textAlignment = .center
-        avatar.backgroundColor = avatarColor
-        avatar.layer.cornerRadius = 18
-        avatar.layer.masksToBounds = true
+        // ChatListScreen.tsx ChatPeek: the reference's `Avatar` at 36 — the photo, or the lit ball with the initials.
+        avatar.show(face)
         card.addSubview(avatar)
         nameLabel.text = name
         nameLabel.font = Theme.font(15, .bold)

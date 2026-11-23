@@ -117,7 +117,8 @@ class ListPeopleSearch(private val messenger: Messenger?) {
   }
 
   companion object {
-    fun initials(name: String): String = name.split(' ', '\n', '\t').filter { it.isNotEmpty() }.take(2).mapNotNull { it.firstOrNull()?.toString() }.joinToString("").uppercase()
+    /** The reference's rule (components.tsx:149), one for every avatar: `Messenger.initials`. */
+    fun initials(name: String): String = Messenger.initials(name)
 
     /** The rows of the people found (not this account, not the people the list already has a chat with). */
     fun rowsFor(found: List<Person>, known: Set<String>, me: String): List<Map<String, Any?>> {

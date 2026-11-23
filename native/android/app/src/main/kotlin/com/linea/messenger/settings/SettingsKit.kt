@@ -7,7 +7,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
@@ -45,7 +44,6 @@ import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.SymbolButton
 import com.linea.messenger.design.SymbolView
 import com.linea.messenger.design.Theme
-import com.linea.messenger.design.orbPair
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
@@ -930,9 +928,8 @@ class SettingsAvatar(context: Context) : View(context) {
   private var letters = ""
   private var pictureKey = ""
   private var pictureAddress = ""
-  private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val orb = com.linea.messenger.design.AvatarOrb(resources.displayMetrics.density)
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-  private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; typeface = Theme.weight(700) }
   private val matrix = Matrix()
 
   init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
@@ -962,14 +959,7 @@ class SettingsAvatar(context: Context) : View(context) {
       picture.shader = null
       return
     }
-    // The same lit ball as in the list of chats: the colour between a lighter and a deeper neighbour.
-    val pair = orbPair(rgb)
-    paint.shader = LinearGradient(w * 0.9f, h, w * 0.1f, 0f, intArrayOf(pair.first, 0xFF000000.toInt() or rgb, pair.second), null, Shader.TileMode.CLAMP)
-    canvas.drawCircle(w / 2, h / 2, r, paint)
-    paint.shader = LinearGradient(w * 0.12f, h * 0.02f, w * 0.7f, h * 0.8f, intArrayOf(0x6BFFFFFF, 0x0FFFFFFF, 0x00FFFFFF), floatArrayOf(0f, 0.38f, 0.6f), Shader.TileMode.CLAMP)
-    canvas.drawCircle(w / 2, h / 2, r, paint)
-    paint.shader = null
-    text.textSize = w * 0.36f
-    canvas.drawText(letters, w / 2, h / 2 - (text.descent() + text.ascent()) / 2, text)
+    // The reference's `Avatar` (components.tsx:150): the lit ball, its highlight, the initials (design/AvatarOrb.kt).
+    orb.draw(canvas, w / 2 - r, h / 2 - r, 2 * r, rgb, letters)
   }
 }

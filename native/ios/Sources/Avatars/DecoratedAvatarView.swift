@@ -4,8 +4,12 @@ import UIKit
 /// The round face of a person: their picture, or their colour as a lit ball with their initials (as in the chat
 /// list). `pixels`: how sharp the picture is asked; `animated`: a GIF avatar moves.
 final class AvatarFaceView: UIView {
-    private let orb = CAGradientLayer()
+    private let orb = AvatarOrb.bodyLayer()
+    private let shine = AvatarOrb.shineLayer()
     private let letters = UILabel()
+    private var lettersText = ""
+    private var lettersRGB: UInt32 = 0
+    private var lettersSide: CGFloat = -1
     private let picture = UIImageView()
     private var pictureId = ""
     private var base = ""
@@ -20,10 +24,9 @@ final class AvatarFaceView: UIView {
         super.init(frame: frame)
         clipsToBounds = true
         isUserInteractionEnabled = false
-        orb.startPoint = CGPoint(x: 0.9, y: 1)
-        orb.endPoint = CGPoint(x: 0.1, y: 0)
+        // components.tsx:150 `Avatar` (Avatars/AvatarOrb.swift): the ball, its white highlight, the initials.
         layer.addSublayer(orb)
-        letters.textColor = .white
+        layer.addSublayer(shine)
         letters.textAlignment = .center
         letters.adjustsFontSizeToFitWidth = true
         letters.minimumScaleFactor = 0.5
@@ -41,13 +44,13 @@ final class AvatarFaceView: UIView {
     deinit { NotificationCenter.default.removeObserver(self) }
 
     func show(_ person: Person, base: String, animated: Bool) {
-        let pair = orbPair(person.avatarColor)
-        let light = UIColor(hex: UInt32(truncatingIfNeeded: pair.light) & 0xFFFFFF)
-        let deep = UIColor(hex: UInt32(truncatingIfNeeded: pair.deep) & 0xFFFFFF)
         // components.tsx:150 `Avatar`: orbColors = [lighter, colour, deeper] from (.9, 1) to (.1, 0) — the lighter at the
         // bottom right (as Android avatars/DecoratedAvatarView.kt and the chat list draw it).
-        orb.colors = [light.cgColor, UIColor(hex: person.avatarColor).cgColor, deep.cgColor]
-        letters.text = String(Messenger.initials(person.displayName).prefix(2))
+        orb.colors = AvatarOrb.bodyColors(person.avatarColor)
+        lettersText = String(Messenger.initials(person.displayName).prefix(2))
+        lettersRGB = person.avatarColor
+        letters.attributedText = AvatarOrb.letters(lettersText, side: bounds.width, rgb: lettersRGB)
+        lettersSide = bounds.width
         pictureId = person.avatarId
         self.base = base
         self.animated = animated
@@ -86,15 +89,17 @@ final class AvatarFaceView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let wasSmall = letters.font.pointSize
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         orb.frame = bounds
+        shine.frame = bounds
         CATransaction.commit()
         picture.frame = bounds
         letters.frame = bounds.insetBy(dx: bounds.width * 0.12, dy: 0)
-        let size = max(8, bounds.width * 0.36)
-        if abs(wasSmall - size) > 0.5 { letters.font = .systemFont(ofSize: size, weight: .bold) }
+        if abs(lettersSide - bounds.width) > 0.5 {
+            lettersSide = bounds.width
+            letters.attributedText = AvatarOrb.letters(lettersText, side: bounds.width, rgb: lettersRGB)
+        }
         layer.cornerRadius = min(bounds.width, bounds.height) / 2
         // Laid out at another size than the picture was asked for (a profile's avatar before its first layout).
         if overridePicture == nil && !pictureId.isEmpty && wantedPixels != askedPixels { load() }

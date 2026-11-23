@@ -175,6 +175,11 @@ class RealDataRulesTest {
     assertEquals("КЗ", Messenger.initials("  Команда   запуска  сегодня"))
     assertEquals("", Messenger.initials(""))
     assertEquals("😀Я", Messenger.initials("😀смех Я"))
+    // components.tsx:139 avatarTextColor: dark letters on a light colour (luma above 0.68), white on the others.
+    assertEquals(0xFF14243D.toInt(), com.linea.messenger.design.AvatarOrb.lettersColor(0xF4D35E))
+    assertEquals(0xFF14243D.toInt(), com.linea.messenger.design.AvatarOrb.lettersColor(0xFFFFFF))
+    assertEquals(0xFFFFFFFF.toInt(), com.linea.messenger.design.AvatarOrb.lettersColor(0x4B73BB))
+    assertEquals(0xFFFFFFFF.toInt(), com.linea.messenger.design.AvatarOrb.lettersColor(0x5E7BFF))
     assertEquals(0x34C3A0, Messenger.color("#34C3A0"))
     assertEquals(0xabcdef, Messenger.color("#abcdef"))
     for (bad in listOf(null, "", "34C3A0", "#34C3A", "#34C3A0FF", "#GGGGGG", "#+1234 ")) assertEquals(0x5E7BFF, Messenger.color(bad))

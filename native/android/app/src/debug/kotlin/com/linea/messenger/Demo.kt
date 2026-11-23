@@ -33,7 +33,7 @@ object Demo {
     )
     return ChatRow.parse(people.mapIndexed { index, person ->
       val orb = orbPair(person.color)
-      val initials = person.title.split(" ").take(2).mapNotNull { it.firstOrNull() }.joinToString("")
+      val initials = com.linea.messenger.app.Messenger.initials(person.title) // the real rows' rule (components.tsx:149)
       mapOf(
         "id" to "demo-$index", "title" to person.title, "preview" to person.preview, "time" to person.time, "unread" to person.unread,
         "muted" to person.muted, "pinned" to person.pinned, "ticks" to person.ticks,

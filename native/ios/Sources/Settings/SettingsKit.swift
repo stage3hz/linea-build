@@ -1163,30 +1163,8 @@ final class SettingsAvatar: UIView {
             let size = CGSize(width: face.size.width * scale, height: face.size.height * scale)
             face.draw(in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height))
         } else {
-            // The same lit ball as in the list of chats: the colour between a lighter and a deeper neighbour.
-            let pair = orbPair(rgb)
-            let light = UIColor(hex: UInt32(truncatingIfNeeded: pair.light) & 0xFFFFFF)
-            let deep = UIColor(hex: UInt32(truncatingIfNeeded: pair.deep) & 0xFFFFFF)
-            if let space = CGColorSpace(name: CGColorSpace.sRGB) {
-                let body = [light.cgColor, UIColor(hex: rgb).cgColor, deep.cgColor] as CFArray
-                let bodyStops: [CGFloat] = [0, 0.5, 1]
-                if let gradient = CGGradient(colorsSpace: space, colors: body, locations: bodyStops) {
-                    context.drawLinearGradient(gradient, start: CGPoint(x: box.minX + box.width * 0.9, y: box.maxY), end: CGPoint(x: box.minX + box.width * 0.1, y: box.minY),
-                                               options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-                }
-                let shine = [UIColor(white: 1, alpha: 0.42).cgColor, UIColor(white: 1, alpha: 0.06).cgColor, UIColor(white: 1, alpha: 0).cgColor] as CFArray
-                let shineStops: [CGFloat] = [0, 0.38, 0.6]
-                if let gradient = CGGradient(colorsSpace: space, colors: shine, locations: shineStops) {
-                    context.drawLinearGradient(gradient, start: CGPoint(x: box.minX + box.width * 0.12, y: box.minY + box.height * 0.02),
-                                               end: CGPoint(x: box.minX + box.width * 0.7, y: box.minY + box.height * 0.8), options: [])
-                }
-            } else {
-                context.setFillColor(UIColor(hex: rgb).cgColor)
-                context.fill(box)
-            }
-            let text = NSAttributedString(string: letters, attributes: [.font: UIFont.systemFont(ofSize: box.width * 0.36, weight: .bold), .foregroundColor: UIColor.white])
-            let size = text.size()
-            text.draw(at: CGPoint(x: box.midX - size.width / 2, y: box.midY - size.height / 2))
+            // The reference's `Avatar` (components.tsx:150): the lit ball, its highlight, the initials (Avatars/AvatarOrb.swift).
+            AvatarOrb.draw(in: context, box: box, rgb: rgb, initials: letters)
         }
         context.restoreGState()
     }

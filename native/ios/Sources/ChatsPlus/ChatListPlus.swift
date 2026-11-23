@@ -248,8 +248,6 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     func presentPeek(chat: Messenger.ChatSummary, choices: [ChoiceSheet.Choice]) -> Bool {
         guard let host, host.presentedViewController == nil else { return false }
         let peer = chat.chat["peer"] as? [String: Any] ?? [:]
-        let colorValue = (chat.row["avatarColor"] as? NSNumber)?.intValue ?? Int(0xFF4B_73BB)
-        let color = UIColor(red: CGFloat((colorValue >> 16) & 255) / 255, green: CGFloat((colorValue >> 8) & 255) / 255, blue: CGFloat(colorValue & 255) / 255, alpha: 1)
         var lines: [ChatPeekMenu.Line] = []
         #if targetEnvironment(simulator)
         if messenger == nil {
@@ -257,8 +255,8 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
                      ChatPeekMenu.Line(text: "Отлично, тогда в три у входа", mine: false), ChatPeekMenu.Line(text: "Договорились 👍", mine: true)]
         }
         #endif
-        let card = ChatPeekMenu(anchorY: holdY, name: chat.title, username: peer["username"] as? String ?? "", initials: chat.row["initials"] as? String ?? "",
-                                avatarColor: color, lines: lines, choices: choices)
+        let card = ChatPeekMenu(anchorY: holdY, name: chat.title, username: peer["username"] as? String ?? "",
+                                face: FolderChat(summary: chat), lines: lines, choices: choices)
         host.present(card, animated: true)
         if let messenger {
             ChatListPlus.peekLines(messenger: messenger, chatId: chat.id) { [weak card] (found: [ChatPeekMenu.Line]) -> Void in card?.setLines(found) }

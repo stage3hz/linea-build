@@ -13,7 +13,6 @@ import android.graphics.Shader
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
-import android.text.TextPaint
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -22,18 +21,17 @@ import android.widget.TextView
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.chats.AvatarStore
 import com.linea.messenger.design.Theme
-import com.linea.messenger.design.orbPair
+import com.linea.messenger.design.AvatarOrb
 import com.linea.messenger.people.Person
 
 /** The round face of a person: their picture, or their colour as a lit ball with their initials (as in the chat
  *  list). `animated`: a GIF avatar moves (with «Автозапуск GIF» on and no power saving). */
 class AvatarFaceView(context: Context) : View(context) {
-  private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val orb = AvatarOrb(resources.displayMetrics.density)
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-  private val letters = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; typeface = Theme.weight(700) }
   private val matrix = Matrix()
   private val clip = Path()
-  private var colors = intArrayOf(0, 0, 0)
+  private var rgb = 0
   private var initials = ""
   private var pictureId = ""
   private var base = ""
@@ -47,9 +45,8 @@ class AvatarFaceView(context: Context) : View(context) {
   init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
 
   fun show(person: Person, base: String, animated: Boolean) {
-    val pair = orbPair(person.avatarColor)
-    colors = intArrayOf(pair.first, 0xFF000000.toInt() or person.avatarColor, pair.second)
-    initials = Messenger.initials(person.displayName).take(2)
+    rgb = person.avatarColor
+    initials = Messenger.initials(person.displayName)
     pictureId = person.avatarId
     this.base = base
     this.animated = animated
@@ -59,14 +56,11 @@ class AvatarFaceView(context: Context) : View(context) {
   override fun onAttachedToWindow() { super.onAttachedToWindow(); AvatarMedia.ready.watch(arrived) }
   override fun onDetachedFromWindow() { AvatarMedia.ready.unwatch(arrived); (moving as? Animatable)?.stop(); super.onDetachedFromWindow() }
 
-  // The picture's shader and the orb's gradient, kept while the picture and the size stay (a parent redrawing
-  // every frame — a turning ring in a software-drawn window — then makes nothing new).
+  // The picture's shader, kept while the picture and the size stay (a parent redrawing every frame — a turning ring
+  // in a software-drawn window — then makes nothing new; AvatarOrb keeps its gradients the same way).
   private var faceShader: Shader? = null
   private var faceShaderBitmap: Bitmap? = null
   private var faceShaderW = 0f; private var faceShaderH = 0f
-  private var orbShader: Shader? = null
-  private var orbShaderW = 0f; private var orbShaderH = 0f
-  private var orbShaderColors: IntArray? = null
 
   private fun drawBitmap(canvas: Canvas, face: Bitmap, w: Float, h: Float) {
     if (faceShader == null || faceShaderBitmap !== face || faceShaderW != w || faceShaderH != h) {
@@ -107,18 +101,9 @@ class AvatarFaceView(context: Context) : View(context) {
         }
       }
     }
-    if (orbShader == null || orbShaderW != w || orbShaderH != h || orbShaderColors !== colors) {
-      orbShader = LinearGradient(w * 0.9f, h, w * 0.1f, 0f, colors, null, Shader.TileMode.CLAMP)
-      orbShaderW = w; orbShaderH = h; orbShaderColors = colors
-    }
-    orb.shader = orbShader
-    canvas.drawCircle(w / 2, h / 2, minOf(w, h) / 2, orb)
-    orb.shader = null
-    letters.textSize = maxOf(8f * resources.displayMetrics.density, w * 0.36f)
-    val room = w * 0.76f
-    val wide = letters.measureText(initials)
-    if (wide > room && wide > 0f) letters.textSize *= maxOf(0.5f, room / wide)
-    canvas.drawText(initials, w / 2, h / 2 - (letters.ascent() + letters.descent()) / 2, letters)
+    // components.tsx:150 `Avatar`: the lit ball, its highlight and the initials (design/AvatarOrb.kt).
+    val side = minOf(w, h)
+    orb.draw(canvas, (w - side) / 2, (h - side) / 2, side, rgb, initials)
   }
 
   override fun verifyDrawable(who: Drawable): Boolean = who === moving || super.verifyDrawable(who)

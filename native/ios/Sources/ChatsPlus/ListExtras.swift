@@ -111,9 +111,9 @@ final class ListPeopleSearch {
 
     func person(_ id: String) -> Person? { found.first { $0.id == id } }
 
+    /// The reference's rule (components.tsx:149): one for every avatar, `Messenger.initials`.
     static func initials(_ name: String) -> String {
-        let words = name.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" }).prefix(2)
-        return words.compactMap { $0.first.map { String($0) } }.joined().uppercased()
+        return Messenger.initials(name)
     }
 
     private func ask(_ wanted: String) {

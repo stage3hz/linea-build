@@ -24,7 +24,6 @@ import android.os.Bundle
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
 import com.linea.messenger.design.Theme
-import com.linea.messenger.design.orbPair
 import kotlin.math.ceil
 
 // Where everything of one row of a channel's chat goes, for the width it is shown at — and the lines of text
@@ -51,7 +50,7 @@ object ChannelLook {
 enum class ChannelFont(val size: Float, val weight: Int) {
   BODY(15.5f, 400), POST(16f, 400), NAME(15f, 700), SMALL(11f, 400), SMALL_BOLD(11f, 600), REPLY(13f, 400), REPLY_BOLD(13f, 600),
   FILE_NAME(14f, 600), FILE_SIZE(12f, 400), CHIP_EMOJI(14f, 400), CHIP_COUNT(12f, 600), CARD_NAME(16f, 700), BUTTON(14f, 700),
-  INITIALS(14.5f, 700), KIND(11f, 700), FACE(16f, 700),
+  INITIALS(14.5f, 700), KIND(11f, 700), FACE(48f * 0.34f, 700),
 }
 
 /** One paint per font. A set belongs to ONE thread: the engine's worker measures with its own set, the main
@@ -114,8 +113,11 @@ sealed class ChannelPiece {
   class Text(val line: ChannelType.Line, val x: Float, val baseline: Float) : ChannelPiece()
   /** A paragraph at its corner. */
   class Block(val layout: StaticLayout, val x: Float, val y: Float) : ChannelPiece()
-  /** A round picture: the file's id (empty: none), the colours shown without one, and the letters on them. */
-  class Avatar(val box: RectF, val id: String, val colors: IntArray, val letters: ChannelType.Line?) : ChannelPiece() {
+  /** A round picture: the file's id (empty: none), the colours shown without one, and the letters on them — a
+   *  community's (parts.tsx CommunityAvatar: from the top left to the bottom right). With `person`, a person's: without
+   *  a picture, `rgb` (0xRRGGBB) and `initials` drawn as the reference's `Avatar` (design/AvatarOrb.kt). */
+  class Avatar(val box: RectF, val id: String, val colors: IntArray, val letters: ChannelType.Line?,
+               val person: Boolean = false, val rgb: Int = 0, val initials: String = "") : ChannelPiece() {
     /** Made at the first drawing (main thread). */
     var gradient: Shader? = null
     var picture: Shader? = null
@@ -199,9 +201,8 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
       val headTop = y
       if (row.header) {
         val face = box(14 * d, y, 40 * d, 40 * d)
-        val pair = orbPair(row.avatarColor)
-        val letters = if (row.initials.isEmpty()) null else line(row.initials, ChannelFont.INITIALS, ChannelLook.white, 34 * d)
-        pieces.add(ChannelPiece.Avatar(face, row.avatarId, intArrayOf(pair.first, argb(row.avatarColor), pair.second), letters))
+        // ChannelChat.tsx:197: the reference's `Avatar` at 40.
+        pieces.add(ChannelPiece.Avatar(face, row.avatarId, IntArray(0), null, person = true, rgb = row.avatarColor, initials = row.initials))
         if (row.avatarId.isNotEmpty()) pictures.add(row.avatarId)
         authorBoxes.add(face)
         avatarBox = face
@@ -407,6 +408,8 @@ class ChannelRowView(context: Context) : View(context) {
     setMeasuredDimension(MeasureSpec.getSize(widthSpec), layoutInfo?.height ?: 0)
   }
 
+  private val orb by lazy { com.linea.messenger.design.AvatarOrb(resources.displayMetrics.density) }
+
   private fun cover(image: Bitmap, box: RectF, kept: Shader?, keptOf: Bitmap?): Shader {
     val shader = if (kept != null && keptOf === image) kept else BitmapShader(image, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
     val scale = maxOf(box.width() / image.width, box.height() / image.height)
@@ -454,8 +457,10 @@ class ChannelRowView(context: Context) : View(context) {
             picture.alpha = 255
             canvas.drawBitmap(image, null, coverBox, picture)
             canvas.restore()
+          } else if (piece.person) {
+            orb.draw(canvas, box.left, box.top, box.width(), piece.rgb, piece.initials)
           } else {
-            val gradient = piece.gradient ?: LinearGradient(box.left + box.width() * 0.1f, box.top, box.left + box.width() * 0.9f, box.bottom, piece.colors, null, Shader.TileMode.CLAMP).also { piece.gradient = it }
+            val gradient = piece.gradient ?: LinearGradient(box.left, box.top, box.right, box.bottom, piece.colors, null, Shader.TileMode.CLAMP).also { piece.gradient = it }
             // Opaque: a shader keeps the paint's alpha, and the paint may still hold a see-through Fill's colour
             // (a card's 6% veil) — the ball came out nearly black after one.
             fill.color = android.graphics.Color.BLACK

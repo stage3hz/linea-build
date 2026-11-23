@@ -272,7 +272,7 @@ class FolderChat(val id: String, val title: String, val avatarColor: Int, val in
 class SmallAvatarView(context: Context) : View(context) {
   private var chat: FolderChat? = null
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-  private val letters = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; color = Color.WHITE; typeface = Theme.weight(700) }
+  private val orb = com.linea.messenger.design.AvatarOrb(resources.displayMetrics.density)
   private val clip = android.graphics.Path()
 
   fun show(chat: FolderChat) { this.chat = chat; invalidate() }
@@ -291,10 +291,8 @@ class SmallAvatarView(context: Context) : View(context) {
       canvas.restore()
       return
     }
-    paint.color = 0xFF000000.toInt() or (chat.avatarColor and 0xFFFFFF)
-    canvas.drawCircle(cx, cy, side / 2, paint)
-    letters.textSize = side * 0.36f
-    canvas.drawText(chat.initials, cx, cy - (letters.descent() + letters.ascent()) / 2, letters)
+    // ChatFolders.tsx draws the reference's `Avatar` here (components.tsx:150): design/AvatarOrb.kt.
+    orb.draw(canvas, cx - side / 2, cy - side / 2, side, chat.avatarColor, chat.initials)
   }
 }
 

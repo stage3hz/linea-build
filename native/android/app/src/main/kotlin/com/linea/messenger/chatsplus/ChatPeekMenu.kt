@@ -36,7 +36,7 @@ import com.linea.messenger.design.words
  *  the ones this device has already decrypted; nothing is asked of the server for the card
  *  (native/ios/Sources/ChatsPlus/ChatPeekMenu.swift). */
 class ChatPeekMenu(
-  context: Context, private val anchorY: Float, val name: String, username: String, initials: String, avatarColor: Int,
+  context: Context, private val anchorY: Float, val name: String, username: String, face: FolderChat,
   lines: List<Line>, val choices: List<ChoiceSheet.Choice>,
 ) : Dialog(context, android.R.style.Theme_Translucent_NoTitleBar) {
   class Line(val text: String, val mine: Boolean)
@@ -46,10 +46,8 @@ class ChatPeekMenu(
   private var lines: List<Line> = lines.takeLast(14)
   private val page = Page(context)
   private val card = Card(context)
-  private val avatar = TextView(context).apply {
-    text = initials; textSize = 14f; typeface = Theme.weight(700); setTextColor(Color.WHITE); gravity = Gravity.CENTER
-    background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(0xFF000000.toInt() or (avatarColor and 0xFFFFFF)) }
-  }
+  // ChatListScreen.tsx ChatPeek: the reference's `Avatar` at 36 — the photo, or the lit ball with the initials.
+  private val avatar = SmallAvatarView(context).apply { show(face) }
   private val nameLabel = context.words(name, 15f, Theme.text, 700).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
   private val userLabel = context.words(if (username.isEmpty()) "" else "@$username", 12f, Theme.muted).apply { maxLines = 1 }
   private val messages = ArrayList<TextView>()

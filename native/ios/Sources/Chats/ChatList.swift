@@ -371,34 +371,20 @@ final class ChatRowCanvas: UIView {
     if let face = face {
       drawPicture(context, face, photoBox, corner)
     } else {
-      let round = chatRound(photoBox, corner).cgPath
-      if item.orbA != 0, item.orbB != 0, let space = CGColorSpace(name: CGColorSpace.sRGB) {
-        // A lit ball: the person's colour between a lighter and a deeper neighbour hue, a highlight from the top left.
-        context.saveGState()
-        context.addPath(round)
-        context.clip()
-        let body = [chatColor(item.orbA).cgColor, chatColor(item.avatarColor).cgColor, chatColor(item.orbB).cgColor] as CFArray
-        let bodyStops: [CGFloat] = [0, 0.5, 1]
-        if let gradient = CGGradient(colorsSpace: space, colors: body, locations: bodyStops) {
-          context.drawLinearGradient(gradient, start: CGPoint(x: photoBox.minX + photoBox.width * 0.9, y: photoBox.maxY),
-                                     end: CGPoint(x: photoBox.minX + photoBox.width * 0.1, y: photoBox.minY),
-                                     options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-        }
-        let shine = [UIColor(white: 1, alpha: 0.42).cgColor, UIColor(white: 1, alpha: 0.06).cgColor, UIColor(white: 1, alpha: 0).cgColor] as CFArray
-        let shineStops: [CGFloat] = [0, 0.38, 0.6]
-        if let gradient = CGGradient(colorsSpace: space, colors: shine, locations: shineStops) {
-          context.drawLinearGradient(gradient, start: CGPoint(x: photoBox.minX + photoBox.width * 0.12, y: photoBox.minY + photoBox.height * 0.02),
-                                     end: CGPoint(x: photoBox.minX + photoBox.width * 0.7, y: photoBox.minY + photoBox.height * 0.8), options: [])
-        }
-        context.restoreGState()
+      if item.orbA != 0, item.orbB != 0 {
+        // A person: the reference's `Avatar` (components.tsx:150) — the lit ball, its highlight and the initials at
+        // 0.32 of the side, dark on a light colour (Avatars/AvatarOrb.swift, the one rule of every avatar).
+        AvatarOrb.draw(in: context, box: photoBox, rgb: UInt32(truncatingIfNeeded: item.avatarColor) & 0xFFFFFF, initials: item.initials)
       } else {
+        // «Избранное», «Архив», «‹ Архив»: a flat circle of the theme's colour with a white sign, as the reference's
+        // chat list rows draw them (ChatListScreen.tsx:246-250, LineChatListModule.swift:410-416).
         context.setFillColor(chatColor(item.avatarColor).cgColor)
-        context.addPath(round)
+        context.addPath(chatRound(photoBox, corner).cgPath)
         context.fillPath()
+        let letters = NSAttributedString(string: item.initials, attributes: [.font: ChatRowCanvas.avatarFont, .foregroundColor: UIColor.white])
+        let lettersSize = letters.size()
+        letters.draw(at: CGPoint(x: x + (avatar - lettersSize.width) / 2, y: (h - lettersSize.height) / 2))
       }
-      let letters = NSAttributedString(string: item.initials, attributes: [.font: ChatRowCanvas.avatarFont, .foregroundColor: UIColor.white])
-      let lettersSize = letters.size()
-      letters.draw(at: CGPoint(x: x + (avatar - lettersSize.width) / 2, y: (h - lettersSize.height) / 2))
     }
     if let art = art {
       let side = photoBox.width * item.decoScale

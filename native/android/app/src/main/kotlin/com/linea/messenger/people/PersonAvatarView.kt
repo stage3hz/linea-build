@@ -4,24 +4,20 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Shader
-import android.text.TextPaint
 import android.view.View
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.chats.AvatarStore
-import com.linea.messenger.design.Theme
-import com.linea.messenger.design.orbPair
+import com.linea.messenger.design.AvatarOrb
 
 /** A person's round picture; without one — their colour as a lit ball with their initials (as in the chat list). */
 class PersonAvatarView(context: Context) : View(context) {
-  private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val orb = AvatarOrb(resources.displayMetrics.density)
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-  private val letters = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; typeface = Theme.weight(700) }
   private val matrix = Matrix()
-  private var colors = intArrayOf(0, 0, 0)
+  private var rgb = 0
   private var initials = ""
   private var pictureKey = ""
   private var pictureAddress = ""
@@ -29,8 +25,7 @@ class PersonAvatarView(context: Context) : View(context) {
 
   /** `address`: where the picture is (empty when the person has none). */
   fun show(person: Person, address: String) {
-    val pair = orbPair(person.avatarColor)
-    colors = intArrayOf(pair.first, 0xFF000000.toInt() or person.avatarColor, pair.second)
+    rgb = person.avatarColor
     initials = Messenger.initials(person.displayName)
     pictureKey = person.avatarId
     pictureAddress = address
@@ -51,15 +46,8 @@ class PersonAvatarView(context: Context) : View(context) {
       canvas.drawCircle(w / 2, h / 2, radius, picture)
       return
     }
-    // components.tsx:150 `Avatar`: [lighter, colour, deeper] from (.9, 1) to (.1, 0) — the lighter at the bottom right.
-    orb.shader = LinearGradient(w * 0.9f, h, w * 0.1f, 0f, colors, null, Shader.TileMode.CLAMP)
-    canvas.drawCircle(w / 2, h / 2, radius, orb)
-    orb.shader = null
-    // The letters shrink to fit the ball (down to 0.6 of their size).
-    letters.textSize = w * 0.36f
-    val room = w * 0.76f
-    val wide = letters.measureText(initials)
-    if (wide > room && wide > 0f) letters.textSize = w * 0.36f * maxOf(0.6f, room / wide)
-    canvas.drawText(initials, w / 2, h / 2 - (letters.ascent() + letters.descent()) / 2, letters)
+    // components.tsx:150 `Avatar`: the lit ball, its highlight and the initials (design/AvatarOrb.kt).
+    val side = minOf(w, h)
+    orb.draw(canvas, (w - side) / 2, (h - side) / 2, side, rgb, initials)
   }
 }

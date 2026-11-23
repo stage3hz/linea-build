@@ -138,8 +138,12 @@ enum ChannelPiece {
     case text(CTLine, CGPoint)
     /// A paragraph in its box (the box is exactly as tall as the frame's path).
     case block(CTFrame, CGRect)
-    /// A round picture: the file's id (empty: none), the colours shown without one, and the letters on them.
+    /// A community's round picture: the file's id (empty: none), the colours shown without one (parts.tsx
+    /// CommunityAvatar, from the top left to the bottom right), and the letters on them.
     case avatar(CGRect, String, [CGColor], ChannelType.Line?)
+    /// A person's round picture: the file's id (empty: none), their colour (0xRRGGBB) and initials drawn without one
+    /// as the reference's `Avatar` (Avatars/AvatarOrb.swift).
+    case person(CGRect, String, UInt32, String)
     /// A picture filling its box, corners rounded.
     case picture(CGRect, String, CGFloat)
     /// A system symbol centred in its box.
@@ -212,10 +216,8 @@ final class ChannelRowLayout {
             let headTop = y
             if row.header {
                 let box = CGRect(x: 14, y: y, width: 40, height: 40)
-                let pair = orbPair(row.avatarColor)
-                let colors = [UIColor(hex: UInt32(truncatingIfNeeded: pair.light) & 0xFFFFFF).cgColor, UIColor(hex: row.avatarColor).cgColor, UIColor(hex: UInt32(truncatingIfNeeded: pair.deep) & 0xFFFFFF).cgColor]
-                let letters = row.initials.isEmpty ? nil : ChannelType.line(row.initials, UIFont.systemFont(ofSize: 14.5, weight: .bold), .white, width: 34)
-                pieces.append(.avatar(box, row.avatarId, colors, letters))
+                // ChannelChat.tsx:197: the reference's `Avatar` at 40.
+                pieces.append(.person(box, row.avatarId, row.avatarColor, row.initials))
                 if !row.avatarId.isEmpty { pictures.append(row.avatarId) }
                 authorBoxes.append(box)
                 avatarBox = box
@@ -338,7 +340,7 @@ final class ChannelRowLayout {
         pieces.append(.text(kind.line, CGPoint(x: x + 12, y: y + 12 + kind.ascent)))
         let face = CGRect(x: x + 12, y: y + 36, width: 48, height: 48)
         let pair = ChannelWords.gradient(invite.communityId)
-        let letters = ChannelType.line(ChannelWords.initials(invite.name), UIFont.systemFont(ofSize: 16, weight: .bold), .white, width: 40)
+        let letters = ChannelType.line(ChannelWords.initials(invite.name), UIFont.systemFont(ofSize: 48 * 0.34, weight: .bold), .white, width: 40)
         pieces.append(.avatar(face, invite.avatarId, [UIColor(hex: pair.0).cgColor, UIColor(hex: pair.1).cgColor], letters))
         if !invite.avatarId.isEmpty { pictures.append(invite.avatarId) }
         let name = ChannelType.line(invite.name, ChannelLook.cardName, ChannelLook.text, width: wide - 24 - 59)
@@ -487,7 +489,7 @@ final class ChannelRowCanvas: UIView {
                     drawCover(image, in: box)
                 } else {
                     if let space = CGColorSpace(name: CGColorSpace.sRGB), let gradient = CGGradient(colorsSpace: space, colors: colors as CFArray, locations: nil) {
-                        context.drawLinearGradient(gradient, start: CGPoint(x: box.minX + box.width * 0.1, y: box.minY), end: CGPoint(x: box.minX + box.width * 0.9, y: box.maxY),
+                        context.drawLinearGradient(gradient, start: CGPoint(x: box.minX, y: box.minY), end: CGPoint(x: box.maxX, y: box.maxY),
                                                    options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
                     }
                     if let letters {
@@ -495,6 +497,16 @@ final class ChannelRowCanvas: UIView {
                     }
                 }
                 context.restoreGState()
+            case .person(let box, let id, let rgb, let initials):
+                if !id.isEmpty, let image = ChannelImages.shared.image(id: id, pixels: ChannelLook.pixels(box.size, scale: scale)) {
+                    context.saveGState()
+                    context.addEllipse(in: box)
+                    context.clip()
+                    drawCover(image, in: box)
+                    context.restoreGState()
+                } else {
+                    AvatarOrb.draw(in: context, box: box, rgb: rgb, initials: initials)
+                }
             case .picture(let box, let id, let radius):
                 guard let image = ChannelImages.shared.image(id: id, pixels: ChannelLook.pixels(box.size, scale: scale)) else { continue }
                 context.saveGState()

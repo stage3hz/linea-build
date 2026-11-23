@@ -251,9 +251,8 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
   fun presentPeek(chat: Messenger.ChatSummary, choices: List<ChoiceSheet.Choice>): Boolean {
     if (host?.isAttachedToWindow != true) return false
     val peer = chat.chat["peer"] as? Map<*, *>
-    val color = (chat.row["avatarColor"] as? Number)?.toInt() ?: 0xFF4B73BB.toInt()
     val lines = if (messenger == null) ChatsPlusDemo.peekLines() else emptyList()
-    val card = ChatPeekMenu(context, holdY, chat.title, peer?.get("username") as? String ?: "", chat.row["initials"] as? String ?: "", color, lines, choices)
+    val card = ChatPeekMenu(context, holdY, chat.title, peer?.get("username") as? String ?: "", FolderChat(chat), lines, choices)
     card.show()
     messenger?.let { account -> ChatPeekMenu.peekLines(context, account, chat.id) { found -> card.setLines(found) } }
     return true

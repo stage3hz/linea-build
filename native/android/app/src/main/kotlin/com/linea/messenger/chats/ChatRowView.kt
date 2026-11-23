@@ -24,7 +24,7 @@ import android.view.View
 class ChatRowView(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
+  private val orb = com.linea.messenger.design.AvatarOrb(resources.displayMetrics.density)
   private val sectionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = com.linea.messenger.design.Theme.weight(700); letterSpacing = 0.12f }
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   // ChatsPlus: Montserrat, as the reference's row (design/Fonts.kt): the name 16 semibold, the line 15, the time 13.
@@ -199,14 +199,15 @@ class ChatRowView(context: Context) : View(context) {
     if (face != null) drawPicture(canvas, face, photoX, photoY, photo, corner, true)
     else {
       if (item.orbA != 0 && item.orbB != 0) {
-        // A lit ball: the person's colour between a lighter and a deeper neighbour hue, a highlight from the top left.
-        orb.shader = LinearGradient(photoX + photo * 0.9f, photoY + photo, photoX + photo * 0.1f, photoY, intArrayOf(item.orbA, item.avatarColor, item.orbB), null, Shader.TileMode.CLAMP)
-        canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, orb)
-        orb.shader = LinearGradient(photoX + photo * 0.12f, photoY + photo * 0.02f, photoX + photo * 0.7f, photoY + photo * 0.8f, intArrayOf(0x6BFFFFFF, 0x0FFFFFFF, 0x00FFFFFF), floatArrayOf(0f, 0.38f, 0.6f), Shader.TileMode.CLAMP)
-        canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, orb)
-        orb.shader = null
-      } else { fill.color = item.avatarColor; canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, fill) }
-      canvas.drawText(item.initials, x + avatar / 2, h / 2 - (avatarPaint.descent() + avatarPaint.ascent()) / 2, avatarPaint)
+        // A person: the reference's `Avatar` (components.tsx:150) — the lit ball, its highlight and the initials at
+        // 0.32 of the side, dark on a light colour (design/AvatarOrb.kt, the one rule of every avatar).
+        orb.draw(canvas, photoX, photoY, photo, item.avatarColor, item.initials)
+      } else {
+        // «Избранное», «Архив», «‹ Архив»: a flat circle of the theme's colour with a white sign, as the reference's
+        // chat list rows draw them (ChatListScreen.tsx:246-250, ChatRowView.kt:200-201 of linea-chatlist).
+        fill.color = item.avatarColor; canvas.drawRoundRect(photoX, photoY, photoX + photo, photoY + photo, corner, corner, fill)
+        canvas.drawText(item.initials, x + avatar / 2, h / 2 - (avatarPaint.descent() + avatarPaint.ascent()) / 2, avatarPaint)
+      }
     }
     if (art != null) {
       val side = photo * item.decoScale.toFloat()

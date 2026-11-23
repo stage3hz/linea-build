@@ -272,12 +272,8 @@ final class SmallAvatarView: UIView {
             face.draw(in: CGRect(x: box.midX - size.width / 2, y: box.midY - size.height / 2, width: size.width, height: size.height))
             return
         }
-        let value = UInt32(truncatingIfNeeded: chat.avatarColor)
-        context.setFillColor(UIColor(hex: value & 0xFFFFFF).cgColor)
-        context.fill(box)
-        let letters = NSAttributedString(string: chat.initials, attributes: [.font: AppFont.text(box.width * 0.36, .bold), .foregroundColor: UIColor.white])
-        let size = letters.size()
-        letters.draw(at: CGPoint(x: box.midX - size.width / 2, y: box.midY - size.height / 2))
+        // ChatFolders.tsx draws the reference's `Avatar` here (components.tsx:150): Avatars/AvatarOrb.swift.
+        AvatarOrb.draw(in: context, box: box, rgb: UInt32(truncatingIfNeeded: chat.avatarColor) & 0xFFFFFF, initials: chat.initials)
     }
 }
 
