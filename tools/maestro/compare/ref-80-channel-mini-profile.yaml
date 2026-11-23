@@ -25,7 +25,10 @@ appId: com.linea.messenger.preview
     timeout: 60000
     optional: true
 - tapOn:
-    text: "Профиль Dimas"
-    index: 0
+    point: "8%,73%"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
 - takeScreenshot: ref-80-channel-mini-profile

@@ -69,6 +69,14 @@ def section(name):  # the list of sections (a hold on «Чаты»), then one of
     return flow('sections.yaml') + tap(f'{name}.*')
 def setting(row):
     return reveal(f'{row}.*') + tap(f'{row}.*', index=0)
+# A row that a plain reveal leaves at the bottom edge, under the floating tab bar: the tap then lands on the bar's
+# «Чаты» (fourth run: ref-89 and ref-92 photographed the chat list, ref-90 and ref-91 then found nothing on it).
+# Moved to the middle first; only for rows with more of the page below them (centring needs room to scroll).
+def setting_low(row):
+    return center(f'{row}.*', 'DOWN') + tap(f'{row}.*', index=0)
+# A sideways swipe over a horizontal row of chips or tabs, starting on one of them (the rest is off the screen's edge).
+def swipe_left_from(t):
+    return f'- swipe:\n    from:\n      text: {q(t)}\n    direction: LEFT\n    duration: 600\n- waitForAnimationToEnd\n'
 OPEN_TIMUR = flow('open-timur.yaml')
 # Тимур's profile from his chat: the reference's header name pill «Профиль Тимур Богданов» (mobile/src/ChatScreen.tsx).
 PROFILE_TIMUR = OPEN_TIMUR + tap('Профиль Тимур Богданов.*') + PROFILE_UP
@@ -112,7 +120,7 @@ def pair(name, shard, args, wait_s, ref, nat=None, start='', phase='main', look=
 # (mobile/src/ChatFolders.tsx, FolderEditor; the third run tapped the bare names, found nothing, and «Сохранить»
 # stayed disabled and out of sight).
 pair('00-setup-folder', 1, '', 0, SETTINGS + setting('Папки с чатами') + tap('Создать папку') + tap('Название, например «Работа»') + typ('Работа')
-     + '- hideKeyboard\n' + tap('Максим Голубев, Максим Голубев.*') + tap('Анна Лебедева, Анна Лебедева.*')
+     + '- hideKeyboard\n' + tap('Максим Голубев(, Максим Голубев)?') + tap('Анна Лебедева(, Анна Лебедева)?')
      + reveal('Сохранить') + tap('Сохранить'), phase='setup')
 # Лариса and Игорь are opened once, so their unread state is the same for both apps from here on.
 pair('00-setup-read', 1, '', 0, tap('Лариса Новикова.*') + wait('.*Сообщение номер 24.*', 60000) + flow('ref-home.yaml')
@@ -161,15 +169,14 @@ pair('29-chat-long', 1, '', 25, tap('Лариса Новикова.*') + wait('.
 pair('30-reply-bar', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Список покупок.*') + hold('.*Список покупок.*') + tap('Ответить'), 'same', start='chat')
 pair('31-edit-bar', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Буду через десять минут.*') + tap('Изменить'), 'same', start='chat')
 pair('32-selection', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Как тебе фото.*') + tap('Выбрать') + tap('.*Молоко уже купил.*', optional=True), 'same', start='chat')
-pair('33-chat-search', 1, '-openchat 1', 30, OPEN_TIMUR + flow('avatar-peek.yaml') + tap('Поиск') + typ('молоко') + '- hideKeyboard\n' + SETTLE, 'same', start='chat')
+pair('33-chat-search', 1, '-openchat 1', 30, OPEN_TIMUR + flow('avatar-peek.yaml') + tap('Поиск') + typ('молоко') + '- pressKey: enter\n' + SETTLE, 'same', start='chat')
 # The chat's «Ещё»: on a phone the reference has it in the person's profile (the header's «Ещё» and «Позвонить»
 # belong to its wide desktop header, mobile/src/ChatScreen.tsx), the native app too (People/PersonProfileViewController.swift).
 pair('34-chat-header-menu', 1, '-profile chat', 40, PROFILE_TIMUR + '|' + wait('Ещё', 30000) + tap('Ещё', index=0), 'same')
 # The reference's phone has no mini profile in a private chat (MiniProfile there is the wide header's): the pair is the
 # profile reached by the GESTURE on the header's name (07-profile is the native app's launch argument). The reference's
-# name pill is one button «Профиль Тимур Богданов»; the native pill's label is not exposed (namePill is not an
-# accessibility element, ChatLook/ChatLookScreen.swift) but its name label «Тимур Богданов…» lies on it.
-pair('35-chat-profile', 1, '-openchat 1', 30, OPEN_TIMUR + '|' + tap('Профиль Тимур Богданов.*') + PROFILE_UP, start='chat', nat=tap('Тимур Богданов.*', index=0) + PROFILE_UP)
+# name pill is one button «Профиль Тимур Богданов», the native one too (namePill, ChatLook/ChatLookScreen.swift).
+pair('35-chat-profile', 1, '-openchat 1', 30, OPEN_TIMUR + '|' + tap('Профиль Тимур Богданов.*') + PROFILE_UP, 'same', start='chat')
 pair('36-photo-menu', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Это мы на даче.*') + hold('.*Это мы на даче.*'), 'same', start='chat')
 pair('37-photo-viewer', 1, '-openchat 1 -openattachment photo', 40, OPEN_TIMUR + center('Тимур Богданов: photo.png') + tap('Тимур Богданов: photo.png') + pause(3000))
 pair('38-saved', 1, '', 25, tap('Избранное.*', index=0) + pause(3000), 'same', start='home')
@@ -186,7 +193,7 @@ pair('45-story-add', 3, '', 25, hold('Моя история') + pause(2500), 'sa
 pair('46-chatlist-light', 2, '', 25, '', look='light')
 pair('47-chat-light', 1, '-openchat 1', 35, OPEN_TIMUR, look='light')
 # Last of shard 1 (a draft stays in Тимур's chat): the same words the native `-chatlist draft` writes.
-pair('48-draft', 1, '-chatlist draft', 30, OPEN_TIMUR + tapid('chat-composer') + typ('Не забыть спросить про проектор') + '- hideKeyboard\n' + pause(4000) + flow('ref-home.yaml'))
+pair('48-draft', 1, '-chatlist draft', 30, OPEN_TIMUR + tapid('chat-composer') + typ('Не забыть спросить про проектор') + tap('Назад к чатам.*') + pause(4000) + flow('ref-home.yaml'))
 
 # Shard 2: profiles, the profile editor and its sheets, Platina, settings pages, people.
 pair('07-profile', 2, '-profile chat', 40, OPEN_TIMUR + tap('Профиль Тимур Богданов.*') + PROFILE_UP)
@@ -196,7 +203,7 @@ pair('10-privacy', 2, '-settings privacy', 20, SETTINGS + setting('Конфид�
 pair('11-people', 2, '-tab people', 25, section('Люди'))
 pair('49-profile-scrolled', 2, '-profile chat', 40, PROFILE_TIMUR + '|' + swipe_up(), 'same')
 pair('50-profile-files', 2, '-profile chat', 40, PROFILE_TIMUR + '|' + reveal('Файлы.*') + tap('Файлы.*', index=0), 'same')
-pair('51-profile-links', 2, '-profile chat', 40, PROFILE_TIMUR + '|' + reveal('Ссылки.*') + tap('Ссылки.*', index=0), 'same')
+pair('51-profile-links', 2, '-profile chat', 40, PROFILE_TIMUR + '|' + reveal('Голосовые') + swipe_left_from('Голосовые') + tap('Ссылки.*', index=0), 'same')
 # Анна's profile opened from «Люди» (the native app: `-profile friend`, People/PeopleSimulator.swift). In the reference
 # the friend's row is one button that opens the chat, its «Профиль Анна Лебедева» (ⓘ) is inside it and not a
 # control of its own to Maestro (mobile/src/PeopleScreen.tsx): it is touched at its place, the first friend's ⓘ
@@ -241,19 +248,19 @@ pair('13-community', 3, '-channels community', 30, COMMUNITY)
 pair('14-channel-chat', 3, '-channels chat', 35, CHANNEL)
 pair('15-music', 3, '-tab music', 25, section('Музыка'))
 pair('16-ai', 3, '-tab ai', 25, section('AI'))
-pair('80-channel-mini-profile', 3, '-channels chat', 35, CHANNEL + '|' + tap('Профиль Dimas', index=0), 'same')
-pair('81-channel-message-menu', 3, '-channels chat', 35, CHANNEL + '|' + hold('.*глянь, пожалуйста.*'), 'same')
+pair('80-channel-mini-profile', 3, '-channels chat', 35, CHANNEL + '|' + tap_point('8%,73%') + pause(1500), nat=wait('.*глянь, пожалуйста.*', 60000) + tap('Профиль Dimas', index=0) + pause(1500))
+pair('81-channel-message-menu', 3, '-channels chat', 35, CHANNEL + '|' + wait('.*глянь, пожалуйста.*', 60000) + hold('.*глянь, пожалуйста.*'), 'same')
 pair('82-blog', 3, '-tab channels', 25, section('Каналы') + '|' + reveal('.*Заметки.*') + tap('.*Заметки.*', index=0) + pause(3000), 'same')
 pair('83-room', 3, '-rooms room', 30, section('Каналы') + reveal('.*Вечерний созвон.*') + tap('.*Вечерний созвон.*', index=0) + pause(3000))
 pair('84-voice-channel', 3, '-channels community', 30, COMMUNITY + '|' + tap('Голосовой канал Игра.*') + tap('Allow|Разрешить|OK', optional=True) + pause(6000), 'same')
 pair('85-music-mini', 3, '-tab music', 25, MUSIC + '|' + tap('Слушать микс') + pause(5000), 'same')
 pair('86-music-player', 3, '-tab music', 25, MUSIC + '|' + PLAYER + pause(3000), 'same')
 pair('87-music-queue', 3, '-tab music', 25, MUSIC + '|' + PLAYER + tap('Ещё', index=0), 'same')
-pair('88-music-equalizer', 3, '-tab music', 25, MUSIC + '|' + PLAYER + tap('Эквалайзер', index=0), 'same')
-pair('89-security', 3, '-settings security', 20, SETTINGS + setting('Безопасность и устройства'))
-pair('90-security-sessions', 3, '-settings sessions', 20, SETTINGS + setting('Безопасность и устройства') + center('Сеанс: .*', 'DOWN'))
-pair('91-blocked', 3, '-settings blocked', 20, SETTINGS + setting('Безопасность и устройства') + center('Заблокированные', 'DOWN'))
-pair('92-data', 3, '-settings data', 20, SETTINGS + setting('Данные и память'))
+pair('88-music-equalizer', 3, '-tab music', 25, MUSIC + '|' + PLAYER + swipe_left_from('Перемешать|Перемешано') + tap('Эквалайзер', index=0), 'same')
+pair('89-security', 3, '-settings security', 20, SETTINGS + setting_low('Безопасность и устройства'))
+pair('90-security-sessions', 3, '-settings sessions', 20, SETTINGS + setting_low('Безопасность и устройства') + center('Сеанс: .*', 'DOWN'))
+pair('91-blocked', 3, '-settings blocked', 20, SETTINGS + setting_low('Безопасность и устройства') + center('Заблокированные', 'DOWN'))
+pair('92-data', 3, '-settings data', 20, SETTINGS + setting_low('Данные и память'))
 pair('95-channels-light', 3, '-tab channels', 25, section('Каналы') + wait('.*Клан «Север».*', 60000), look='light')
 # Calls last of the main part: they leave call rows in Анна's and Тимур's chats.
 pair('96-call-incoming', 3, '', 25, script('ring.js') + pause(7000) + '@SHOT@' + script('hangup.js'), 'same', start='home')

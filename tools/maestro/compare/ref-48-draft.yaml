@@ -6,7 +6,9 @@ appId: com.linea.messenger.preview
 - tapOn:
     id: "chat-composer"
 - inputText: "Не забыть спросить про проектор"
-- hideKeyboard
+- tapOn:
+    text: "Назад к чатам.*"
+- waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"
     timeout: 4000

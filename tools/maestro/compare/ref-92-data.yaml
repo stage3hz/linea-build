@@ -23,7 +23,9 @@ appId: com.linea.messenger.preview
     element:
       text: "Данные и память.*"
     direction: DOWN
-    timeout: 30000
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn:
     text: "Данные и память.*"
     index: 0

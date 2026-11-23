@@ -37,10 +37,10 @@ appId: com.linea.messenger.preview
 - inputText: "Работа"
 - hideKeyboard
 - tapOn:
-    text: "Максим Голубев, Максим Голубев.*"
+    text: "Максим Голубев(, Максим Голубев)?"
 - waitForAnimationToEnd
 - tapOn:
-    text: "Анна Лебедева, Анна Лебедева.*"
+    text: "Анна Лебедева(, Анна Лебедева)?"
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:

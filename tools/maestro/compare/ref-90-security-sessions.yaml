@@ -23,7 +23,9 @@ appId: com.linea.messenger.preview
     element:
       text: "Безопасность и устройства.*"
     direction: DOWN
-    timeout: 30000
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn:
     text: "Безопасность и устройства.*"
     index: 0

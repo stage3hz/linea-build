@@ -8,6 +8,6 @@ appId: com.linea.messenger.preview
     text: "Поиск"
 - waitForAnimationToEnd
 - inputText: "молоко"
-- hideKeyboard
+- pressKey: enter
 - waitForAnimationToEnd
 - takeScreenshot: ref-33-chat-search

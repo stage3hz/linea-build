@@ -103,6 +103,7 @@ final class ChatLookScreen: NSObject {
         let nameTap = UITapGestureRecognizer(target: self, action: #selector(openProfile))
         namePill.addGestureRecognizer(nameTap)
         namePill.accessibilityTraits = .button
+        namePill.isAccessibilityElement = true // one button «Профиль <имя>», as the reference's pill (ChatScreen.tsx)
 
         // «Позвонить» (a long touch offers «Видеозвонок»), a round glass button.
         header.addSubview(callPill)

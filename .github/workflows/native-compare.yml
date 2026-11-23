@@ -279,7 +279,15 @@ jobs:
           ref() {
             local name="$1" phase="$2" seconds=420; [ "$phase" = setup ] && seconds=1200
             echo "-- $(date -u +%H:%M:%S) ref-$name"
-            if ! (cd "$CMP" && limit "$seconds" maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/ref-$name.yaml" < /dev/null); then
+            local ok=1
+            (cd "$CMP" && limit "$seconds" maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/ref-$name.yaml" < /dev/null) 2>&1 | tee "$OUT/ref-last.txt" || ok=0
+            # A flow that stopped before the chat list was there (fourth run: ref-09's Maestro went quiet on «Чаты»
+            # with the list on screen; ref-10 began while the list said «Соединение…») is run once more.
+            if [ "$ok" = 0 ] && [ "$phase" != auth ] && ! grep -q 'Run act/ref-home.yaml... COMPLETED' "$OUT/ref-last.txt"; then
+              echo "-- $(date -u +%H:%M:%S) ref-$name again (it stopped before the chat list)"; ok=1
+              (cd "$CMP" && limit "$seconds" maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/ref-$name.yaml" < /dev/null) || ok=0
+            fi
+            if [ "$ok" = 0 ]; then
               shot "compare/ref-$name-failed"
               if [ "$phase" = setup ]; then miss "setup-$name" "the reference's setup flow stopped (the screen then: ref-$name-failed.png); later pairs may lack what it makes"
               else miss "ref-$name" "the Maestro flow did not reach the screen (what was shown instead: ref-$name-failed.png)"; fi
@@ -364,6 +372,17 @@ jobs:
           # time, not photographed.
           start 40 || miss "native-first-start" "the native app's first start failed"
           shot native-first-start
+          # takeover-check opens the storage in a screen of its own; the account itself is opened by the real start
+          # (Messenger.init, App/SceneDelegate.swift), which logs «Linea: the account did not open: <error> (<step>)»
+          # when it fails. The fourth run: takeover-check PASS, yet every native screen showed the storage error and
+          # 56 flows waited minutes each for a chat list that never came. The line is kept (native-open.txt) and the
+          # gestures are left out.
+          opened=$(limit 180 xcrun simctl spawn "$UDID" log show --last 5m --style compact --predicate 'eventMessage CONTAINS "Linea: the account did not open"' 2>/dev/null | grep -o 'Linea: the account did not open.*' | tail -1 || true)
+          if [ -n "$opened" ]; then
+            echo "$opened" > "$OUT/native-open.txt"
+            NATIVE_STORAGE=failed
+            miss "native-storage" "takeover-check: $(grep '^VERDICT' "$OUT/takeover-check.txt" | tr -d '\n'), but the native app's own start did not open the account: $opened (native-first-start.jpg, native-open.txt); its screens show the storage error, gestures left out"
+          fi
           nats main
           setlook dark
           limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview || true
@@ -395,6 +414,8 @@ jobs:
         run: |
           OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT"; cd "$OUT"
           [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 3h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
+          # The app's own lines (Linea: …) before the long log is cut to its tail below.
+          [ -f app.log ] && { grep -a 'Linea:' app.log | tail -n 400 > app-linea.txt || true; }
           verdict=$(cat VERDICT.txt 2>/dev/null || echo "shard $SHARD NOT FINISHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
           echo "$verdict ${{ steps.work.outcome }}" > VERDICT.txt
           # The comparison pictures stay full-size PNG (compare/); every other picture becomes a smaller JPEG.

@@ -1,6 +1,10 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 81-channel-message-menu of the native app, started by the workflow with: -channels chat; then these gestures.
+- extendedWaitUntil:
+    visible: ".*глянь, пожалуйста.*"
+    timeout: 60000
+    optional: true
 - longPressOn:
     text: ".*глянь, пожалуйста.*"
 - waitForAnimationToEnd

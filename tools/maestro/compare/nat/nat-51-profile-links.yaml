@@ -3,9 +3,15 @@ appId: com.linea.messenger.preview
 # Comparison shot 51-profile-links of the native app, started by the workflow with: -profile chat; then these gestures.
 - scrollUntilVisible:
     element:
-      text: "Ссылки.*"
+      text: "Голосовые"
     direction: DOWN
     timeout: 30000
+- swipe:
+    from:
+      text: "Голосовые"
+    direction: LEFT
+    duration: 600
+- waitForAnimationToEnd
 - tapOn:
     text: "Ссылки.*"
     index: 0

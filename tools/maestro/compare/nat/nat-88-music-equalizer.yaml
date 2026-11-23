@@ -12,6 +12,12 @@ appId: com.linea.messenger.preview
     text: "Открыть плеер.*"
     index: 0
 - waitForAnimationToEnd
+- swipe:
+    from:
+      text: "Перемешать|Перемешано"
+    direction: LEFT
+    duration: 600
+- waitForAnimationToEnd
 - tapOn:
     text: "Эквалайзер"
     index: 0

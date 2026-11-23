@@ -24,6 +24,10 @@ appId: com.linea.messenger.preview
     visible: ".*глянь, пожалуйста.*"
     timeout: 60000
     optional: true
+- extendedWaitUntil:
+    visible: ".*глянь, пожалуйста.*"
+    timeout: 60000
+    optional: true
 - longPressOn:
     text: ".*глянь, пожалуйста.*"
 - waitForAnimationToEnd

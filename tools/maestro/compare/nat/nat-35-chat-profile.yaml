@@ -3,8 +3,7 @@ appId: com.linea.messenger.preview
 # Comparison shot 35-chat-profile of the native app, started by the workflow with: -openchat 1; then these gestures.
 - runFlow: ../act/wait-timur.yaml
 - tapOn:
-    text: "Тимур Богданов.*"
-    index: 0
+    text: "Профиль Тимур Богданов.*"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     notVisible: ".*Как тебе фото.*"

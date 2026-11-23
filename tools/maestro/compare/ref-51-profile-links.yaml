@@ -13,9 +13,15 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
-      text: "Ссылки.*"
+      text: "Голосовые"
     direction: DOWN
     timeout: 30000
+- swipe:
+    from:
+      text: "Голосовые"
+    direction: LEFT
+    duration: 600
+- waitForAnimationToEnd
 - tapOn:
     text: "Ссылки.*"
     index: 0

@@ -2,8 +2,10 @@ appId: com.linea.messenger.preview
 ---
 # The reference app started afresh (the session and the storage stay), on the chat list with the seeded people (Тимур's row of the list, not his circle in the stories strip).
 - launchApp
+# The list's title says «Соединение…» / «Ожидание сети…» / «Обновление…» instead of «Чаты» while the live line is
+# not up yet (mobile/src/network/offline.ts; fourth run: ref-10 waited five minutes for «Чаты» under «Соединение…»).
 - extendedWaitUntil:
-    visible: "Чаты"
+    visible: "Чаты|Соединение.*|Ожидание сети.*|Обновление.*"
     timeout: 300000
 - tapOn:
     text: "Allow|Разрешить|Not Now|Не сейчас"

@@ -1,8 +1,16 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 80-channel-mini-profile of the native app, started by the workflow with: -channels chat; then these gestures.
+- extendedWaitUntil:
+    visible: ".*глянь, пожалуйста.*"
+    timeout: 60000
+    optional: true
 - tapOn:
     text: "Профиль Dimas"
     index: 0
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
 - takeScreenshot: nat-80-channel-mini-profile
