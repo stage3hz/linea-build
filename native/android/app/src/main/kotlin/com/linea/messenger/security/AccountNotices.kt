@@ -164,9 +164,14 @@ object AccountNotices {
       card?.let { if (it.parent === screen) screen.removeView(it) }
       return top
     }
-    var shown = card
-    if (shown == null || shown.parent !== screen) {
-      shown?.let { (it.parent as? ViewGroup)?.removeView(it) }
+    // This screen's own card: one is never taken from another chat list still on the screen (two windows, a page
+    // that came back) — each would take it back from the other in its layout, without end.
+    var shown = (0 until screen.childCount).map { screen.getChildAt(it) }.firstOrNull { it is NoticeCards } as? NoticeCards
+    if (shown != null) {
+      if (shown !== card) shown.show(logins, recovery, recoveryError)
+      card = shown
+    } else {
+      card?.let { old -> if (old.parent != null && !old.isAttachedToWindow) (old.parent as? ViewGroup)?.removeView(old) }
       val made = NoticeCards(screen.context)
       made.onOpen = { kind -> openSheet(kind, screen) }
       made.show(logins, recovery, recoveryError)

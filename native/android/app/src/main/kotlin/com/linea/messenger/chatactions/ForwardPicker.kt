@@ -292,6 +292,8 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   private val tabsRow = LinearLayout(context)
   private var folders: List<com.linea.messenger.chatsplus.ChatFolder> = emptyList()
   private var filterId = "all"
+  /** `chatdemo forwardmany`: the sample folder of the iPhone check, for this picker only. */
+  private var demoFolders: List<com.linea.messenger.chatsplus.ChatFolder>? = null
   private val folderStore get() = com.linea.messenger.chatsplus.ChatFolderStore.of(context, messenger?.userId ?: "sample")
   private val foldersChanged: (Unit) -> Unit = { buildTabs(); filter() }
 
@@ -510,7 +512,7 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
 
   /** «Все чаты» and the folders; hidden while there are none. */
   private fun buildTabs() {
-    folders = folderStore.folders
+    folders = demoFolders ?: folderStore.folders
     if (filterId != "all" && folders.none { it.id == filterId }) filterId = "all"
     tabsRow.removeAllViews()
     val tabs = listOf("all" to "Все чаты") + folders.map { it.id to it.name }
@@ -585,8 +587,9 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   fun demoChooseSeveral() {
     // As the iPhone check: a folder «Друзья» of the first three sample chats, so the tabs show (iOS
     // ChatScreenActions.swift, `-chatdemo forwardmany`).
+    // Shown only in this picker, never kept: the sample account's own folders stay as they are.
     if (messenger == null && folderStore.folders.isEmpty() && everyone.size > 1) {
-      folderStore.upsert(com.linea.messenger.chatsplus.ChatFolder("fdemo", "Друзья", everyone.take(3).map { it.chatId }))
+      demoFolders = listOf(com.linea.messenger.chatsplus.ChatFolder("fdemo", "Друзья", everyone.take(3).map { it.chatId }))
       buildTabs()
       filter()
     }
