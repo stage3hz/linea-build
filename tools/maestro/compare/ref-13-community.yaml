@@ -7,10 +7,11 @@ appId: com.linea.messenger.preview
     text: "Каналы.*"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Клан «Север».*"
+    visible: ".*Клан «Север».*"
     timeout: 60000
 - tapOn:
-    text: "Клан «Север».*"
+    text: ".*Клан «Север».*"
+    index: 0
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Текстовый канал общий.*"

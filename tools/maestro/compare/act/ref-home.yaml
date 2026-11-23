@@ -1,6 +1,6 @@
 appId: com.linea.messenger.preview
 ---
-# The reference app started afresh (the session and the storage stay), on the chat list with the seeded people.
+# The reference app started afresh (the session and the storage stay), on the chat list with the seeded people (Тимур's row of the list, not his circle in the stories strip).
 - launchApp
 - extendedWaitUntil:
     visible: "Чаты"
@@ -9,6 +9,6 @@ appId: com.linea.messenger.preview
     text: "Allow|Разрешить|Not Now|Не сейчас"
     optional: true
 - extendedWaitUntil:
-    visible: "Тимур Богданов.*"
+    visible: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
     timeout: 180000
 - waitForAnimationToEnd

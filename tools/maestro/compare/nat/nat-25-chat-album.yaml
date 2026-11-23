@@ -6,7 +6,7 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Три кадра с прогулки.*"
     direction: UP
-    timeout: 40000
+    timeout: 90000
     centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: nat-25-chat-album

@@ -3,6 +3,8 @@ appId: com.linea.messenger.preview
 # A plain hold on «Чаты» in the tab bar: the list of the other sections opens and stays.
 # The tab is found by its label when it carries the unread count («Чаты, 5»); otherwise by its place
 # (the bar is 176 pt wide in the middle of the screen, «Чаты» is its left half).
+# A hold that lands while the list is still settling after the start is sometimes taken for a tap (seen in the
+# third run: the chat list stayed, «Музыка» never came), so the hold is made once more if the list did not open.
 - evalScript: ${output.held = false}
 - runFlow:
     when:
@@ -17,6 +19,27 @@ appId: com.linea.messenger.preview
     commands:
       - longPressOn:
           point: "39%,93%"
+- extendedWaitUntil:
+    visible: "Музыка"
+    timeout: 8000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Музыка"
+    commands:
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible: "Чаты, .*"
+          commands:
+            - longPressOn:
+                text: "Чаты, .*"
+      - runFlow:
+          when:
+            notVisible: "Чаты, .*"
+          commands:
+            - longPressOn:
+                point: "39%,93%"
 - extendedWaitUntil:
     visible: "Музыка"
     timeout: 15000

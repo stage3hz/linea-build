@@ -6,7 +6,7 @@ appId: com.linea.messenger.preview
 - scrollUntilVisible:
     element:
       text: "Тимур Богданов: photo.png"
-    direction: DOWN
+    direction: UP
     timeout: 40000
     centerElement: true
 - waitForAnimationToEnd

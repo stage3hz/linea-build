@@ -1,8 +1,17 @@
 appId: com.linea.messenger.preview
 ---
-# The chat with Тимур (text with formatting, a file, a photo, a voice message, then «Как тебе фото»).
+# The chat with Тимур (text with formatting, a file, a photo, a voice message, then «Как тебе фото»), opened from
+# the chat list of the reference. Тимур also has a story, so «Тимур Богданов.*» alone first finds his circle in the
+# stories strip («Тимур Богданов, новых историй: 1»): the row is found by its own label instead — the list's row
+# reads «Тимур Богданов[ <emoji status>][ 🔕]. <last message>» (mobile/modules/linea-chatlist/ios/LineChatListModule.swift, ChatRowCell),
+# the JavaScript row «Тимур Богданов, непрочитанных N» (mobile/src/ChatListScreen.tsx). The row's preview also says
+# «Как тебе фото», so the chat counts as open only once its composer (testID chat-composer) is there.
 - tapOn:
-    text: "Тимур Богданов.*"
+    text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 60000
 - extendedWaitUntil:
     visible: ".*Как тебе фото.*"
     timeout: 120000

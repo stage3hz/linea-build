@@ -6,12 +6,18 @@ appId: com.linea.messenger.preview
 - tapOn:
     text: "Люди.*"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Анна Лебедева.*"
+    timeout: 30000
 - tapOn:
-    text: "Профиль Анна Лебедева"
-    index: 0
+    point: "74%,68%"
 - waitForAnimationToEnd
 - extendedWaitUntil:
+    visible: "Написать"
+    timeout: 15000
+    optional: true
+- extendedWaitUntil:
     visible: "a text that never shows 7f3k"
-    timeout: 3000
+    timeout: 2000
     optional: true
 - takeScreenshot: ref-52-person-posts

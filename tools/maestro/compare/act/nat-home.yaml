@@ -1,8 +1,8 @@
 appId: com.linea.messenger.preview
 ---
-# The native app, started by the workflow (no launchApp here): wait for its chat list with the seeded people.
+# The native app, started by the workflow (no launchApp here): wait for its chat list with the seeded people (Тимур's row of the list, not his circle in the stories strip).
 - extendedWaitUntil:
-    visible: "Тимур Богданов.*"
+    visible: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
     timeout: 120000
     optional: true
 - waitForAnimationToEnd

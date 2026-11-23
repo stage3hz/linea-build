@@ -3,7 +3,7 @@ appId: com.linea.messenger.preview
 # Comparison shot 43-story-viewer of the reference app (.github/workflows/native-compare.yml, plan.txt).
 - runFlow: act/ref-home.yaml
 - tapOn:
-    text: "Анна Лебедева.*"
+    text: "Анна Лебедева, (новых историй|истории просмотрены|запись).*"
     index: 0
 - waitForAnimationToEnd
 - extendedWaitUntil:

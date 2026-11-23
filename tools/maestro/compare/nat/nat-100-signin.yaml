@@ -5,6 +5,8 @@ appId: com.linea.messenger.preview
     visible: "Логин.*|Войти.*"
     timeout: 120000
     optional: true
-- hideKeyboard
+- tapOn:
+    point: "2%,35%"
+- waitForAnimationToEnd
 - waitForAnimationToEnd
 - takeScreenshot: nat-100-signin

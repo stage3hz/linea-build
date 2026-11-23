@@ -2,8 +2,7 @@ appId: com.linea.messenger.preview
 ---
 # Comparison shot 85-music-mini of the native app, started by the workflow with: -tab music; then these gestures.
 - tapOn:
-    text: "Слушать: .*"
-    index: 0
+    text: "Слушать микс"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"

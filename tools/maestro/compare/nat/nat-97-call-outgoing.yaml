@@ -1,10 +1,12 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 97-call-outgoing of the native app, started by the workflow with: -openchat 1; then these gestures.
-- runFlow: ../act/wait-timur.yaml
+# Comparison shot 97-call-outgoing of the native app, started by the workflow with: -profile chat; then these gestures.
+- extendedWaitUntil:
+    visible: "Звонок"
+    timeout: 30000
+    optional: true
 - tapOn:
-    text: "Позвонить"
-    index: 0
+    text: "Звонок"
 - waitForAnimationToEnd
 - tapOn:
     text: "Allow|Разрешить|OK"

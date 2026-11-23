@@ -7,7 +7,7 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Куда идём в субботу.*"
     direction: UP
-    timeout: 40000
+    timeout: 90000
     centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-27-chat-link-poll

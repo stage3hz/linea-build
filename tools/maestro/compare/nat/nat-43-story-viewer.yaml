@@ -3,7 +3,7 @@ appId: com.linea.messenger.preview
 # Comparison shot 43-story-viewer of the native app, started by the workflow with: (no launch arguments); then these gestures.
 - runFlow: ../act/nat-home.yaml
 - tapOn:
-    text: "Анна Лебедева.*"
+    text: "Анна Лебедева, (новых историй|истории просмотрены|запись).*"
     index: 0
 - waitForAnimationToEnd
 - extendedWaitUntil:

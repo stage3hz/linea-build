@@ -8,11 +8,11 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
-      text: "Заметки.*"
+      text: ".*Заметки.*"
     direction: DOWN
     timeout: 30000
 - tapOn:
-    text: "Заметки.*"
+    text: ".*Заметки.*"
     index: 0
 - waitForAnimationToEnd
 - extendedWaitUntil:

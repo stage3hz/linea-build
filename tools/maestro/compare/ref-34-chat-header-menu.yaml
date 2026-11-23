@@ -4,6 +4,18 @@ appId: com.linea.messenger.preview
 - runFlow: act/ref-home.yaml
 - runFlow: act/open-timur.yaml
 - tapOn:
+    text: "Профиль Тимур Богданов.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible: ".*Как тебе фото.*"
+    timeout: 15000
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Ещё"
+    timeout: 30000
+    optional: true
+- tapOn:
     text: "Ещё"
     index: 0
 - waitForAnimationToEnd

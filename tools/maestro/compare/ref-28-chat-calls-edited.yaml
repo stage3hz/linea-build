@@ -5,9 +5,9 @@ appId: com.linea.messenger.preview
 - runFlow: act/open-timur.yaml
 - scrollUntilVisible:
     element:
-      text: ".*Встречаемся в 19:00.*"
+      text: ".*Отклонённый видеозвонок.*"
     direction: UP
-    timeout: 40000
+    timeout: 90000
     centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-28-chat-calls-edited

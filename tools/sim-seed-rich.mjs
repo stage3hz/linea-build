@@ -13,7 +13,7 @@
 //                      person blocked by the account (Игорь) and one who blocked the account (Вера: the account's
 //                      message to her fails), friends and an outgoing request, Platina for the account and Тимур with a
 //                      banner, a frame, a nameplate, an emoji status and a pattern, posts and stories (Анна, Тимур, the
-//                      account), gifts, a room.
+//                      account), gifts, a room, the account subscribed to Анна's blog «Заметки».
 //   serve(ctx, port)   stays running for the whole job (the workflow starts sim-seed.mjs in the background with
 //                      SIM_SEED_SERVE=<port>): Ксюша keeps «печатает…», Тимур and Анна stay online, and two addresses
 //                      on 127.0.0.1 let the Maestro flows ring the account (GET /ring: Анна calls, the incoming call
@@ -166,6 +166,13 @@ export async function afterSeed(ctx) {
   // friends first (Анна and the account already are, sim-seed.mjs).
   await step('Анна and Ксюша friends', async () => { await anna.api.addContact(ksyusha.id); await ksyusha.api.addContact(anna.id); });
   await step('room', () => anna.api.createRoom([found.id, ksyusha.id], 'Вечерний созвон'));
+  // The blog «Заметки» (made by Анна in sim-seed.mjs) has nobody but her: the account subscribes through an
+  // invitation as a person would, so «Каналы» lists it under its servers (the comparison's 82-blog).
+  await step('blog subscription', async () => {
+    const blog = (await anna.api.communities()).communities.find(item => item.name === 'Заметки');
+    if (!blog) throw new Error('the blog «Заметки» was not found');
+    await mine.acceptInvite((await anna.api.createInvite(blog.id)).invite.code);
+  });
   console.log('rich seed: the account side seeded');
 }
 

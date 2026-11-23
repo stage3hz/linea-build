@@ -13,11 +13,12 @@ appId: com.linea.messenger.preview
     text: "Allow|Разрешить"
     optional: true
 - extendedWaitUntil:
-    visible: "Анна Лебедева.*"
+    visible: "Анна Лебедева( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
     timeout: 180000
 - waitForAnimationToEnd
+# Анна's row, not her circle in the stories strip (see open-timur.yaml).
 - tapOn:
-    text: "Анна Лебедева.*"
+    text: "Анна Лебедева( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
 - extendedWaitUntil:
     visible: ".*Ок, жду.*|.*Пропущенный.*|.*Звонок.*"
     timeout: 120000
@@ -25,10 +26,16 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - launchApp
 - extendedWaitUntil:
-    visible: "Тимур Богданов.*"
+    visible: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
     timeout: 300000
+# Тимур's row, not his circle in the stories strip (see open-timur.yaml).
 - tapOn:
-    text: "Тимур Богданов.*"
+    text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 120000
+    optional: true
 - extendedWaitUntil:
     visible: ".*Как тебе фото.*"
     timeout: 180000

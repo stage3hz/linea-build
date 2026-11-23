@@ -7,8 +7,18 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Оформление.*"
-    timeout: 30000
+    timeout: 10000
     optional: true
+- runFlow:
+    when:
+      notVisible: "Оформление.*"
+    commands:
+      - tapOn:
+          text: "Настройки"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Оформление.*"
+    timeout: 30000
 - scrollUntilVisible:
     element:
       text: "Безопасность и устройства.*"

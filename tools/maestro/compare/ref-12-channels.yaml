@@ -7,7 +7,7 @@ appId: com.linea.messenger.preview
     text: "Каналы.*"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Клан «Север».*"
+    visible: ".*Клан «Север».*"
     timeout: 60000
     optional: true
 - takeScreenshot: ref-12-channels

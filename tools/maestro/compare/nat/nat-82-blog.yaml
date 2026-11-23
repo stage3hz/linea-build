@@ -3,11 +3,11 @@ appId: com.linea.messenger.preview
 # Comparison shot 82-blog of the native app, started by the workflow with: -tab channels; then these gestures.
 - scrollUntilVisible:
     element:
-      text: "Заметки.*"
+      text: ".*Заметки.*"
     direction: DOWN
     timeout: 30000
 - tapOn:
-    text: "Заметки.*"
+    text: ".*Заметки.*"
     index: 0
 - waitForAnimationToEnd
 - extendedWaitUntil:

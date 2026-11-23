@@ -7,7 +7,7 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Собрал всё, что обещал.*"
     direction: UP
-    timeout: 40000
+    timeout: 120000
     centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-23-chat-top

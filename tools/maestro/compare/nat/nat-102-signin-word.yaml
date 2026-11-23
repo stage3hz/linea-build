@@ -41,5 +41,7 @@ appId: com.linea.messenger.preview
       id: "field-Слово подтверждения"
     timeout: 30000
     optional: true
-- hideKeyboard
+- tapOn:
+    point: "2%,35%"
+- waitForAnimationToEnd
 - takeScreenshot: nat-102-signin-word

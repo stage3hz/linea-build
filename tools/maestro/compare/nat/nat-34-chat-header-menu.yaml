@@ -1,7 +1,10 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 34-chat-header-menu of the native app, started by the workflow with: -openchat 1; then these gestures.
-- runFlow: ../act/wait-timur.yaml
+# Comparison shot 34-chat-header-menu of the native app, started by the workflow with: -profile chat; then these gestures.
+- extendedWaitUntil:
+    visible: "Ещё"
+    timeout: 30000
+    optional: true
 - tapOn:
     text: "Ещё"
     index: 0

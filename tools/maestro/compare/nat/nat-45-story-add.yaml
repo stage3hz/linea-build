@@ -2,9 +2,8 @@ appId: com.linea.messenger.preview
 ---
 # Comparison shot 45-story-add of the native app, started by the workflow with: (no launch arguments); then these gestures.
 - runFlow: ../act/nat-home.yaml
-- tapOn:
-    text: "Добавить историю"
-    index: 0
+- longPressOn:
+    text: "Моя история"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"

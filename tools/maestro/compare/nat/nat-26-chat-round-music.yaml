@@ -4,9 +4,9 @@ appId: com.linea.messenger.preview
 - runFlow: ../act/wait-timur.yaml
 - scrollUntilVisible:
     element:
-      text: ".*Северный ветер.*"
+      text: ".*Короткое видео.*"
     direction: UP
-    timeout: 40000
+    timeout: 90000
     centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: nat-26-chat-round-music

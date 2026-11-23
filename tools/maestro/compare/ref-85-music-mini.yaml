@@ -7,12 +7,11 @@ appId: com.linea.messenger.preview
     text: "Музыка.*"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Слушать: .*"
+    visible: "Слушать микс"
     timeout: 60000
     optional: true
 - tapOn:
-    text: "Слушать: .*"
-    index: 0
+    text: "Слушать микс"
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"
