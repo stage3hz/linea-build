@@ -74,7 +74,7 @@ class ChannelListView(context: Context) : FrameLayout(context) {
     override fun getItemId(position: Int) = items[position].row.id
     override fun hasStableIds() = true
     override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-      val view = convertView as? ChannelRowView ?: ChannelRowView(context)
+      val view = convertView as? ChannelRowView ?: ChannelRowView(context).also { made -> made.onProfile = { onPress(it, ChannelHit.Author) } }
       view.show(items[position])
       return view
     }

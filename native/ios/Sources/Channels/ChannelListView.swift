@@ -234,7 +234,10 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "row", for: indexPath)
-        if let rowCell = cell as? ChannelRowCell, indexPath.row < items.count { rowCell.show(items[indexPath.row]) }
+        if let rowCell = cell as? ChannelRowCell, indexPath.row < items.count {
+            rowCell.onProfile = { [weak self] (layout: ChannelRowLayout) -> Void in self?.onPress(layout, .author) }
+            rowCell.show(items[indexPath.row])
+        }
         return cell
     }
 

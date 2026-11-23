@@ -38,6 +38,8 @@ class ChannelEngine(
   private var loadingOlder = false
   private var loaded = false
   private val askedInvites = HashSet<String>()
+  /** The authors as whole people (the reference's `users`): what the mini profile shows when a name is tapped. */
+  private val people = HashMap<String, com.linea.messenger.people.Person>()
 
   /** Called on the main thread. */
   var onPatch: (ChannelPatch) -> Unit = {}
@@ -143,6 +145,7 @@ class ChannelEngine(
         if (message.channelId != channelId) return@execute
         var again = false
         val author = ChannelAuthor.from(data["user"]); val id = Core.map(data["user"] as? Map<*, *>)?.get("id") as? String
+        com.linea.messenger.people.Person.from(data["user"])?.let { people[it.id] = it }
         if (author != null && id != null && context.authors[id] != author) { context.authors[id] = author; again = true }
         val edited = data["edited"] as? Boolean ?: false
         merge(message, own = false, everything = again)
@@ -165,17 +168,28 @@ class ChannelEngine(
   fun removed(id: Long) { worker.execute { remove(id) } }
 
   /** The members of the community are known: their names, pictures and the colours of their roles. */
-  fun setMembers(authors: Map<String, ChannelAuthor>, roleColors: Map<String, Int>) {
+  fun setMembers(authors: Map<String, ChannelAuthor>, roleColors: Map<String, Int>, people: Map<String, com.linea.messenger.people.Person> = emptyMap()) {
     worker.execute {
       context.authors.putAll(authors)
+      this.people.putAll(people)
       context.roleColors = roleColors
       if (loaded) emitChanged()
     }
   }
 
-  /** For the debug build's samples: a channel that is simply there. */
-  fun demo(messages: List<CommunityMessage>, authors: Map<String, ChannelAuthor>, roleColors: Map<String, Int>, invites: Map<String, ChannelInviteCard>, meId: String, meUsername: String) {
+  /** The author of a message as a whole person, when known (the reference's `users[senderId]`). `done` on the main thread. */
+  fun person(id: String, done: (com.linea.messenger.people.Person?) -> Unit) {
     worker.execute {
+      val found = people[id]
+      toMain { done(found) }
+    }
+  }
+
+  /** For the debug build's samples: a channel that is simply there. */
+  fun demo(messages: List<CommunityMessage>, authors: Map<String, ChannelAuthor>, roleColors: Map<String, Int>, invites: Map<String, ChannelInviteCard>, meId: String, meUsername: String,
+           people: Map<String, com.linea.messenger.people.Person> = emptyMap()) {
+    worker.execute {
+      this.people.clear(); this.people.putAll(people)
       context.meId = meId
       context.meUsername = meUsername
       context.authors.clear(); context.authors.putAll(authors)
@@ -196,6 +210,7 @@ class ChannelEngine(
     for (raw in (users as? List<*>).orEmpty()) {
       val id = Core.map(raw as? Map<*, *>)?.get("id") as? String ?: continue
       ChannelAuthor.from(raw)?.let { context.authors[id] = it }
+      com.linea.messenger.people.Person.from(raw)?.let { people[it.id] = it }
     }
   }
 

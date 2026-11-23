@@ -153,6 +153,62 @@ class ChannelsEngineTest {
     assertEquals(43, patches.single().reset!!.size)
   }
 
+  @Test fun anAuthorsAvatarAndNameLineOpenTheMiniProfile() {
+    // The reference (ChannelChat.tsx): the avatar («Профиль <name>», a button) and the whole name line of a run's
+    // first message open the mini profile of the author as the server described them (`users`).
+    answers["channelMessages"] = { Result.success(mapOf("messages" to (1L..3L).map { raw(it) }, "hasMore" to false,
+      "users" to listOf(mapOf("id" to "u1", "displayName" to "Алиса Воронцова", "username" to "alisa_v", "bio" to "Капитан")))) }
+    val engine = engine()
+    engine.load()
+    var found: com.linea.messenger.people.Person? = null
+    engine.person("u1") { found = it }
+    assertEquals("Алиса Воронцова", found?.displayName)
+    assertEquals("Капитан", found?.bio)
+    var nobody: com.linea.messenger.people.Person? = com.linea.messenger.people.Person("x", "", "", "", "", 0, "")
+    engine.person("u9") { nobody = it }
+    assertNull(nobody)
+    // A member list and the live line add people too.
+    engine.setMembers(emptyMap(), emptyMap(), mapOf("u2" to com.linea.messenger.people.Person("u2", "lev_m", "Лев", "", "", 0x4FB86A, "")))
+    engine.socket(mapOf("type" to "community.message", "message" to raw(4, sender = "u3"), "user" to mapOf("id" to "u3", "displayName" to "Марина Ким")))
+    engine.person("u2") { found = it }
+    assertEquals("Лев", found?.displayName)
+    engine.person("u3") { found = it }
+    assertEquals("Марина Ким", found?.displayName)
+
+    val paints = ChannelPaints(2.625f)
+    val message = CommunityMessage(1, "c1", "u1", "Привет", null, 0, "", false, emptyList())
+    val layout = ChannelRowLayout(ChannelRow(1, author = "Алиса Воронцова", initials = "АВ", time = "13:10", text = "Привет", owner = true), message, 1080, paints)
+    val face = layout.avatarBox!!
+    assertTrue(layout.hit(face.centerX(), face.centerY()) is ChannelHit.Author)
+    // The time at the end of the name line is part of the same target.
+    val time = layout.pieces.filterIsInstance<ChannelPiece.Text>().first { it.line.text.toString() == "13:10" }
+    assertTrue(layout.hit(time.x + time.line.width / 2, time.baseline - 4) is ChannelHit.Author)
+    assertEquals("Профиль Алиса Воронцова", ChannelRowView.profileWords(layout))
+    // TalkBack: the row offers «Профиль <name>», and it does what the tap does.
+    val view = ChannelRowView(org.robolectric.RuntimeEnvironment.getApplication())
+    var opened: ChannelRowLayout? = null
+    view.onProfile = { opened = it }
+    view.show(layout)
+    val info = android.view.accessibility.AccessibilityNodeInfo.obtain()
+    view.onInitializeAccessibilityNodeInfo(info)
+    val action = info.actionList.single { it.label == "Профиль Алиса Воронцова" }
+    assertTrue(view.performAccessibilityAction(action.id, null))
+    assertSame(layout, opened)
+    // A grouped row and a blog post have no avatar to tap (the reference draws none there).
+    assertNull(ChannelRowLayout(ChannelRow(2, header = false, text = "Ок", time = "13:11"), message, 1080, paints).avatarBox)
+    assertNull(ChannelRowLayout(ChannelRow(3, blog = true, text = "Пост", time = "13:12"), message, 1080, paints).avatarBox)
+  }
+
+  @Test fun aTapOnAnAuthorOpensTheirMiniProfileWithWrite() {
+    launch("channels-7-mini", "mini", wait = 700) { page -> (find(page, "ChannelListView") as? ChannelListView)?.count == 200 && org.robolectric.shadows.ShadowDialog.getLatestDialog() != null }
+    val card = org.robolectric.shadows.ShadowDialog.getLatestDialog()
+    assertNotNull(card)
+    val shown = texts(card.window!!.decorView)
+    // The newest sample message is Саша's: the card with «Написать» (no «Профиль»: the reference passes no onOpenProfile).
+    assertTrue(shown.toString(), shown.containsAll(listOf("Саша", "@sasha", "Написать")))
+    assertTrue(!shown.contains("Профиль"))
+  }
+
   @Test fun aFailedFirstReadingSaysWhy() {
     val engine = engine()
     engine.setWidth(1080)

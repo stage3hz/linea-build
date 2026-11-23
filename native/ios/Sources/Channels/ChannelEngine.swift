@@ -22,6 +22,8 @@ final class ChannelEngine {
     private var loadingOlder = false
     private var loaded = false
     private var askedInvites = Set<String>()
+    /// The authors as whole people (the reference's `users`): what the mini profile shows when a name is tapped.
+    private var people: [String: Person] = [:]
 
     /// Called on the main queue.
     var onPatch: (ChannelPatch) -> Void = { _ in }
@@ -138,6 +140,7 @@ final class ChannelEngine {
             guard self.loaded, let type = data["type"] as? String else { return }
             if type == "community.message", let message = CommunityMessage(data["message"]), message.channelId == self.channelId {
                 var again = false
+                if let person = Person(data["user"]) { self.people[person.id] = person }
                 if let author = ChannelAuthor(data["user"]), let id = (data["user"] as? [String: Any])?["id"] as? String, self.context.authors[id] != author {
                     self.context.authors[id] = author
                     again = true
@@ -167,18 +170,28 @@ final class ChannelEngine {
     }
 
     /// The members of the community are known: their names, pictures and the colours of their roles.
-    func setMembers(authors: [String: ChannelAuthor], roleColors: [String: UInt32]) {
+    func setMembers(authors: [String: ChannelAuthor], roleColors: [String: UInt32], people: [String: Person] = [:]) {
         queue.async {
             for (id, author) in authors { self.context.authors[id] = author }
+            for (id, person) in people { self.people[id] = person }
             self.context.roleColors = roleColors
             if self.loaded { self.emitChanged() }
         }
     }
 
+    /// The author of a message as a whole person, when known (the reference's `users[senderId]`). `done` on the main queue.
+    func person(_ id: String, done: @escaping (Person?) -> Void) {
+        queue.async {
+            let found = self.people[id]
+            DispatchQueue.main.async { done(found) }
+        }
+    }
+
     #if targetEnvironment(simulator)
     /// For the simulator's samples: a channel that is simply there.
-    func demo(messages: [CommunityMessage], authors: [String: ChannelAuthor], roleColors: [String: UInt32], invites: [String: ChannelInviteCard], meId: String, meUsername: String) {
+    func demo(messages: [CommunityMessage], authors: [String: ChannelAuthor], roleColors: [String: UInt32], invites: [String: ChannelInviteCard], meId: String, meUsername: String, people: [String: Person] = [:]) {
         queue.async {
+            self.people = people
             self.context.meId = meId
             self.context.meUsername = meUsername
             self.context.authors = authors
@@ -199,6 +212,7 @@ final class ChannelEngine {
     private func absorb(_ users: Any?) {
         for raw in users as? [[String: Any]] ?? [] {
             if let id = raw["id"] as? String, let author = ChannelAuthor(raw) { context.authors[id] = author }
+            if let person = Person(raw) { people[person.id] = person }
         }
     }
 

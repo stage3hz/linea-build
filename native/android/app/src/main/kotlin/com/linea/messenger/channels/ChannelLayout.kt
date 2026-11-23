@@ -19,7 +19,9 @@ import android.text.TextUtils
 import android.text.style.AbsoluteSizeSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.UnderlineSpan
+import android.os.Bundle
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.orbPair
 import kotlin.math.ceil
@@ -150,6 +152,9 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
   private var bodyY = 0f
   private val chipBoxes = ArrayList<Pair<RectF, String>>()
   private val authorBoxes = ArrayList<RectF>()
+  /** The avatar of a run's first message (a server's channel): TalkBack's «Профиль <name>» action belongs to it. */
+  var avatarBox: RectF? = null
+    private set
   private var attachmentBox: RectF? = null
   private var inviteBox: RectF? = null
 
@@ -198,18 +203,20 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
         pieces.add(ChannelPiece.Avatar(face, row.avatarId, intArrayOf(pair.first, argb(row.avatarColor), pair.second), letters))
         if (row.avatarId.isNotEmpty()) pictures.add(row.avatarId)
         authorBoxes.add(face)
+        avatarBox = face
         val time = line(row.time, ChannelFont.SMALL, ChannelLook.subtle, 60 * d)
         val ribbon = if (row.owner) 19 * d else 0f
         val name = line(row.author, ChannelFont.NAME, row.authorColor?.let { argb(it) } ?: ChannelLook.text, maxOf(20 * d, inner - time.width - 8 * d - ribbon))
         val baseline = y + name.ascent
         text(name, left, baseline)
-        authorBoxes.add(box(left, y - 4 * d, name.width, name.height + 8 * d))
         var after = left + name.width + 8 * d
         if (row.owner) {
           pieces.add(ChannelPiece.Icon("rosette", box(after - 2 * d, baseline - 12 * d, 14 * d, 14 * d), ChannelLook.mark))
           after += ribbon
         }
         text(time, after, baseline)
+        // The whole name line is one target, as the reference's Pressable (name, ribbon, time).
+        authorBoxes.add(box(left, y - 4 * d, after + time.width - left, name.height + 8 * d))
         y += name.height + 2 * d
       }
       y = content(left, inner, y, 0f)
@@ -367,6 +374,24 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
 class ChannelRowView(context: Context) : View(context) {
   var layoutInfo: ChannelRowLayout? = null
     private set
+  /** The reference's avatar Pressable («Профиль <name>», a button) for TalkBack: an action of the row. */
+  var onProfile: (ChannelRowLayout) -> Unit = {}
+
+  init {
+    accessibilityDelegate = object : AccessibilityDelegate() {
+      override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(host, info)
+        val layout = layoutInfo ?: return
+        if (layout.avatarBox != null) info.addAction(AccessibilityNodeInfo.AccessibilityAction(PROFILE_ACTION, profileWords(layout)))
+      }
+
+      override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+        val layout = layoutInfo
+        if (action == PROFILE_ACTION && layout?.avatarBox != null) { onProfile(layout); return true }
+        return super.performAccessibilityAction(host, action, args)
+      }
+    }
+  }
 
   fun show(layout: ChannelRowLayout) {
     val before = layoutInfo
@@ -445,11 +470,15 @@ class ChannelRowView(context: Context) : View(context) {
   }
 
   /** What the main thread draws with (it is the only thread that draws). */
-  private companion object {
-    val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    val matrix = Matrix()
-    var drawing: ChannelPaints? = null
+  companion object {
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val matrix = Matrix()
+    private var drawing: ChannelPaints? = null
+    private val PROFILE_ACTION = View.generateViewId()
+
+    /** What TalkBack reads for the author's avatar: «Профиль <name>» (the reference's accessibilityLabel). */
+    fun profileWords(layout: ChannelRowLayout): String = "Профиль " + layout.row.author
   }
 }

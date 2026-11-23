@@ -103,6 +103,9 @@ enum ChannelsDemo {
         var authors: [String: ChannelAuthor] = [:]
         for person in people { authors[person.id] = ChannelAuthor(name: person.name, username: person.username, avatarId: "", avatarColor: person.color) }
         authors[me] = ChannelAuthor(name: "Ты", username: "nativetester", avatarId: "", avatarColor: 0x8A8F98)
+        // The same authors as whole people: the mini profile opened from a name shows them.
+        var persons: [String: Person] = [me: meAsPerson()]
+        for member in members() { persons[member.user.id] = member.user }
         let short = ["Привет!", "Ок", "😂😂😂", "Го вечером?", "Я за", "Кто создаёт лобби?", "Сейчас буду", "Минуту", "Ну ты даёшь", "+", "Давай в восемь"]
         let long = [
             "Скинул расписание на неделю: во вторник и четверг тренируемся с восьми, в субботу турнир — начало в полдень, собираемся за полчаса, чтобы проверить связь и состав.",
@@ -140,7 +143,7 @@ enum ChannelsDemo {
         let blogSummary = summaries()[2]
         let card = ChannelInviteCard(state: 2, code: "Ab3dEf9h", communityId: blogSummary.id, blog: true, closed: false, name: blogSummary.name, avatarId: "",
                                      details: "Блог · " + blogSummary.countWords, member: false)
-        engine.demo(messages: messages, authors: authors, roleColors: ["demo-u1": 0x3FA9F5, "demo-u2": 0xF5C542], invites: ["Ab3dEf9h": card], meId: me, meUsername: "nativetester")
+        engine.demo(messages: messages, authors: authors, roleColors: ["demo-u1": 0x3FA9F5, "demo-u2": 0xF5C542], invites: ["Ab3dEf9h": card], meId: me, meUsername: "nativetester", people: persons)
     }
 }
 
@@ -150,6 +153,7 @@ enum ChannelsDemo {
 ///   -channelsdemo blog        a sample blog channel: its posts as cards
 ///   -channelsdemo chat        a sample channel's chat: about 200 messages of mixed lengths
 ///   -channelsdemo menu        the same chat with the menu of its newest message (reactions and actions)
+///   -channelsdemo mini        the same chat with the mini profile of its newest message's author (a tap on the name)
 ///   -channelsdemo settings    the settings of the sample server (as a member without special rights)
 ///   -channelsdemo voice       the sample server as a moderator, this phone inside «Общий»: the people under the
 ///                             channel with their marks, the green channel, the panel «Микрофон · Звук · Динамик · Выйти»
@@ -178,10 +182,11 @@ extension SceneDelegate {
             } else if demo == "community" || demo == "blog" {
                 let id = demo == "blog" ? "demo-blog" : "demo-server"
                 stack.pushViewController(CommunityViewController(messenger: nil, communityId: id, known: ChannelsDemo.summaries().first { $0.id == id }), animated: false)
-            } else if demo == "chat" || demo == "menu", let community = ChannelsDemo.community("demo-server"), let channel = community.channels.first {
+            } else if demo == "chat" || demo == "menu" || demo == "mini", let community = ChannelsDemo.community("demo-server"), let channel = community.channels.first {
                 let chat = ChannelChatViewController(messenger: nil, community: community, channel: channel, root: false)
                 stack.pushViewController(chat, animated: false)
                 if demo == "menu" { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { chat.simulatorMenu() } }
+                if demo == "mini" { DispatchQueue.main.asyncAfter(deadline: .now() + 2) { chat.simulatorMini() } }
             } else if demo == "settings", let community = ChannelsDemo.community("demo-server") {
                 stack.pushViewController(CommunitySettingsPage(messenger: nil, community: community), animated: false)
             }

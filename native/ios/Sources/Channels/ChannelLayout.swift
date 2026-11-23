@@ -169,6 +169,8 @@ final class ChannelRowLayout {
     private var bodyBox = CGRect.zero
     private var chipBoxes: [(frame: CGRect, emoji: String)] = []
     private var authorBoxes: [CGRect] = []
+    /// The avatar of a run's first message (a server's channel): VoiceOver's «Профиль <name>» button stands on it.
+    private(set) var avatarBox: CGRect?
     private var attachmentBox = CGRect.zero
     private var inviteBox = CGRect.zero
 
@@ -216,18 +218,20 @@ final class ChannelRowLayout {
                 pieces.append(.avatar(box, row.avatarId, colors, letters))
                 if !row.avatarId.isEmpty { pictures.append(row.avatarId) }
                 authorBoxes.append(box)
+                avatarBox = box
                 let time = ChannelType.line(row.time, ChannelLook.small, ChannelLook.subtle, width: 60)
                 let ribbon: CGFloat = row.owner ? 19 : 0
                 let name = ChannelType.line(row.author, ChannelLook.name, row.authorColor.map { UIColor(hex: $0) } ?? ChannelLook.text, width: max(20, inner - time.width - 8 - ribbon))
                 let baseline = y + name.ascent
                 pieces.append(.text(name.line, CGPoint(x: left, y: baseline)))
-                authorBoxes.append(CGRect(x: left, y: y - 4, width: name.width, height: name.height + 8))
                 var after = left + name.width + 8
                 if row.owner {
                     pieces.append(.icon("rosette", CGRect(x: after - 2, y: baseline - 12, width: 14, height: 14), ChannelLook.mark))
                     after += ribbon
                 }
                 pieces.append(.text(time.line, CGPoint(x: after, y: baseline)))
+                // The whole name line is one target, as the reference's Pressable (name, ribbon, time).
+                authorBoxes.append(CGRect(x: left, y: y - 4, width: after + time.width - left, height: name.height + 8))
                 y += name.height + 2
             }
             y = content(x: left, width: inner, y: y, gap: 0)
@@ -509,9 +513,21 @@ final class ChannelRowCanvas: UIView {
     }
 }
 
+/// VoiceOver's «Профиль <name>» button on a row's avatar: activated, it does what a tap on the avatar does.
+private final class ChannelProfileElement: UIAccessibilityElement {
+    var onActivate: () -> Void = {}
+
+    override func accessibilityActivate() -> Bool {
+        onActivate()
+        return true
+    }
+}
+
 /// A cell of the list: one canvas, nothing else. The table is upside down, so the cell turns its content back.
 final class ChannelRowCell: UITableViewCell {
     let canvas = ChannelRowCanvas(frame: .zero)
+    /// The avatar's VoiceOver button was activated (set by the list).
+    var onProfile: (ChannelRowLayout) -> Void = { (_: ChannelRowLayout) -> Void in }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -530,6 +546,23 @@ final class ChannelRowCell: UITableViewCell {
     func show(_ layout: ChannelRowLayout) {
         canvas.layoutInfo = layout
         accessibilityLabel = layout.spoken
+        if let box = layout.avatarBox {
+            // The reference's avatar Pressable: «Профиль <name>», a button. The cell then speaks as two elements,
+            // the avatar and the row; both stand in the canvas's own (upright) space.
+            isAccessibilityElement = false
+            let avatar = ChannelProfileElement(accessibilityContainer: canvas)
+            avatar.onActivate = { [weak self] () -> Void in self?.onProfile(layout) }
+            avatar.accessibilityLabel = "Профиль " + layout.row.author
+            avatar.accessibilityTraits = .button
+            avatar.accessibilityFrameInContainerSpace = box
+            let body = UIAccessibilityElement(accessibilityContainer: canvas)
+            body.accessibilityLabel = layout.spoken
+            body.accessibilityFrameInContainerSpace = CGRect(x: 0, y: 0, width: layout.width, height: layout.height)
+            canvas.accessibilityElements = [avatar, body]
+        } else {
+            isAccessibilityElement = true
+            canvas.accessibilityElements = nil
+        }
         canvas.setNeedsDisplay()
     }
 }

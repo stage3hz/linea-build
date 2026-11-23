@@ -131,9 +131,13 @@ object ChannelsDemo {
     val authors = HashMap<String, ChannelAuthor>()
     for (person in people) authors[person.id] = ChannelAuthor(person.name, person.username, "", person.color)
     authors[me] = ChannelAuthor("Ты", "nativetester", "", 0x8A8F98)
+    // The same authors as whole people: the mini profile opened from a name shows them.
+    val persons = HashMap<String, Person>()
+    persons[me] = Person(me, "nativetester", "Ты", "", "", 0x8A9BB8, "")
+    for (member in members()) persons[member.user.id] = member.user
     val blogSummary = summaries()[2]
     val card = ChannelInviteCard(2, "Ab3dEf9h", blogSummary.id, true, false, blogSummary.name, "", "Блог · " + blogSummary.countWords, false)
-    engine.demo(messages(blog), authors, mapOf("demo-u1" to 0x3FA9F5, "demo-u2" to 0xF5C542), mapOf("Ab3dEf9h" to card), me, "nativetester")
+    engine.demo(messages(blog), authors, mapOf("demo-u1" to 0x3FA9F5, "demo-u2" to 0xF5C542), mapOf("Ab3dEf9h" to card), me, "nativetester", persons)
   }
 }
 
@@ -143,6 +147,7 @@ object ChannelsDemo {
  *    --es channelsdemo blog        a sample blog channel: its posts as cards
  *    --es channelsdemo chat        a sample channel's chat: about 200 messages of mixed lengths
  *    --es channelsdemo menu        the same chat with the menu of its newest message (reactions and actions)
+ *    --es channelsdemo mini        the same chat with the mini profile of its newest message's author (a tap on the name)
  *    --es channelsdemo settings    the settings of the sample server (as a member without special rights)
  *    --es tab channels             with an account (or --ez demo true): the section's root
  *    --es channels community       with an account: opens the first community of the list
@@ -168,7 +173,7 @@ object ChannelsSimulator {
     } else if (demo == "community" || demo == "blog") {
       val id = if (demo == "blog") "demo-blog" else "demo-server"
       stack.push(CommunityScreen(context, null, id, ChannelsDemo.summaries().firstOrNull { it.id == id }), animated = false)
-    } else if (demo == "chat" || demo == "menu") {
+    } else if (demo == "chat" || demo == "menu" || demo == "mini") {
       val community = ChannelsDemo.community("demo-server") ?: return true
       val chat = ChannelChatScreen(context, null, community, community.channels.first(), root = false)
       stack.push(chat, animated = false)
@@ -176,6 +181,11 @@ object ChannelsSimulator {
         // The rows are made on the chat's worker: tried until they are there.
         var tries = 20
         val open = object : Runnable { override fun run() { tries -= 1; if (!chat.emulatorMenu() && tries > 0) root.postDelayed(this, 500) } }
+        root.postDelayed(open, 2000)
+      }
+      if (demo == "mini") {
+        var tries = 20
+        val open = object : Runnable { override fun run() { tries -= 1; if (!chat.emulatorMini() && tries > 0) root.postDelayed(this, 500) } }
         root.postDelayed(open, 2000)
       }
     } else if (demo == "settings") {

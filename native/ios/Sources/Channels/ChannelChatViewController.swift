@@ -371,12 +371,14 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
             guard case .success(let body) = result else { return }
             var authors: [String: ChannelAuthor] = [:]
             var colors: [String: UInt32] = [:]
+            var people: [String: Person] = [:]
             for raw in (body as? [String: Any])?["members"] as? [[String: Any]] ?? [] {
                 guard let user = raw["user"] as? [String: Any], let id = user["id"] as? String, let author = ChannelAuthor(user) else { continue }
                 authors[id] = author
+                if let person = Person(user) { people[id] = person }
                 if let color = snapshot.nameColor(roleIds: raw["roleIds"] as? [String] ?? []) { colors[id] = color }
             }
-            self?.engine.setMembers(authors: authors, roleColors: colors)
+            self?.engine.setMembers(authors: authors, roleColors: colors, people: people)
         }
     }
 
@@ -622,9 +624,14 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         case .link(let address):
             openLink(address)
         case .author:
-            guard message.senderId != messenger?.userId, !message.senderId.isEmpty else { return }
+            // The reference (ChannelChat.tsx: the avatar and the name line of a run's first message) opens the mini
+            // profile of a known author — the person's own one too — with «Написать» (MiniProfile.tsx `navigate`).
+            guard !layout.row.blog, layout.row.header, !message.senderId.isEmpty else { return }
             view.endEditing(true)
-            navigationController?.pushViewController(PersonProfileViewController(messenger: messenger, userId: message.senderId, name: layout.row.author), animated: true)
+            engine.person(message.senderId) { [weak self] (found: Person?) -> Void in
+                guard let self, let person = found, self.viewIfLoaded?.window != nil, self.presentedViewController == nil else { return }
+                self.showMiniProfile(person)
+            }
         case .attachment:
             guard let file = message.attachment else { return }
             view.endEditing(true)
@@ -641,6 +648,25 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
             } else {
                 ChannelsRoute.openInvite(from: self, messenger: messenger, code: invite.code)
             }
+        }
+    }
+
+    /// The mini profile of a message's author; «Написать» opens the private chat with them.
+    func showMiniProfile(_ person: Person) {
+        MiniProfileViewController.present(person, messenger: messenger, from: self, onWrite: { [weak self] () -> Void in
+            self?.writeTo(person)
+        })
+    }
+
+    private func writeTo(_ person: Person) {
+        guard let messenger else {
+            #if targetEnvironment(simulator)
+            navigationController?.pushViewController(ChatViewController(name: person.displayName), animated: true)
+            #endif
+            return
+        }
+        messenger.openChat(with: person, from: self) { [weak self] (error: ServerError?) -> Void in
+            if let error { self?.say(error.words) }
         }
     }
 
@@ -666,6 +692,15 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
     /// For the simulator check: the menu of the newest message.
     func simulatorMenu() {
         if let layout = list.newest { openMenu(layout, at: view.bounds.midY) }
+    }
+
+    /// For the simulator check: the mini profile of the newest message's author, as a tap on the name opens it.
+    func simulatorMini() {
+        guard let layout = list.newest else { return }
+        engine.person(layout.message.senderId) { [weak self] (found: Person?) -> Void in
+            guard let self, let person = found else { return }
+            self.showMiniProfile(person)
+        }
     }
     #endif
 

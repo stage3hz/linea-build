@@ -84,6 +84,7 @@ jobs:
           shot 06d-waiting -auth 1 -authmode waiting
           shot 09c-attach-demo -demo 1 -chat 1 -attachdemo 1
           shot 20-channels-demo-chat -channelsdemo chat
+          shot 20b-channels-demo-mini -channelsdemo mini
           shot 25-chat-menu -demo 1 -chat 1 -chatdemo menu
           shot 26-chat-reply -demo 1 -chat 1 -chatdemo reply
           shot 27-chat-quotes -demo 1 -chat 1 -chatdemo quotes

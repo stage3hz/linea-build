@@ -48,6 +48,9 @@ import com.linea.messenger.net.ServerError
 import com.linea.messenger.people.Person
 import com.linea.messenger.people.PersonProfileScreen
 import com.linea.messenger.people.pages
+import com.linea.messenger.people.openChat
+import com.linea.messenger.profile.MiniProfile
+import com.linea.messenger.chat.ChatScreen
 import com.linea.messenger.shell.Screen
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -411,14 +414,16 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
       val body = Core.map(result.getOrNull() as? Map<*, *>) ?: return@op
       val authors = HashMap<String, ChannelAuthor>()
       val colors = HashMap<String, Int>()
+      val people = HashMap<String, Person>()
       for (raw in (body["members"] as? List<*>).orEmpty()) {
         val member = Core.map(raw as? Map<*, *>) ?: continue
         val user = Core.map(member["user"] as? Map<*, *>) ?: continue
         val id = user["id"] as? String ?: continue
         authors[id] = ChannelAuthor.from(user) ?: continue
+        Person.from(user)?.let { people[id] = it }
         snapshot.nameColor((member["roleIds"] as? List<*>).orEmpty().mapNotNull { it as? String })?.let { colors[id] = it }
       }
-      engine.setMembers(authors, colors)
+      engine.setMembers(authors, colors, people)
     }
   }
 
@@ -646,9 +651,11 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
       is ChannelHit.Chip -> react(message, hit.emoji)
       is ChannelHit.Link -> openLink(hit.url)
       is ChannelHit.Author -> {
-        if (message.senderId == messenger?.userId || message.senderId.isEmpty()) return
+        // The reference (ChannelChat.tsx: the avatar and the name line of a run's first message) opens the mini
+        // profile of a known author — the person's own one too — with «Написать» (MiniProfile.tsx `navigate`).
+        if (layout.row.blog || !layout.row.header || message.senderId.isEmpty()) return
         endEditing()
-        pages()?.push(PersonProfileScreen(context, messenger, message.senderId, layout.row.author))
+        engine.person(message.senderId) { person -> if (person != null && isAttachedToWindow) showMiniProfile(person) }
       }
       is ChannelHit.Attachment -> {
         val file = message.attachment ?: return
@@ -684,6 +691,30 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     val scheme = url.scheme?.lowercase() ?: return
     if (scheme != "https" && scheme != "http") return
     try { context.startActivity(Intent(Intent.ACTION_VIEW, url)) } catch (_: ActivityNotFoundException) { }
+  }
+
+  /** The mini profile of a message's author; «Написать» opens the private chat with them. */
+  fun showMiniProfile(person: Person) {
+    MiniProfile(context, person, messenger, onWrite = { writeTo(person) }).show()
+  }
+
+  private fun writeTo(person: Person) {
+    val messenger = messenger
+    if (messenger == null) {
+      // The sample chat of the debug build; nothing in a release one.
+      val stack = pages() ?: return
+      if (ChannelsDemo.present) stack.push(ChatScreen(context, person.displayName) { stack.pop() })
+      return
+    }
+    messenger.openChat(person, this) { error -> if (error != null) say(error.words) }
+  }
+
+  /** For the emulator check: the mini profile of the newest message's author, as a tap on the name opens it. False
+   *  while there are no rows yet. */
+  fun emulatorMini(): Boolean {
+    val newest = list.newest ?: return false
+    engine.person(newest.message.senderId) { person -> if (person != null) showMiniProfile(person) }
+    return true
   }
 
   /** For the emulator check: the menu of the newest message. False while there are no rows yet. */
