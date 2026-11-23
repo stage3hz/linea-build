@@ -68,7 +68,14 @@ android {
         unitTests.isIncludeAndroidResources = true
         // The whole suite (≈490 tests, most of them Robolectric pages) outgrew the test JVM's default 512 MB: the
         // worker died with OutOfMemoryError part way and only the classes finished before it left results.
-        unitTests.all { it.maxHeapSize = "2g" }
+        unitTests.all {
+            it.maxHeapSize = "2g"
+            // The test runtime fetches its Android images itself: point it at the same copy of the library store.
+            if (System.getenv("CI") != null) {
+                it.systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2")
+                it.systemProperty("robolectric.dependency.repo.id", "central-copy")
+            }
+        }
     }
 
     compileOptions {
