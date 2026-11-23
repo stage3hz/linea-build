@@ -18,12 +18,15 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
+import com.linea.messenger.design.IonIcon
 import com.linea.messenger.design.SymbolButton
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
+import com.linea.messenger.settings.ThemeStore
 import java.util.Locale
 
 /** A text field that takes typing only: no paste, no menu, no autofill, nothing dropped on it (the reference's
@@ -93,9 +96,14 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
 
   init {
     orientation = VERTICAL
-    plate.background = context.plate(Theme.surface2, 16f)
+    // ManualField.tsx:45-47,59: the caption spaced out by 1 and 2 in; a glass plate with radius 18 and its rim (1.4
+    // in the accent while the field has the keyboard); the words 16, 17 from the sides.
+    this.caption.letterSpacing = 1f / 11f
+    this.caption.setPadding(context.px(2f), 0, 0, 0)
+    paintPlate(false)
+    field.setOnFocusChangeListener { _, focused -> paintPlate(focused) }
 
-    field.textSize = 17f
+    field.textSize = 16f
     field.setTextColor(Theme.text)
     field.setHintTextColor(Theme.subtle)
     field.background = null
@@ -114,7 +122,7 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
       override fun afterTextChanged(s: Editable?) { if (!setting) typed(s?.toString() ?: "") }
     })
     plate.addView(field, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
-      leftMargin = context.px(16f); rightMargin = context.px(if (secret) 54f else 16f)
+      leftMargin = context.px(17f); rightMargin = context.px(if (secret) 54f else 17f)
     })
 
     eye.visibility = if (secret) View.VISIBLE else View.GONE
@@ -129,6 +137,13 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
     addView(refusal, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(8f) })
     set(caption, placeholder)
     reveal(!secret)
+  }
+
+  private fun paintPlate(focused: Boolean) {
+    plate.background = context.plate(Theme.surface2, 18f).apply {
+      if (focused) setStroke(Math.round(1.4f * resources.displayMetrics.density), Theme.accent)
+      else setStroke(context.px(1f), ThemeStore.look.glassBorder)
+    }
   }
 
   override fun setEnabled(enabled: Boolean) {
@@ -213,5 +228,18 @@ class AuthNotice(context: Context, error: Boolean) : FrameLayout(context) {
     addView(label, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     if (error) accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
     visibility = View.GONE
+  }
+
+  /** The reference's box on the login step (AuthScreen.tsx:329): an Ionicons glyph (18, the accent) left of the words,
+   *  13 inside, 10 between; `accentSoft` with a `border` rim, radius 16; the words 13 on lines of 19. */
+  fun mark(icon: String) {
+    background = context.plate(ThemeStore.look.accentSoft, 16f).apply { setStroke(context.px(1f), ThemeStore.look.border) }
+    setPadding(context.px(13f), context.px(13f), context.px(13f), context.px(13f))
+    val glyph = ImageView(context)
+    glyph.setImageDrawable(IonIcon.drawable(context, icon, context.px(18f), Theme.accent))
+    glyph.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    addView(glyph, LayoutParams(context.px(18f), context.px(18f), Gravity.START or Gravity.TOP))
+    (label.layoutParams as LayoutParams).leftMargin = context.px(28f)
+    if (android.os.Build.VERSION.SDK_INT >= 28) label.lineHeight = context.px(19f)
   }
 }

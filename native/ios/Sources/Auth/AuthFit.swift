@@ -42,8 +42,8 @@ enum AuthFit {
     /// Under the wordmark: 4 above the motto, more when the motto stepped aside.
     static func afterBrand(_ motto: Bool) -> CGFloat { return motto ? 4 : 20 }
 
-    /// Under the title: 8 above the description, more when it stepped aside.
-    static func afterHeading(_ hint: Bool) -> CGFloat { return hint ? 8 : 16 }
+    /// Under the title: 12 above the description (AuthScreen.tsx:316 `marginTop: 12`), more when it stepped aside.
+    static func afterHeading(_ hint: Bool) -> CGFloat { return hint ? 12 : 16 }
 
     /// A part that may leave, with what it takes: its height and the gap that comes with it.
     struct Part {

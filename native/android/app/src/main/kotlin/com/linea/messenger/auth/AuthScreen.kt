@@ -27,6 +27,7 @@ import com.linea.messenger.design.px
 import com.linea.messenger.design.words
 import com.linea.messenger.net.Server
 import com.linea.messenger.net.ServerError
+import com.linea.messenger.settings.ThemeStore
 import com.linea.messenger.shell.Screen
 import java.text.Normalizer
 import java.time.Instant
@@ -94,9 +95,13 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private val brand = com.linea.messenger.effects.WordmarkView(context, 60f) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (effects/AppearingText.kt)
   private val motto = context.words("Твоя линия связи.", 17f, Theme.muted)
   private val heading = com.linea.messenger.effects.AppearingTextView(context, 22f, Theme.text, 600) // Effects: the title's words rise in one after another
-  private val hint = context.words("", 15f, Theme.muted)
+  // The step's description: 14 on lines of 21, in the middle (AuthScreen.tsx:316).
+  private val hint = context.words("", 14f, Theme.muted).apply {
+    gravity = Gravity.CENTER_HORIZONTAL
+    if (Build.VERSION.SDK_INT >= 28) lineHeight = context.px(21f)
+  }
   private val switcher = LinearLayout(context)
-  private val switches = listOf(context.words("Войти", 13f, Theme.muted, 500), context.words("Создать аккаунт", 13f, Theme.muted, 500))
+  private val switches = listOf(context.words("Войти", 12f, Theme.muted, 500), context.words("Создать аккаунт", 12f, Theme.muted, 500))
   private val progress = LinearLayout(context)
   private val bars = ArrayList<View>()
   private val progressLabel = context.words("", 11f, Theme.muted)
@@ -114,19 +119,37 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private val recoveryExtra = note("")
   private val waitingBox = LinearLayout(context)
   private val clock = context.words("", 43f, Theme.text, 700)
-  private val clockOwner = note("")
+  private val clockOwner = note("", line = 0f)
   private val resetValidity = note("")
   private val recoveryLock = AuthNotice(context, error = true)
-  private val attemptsNote = note("")
-  private val manualNote = note("Только ручной ввод. Вставка и автозаполнение отключены.", 11f, Theme.subtle)
+  private val attemptsNote = note("", line = 0f)
+  private val manualNote = note("Только ручной ввод. Вставка и автозаполнение отключены.", 11f, Theme.subtle, 17f)
   private val notice = AuthNotice(context, error = false)
   private val failure = AuthNotice(context, error = true)
   private val loginLock = AuthNotice(context, error = true)
   private val proceed = com.linea.messenger.effects.ActionButton(context, "Продолжить") // Effects: the button with states (effects/ActionButton.kt)
-  private val forgot = context.words("Забыл пароль?", 14f, Theme.text, 700)
-  private val back = context.words("", 15f, Theme.muted)
+  // AuthScreen.tsx:362-363: «Забыл пароль?» 13 Bold in the accent; «Назад» 13 in the quiet colour after the
+  // reference's chevron (15), 6 between.
+  private val forgot = context.words("Забыл пароль?", 13f, Theme.accent, 700)
+  private val back = context.words("", 13f, Theme.muted).apply {
+    val side = context.px(15f)
+    val chevron = object : android.graphics.drawable.Drawable() {
+      override fun draw(canvas: android.graphics.Canvas) {
+        com.linea.messenger.design.Symbols.draw(canvas, "ion:chevron-back", bounds.exactCenterX(), bounds.exactCenterY(), bounds.width().toFloat(), Theme.muted)
+      }
+      override fun setAlpha(alpha: Int) {}
+      override fun setColorFilter(colorFilter: android.graphics.ColorFilter?) {}
+      override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
+    }
+    chevron.setBounds(0, 0, side, side)
+    setCompoundDrawablesRelative(chevron, null, null, null)
+    compoundDrawablePadding = context.px(6f)
+  }
 
-  private fun note(words: String, size: Float = 12f, color: Int = Theme.muted): TextView = context.words(words, size, color)
+  /** A note of the card; `line`: the reference's `lineHeight` (AuthScreen.tsx: 12 on 18, «Только ручной ввод» 11 on 17), 0 — none. */
+  private fun note(words: String, size: Float = 12f, color: Int = Theme.muted, line: Float = 18f): TextView = context.words(words, size, color).apply {
+    if (line > 0f && Build.VERSION.SDK_INT >= 28) lineHeight = context.px(line)
+  }
 
   /** The parts of the card from the top, «Продолжить» and the links under it. */
   private val cardParts: List<View> = listOf(
@@ -441,14 +464,15 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
 
     switcher.orientation = LinearLayout.HORIZONTAL
-    switcher.background = context.plate(Theme.surface2, 9f)
-    switcher.setPadding(context.px(2f), context.px(2f), context.px(2f), context.px(2f))
+    // AuthScreen.tsx:321: a row 4 inside a rim (`border`, radius 19) on a dark veil; each tab at least 43 tall.
+    switcher.background = context.plate(if (Theme.dark) 0x2E000000 else 0x14617195, 19f).apply { setStroke(context.px(1f), ThemeStore.look.border) }
+    switcher.setPadding(context.px(5f), context.px(5f), context.px(5f), context.px(5f))
     switches.forEachIndexed { index, item ->
       item.gravity = Gravity.CENTER
       item.isClickable = true
       item.isFocusable = true
       item.setOnClickListener { switched(register = index == 1) }
-      switcher.addView(item, LinearLayout.LayoutParams(0, context.px(32f), 1f))
+      switcher.addView(item, LinearLayout.LayoutParams(0, context.px(43f), 1f))
     }
 
     val barRow = LinearLayout(context)
@@ -465,6 +489,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     progress.addView(progressLabel, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(13f) })
     progress.isFocusable = true
 
+    loginWarning.mark("key-outline")
     loginWarning.words = "Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичный @юзернейм задашь на следующем шаге — он будет другим. Запомни логин или запиши в надёжное место."
     nameEntry.limit = 24
     displayEntry.limit = 50
@@ -481,7 +506,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     clock.fontFeatureSettings = "tnum"
     clock.contentDescription = "Осталось до проверки сервером"
     clockOwner.gravity = Gravity.CENTER
-    val waitingAbout = note("На устройствах с открытым аккаунтом этот запрос можно отменить. Если запрос сохранён, можно закрыть приложение и вернуться. Готовность проверяется на сервере каждые 10 секунд.")
+    val waitingAbout = note("На устройствах с открытым аккаунтом этот запрос можно отменить. Если запрос сохранён, можно закрыть приложение и вернуться. Готовность проверяется на сервере каждые 10 секунд.", line = 19f)
     val waitingLeave = note("Переход ко входу удалит запрос с этого устройства. Продолжить его здесь после этого не получится.")
     waitingBox.orientation = LinearLayout.VERTICAL
     for ((item, after) in listOf(clock to 10f, clockOwner to 18f, waitingAbout to 10f, waitingLeave to 0f)) {
@@ -641,7 +666,8 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     show(switcher, isLogin || isRegister)
     switches.forEachIndexed { index, item ->
       val on = (index == 1) == isRegister
-      item.background = if (on) context.plate(Theme.veil(0.14f), 7f) else null
+      // The chosen one on a light veil with a glass rim, radius 15.
+      item.background = if (on) context.plate(if (Theme.dark) 0x1FFFFFFF else 0xD1FFFFFF.toInt(), 15f).apply { setStroke(context.px(1f), ThemeStore.look.glassBorder) } else null
       item.setTextColor(if (on) Theme.text else Theme.muted)
       item.typeface = Theme.weight(if (on) 700 else 500)
       item.isSelected = on
@@ -688,7 +714,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     show(back, !(mode == Mode.LOGIN_NAME || mode == Mode.REGISTER_NAME))
     back.isEnabled = !busy
     val leavesRecovery = mode == Mode.RECOVER || mode == Mode.WAITING || mode == Mode.RESET
-    back.text = if (leavesRecovery) "‹ Вернуться ко входу" else "‹ Назад"
+    back.text = if (leavesRecovery) "Вернуться ко входу" else "Назад"
     for (entry in listOf(nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry)) entry.isEnabled = !busy
     // The key of the keyboard: «далее» from the login to the recovery word, «готово» everywhere else.
     nameEntry.field.imeOptions = (if (mode == Mode.RECOVER) EditorInfo.IME_ACTION_NEXT else EditorInfo.IME_ACTION_GO) or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
@@ -765,11 +791,15 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     proceed.isEnabled = !(recoveryClosed || closed)
   }
 
-  /** The keyboard goes to the first field of the step; the waiting period has none. */
+  /** While the person is typing, the keyboard goes on to the first field of the next step; the waiting period has none.
+   *  As in the reference, no field takes the keyboard by itself when the screen opens or the person moves on by the
+   *  button (mobile/src/AuthScreen.tsx:327-332: the fields have no autoFocus). */
   private fun focus() {
     if (!isAttachedToWindow || pending || entered) return
+    val typing = keyboardUp || holdCompact
     for (entry in listOf(nameEntry, displayEntry, passwordEntry, confirmationEntry, recoveryEntry)) {
       if (wanted(entry) && entry.isEnabled) {
+        if (!typing) return
         entry.field.requestFocus()
         entry.field.post { if (entry.field.isFocused) keyboard()?.showSoftInput(entry.field, InputMethodManager.SHOW_IMPLICIT) }
         return

@@ -43,8 +43,8 @@ object AuthFit {
   /** Under the wordmark: 4 above the motto, more when the motto stepped aside. */
   fun afterBrand(motto: Boolean): Float = if (motto) 4f else 20f
 
-  /** Under the title: 8 above the description, more when it stepped aside. */
-  fun afterHeading(hint: Boolean): Float = if (hint) 8f else 16f
+  /** Under the title: 12 above the description (AuthScreen.tsx:316 `marginTop: 12`), more when it stepped aside. */
+  fun afterHeading(hint: Boolean): Float = if (hint) 12f else 16f
 
   /** A part that may leave, with what it takes: its height and the gap that comes with it. */
   class Part(val id: String, val cost: Float)

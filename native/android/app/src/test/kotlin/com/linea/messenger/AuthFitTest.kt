@@ -62,7 +62,7 @@ class AuthFitTest {
     val roomy = AuthFit.full(900f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
     assertTrue(roomy.brand && roomy.motto && roomy.hint)
     assertEquals(AuthFit.TOP_GAP, roomy.gap, 0.01f)
-    // Everything: 90+4+20+28+27+8+40+24 = 241 above the card, 300+69 the card.
+    // Everything: 90+4+20+28+27+12+40+24 = 245 above the card, 300+69 the card.
     val noMotto = AuthFit.full(600f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
     assertTrue(noMotto.brand && !noMotto.motto && noMotto.hint)
     val noHint = AuthFit.full(530f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
@@ -75,7 +75,7 @@ class AuthFitTest {
   }
 
   @Test fun theRoomAboveTheWordmarkShrinksBeforeAnythingLeaves() {
-    val plan = AuthFit.full(241f + 369f + 30f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
+    val plan = AuthFit.full(245f + 369f + 30f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
     assertTrue(plan.brand && plan.motto && plan.hint)
     assertEquals(30f, plan.gap, 0.01f)
   }

@@ -15,6 +15,8 @@ final class AuthEntry: UIView, UITextFieldDelegate {
     let field = ManualTextField()
     private let caption = UILabel()
     private let plate = UIView()
+    /// The reference's focus rim: 1.4 in the accent over the field while it has the keyboard (ManualField.tsx:47).
+    private let ring = UIView()
     private let eye = UIButton(type: .custom)
     private let refusal = UILabel()
     private let secret: Bool
@@ -55,11 +57,21 @@ final class AuthEntry: UIView, UITextFieldDelegate {
 
         self.caption.font = .systemFont(ofSize: 11, weight: .bold)
         self.caption.textColor = Theme.muted
+        // ManualField.tsx:46,59: a glass plate with radius 18 and its rim; the words 16, 17 from the sides.
         plate.backgroundColor = Theme.surface2
-        plate.layer.cornerRadius = 16
+        plate.layer.cornerRadius = 18
         plate.layer.cornerCurve = .continuous
+        plate.layer.borderWidth = 1
+        plate.layer.borderColor = ThemeStore.look.glassBorder.cgColor
+        ring.isUserInteractionEnabled = false
+        ring.isHidden = true
+        ring.layer.cornerRadius = 18
+        ring.layer.cornerCurve = .continuous
+        ring.layer.borderWidth = 1.4
+        ring.layer.borderColor = Theme.accent.cgColor
+        ring.translatesAutoresizingMaskIntoConstraints = false
 
-        field.font = .systemFont(ofSize: 17)
+        field.font = .systemFont(ofSize: 16)
         field.textColor = Theme.text
         field.tintColor = Theme.text
         field.keyboardAppearance = Theme.dark ? .dark : .light
@@ -80,6 +92,7 @@ final class AuthEntry: UIView, UITextFieldDelegate {
         eye.translatesAutoresizingMaskIntoConstraints = false
         GlassBacking.put(under: eye)
         plate.addSubview(eye)
+        plate.addSubview(ring)
 
         refusal.text = "Введи по одному символу. Вставка и автозаполнение отключены."
         refusal.font = .systemFont(ofSize: 11)
@@ -98,8 +111,12 @@ final class AuthEntry: UIView, UITextFieldDelegate {
             column.topAnchor.constraint(equalTo: topAnchor),
             column.bottomAnchor.constraint(equalTo: bottomAnchor),
             plate.heightAnchor.constraint(equalToConstant: 54),
-            field.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 16),
-            field.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: secret ? -54 : -16),
+            ring.topAnchor.constraint(equalTo: plate.topAnchor),
+            ring.bottomAnchor.constraint(equalTo: plate.bottomAnchor),
+            ring.leadingAnchor.constraint(equalTo: plate.leadingAnchor),
+            ring.trailingAnchor.constraint(equalTo: plate.trailingAnchor),
+            field.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 17),
+            field.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: secret ? -54 : -17),
             field.topAnchor.constraint(equalTo: plate.topAnchor),
             field.bottomAnchor.constraint(equalTo: plate.bottomAnchor),
             eye.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: -5),
@@ -115,7 +132,11 @@ final class AuthEntry: UIView, UITextFieldDelegate {
 
     func set(caption: String, placeholder: String) {
         captionText = caption
-        self.caption.text = caption.uppercased()
+        // ManualField.tsx:45: the caption is spaced out by 1 and stands 2 in from the field's edge.
+        let indent = NSMutableParagraphStyle()
+        indent.firstLineHeadIndent = 2
+        indent.headIndent = 2
+        self.caption.attributedText = NSAttributedString(string: caption.uppercased(), attributes: [.kern: 1, .paragraphStyle: indent, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         field.accessibilityLabel = caption
         field.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [.foregroundColor: Theme.subtle])
         updateEye()
@@ -130,8 +151,9 @@ final class AuthEntry: UIView, UITextFieldDelegate {
             field.isSecureTextEntry = hidden
             field.text = kept
         }
-        // No suggestions of saved or new passwords: only typing is taken.
-        let kind: UITextContentType? = hidden ? UITextContentType.oneTimeCode : nil
+        // No suggestions of saved or new passwords: only typing is taken. An empty kind is the reference's
+        // `textContentType="none"` (ManualField.tsx:56): no «Passwords» bar over the keyboard either.
+        let kind: UITextContentType = hidden ? UITextContentType.oneTimeCode : UITextContentType(rawValue: "")
         field.textContentType = kind
         updateEye()
     }
@@ -182,11 +204,23 @@ final class AuthEntry: UIView, UITextFieldDelegate {
         onReturn?()
         return false
     }
+
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        ring.isHidden = false
+    }
+
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        ring.isHidden = true
+    }
 }
 
 /// A few words in a plate: something the person should know, or (in the danger colour) something that went wrong.
 final class AuthNotice: UIView {
-    private let label = UILabel()
+    private let label = AuthNote()
+    private var labelLeading: NSLayoutConstraint?
+    private var labelTrailing: NSLayoutConstraint?
+    /// The room left and right of the words together.
+    private var sides: CGFloat = 28
 
     var words: String {
         get { return label.text ?? "" }
@@ -206,22 +240,145 @@ final class AuthNotice: UIView {
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
+        let leading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14)
+        let trailing = label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14)
+        labelLeading = leading
+        labelTrailing = trailing
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            leading,
+            trailing,
             label.topAnchor.constraint(equalTo: topAnchor, constant: 13),
             label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -13),
         ])
         isHidden = true
     }
 
+    /// The reference's box on the login step (AuthScreen.tsx:329): an Ionicons glyph (18, the accent) left of the
+    /// words, 13 inside, 10 between; `accentSoft` with a `border` rim, radius 16; the words 13 on lines of 19.
+    func mark(icon name: String) {
+        let glyph = UIImageView(image: IonIcon.image(name, size: 18))
+        glyph.tintColor = Theme.accent
+        glyph.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glyph)
+        NSLayoutConstraint.activate([
+            glyph.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 13),
+            glyph.topAnchor.constraint(equalTo: topAnchor, constant: 13),
+            glyph.widthAnchor.constraint(equalToConstant: 18),
+            glyph.heightAnchor.constraint(equalToConstant: 18),
+        ])
+        labelLeading?.constant = 13 + 18 + 10
+        labelTrailing?.constant = -13
+        sides = 13 + 18 + 10 + 13
+        backgroundColor = ThemeStore.look.accentSoft
+        layer.borderWidth = 1
+        layer.borderColor = ThemeStore.look.border.cgColor
+        label.lineStep = 19
+        let current = label.text
+        label.text = current
+    }
+
     /// The box's height at a width, counted from the words themselves: the fitting pass of the layout engine may count
     /// a wrapped label one line short, and the card then runs under the keyboard.
     func fitHeight(_ width: CGFloat) -> CGFloat {
         if words.isEmpty { return 0 }
-        let inside = label.sizeThatFits(CGSize(width: max(0, width - 28), height: CGFloat.greatestFiniteMagnitude))
+        let inside = label.sizeThatFits(CGSize(width: max(0, width - sides), height: CGFloat.greatestFiniteMagnitude))
         return ceil(inside.height) + 26
     }
 
     required init?(coder: NSCoder) { return nil }
+}
+
+/// A few words of the sign-in screen on the reference's lines: `lineStep` tall (its `lineHeight`), the words in the
+/// middle of each line, and no word pushed down to keep company with a lone last one (the reference wraps plainly).
+final class AuthNote: UILabel {
+    /// The height of each line; 0 — the font's own.
+    var lineStep: CGFloat = 0
+
+    override var text: String? {
+        get { return super.text }
+        set {
+            guard lineStep > 0, let words = newValue else {
+                super.text = newValue
+                return
+            }
+            let face: UIFont = font ?? UIFont.systemFont(ofSize: 12)
+            let ink: UIColor = textColor ?? Theme.muted
+            let style = NSMutableParagraphStyle()
+            style.minimumLineHeight = lineStep
+            style.maximumLineHeight = lineStep
+            style.alignment = textAlignment
+            style.lineBreakStrategy = []
+            attributedText = NSAttributedString(string: words, attributes: [.font: face, .foregroundColor: ink, .paragraphStyle: style,
+                                                                          .baselineOffset: (lineStep - face.lineHeight) / 2])
+        }
+    }
+}
+
+/// «Войти» / «Создать аккаунт» (AuthScreen.tsx:321): a row 4 inside a rim (`border`, radius 19) on a dark veil; the
+/// chosen one on a light veil with a glass rim (radius 15, at least 43 tall); the words 12, 700 chosen and 500 not.
+final class AuthSwitch: UIControl {
+    private var buttons: [UIButton] = []
+
+    var selectedSegmentIndex = 0 {
+        didSet { paint() }
+    }
+
+    override var isEnabled: Bool {
+        didSet {
+            for button in buttons { button.isEnabled = isEnabled }
+        }
+    }
+
+    init(items: [String]) {
+        super.init(frame: .zero)
+        backgroundColor = Theme.dark ? UIColor(white: 0, alpha: 0.18) : UIColor(red: 97 / 255, green: 113 / 255, blue: 149 / 255, alpha: 0.08)
+        layer.cornerRadius = 19
+        layer.cornerCurve = .continuous
+        layer.borderWidth = 1
+        layer.borderColor = ThemeStore.look.border.cgColor
+        accessibilityTraits = .tabBar
+        let row = UIStackView()
+        row.axis = .horizontal
+        row.distribution = .fillEqually
+        row.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(row)
+        NSLayoutConstraint.activate([
+            row.topAnchor.constraint(equalTo: topAnchor, constant: 5),
+            row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
+            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 5),
+            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
+            row.heightAnchor.constraint(greaterThanOrEqualToConstant: 43),
+        ])
+        for (index, item) in items.enumerated() {
+            let button = UIButton(type: .custom)
+            button.setTitle(item, for: .normal)
+            button.layer.cornerRadius = 15
+            button.layer.cornerCurve = .continuous
+            button.layer.borderWidth = 1
+            button.tag = index
+            button.addTarget(self, action: #selector(picked(_:)), for: .touchUpInside)
+            row.addArrangedSubview(button)
+            buttons.append(button)
+        }
+        paint()
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    private func paint() {
+        for button in buttons {
+            let on = button.tag == selectedSegmentIndex
+            button.setTitleColor(on ? Theme.text : Theme.muted, for: .normal)
+            button.titleLabel?.font = .systemFont(ofSize: 12, weight: on ? .bold : .medium)
+            button.backgroundColor = on ? (Theme.dark ? UIColor(white: 1, alpha: 0.12) : UIColor(white: 1, alpha: 0.82)) : .clear
+            button.layer.borderColor = on ? ThemeStore.look.glassBorder.cgColor : UIColor.clear.cgColor
+            button.accessibilityTraits = on ? UIAccessibilityTraits([.button, .selected]) : UIAccessibilityTraits.button
+        }
+    }
+
+    @objc private func picked(_ sender: UIButton) {
+        guard sender.tag != selectedSegmentIndex else { return }
+        selectedSegmentIndex = sender.tag
+        sendActions(for: .valueChanged)
+    }
 }

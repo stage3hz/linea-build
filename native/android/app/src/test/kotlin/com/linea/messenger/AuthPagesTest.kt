@@ -113,11 +113,11 @@ class AuthPagesTest {
   @Test fun signingInGoesStepByStepAndChecksEachOne() {
     launch()
     has("Инвиз", "Твоя линия связи.", "Логин", "Войти", "Создать аккаунт", "1 / 3", "Продолжить", "Забыл пароль?", "Только ручной ввод. Вставка и автозаполнение отключены.")
-    hasNot("‹ Назад")
+    hasNot("Назад")
     type("Логин", "ab"); press("Продолжить")
     has("Логин: 3–24 символа — латинские буквы, цифры и знак _.", "Логин")
     type("Логин", "c"); press("Продолжить")
-    has("Пароль", "‹ Назад", "Продолжить", "2 / 3")
+    has("Пароль", "Назад", "Продолжить", "2 / 3")
     shot("06-auth-password")
     press("Продолжить")
     has("Введи свой пароль. Максимум — 128 символов.")
@@ -125,11 +125,11 @@ class AuthPagesTest {
     // The password being entered is hidden as it is typed; the eye shows it.
     assertTrue(field("Пароль").transformationMethod is PasswordTransformationMethod)
     field("Пароль").onEditorAction(EditorInfo.IME_ACTION_GO); idle()
-    has("Слово подтверждения", "Войти в Инвиз", "‹ Назад", "3 / 3")
+    has("Слово подтверждения", "Войти в Инвиз", "Назад", "3 / 3")
     assertTrue(field("Слово подтверждения").transformationMethod is PasswordTransformationMethod)
     // Back from the word: the password is asked again; back again: the login is still there.
-    press("‹ Назад"); has("Пароль"); assertEquals("", field("Пароль").text.toString())
-    press("‹ Назад"); has("1 / 3"); assertEquals("abc", field("Логин").text.toString())
+    press("Назад"); has("Пароль"); assertEquals("", field("Пароль").text.toString())
+    press("Назад"); has("1 / 3"); assertEquals("abc", field("Логин").text.toString())
     assertEquals(0, asked.size)
   }
 
@@ -277,7 +277,7 @@ class AuthPagesTest {
   @Test fun aForgottenPasswordIsAWordAWaitAndANewPassword() {
     launch()
     press("Забыл пароль?")
-    has("Восстановление", "Подтвердить слово", "‹ Вернуться ко входу", "Введи логин и слово восстановления. После подтверждения нужно будет подождать 10 минут.",
+    has("Восстановление", "Подтвердить слово", "Вернуться ко входу", "Введи логин и слово восстановления. После подтверждения нужно будет подождать 10 минут.",
       "Всего 3 неверные попытки, затем восстановление блокируется на 24 часа. Вход с паролем и словом подтверждения остаётся доступен.")
     hasNot("Войти", "1 / 3")
     shot("15-recover")
@@ -308,7 +308,7 @@ class AuthPagesTest {
     type("Слово восстановления", "garden")
     answer = { name, _ -> if (name == "verifyRecovery") Result.success(grant + times(600_000)) else Result.success(grant + times(590_000) + mapOf("status" to "waiting")) }
     press("Подтвердить слово")
-    has("Ожидание", "Проверить статус", "Запрос для логина native_tester", "‹ Вернуться ко входу",
+    has("Ожидание", "Проверить статус", "Запрос для логина native_tester", "Вернуться ко входу",
       "Слово восстановления подтверждено. Через 10 минут сервер разрешит задать новый пароль.",
       "Переход ко входу удалит запрос с этого устройства. Продолжить его здесь после этого не получится.")
     hasNot("Только ручной ввод. Вставка и автозаполнение отключены.")
@@ -380,7 +380,7 @@ class AuthPagesTest {
     answer = { name, _ -> if (name == "verifyRecovery") Result.success(grant + times(600_000)) else Result.success(grant + times(600_000) + mapOf("status" to "waiting")) }
     press("Подтвердить слово")
     has("Ожидание")
-    press("‹ Вернуться ко входу")
+    press("Вернуться ко входу")
     has("1 / 3", "Забыл пароль?")
     assertEquals("", field("Логин").text.toString())
     // Nothing more is asked about the request that was left.
@@ -407,6 +407,6 @@ class AuthPagesTest {
     type("Новый пароль", "long enough password"); press("Сохранить новый пароль")
     assertEquals(0, asked.size)
     // Back to signing in, the plain screen.
-    press("‹ Вернуться ко входу"); has("1 / 3")
+    press("Вернуться ко входу"); has("1 / 3")
   }
 }

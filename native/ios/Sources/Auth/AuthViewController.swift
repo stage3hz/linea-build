@@ -60,8 +60,8 @@ final class AuthViewController: UIViewController {
     private let brand = WordmarkView(size: 60) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (Auth/AuthBackdrop.swift)
     private let motto = UILabel()
     private let heading = AppearingTextView() // Effects: the title's words rise in one after another (AppearingText)
-    private let hint = UILabel()
-    private let switcher = UISegmentedControl(items: ["Войти", "Создать аккаунт"])
+    private let hint = AuthNote()
+    private let switcher = AuthSwitch(items: ["Войти", "Создать аккаунт"])
     private let progress = UIStackView()
     private var bars: [UIView] = []
     private let progressLabel = UILabel()
@@ -79,11 +79,11 @@ final class AuthViewController: UIViewController {
     private let recoveryExtra = AuthViewController.note("")
     private let waitingBox = UIStackView()
     private let clock = UILabel()
-    private let clockOwner = AuthViewController.note("")
+    private let clockOwner = AuthViewController.note("", line: 0)
     private let resetValidity = AuthViewController.note("")
     private let recoveryLock = AuthNotice(error: true)
-    private let attemptsNote = AuthViewController.note("")
-    private let manualNote = AuthViewController.note("Только ручной ввод. Вставка и автозаполнение отключены.", size: 11, color: Theme.subtle)
+    private let attemptsNote = AuthViewController.note("", line: 0)
+    private let manualNote = AuthViewController.note("Только ручной ввод. Вставка и автозаполнение отключены.", size: 11, color: Theme.subtle, line: 17)
     private let notice = AuthNotice(error: false)
     private let failure = AuthNotice(error: true)
     private let loginLock = AuthNotice(error: true)
@@ -111,12 +111,16 @@ final class AuthViewController: UIViewController {
 
     private static let wordHelp = "От 4 до 64 русских или английских букв, без пробелов. Регистр не важен; «е» и «ё» различаются."
 
-    private static func note(_ words: String, size: CGFloat = 12, color: UIColor = Theme.muted) -> UILabel {
-        let label = UILabel()
-        label.text = words
+    /// A note of the card; `line`: the reference's `lineHeight` (AuthScreen.tsx: 12 on 18, «Только ручной ввод» 11 on
+    /// 17), 0 — none.
+    private static func note(_ words: String, size: CGFloat = 12, color: UIColor = Theme.muted, line: CGFloat = 18) -> UILabel {
+        let label = AuthNote()
         label.font = .systemFont(ofSize: size)
         label.textColor = color
         label.numberOfLines = 0
+        label.lineBreakStrategy = []
+        label.lineStep = line
+        label.text = words
         return label
     }
 
@@ -193,14 +197,14 @@ final class AuthViewController: UIViewController {
         motto.font = .systemFont(ofSize: 17)
         motto.textColor = Theme.muted
         heading.accessibilityTraits = .header
-        hint.font = .systemFont(ofSize: 15)
+        // The step's description: 14 on lines of 21, in the middle (AuthScreen.tsx:316).
+        hint.font = .systemFont(ofSize: 14)
         hint.textColor = Theme.muted
         hint.numberOfLines = 0
+        hint.textAlignment = .center
+        hint.lineBreakStrategy = []
+        hint.lineStep = 21
 
-        switcher.selectedSegmentTintColor = Theme.veil(0.14)
-        switcher.backgroundColor = Theme.surface2
-        switcher.setTitleTextAttributes([.foregroundColor: Theme.muted, .font: UIFont.systemFont(ofSize: 13, weight: .medium)], for: .normal)
-        switcher.setTitleTextAttributes([.foregroundColor: Theme.text, .font: UIFont.systemFont(ofSize: 13, weight: .bold)], for: .selected)
         switcher.addTarget(self, action: #selector(switched), for: .valueChanged)
 
         let barRow = UIStackView()
@@ -225,6 +229,7 @@ final class AuthViewController: UIViewController {
         progress.addArrangedSubview(progressLabel)
         progress.isAccessibilityElement = true
 
+        loginWarning.mark(icon: "key-outline")
         loginWarning.words = "Это твой логин для входа. Его видишь только ты, и сменить его потом нельзя. Публичный @юзернейм задашь на следующем шаге — он будет другим. Запомни логин или запиши в надёжное место."
         nameEntry.limit = 24
         displayEntry.limit = 50
@@ -252,7 +257,7 @@ final class AuthViewController: UIViewController {
         clock.textAlignment = .center
         clock.accessibilityLabel = "Осталось до проверки сервером"
         clockOwner.textAlignment = .center
-        let waitingAbout = AuthViewController.note("На устройствах с открытым аккаунтом этот запрос можно отменить. Если запрос сохранён, можно закрыть приложение и вернуться. Готовность проверяется на сервере каждые 10 секунд.")
+        let waitingAbout = AuthViewController.note("На устройствах с открытым аккаунтом этот запрос можно отменить. Если запрос сохранён, можно закрыть приложение и вернуться. Готовность проверяется на сервере каждые 10 секунд.", line: 19)
         let waitingLeave = AuthViewController.note("Переход ко входу удалит запрос с этого устройства. Продолжить его здесь после этого не получится.")
         waitingBox.axis = .vertical
         waitingBox.spacing = 10
@@ -262,11 +267,16 @@ final class AuthViewController: UIViewController {
         proceed.accessibilityIdentifier = "auth-submit"
         proceed.addTarget(self, action: #selector(submit), for: .touchUpInside)
         forgot.setTitle("Забыл пароль?", for: .normal)
-        forgot.tintColor = Theme.text
-        forgot.titleLabel?.font = .systemFont(ofSize: 14, weight: .bold)
+        // AuthScreen.tsx:362-363: «Забыл пароль?» 13 Bold in the accent; «Назад» 13 in the quiet colour after the
+        // reference's chevron (15), 6 between.
+        forgot.tintColor = Theme.accent
+        forgot.titleLabel?.font = .systemFont(ofSize: 13, weight: .bold)
         forgot.addTarget(self, action: #selector(forgotPassword), for: .touchUpInside)
         back.tintColor = Theme.muted
-        back.titleLabel?.font = .systemFont(ofSize: 15)
+        back.titleLabel?.font = .systemFont(ofSize: 13)
+        back.setImage(IonIcon.image("chevron-back", size: 15), for: .normal)
+        back.titleEdgeInsets = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: -6)
+        back.contentEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 6)
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         forgot.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
         back.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
@@ -782,7 +792,7 @@ final class AuthViewController: UIViewController {
         want(back, !(mode == .loginName || mode == .registerName))
         back.isEnabled = !busy
         let leavesRecovery = mode == .recover || mode == .waiting || mode == .reset
-        back.setTitle(leavesRecovery ? "‹ Вернуться ко входу" : "‹ Назад", for: .normal)
+        back.setTitle(leavesRecovery ? "Вернуться ко входу" : "Назад", for: .normal)
         for entry in [nameEntry, displayEntry, handleEntry, passwordEntry, confirmationEntry] { entry.isEnabled = !busy }
         // The key of the keyboard: «далее» from the login to the recovery word, «готово» everywhere else.
         let nameReturn: UIReturnKeyType = mode == .recover ? .next : .go
@@ -862,12 +872,15 @@ final class AuthViewController: UIViewController {
         arrange()
     }
 
-    /// The keyboard goes to the first field of the step; the waiting period has none.
+    /// While the person is typing, the keyboard goes on to the first field of the next step; the waiting period has
+    /// none. As in the reference, no field takes the keyboard by itself when the screen opens or the person moves on
+    /// by the button (mobile/src/AuthScreen.tsx:327-332: the fields have no autoFocus).
     private func focus() {
         guard view.window != nil, !pending, !entered else { return }
+        let typing = typingInField || holdCompact
         for entry in [nameEntry, displayEntry, passwordEntry, confirmationEntry, recoveryEntry] {
             if !entry.isHidden && entry.isEnabled {
-                _ = entry.field.becomeFirstResponder()
+                if typing { _ = entry.field.becomeFirstResponder() }
                 return
             }
         }
