@@ -20,9 +20,9 @@ final class Messenger {
     init(token: String, user: [String: Any]) throws {
         // The account's id: text as the server gives it; a number is taken as its digits. Without one nothing can
         // open — the log is told so apart from the storage (only the profile's field names, never their values).
-        Vault.lastFailure = ""
+        Vault.note("")
         guard let id = (user["id"] as? String) ?? (user["id"] as? NSNumber)?.stringValue, !id.isEmpty else {
-            Vault.lastFailure = "the profile has no id (fields: \(user.keys.sorted().prefix(12).joined(separator: ",")))"
+            Vault.note("the profile has no id (fields: \(user.keys.sorted().prefix(12).joined(separator: ",")))")
             throw Vault.Failure.cannotOpen
         }
         self.user = user

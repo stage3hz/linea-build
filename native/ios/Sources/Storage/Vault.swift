@@ -29,6 +29,8 @@ final class Vault {
     /// went well. Only read for a log line (App/SceneDelegate.swift) and the read-only report (TakeoverCheck.swift);
     /// the errors thrown stay as they are.
     private(set) static var lastFailure = ""
+    /// A step before the storage that kept the account from opening (non-secret words for the device's log).
+    static func note(_ words: String) { lastFailure = words }
 
     /// `server\0user` hashed: what the files and the key of one account on one server are named by.
     static func scope(server: String, userId: String) -> String {
