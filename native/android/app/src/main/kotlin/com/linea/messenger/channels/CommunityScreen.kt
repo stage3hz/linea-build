@@ -27,7 +27,13 @@ import com.linea.messenger.shell.Screen
 import java.util.Locale
 
 /** The header of a community's screens: back, the community's picture (when asked), a name with a quiet line
- *  under it, and a few icons on the right. */
+ *  under it, and a few icons on the right — on a glass pill, as the iPhone's (native/ios/Sources/Channels/
+ *  CommunityViewController.swift ChannelHeaderView): the reference's header is a GlassSurface lens, radius 27,
+ *  12 from the edges and the safe area, 60 tall, its content 8 inside. Under the status bar and the pill the page's
+ *  colour lies solid (shell/EdgeFade.kt), fading out over the 12 dp below the pill: the reference's header does not
+ *  float, so nothing that scrolls is seen under the clock, the pill or the buttons, and the first row (6 below the
+ *  header) is never covered at rest. The owner lays the view out `height` + the status bar tall plus `tail` (the
+ *  end of the fade, which lets touches through to the page). */
 class ChannelHeaderView(context: Context) : ViewGroup(context) {
   /** An icon on the right: one of `ChannelIcons`, its name for a screen reader, what it does. */
   class Tool(val symbol: String, val label: String, val action: () -> Unit)
@@ -38,17 +44,30 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
     set(value) { if (field != value) { field = value; requestLayout() } }
   var showsAvatar = false
     set(value) { field = value; avatar.visibility = if (value) VISIBLE else GONE; requestLayout() }
+  /** The page the pill shows blurred (where there is one); without it the pill is the plain glass fill. */
+  var source: com.linea.messenger.design.GlassSource?
+    get() = pill.source
+    set(value) {
+      pill.source = value
+      (backButton.background as? com.linea.messenger.design.GlassDrawable)?.source = value
+      for (button in tools) (button.background as? com.linea.messenger.design.GlassDrawable)?.source = value
+      invalidate()
+    }
   val avatar = CommunityAvatarView(context)
   private val d = resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
+  private val pill = com.linea.messenger.design.Glass(this)
+  /** EdgeFade: the page's colour under the status bar and the pill, solid, fading out over the 12 dp below it. */
+  private val fade = com.linea.messenger.shell.ProgressiveEdgeView(context, true).apply { peak = 1f; solidThroughBar = true; reach = 12f; fade = 12f }
   private val backButton = IconButton(context, "ion:chevron-back", 23f, Theme.text) // IconButton «chevron-back», 23
   private val nameLabel = context.words("", 17f, Theme.text, 700)
   private val quietLabel = context.words("", 12f, Theme.muted)
   private val tools = ArrayList<View>()
 
   init {
-    setBackgroundColor(Theme.alpha(Theme.bg, 0.94f))
+    setWillNotDraw(false)
     isClickable = true
+    addView(fade)
     backButton.contentDescription = "Назад"
     backButton.setOnClickListener { onBack() }
     com.linea.messenger.design.GlassBacking.put(backButton) // B: the reference's IconButton — a round of clear glass
@@ -73,7 +92,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
       val button = ChannelIconButton(context, item.symbol, if (item.symbol.startsWith("ion:")) 23f else 22f, Theme.text)
       button.contentDescription = item.label
       button.setOnClickListener { item.action() }
-      com.linea.messenger.design.GlassBacking.put(button) // B
+      com.linea.messenger.design.GlassBacking.put(button).source = pill.source // B
       addView(button)
       tools.add(button)
     }
@@ -87,29 +106,52 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
     view.layout(left, top, left + width.coerceAtLeast(0), top + height)
   }
 
+  /** The pill: 12 from the sides and from the top of the safe area, 60 tall. */
+  private val pillLeft get() = dp(12f)
+  private val pillTop get() = safeTop + dp(12f)
+  private val pillBottom get() = pillTop + dp(60f)
+
   override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-    val top = safeTop
-    put(backButton, dp(6f), top + dp(5f), dp(44f), dp(44f))
-    var left = dp(52f)
+    val width = r - l
+    fade.color = Theme.bg
+    fade.place(width, pillBottom, b - t)
+    val top = pillTop + dp(8f)
+    put(backButton, pillLeft + dp(8f), top, dp(44f), dp(44f))
+    var left = pillLeft + dp(8f + 44f + 9f)
     if (showsAvatar) {
-      put(avatar, left, top + dp(8f), dp(38f), dp(38f))
-      left += dp(48f)
+      put(avatar, left, top + dp(3f), dp(38f), dp(38f))
+      left += dp(38f + 9f)
     }
-    var right = r - l - dp(6f)
+    var right = width - pillLeft - dp(8f)
     for (button in tools.asReversed()) {
-      put(button, right - dp(44f), top + dp(5f), dp(44f), dp(44f))
+      put(button, right - dp(44f), top, dp(44f), dp(44f))
       right -= dp(44f + 9f) // B: `gap: 9`
     }
     val wide = right - left - dp(4f)
     val alone = quietLabel.text.isNullOrEmpty()
-    put(nameLabel, left, top + dp(if (alone) 16f else 7f), wide, dp(22f))
+    put(nameLabel, left, top + dp(if (alone) 11f else 3f), wide, dp(22f))
     quietLabel.visibility = if (alone) GONE else VISIBLE
-    put(quietLabel, left, top + dp(30f), wide, dp(16f))
+    put(quietLabel, left, top + dp(25f), wide, dp(16f))
+  }
+
+  /** The pill is drawn over the fade (a child), under the buttons and the words. */
+  override fun dispatchDraw(canvas: android.graphics.Canvas) {
+    drawChild(canvas, fade, drawingTime)
+    pill.draw(canvas, pillLeft.toFloat(), pillTop.toFloat(), (width - pillLeft).toFloat(), pillBottom.toFloat(), 27f * d)
+    for (index in 0 until childCount) getChildAt(index).let { if (it !== fade && it.visibility == VISIBLE) drawChild(canvas, it, drawingTime) }
+  }
+
+  /** The end of the fade, below the header proper, does not hold the finger: the page under it takes it. */
+  override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+    if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN && event.y >= safeTop + dp(ChannelHeaderView.height)) return false
+    return super.dispatchTouchEvent(event)
   }
 
   companion object {
-    /** The header's own height, dp (the status bar's room comes on top). */
-    const val height = 54f
+    /** The header's own height, dp (the status bar's room comes on top): the pill, 12 above it and 6 below. */
+    const val height = 78f
+    /** The fade's end past `height`, dp: the owner lays the view out this much taller. */
+    const val tail = 6f
   }
 }
 
@@ -243,7 +285,7 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     val top = edges.top
     val headerBottom = top + dp(ChannelHeaderView.height)
     header.safeTop = top
-    put(header, 0, 0, width, headerBottom)
+    put(header, 0, 0, width, headerBottom + dp(ChannelHeaderView.tail))
     val bottom = maxOf(edges.bottom, dp(12f)) + dp(18f)
     if (list.paddingTop != headerBottom || list.paddingBottom != bottom) list.setPadding(0, headerBottom, 0, bottom)
     put(list, 0, 0, width, height)

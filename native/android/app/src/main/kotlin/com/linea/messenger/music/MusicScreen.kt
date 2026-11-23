@@ -482,6 +482,12 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
   private val shelves = LinearLayout(context)
   private var shelvesMark = ""
   private val ambient = com.linea.messenger.effects.MusicAmbientView(context, com.linea.messenger.effects.MusicAmbientView.themeTone, fade = true)
+  /** The ambient as a glass source: «+» and «i» show it blurred and tinted, as the iPhone's glass does (without a
+   *  source a round of glass is the plain, nearly opaque fill). It places the ambient itself (`placeAmbient`). */
+  private val ambientStage = object : com.linea.messenger.design.GlassSource(context) {
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(widthSpec), MeasureSpec.getSize(heightSpec))
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {}
+  }
   private var listHead: View? = null
 
   private val source: String get() = if (scReady && chosen == "soundcloud") "soundcloud" else "audius"
@@ -720,6 +726,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val titleRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     val info = com.linea.messenger.design.GlassRoundButton(context, "info", "О музыкальном разделе", 19f, painter = aiPainter)
     info.tint = MusicInk.ink
+    info.source = ambientStage
     info.onPress = { showInfo() }
     addButton.tint = MusicInk.ink
     addButton.onPress = { addFiles() }
@@ -817,7 +824,10 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
       val index = position - list.headerViewsCount
       shownRows.getOrNull(index)?.let { player.play(it, shownRows) }
     }
-    addView(ambient) // Music: under the list
+    ambientStage.addView(ambient) // Music: under the list
+    ambientStage.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    addView(ambientStage)
+    addButton.source = ambientStage
     addView(list)
     mini.onOpen = { openPlayer() }
     addView(mini)
@@ -833,6 +843,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val tall = dp(MusicInk.headHeight(section == "catalog", query.isNotEmpty(), height / d)) + edges.top
     headBox.wanted = maxOf(0, tall - edges.top - dp(8f))
     put(list, 0, edges.top, width, height - edges.top)
+    put(ambientStage, 0, 0, width, height)
     placeAmbient() // Music
     put(mini, dp(12f), height - clearance - dp(64f), width - dp(24f), dp(64f))
   }

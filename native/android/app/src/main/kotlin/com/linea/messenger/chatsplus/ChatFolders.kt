@@ -482,7 +482,8 @@ class FoldersSettingsPage(context: Context, private val messenger: Messenger?) :
       }
     }
     addGroup("Мои папки", rows)
-    val create = SettingsRow(context, symbol = "plus", label = "Создать папку", arrow = false)
+    // The reference's `Item` (SettingsScreen.tsx): the Ionicons «add» and the chevron every row but a dangerous one has.
+    val create = SettingsRow(context, symbol = "ion:add", label = "Создать папку")
     create.onPress = { edit(null) }
     addGroup(rows = listOf(create))
     add(SettingsLook.foot(context, "Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты."), 8f) // SettingsScreen.tsx: plain muted words (12), not a caption

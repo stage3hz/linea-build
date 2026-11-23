@@ -13,7 +13,7 @@ import com.linea.messenger.design.Symbols
 object AIIcons {
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val letters = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; isFakeBoldText = true }
+  private val letters = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; isFakeBoldText = true; typeface = com.linea.messenger.design.Theme.weight(400) }
   private val path = Path()
   private val box = RectF()
   private val fromIcons = setOf("sparkles", "headphones")

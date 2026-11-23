@@ -23,6 +23,8 @@ import android.widget.LinearLayout
 import com.linea.messenger.avatars.AvatarMedia
 import com.linea.messenger.avatars.LoopVideoView
 import com.linea.messenger.design.IconButton
+import com.linea.messenger.design.coverScreen
+import com.linea.messenger.design.edges
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
@@ -99,8 +101,14 @@ class ProfileMediaViewer(context: Context, private val person: Person, private v
     if (items.size > 1) for (i in items.indices) bars.addView(View(context), LinearLayout.LayoutParams(0, context.px(3f), 1f).apply { if (i > 0) leftMargin = context.px(4f) })
     chrome.addView(bars, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(3f)).apply { topMargin = context.px(52f); leftMargin = context.px(12f); rightMargin = context.px(12f) })
     root.addView(chrome, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(60f)).apply { topMargin = context.px(40f) })
+    // The row 8 under the status bar (iOS ProfileMediaViewer: safeAreaInsets.top + 8); the page covers the bars.
+    root.setOnApplyWindowInsetsListener { _, insets ->
+      val top = insets.edges().top
+      (chrome.layoutParams as FrameLayout.LayoutParams).let { if (it.topMargin != top + context.px(8f)) { it.topMargin = top + context.px(8f); chrome.layoutParams = it } }
+      insets
+    }
     setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-    window?.apply { setBackgroundDrawable(ColorDrawable(Color.BLACK)); setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT) }
+    window?.apply { setBackgroundDrawable(ColorDrawable(Color.BLACK)); coverScreen(darkPage = true) }
     root.post { root.setOnTouchListener(touch) }
     root.post { placePages(animated = false); showIndex() }
   }

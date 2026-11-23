@@ -1,6 +1,5 @@
 package com.linea.messenger.composer
 
-import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Typeface
 import android.text.Editable
@@ -20,6 +19,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.TextView
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.chatactions.ChatIconView
 import com.linea.messenger.chatactions.ChoiceSheet
@@ -306,20 +306,53 @@ class ComposerExtras(private val context: Context) {
   private fun askLink() {
     val field = field ?: return
     val start = minOf(field.selectionStart, field.selectionEnd); val end = maxOf(field.selectionStart, field.selectionEnd)
+    // The reference's LinkSheet (format/FormatToolbar.tsx): the app's Sheet «Ссылка» — the field (16, 14 × 12 inside,
+    // radius 14, `surface2`, a 1 `border` line, 12 under it), «Нужен адрес вида https://…» in `danger` (12) while what is
+    // typed is not an address, and the Button «Готово», off until it is.
+    val d = context.resources.displayMetrics.density
     val input = EditText(context)
     input.hint = "https://"
+    input.setHintTextColor(com.linea.messenger.design.Theme.muted)
+    input.setTextColor(com.linea.messenger.design.Theme.text)
+    input.textSize = 16f
+    input.typeface = com.linea.messenger.design.Theme.weight(400)
+    input.isSingleLine = true
     input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+    input.imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE or android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI
     input.contentDescription = "Адрес ссылки"
-    try {
-      AlertDialog.Builder(context).setTitle("Ссылка").setView(input)
-        .setNegativeButton("Отмена", null)
-        .setPositiveButton("Готово") { _, _ ->
-          val url = ComposeRules.linkAddress(input.text.toString())
-          if (url == null) { onSay?.invoke("Нужен адрес вида https://…"); return@setPositiveButton }
-          field.setSelection(start, end)
-          apply("text_link", url)
-        }.show()
-    } catch (_: Exception) { }
+    input.setPadding(Math.round(14 * d), Math.round(12 * d), Math.round(14 * d), Math.round(12 * d))
+    input.background = android.graphics.drawable.GradientDrawable().apply {
+      setColor(com.linea.messenger.design.Theme.surface2); cornerRadius = 14f * d
+      setStroke(maxOf(1, Math.round(d)), com.linea.messenger.settings.ThemeStore.look.border)
+    }
+    val wrong = TextView(context).apply {
+      text = "Нужен адрес вида https://…"; textSize = 12f; typeface = com.linea.messenger.design.Theme.weight(400)
+      setTextColor(com.linea.messenger.design.Theme.danger); visibility = View.GONE
+    }
+    val done = com.linea.messenger.settings.SettingsButton(context, "Готово")
+    done.isEnabled = false
+    val sheet = com.linea.messenger.chatactions.ChoiceSheet(context, "Ссылка", "", emptyList(), listOf(input, wrong, done), 12f)
+    fun finish() {
+      val url = ComposeRules.linkAddress(input.text.toString()) ?: return
+      sheet.dismiss()
+      field.setSelection(start, end)
+      apply("text_link", url)
+    }
+    input.addTextChangedListener(object : android.text.TextWatcher {
+      override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {}
+      override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
+      override fun afterTextChanged(text: Editable?) {
+        val typed = text?.toString()?.trim().orEmpty()
+        val ok = ComposeRules.linkAddress(typed) != null
+        done.isEnabled = ok
+        wrong.visibility = if (typed.isNotEmpty() && !ok) View.VISIBLE else View.GONE
+      }
+    })
+    input.setOnEditorActionListener { _, _, _ -> finish(); true }
+    done.onPress = { finish() }
+    sheet.show()
+    input.requestFocus()
+    sheet.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
   }
 
   /** Shows the styles in the field itself, without touching its text or the cursor. */

@@ -343,7 +343,10 @@ class StoryViewer(context: Context, private var group: StoryViewerGroup) : Dialo
 
     override fun place(width: Int, height: Int) {
       val mediaHeight = Math.round(height * 0.82f)
-      val mediaTop = (height - mediaHeight) / 2
+      // Centred (ProfilePosts.tsx), but never lower than 6 under the progress bars: the header (avatar, name, ✕) lies
+      // on the picture, as on the iPhone, whose taller status bar puts the centred picture exactly there (62 + 8 + 3 +
+      // 6 = 79 = (874 − 717) / 2). A phone's shorter status bar would leave the header half on the black.
+      val mediaTop = minOf((height - mediaHeight) / 2, edges.top + dp(8f + 3f + 6f))
       put(picture, 0, mediaTop, width, mediaHeight)
       put(video, 0, mediaTop, width, mediaHeight)
       put(spinner, width / 2 - dp(14f), height / 2 - dp(14f), dp(28f), dp(28f))
@@ -835,13 +838,16 @@ class StoryViewersSheet(context: Context, private var found: StoryViewersData?) 
     requestWindowFeature(Window.FEATURE_NO_TITLE)
     val column = LinearLayout(context).apply {
       orientation = LinearLayout.VERTICAL
-      setPadding(0, dp(22f), 0, 0)
+      setPadding(0, dp(6f), 0, 0)
       background = GradientDrawable().apply { setColor(Theme.bg or 0xFF000000.toInt()); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
     }
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
+    // The iPhone's sheet has its grabber (the app's sheets: 36 × 4, `subtle` at 0.45) and the title face (Unbounded,
+    // the sheet title's size: iOS `Theme.title(Theme.TypeSize.sheetTitle)`).
+    column.addView(View(context).apply { background = GradientDrawable().apply { setColor(Theme.alpha(Theme.subtle, 0.45f)); cornerRadius = 2f * d } },
+      LinearLayout.LayoutParams(dp(36f), dp(4f)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(12f) })
     heading.text = StoryRules.word("views")
-    heading.textSize = 20f
-    heading.typeface = Theme.weight(600)
+    com.linea.messenger.design.Titles.title(heading, Theme.TypeSize.sheetTitle)
     heading.setTextColor(Theme.text)
     if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
     column.addView(heading, LinearLayout.LayoutParams(wide, wrap).apply { leftMargin = dp(20f); rightMargin = dp(20f) })

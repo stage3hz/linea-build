@@ -65,7 +65,7 @@ class RoomPicker(context: Context, private val messenger: Messenger?, first: Str
       put(headingLabel, dp(100f), top + dp(14f), width - dp(200f), dp(22f))
       put(countLabel, dp(100f), top + dp(36f), width - dp(200f), dp(16f))
       put(cancelButton, dp(16f), top + dp(12f), dp(84f), dp(40f))
-      val bottom = height - dp(20f)
+      val bottom = height - dp(20f) - paddingBottom // the navigation bar under the sheet (sheetToBottom)
       put(callButton, dp(18f), bottom - dp(50f), width - dp(36f), dp(50f))
       var listBottom = bottom - dp(60f)
       if (notice.text.isNotEmpty()) {
@@ -109,6 +109,7 @@ class RoomPicker(context: Context, private val messenger: Messenger?, first: Str
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, Math.round(screen * 0.92f))
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
+      com.linea.messenger.design.sheetWindow(this, page) // the sheet's colour to the screen's bottom, under the bar
     }
     setCanceledOnTouchOutside(true)
     showCount()

@@ -326,6 +326,9 @@ class ProfileHeroCard(context: Context) : ViewGroup(context) {
   init {
     background = GradientDrawable().apply { setColor(Theme.bg); cornerRadius = 24f * resources.displayMetrics.density; setStroke(context.px(1f), com.linea.messenger.settings.ThemeStore.look.border) } // `t.border`
     clipToOutline = true
+    // The avatar's frame reaches past the avatar's own box (avatars/DecoratedAvatarView.kt: the parents must not
+    // clip); the card's rounded outline still clips the whole.
+    clipChildren = false
     addView(banner); addView(empty)
     ring.background = GradientDrawable().apply { setColor(Theme.bg) } // a rounded square (`borderRadius: 40 * scale`), set in layout
     addView(ring)

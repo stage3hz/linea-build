@@ -15,4 +15,7 @@ object MediaDemo {
 
   @Suppress("UNUSED_PARAMETER")
   fun recording(intent: Intent?): Boolean = false
+
+  @Suppress("UNUSED_PARAMETER")
+  fun note(intent: Intent?): Boolean = false
 }

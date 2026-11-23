@@ -186,6 +186,10 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   private var header: GlassHeaderView? = null
   private var sideButton: GlassRoundButton? = null
   private val headerEdge = View(context)
+  /** The navigation strip of a page without the tab bar: the list runs under it (`useBleed`) and fades into the page
+   *  there, solid at the screen's bottom and gone 28 dp above the strip — nothing crisp under the gesture handle (the
+   *  iPhone's scroll edge at the home indicator). */
+  private val floorEdge = com.linea.messenger.shell.ScrollEdgeView(context, false).apply { reach = 28f; fade = 1000f; peak = 1f }
 
   /** D: false — a large page without its big name (the root of Settings: the profile head is its top, as in the
    *  reference's `Root`). The column keeps its place under the status bar; the list runs up under it. */
@@ -240,6 +244,8 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       addView(made)
       addView(headerEdge)
       addView(behind)
+      floorEdge.outlineProvider = null; floorEdge.translationZ = 1f
+      addView(floorEdge)
       header = made
     }
   }
@@ -293,6 +299,8 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       if (column.paddingTop != first || column.paddingBottom != dp(bottomRoom) + floor) column.setPadding(dp(side), first, dp(side), dp(bottomRoom) + floor)
       put(headerEdge, 0, 0, width, below)
       put(behind, 0, 0, width, height - edges.keyboard)
+      floorEdge.color = Theme.bg
+      floorEdge.place(width, if (edges.keyboard > 0) 0 else edges.bottom, height)
     }
   }
 
@@ -738,7 +746,7 @@ class ColorChoiceButton(context: Context, label: String, on: Boolean) : TextView
     text = label
     setTextColor(Theme.text)
     setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    typeface = Theme.weight(700)
     gravity = Gravity.CENTER
     maxLines = 1
     ellipsize = TextUtils.TruncateAt.END

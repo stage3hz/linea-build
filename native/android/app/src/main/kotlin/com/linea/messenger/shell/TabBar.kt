@@ -384,7 +384,7 @@ private class TabIconView(context: Context) : View(context) {
 
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val words = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = WHITE }
+  private val words = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f * d; typeface = Theme.weight(700); textAlign = Paint.Align.CENTER; color = WHITE }
 
   override fun onDraw(canvas: Canvas) {
     val midX = width / 2f; val midY = height / 2f
@@ -420,7 +420,7 @@ private class TabRowView(context: Context, val entry: TabEntry) : View(context) 
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val label = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d; typeface = Theme.weight(600) }
-  private val count = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = WHITE }
+  private val count = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Theme.weight(700); textAlign = Paint.Align.CENTER; color = WHITE }
 
   init { contentDescription = if (entry.badge > 0) "${entry.label}, ${entry.badge}" else entry.label }
 

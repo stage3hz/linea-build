@@ -128,6 +128,9 @@ class PersonProfileScreen(
     backdrop.addView(topLayers.back) // Profile
     backdrop.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     addView(backdrop)
+    // The round glass «назад» and «ещё» show the banner / light under them blurred, as the iPhone's (without a source a
+    // round of glass is the plain, nearly opaque fill: black rounds over a coloured top).
+    back.source = backdrop; more.source = backdrop
     scroll.isVerticalScrollBarEnabled = false
     scroll.isFillViewport = false
     scroll.clipChildren = false
@@ -257,7 +260,11 @@ class PersonProfileScreen(
 
   private fun layoutTop() {
     val scrolled = scroll.scrollY - pulled
-    val heroBottom = tiles.bottom
+    // The festive colour ends 34 under the action tiles, behind the top of the card below them (iOS: the tiles' row in
+    // the scroll's content, whose inset is the status bar + 56). `tiles.bottom` here counts the content's top padding
+    // (the status bar + 48 + 18), which `layout` adds again: the colour ran ~90 dp further, its hard end showing
+    // through the card, with strips of it beside the card.
+    val heroBottom = tiles.bottom - edges.top - dp(56f)
     topLayers.layout(width, edges.top, scrolled, heroBottom)
     hero.applyScroll(scrolled)
     topBar.alpha = (scrolled / (60f * d)).coerceIn(0f, 1f)
@@ -690,7 +697,7 @@ class ReportSheet(context: Context, private val onSend: (String) -> Unit) : Dial
   private val rows = ArrayList<Row>()
 
   private inner class Row(context: Context, val index: Int, val words: String) : View(context) {
-    private val text = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 17f * d; color = Theme.text }
+    private val text = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 17f * d; color = Theme.text; typeface = Theme.weight(400) }
     init {
       isClickable = true
       isFocusable = true

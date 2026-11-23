@@ -293,10 +293,10 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     if (wantEmpty) {
       val forced = demo == "empty"
       when {
-        query.isNotEmpty() && !forced -> emptyState.show("search", "Чат не найден", "Попробуй другое имя или найди человека по @имени.", "Найти собеседника") { onNewChat?.invoke() }
-        filter == "unread" -> emptyState.show("checkmark.circle", "Всё прочитано", "Здесь появятся чаты с новыми сообщениями и отмеченные как непрочитанные.")
-        (filter != "all" || archive) && !forced -> emptyState.show("folder", "Здесь пока пусто", if (archive) "В архиве нет чатов." else "В этой папке нет чатов. Добавь их в настройках папки.")
-        else -> emptyState.show("bubbles", "Начни разговор", "Найди своего человека по @имени. Всё начинается с простого «привет».", "Найти собеседника") { onNewChat?.invoke() }
+        query.isNotEmpty() && !forced -> emptyState.show("ion:search-outline", "Чат не найден", "Попробуй другое имя или найди человека по @имени.", "Найти собеседника") { onNewChat?.invoke() }
+        filter == "unread" -> emptyState.show("ion:checkmark-done-outline", "Всё прочитано", "Здесь появятся чаты с новыми сообщениями и отмеченные как непрочитанные.")
+        (filter != "all" || archive) && !forced -> emptyState.show("ion:folder-open-outline", "Здесь пока пусто", if (archive) "В архиве нет чатов." else "В этой папке нет чатов. Добавь их в настройках папки.")
+        else -> emptyState.show("ion:chatbubbles-outline", "Начни разговор", "Найди своего человека по @имени. Всё начинается с простого «привет».", "Найти собеседника") { onNewChat?.invoke() }
       }
     }
     if (hadSaved != savedOnScreen) host?.requestLayout()

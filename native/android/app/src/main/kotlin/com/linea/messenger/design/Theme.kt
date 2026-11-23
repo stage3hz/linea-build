@@ -106,8 +106,10 @@ object BarMetrics {
   const val height = 62f
   const val width = 176f
 
-  /** From the bar's lower edge to the screen's. */
-  fun bottomGap(safeBottom: Float): Float = max(safeBottom - 8f, 12f)
+  /** From the bar's lower edge to the screen's: the reference on Android (chatLayout.ts `tabBarMarginBottom`, the bar
+   *  inside the safe area) — 10 above the navigation bar, so the bar never touches the gesture handle nor covers the
+   *  buttons. (The iPhone tucks it into the home indicator's area: max(inset − 8, 12).) */
+  fun bottomGap(safeBottom: Float): Float = max(safeBottom, 0f) + 10f
 }
 
 /** A person's colour as a lit ball: the lighter corner and the deeper one (0xAARRGGBB each). */

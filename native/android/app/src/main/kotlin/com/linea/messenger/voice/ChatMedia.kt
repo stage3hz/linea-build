@@ -2,7 +2,6 @@ package com.linea.messenger.voice
 
 import android.annotation.TargetApi
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
@@ -606,13 +605,12 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
       // A video on its way: the ✕ on its ring calls the upload off (the reference's «Отменить отправку»).
       if (item.failed == null && item.kind == "video" && item.small != null) { remove(item, forget = true); return true }
       val failed = item.failed ?: return true
-      try {
-        AlertDialog.Builder(context).setMessage(failed)
-          .setPositiveButton("Повторить отправку") { _, _ -> run(item) }
-          .setNeutralButton("Удалить") { _, _ -> remove(item, forget = true) }
-          .setNegativeButton("Отмена", null)
-          .show()
-      } catch (_: Exception) { /* the window is gone */ }
+      // The app's own sheet: why it failed, «Повторить отправку» and «Удалить» in red (iOS Voice/ChatMedia.swift; the
+      // reference's menu glyphs refresh-outline and trash-outline); its ✕ is «Отмена».
+      com.linea.messenger.chatactions.ChoiceSheet(context, "", failed, listOf(
+        com.linea.messenger.chatactions.ChoiceSheet.Choice("ion:refresh-outline", "Повторить отправку") { run(item) },
+        com.linea.messenger.chatactions.ChoiceSheet.Choice("ion:trash-outline", "Удалить", danger = true) { remove(item, forget = true) },
+      )).show()
       return true
     }
     val attachment = AttachmentStore.attachment(key) ?: return false
@@ -660,6 +658,13 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
         control.demoHolding()
         relayout()
       }, 600)
+    }
+    // `--es notedemo 1`: the round-video recorder opened through the composer (MediaRecording.demoNote).
+    if (MediaDemo.note(activity.intent)) {
+      host.postDelayed({
+        recording.demoNote()
+        relayout()
+      }, 1000)
     }
   }
 

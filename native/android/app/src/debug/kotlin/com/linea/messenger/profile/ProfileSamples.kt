@@ -62,6 +62,11 @@ object ProfileSamples {
     get() = linkedMapOf<String, Any?>("id" to "sample-person-0", "displayName" to "Мария Орлова", "username" to "maria", "avatarColor" to "#9271C3", "bio" to "Рисую карты и собираю гербарий.", "birthday" to "03-02",
       "seal" to "platina", "avatarFrame" to "platinum", "bannerPreset" to "aurora", "profileEffect" to "sparks", "nameplate" to "deep", "profilePattern" to "⭐") + permanentStatus
 
+  /** The sample account as a person (iOS ProfileSamples.me). */
+  val me: Person
+    get() = person(0, "Мария Орлова", "maria", 0x9271C3, bio = "Рисую карты и собираю гербарий.", birthday = "03-02",
+      look = mapOf("seal" to "platina", "avatarFrame" to "platinum", "bannerPreset" to "aurora", "profileEffect" to "sparks", "nameplate" to "deep", "profilePattern" to "⭐") + permanentStatus)
+
   /** A sample of each kind of frame: rings, code frames, art. */
   fun dressed(frame: String, index: Int): Person = person(10 + index, "Алиса Воронцова", "alisa_v", listOf(0x5E7BFF, 0xF2A33C, 0x4FB86A, 0xF26B5E, 0x3CA7F2, 0x9B6BF2)[index % 6], look = mapOf("avatarFrame" to frame, "seal" to "platina"))
 
@@ -174,7 +179,7 @@ object ProfileSimulator {
         ProfileMediaViewer(context, friend, "").apply { samplePicture = ProfileSamples.picture(2, 900, 900) }.show()
       }
       "cropper" -> later { AvatarCropper(context, ProfileSamples.picture(1, 1200, 900)).show() }
-      "banner" -> later { BannerPreview(context, null, ProfileSamples.picture(3, 1200, 800)).show() }
+      "banner" -> later { BannerPreview(context, null, ProfileSamples.picture(3, 1200, 800), sample = ProfileSamples.me).show() }
       "pattern" -> later { PatternPicker(context, "🦋") {}.show() }
       "status" -> {
         val own = OwnProfileScreen(context, null)

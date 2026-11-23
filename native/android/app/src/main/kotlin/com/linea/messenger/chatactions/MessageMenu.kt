@@ -69,7 +69,7 @@ class MessageMenu(
   /** One line of the menu. */
   private inner class Row(val item: Item) : View(context) {
     // ContextMenu.tsx MenuItem: 15.5-point words, pressed white 0.08 on dark / black 0.05 on light.
-    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15.5f * d }
+    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15.5f * d; typeface = Theme.weight(400) }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (Theme.dark) 0x14FFFFFF else 0x0D000000 }
     /** «separated»: a 6-point band above the item (black 0.22 on dark, 0.05 on light). */
     var band = 0f
@@ -154,7 +154,7 @@ class MessageMenu(
   private var readLoading = true
   fun askReadDate(load: ((String?) -> Unit) -> Unit) {
     val row = object : View(context) {
-      private val ink = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * d; color = Theme.muted }
+      private val ink = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * d; color = Theme.muted; typeface = Theme.weight(400) }
       private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
       override fun onDraw(canvas: Canvas) {
         ChatIcons.draw(canvas, "ion:checkmark-done", 14f * d + 9.5f * d, 20f * d, 19f * d, Theme.muted)
@@ -334,7 +334,7 @@ class MessageMenu(
       // ContextMenu.tsx: the veil behind the menu, black 0.34 on dark, rgba(20,30,60,0.14) on light.
       page.setBackgroundColor(if (Theme.dark) 0x57000000 else 0x24141E3C)
       if (Build.VERSION.SDK_INT >= 31) Blur.behind(window, Math.round(18f * d))
-      if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false)
+      com.linea.messenger.design.coverWindow(window, darkPage = Theme.dark) // the blur and the veil to the screen's edges, under the bars
       window.setWindowAnimations(android.R.style.Animation_Dialog)
     }
     setCanceledOnTouchOutside(true)

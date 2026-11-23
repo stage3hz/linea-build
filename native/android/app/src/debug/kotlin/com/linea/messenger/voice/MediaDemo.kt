@@ -12,7 +12,8 @@ import kotlin.math.sin
  *  empty `MediaDemo` of src/release instead. All with `--ez demo true --ez chat true`:
  *    --es voicedemo 1           an incoming and an outgoing voice row, the first playing at 0:07 of 0:23 at 1,5×
  *    --es voicedemo recording   the same, and the strip of a take being recorded (0:04,63, the lock above it)
- *    --es videodemo 1           a video row and a round video row */
+ *    --es videodemo 1           a video row and a round video row
+ *    --es notedemo 1            the round-video recorder opened by the composer's own path, the take held */
 object MediaDemo {
   /** The debug build shows the microphone in the sample chat too (it records nothing there). */
   const val sample = true
@@ -55,4 +56,8 @@ object MediaDemo {
 
   /** `voicedemo recording`: the strip of a take being recorded is shown. */
   fun recording(intent: Intent?): Boolean = intent?.getStringExtra("voicedemo") == "recording"
+
+  /** `notedemo`: the round-video recorder is opened as the composer opens it (iOS: Voice/MediaRecording.swift
+   *  `demoNote`). */
+  fun note(intent: Intent?): Boolean = intent?.getStringExtra("notedemo") != null
 }

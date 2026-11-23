@@ -889,4 +889,11 @@ class RecordControl(private val context: Context) {
     timeWords = { "0:04,63" }
     begin(locked = false)
   }
+
+  /** `--es notedemo 1` (debug builds): a round video being held — the circle over the chat and the composer's strip
+   *  (the time, «slide to cancel») with the blob, as on a phone (iOS: Voice/RecordControl.swift `demoHoldingVideo`). */
+  fun demoHoldingVideo() {
+    mode = Mode.VIDEO
+    begin(locked = false)
+  }
 }

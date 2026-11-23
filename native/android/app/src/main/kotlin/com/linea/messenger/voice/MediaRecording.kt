@@ -122,6 +122,22 @@ class MediaRecording(private val context: Context) {
     return true
   }
 
+  /** `--es notedemo 1` (debug builds only, see `ChatMedia.demo`): the round-video recorder opened by the composer's
+   *  own path — the camera may be missing on the emulator: the circle then says «Камера недоступна.» under it —,
+   *  the composer's strip held as while the finger is down (iOS: Voice/MediaRecording.swift `demoNote`). */
+  fun demoNote() {
+    if (!MediaDemo.sample || note != null) return
+    val activity = activity() ?: return
+    val composer = composer ?: return
+    val place = IntArray(2)
+    composer.getLocationInWindow(place)
+    val made = NoteRecorder(activity, startAtOnce = true, panelTop = maxOf(1, place[1]))
+    made.setOnCancelListener { if (note === made) control.end(RecordControl.Ending.CANCEL) }
+    note = made
+    control.demoHoldingVideo()
+    try { made.show() } catch (_: Exception) { note = null }
+  }
+
   private val levels = object : Runnable {
     override fun run() {
       val shown = note ?: return

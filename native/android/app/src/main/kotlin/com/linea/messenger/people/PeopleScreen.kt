@@ -99,7 +99,9 @@ class PeopleScreen(
   private val caption: TextView get() = header.subtitleLabel
   private val searchBox = com.linea.messenger.design.GlassSearchField(context)
   private val field = EditText(context)
-  private val clearButton = PeopleRoundButton(context, "close-circle", RoundIconButton.Look.PLAIN, 18f)
+  // Inside the search's own glass the clear button is only its glyph (glass in glass draws flat — the iPhone shows no
+  // second capsule round it).
+  private val clearButton = PeopleRoundButton(context, "close-circle", RoundIconButton.Look.PLAIN, 18f).apply { background = null }
   /** What did not work (the reference's `Notice error`), above the list, 17 from the sides. */
   private val notice = PeopleNoticeView(context)
   /** «ДРУЗЬЯ  5» / «РЕЗУЛЬТАТЫ ПОИСКА»: above the list, not in it (it does not scroll), 26 from the left. */

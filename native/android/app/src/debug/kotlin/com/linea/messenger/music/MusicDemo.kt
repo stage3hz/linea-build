@@ -78,11 +78,21 @@ object AIMusicSimulator {
     root.show(if (music != null) "music" else "ai")
     if (music == "player" || music == "equalizer") root.postDelayed({ find(root, MusicScreen::class.java)?.openPlayer() }, 1500)
     // Music: `equalizer` — the equalizer over the full player, a custom curve (music/MusicEqualizer.kt).
-    if (music == "equalizer") root.postDelayed({
-      EqualizerSettings.attach(root.context)
-      EqualizerSettings.profile = EqualizerSettings.Profile("custom", 4.0, -2.0, 6.0)
-      find(root, PlayerScreen::class.java)?.openEqualizer()
-    }, 2300)
+    // The player is pushed on the page stack beside the shell, not inside it: looked for from the window's top, and
+    // tried again until it is there (the shot 313 showed the player alone).
+    if (music == "equalizer") {
+      var tries = 12
+      val open = object : Runnable {
+        override fun run() {
+          val shown = find(root.rootView, PlayerScreen::class.java)
+          if (shown == null) { if (--tries > 0) root.postDelayed(this, 400); return }
+          EqualizerSettings.attach(root.context)
+          EqualizerSettings.profile = EqualizerSettings.Profile("custom", 4.0, -2.0, 6.0)
+          shown.openEqualizer()
+        }
+      }
+      root.postDelayed(open, 2300)
+    }
     // AI: `photo` — a photo in the request; `quick` — the quick question over the screen (ai/AIAttachments.kt).
     if (music == null && (ai == "photo" || ai == "quick")) root.postDelayed({ find(root, AIScreen::class.java)?.let { com.linea.messenger.ai.AIParity.demo(it, ai) } }, 1500)
     if (music == null && ai == "history") root.postDelayed({ find(root, AIScreen::class.java)?.showHistory() }, 1500)

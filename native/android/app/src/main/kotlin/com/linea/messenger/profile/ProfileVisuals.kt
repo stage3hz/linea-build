@@ -379,7 +379,7 @@ class ProfileLightView(context: Context) : View(context) {
  *  the avatar's centre in this view, px. */
 class ProfilePatternView(context: Context) : View(context) {
   private var emoji = ""
-  private val paint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+  private val paint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Theme.weight(400) }
   var avatarX = 0f
   var avatarY = 0f
 

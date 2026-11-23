@@ -118,8 +118,10 @@ class ShellRulesTest {
   }
 
   @Test fun theBarKeepsClearOfTheScreensEdge() {
-    assertEquals(12f, BarMetrics.bottomGap(0f), 0f)
-    assertEquals(26f, BarMetrics.bottomGap(34f), 0f)
+    // The reference on Android (chatLayout.ts tabBarMarginBottom): 10 above the navigation bar, whatever its height.
+    assertEquals(10f, BarMetrics.bottomGap(0f), 0f)
+    assertEquals(34f, BarMetrics.bottomGap(24f), 0f) // the gesture handle
+    assertEquals(58f, BarMetrics.bottomGap(48f), 0f) // the three buttons
   }
 
   @Test fun aLetterAvatarsColoursAreTheSameAsOnTheOtherPhone() {

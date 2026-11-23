@@ -124,6 +124,8 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
   // The gallery.
   private var status = "unknown"
   private var asked = false
+  /** `attachdemo paneldenied` (debug builds): the denied state is shown whatever the emulator grants. */
+  private var demoDenied = false
   private var canAskAgain = true
   private val items = ArrayList<Item>()
   private var nextOffset: Int? = 0
@@ -222,6 +224,7 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
       setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
       @Suppress("DEPRECATION") setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
+      com.linea.messenger.design.coverWindow(this, darkPage = Theme.dark) // the veil to the screen's edges, under the bars
     }
     setOnCancelListener { forgetAll() }
     setOnDismissListener { stopObserving() }
@@ -702,7 +705,7 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
   override fun onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
     // Back from the settings or from the system's choice: what may be read is asked again.
-    if (!hasFocus || samples || !asked) return
+    if (!hasFocus || samples || demoDenied || !asked) return
     val now = GalleryAccess.state(Build.VERSION.SDK_INT, ::granted)
     if (now != status) { status = now; loadGallery() }
   }
@@ -1011,7 +1014,9 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
    *  of anyone), as the panel shows them. */
   fun demoSamples(demo: String) {
     asked = true
-    if (demo == "paneldenied") { status = "denied"; canAskAgain = false; refreshAll(); return }
+    // Kept «denied» even though the emulator's app may read the gallery: the check of focus would otherwise ask again,
+    // find access and show the empty gallery with the camera tile instead of «Открой доступ к галерее».
+    if (demo == "paneldenied") { demoDenied = true; status = "denied"; canAskAgain = false; refreshAll(); return }
     samples = true
     status = if (demo == "panellimited") "limited" else "full"
     val colors = listOf(0x1F3B73 to 0xE0803B, 0x2E4A3B to 0xC8B27A, 0x3A3F58 to 0x9FB4C7, 0x5A3825 to 0xE3C08D, 0x203040 to 0x6FA3B8,

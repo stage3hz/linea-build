@@ -1,6 +1,5 @@
 package com.linea.messenger.composer
 
-import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
@@ -209,7 +208,7 @@ class ScheduledScreen(context: Context, private val store: ScheduledStore?, priv
     stack.setPadding(0, dp(14f), 0, dp(40f))
     val head = LinearLayout(context)
     head.gravity = Gravity.CENTER_VERTICAL
-    val close = ChatIconView(context, "xmark", 17f, Theme.text)
+    val close = ChatIconView(context, "ion:close", 23f, Theme.text) // the reference's IconButton «close» 23
     close.contentDescription = "Закрыть"; close.isClickable = true
     close.setOnClickListener { dismiss() }
     head.addView(close, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { leftMargin = dp(10f) })
@@ -285,12 +284,13 @@ class ScheduledScreen(context: Context, private val store: ScheduledStore?, priv
     send.alpha = if (sendable) 1f else 0.45f
     send.isEnabled = sendable; send.isClickable = sendable
     if (!busy) {
-      send.addView(ChatIconView(context, "send", 15f, Theme.onAccent), LinearLayout.LayoutParams(dp(18f), dp(18f)))
+      // The reference's paper-plane-outline 17 (scheduled/ScheduledScreen.tsx), from the bundled Ionicons.
+      send.addView(ChatIconView(context, "ion:paper-plane-outline", 17f, Theme.onAccent), LinearLayout.LayoutParams(dp(18f), dp(18f)))
       send.addView(context.words("Отправить сейчас", 14f, Theme.onAccent, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(8f) })
     } else send.addView(android.widget.ProgressBar(context).apply { isIndeterminate = true }, LinearLayout.LayoutParams(dp(22f), dp(22f)))
     send.setOnClickListener { sendNow(item, send) }
     buttons.addView(send, LinearLayout.LayoutParams(0, dp(40f), 1f))
-    val bin = ChatIconView(context, "trash", 17f, Theme.danger)
+    val bin = ChatIconView(context, "ion:trash-outline", 19f, Theme.danger)
     bin.background = context.plate(Theme.alpha(Theme.accent, 0.16f), 14f)
     bin.contentDescription = "Удалить отложенное сообщение"
     bin.isEnabled = !busy; bin.isClickable = !busy
@@ -315,7 +315,11 @@ class ScheduledScreen(context: Context, private val store: ScheduledStore?, priv
   }
 
   private fun say(words: String) {
-    try { AlertDialog.Builder(context).setMessage(words).setPositiveButton("Понятно", null).show() } catch (_: Exception) { }
+    // The app's own sheet: the words and «Понятно» (iOS Composer/ScheduledScreen.swift `say`).
+    val button = com.linea.messenger.settings.SettingsButton(context, "Понятно")
+    val sheet = ChoiceSheet(context, "", "", emptyList(), listOf(com.linea.messenger.settings.SettingsLook.para(context, words, 15f, Theme.text, line = 22f), button), 22f)
+    button.onPress = { sheet.dismiss() }
+    sheet.show()
   }
 
   companion object {

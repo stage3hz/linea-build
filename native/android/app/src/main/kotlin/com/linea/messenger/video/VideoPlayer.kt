@@ -39,6 +39,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.linea.messenger.design.coverScreen
 import com.linea.messenger.attachments.ChatAttachments
 import com.linea.messenger.attachments.DecryptedFiles
 import com.linea.messenger.attachments.KitIcon
@@ -174,7 +175,8 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
   private val controls = FrameLayout(context)
   private val closeButton = KitIcon(context, "chevron.down", 24f, Color.WHITE)
   private val pipButton = KitIcon(context, "pip", 21f, Color.WHITE)
-  private val gearButton = KitIcon(context, "gear", 22f, Color.WHITE)
+  // The reference's settings-outline 24 (media/VideoPlayerView.tsx), not a drawn look-alike.
+  private val gearButton = KitIcon(context, "ion:settings-outline", 24f, Color.WHITE)
   private val playButton = KitIcon(context, "play", 34f, Color.WHITE)
   private val clockLabel = TextView(context)
   private val fillButton = KitIcon(context, "resize", 19f, Color.WHITE)
@@ -231,6 +233,9 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
     clockLabel.background = GradientDrawable().apply { setColor(0x4D000000); cornerRadius = 14f * d }
     fillButton.setOnClickListener { toggleFill() }
     for (view in listOf(closeButton, pipButton, gearButton, playButton, clockLabel, fillButton, bar)) controls.addView(view, FrameLayout.LayoutParams(0, 0))
+    // The seek bar's thumb stands centred on the track's ends (at 0:00 half of it is left of the bar): not clipped to
+    // the bar's box, as the iPhone's.
+    controls.clipChildren = false
     bar.contentDescription = "Позиция воспроизведения"
     tooltip.orientation = LinearLayout.VERTICAL
     tooltip.gravity = Gravity.CENTER_HORIZONTAL
@@ -276,10 +281,9 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
 
     setContentView(root)
     window?.apply {
-      setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+      setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.BLACK))
       addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-      statusBarColor = Color.BLACK
-      navigationBarColor = Color.BLACK
+      coverScreen(darkPage = true) // black to the screen's edges, under the bars
     }
     player.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build())
     player.setOnPreparedListener { readyToPlay() }

@@ -60,9 +60,11 @@ class Glass(private val owner: View) {
     const val DARK_TINT = 0x8C141518.toInt()
     const val DARK_PLAIN = 0xF7161718.toInt()
     const val DARK_RIM = 0x1FFFFFFF
-    const val LIGHT_TINT = 0xA6F7F7F9.toInt()
-    const val LIGHT_PLAIN = 0xF7F7F7F9.toInt()
-    const val LIGHT_RIM = 0x14000000
+    // Light glass is white, as the iPhone's glass on a light theme (the reference's `glassOpaque` #F6F8FD): the earlier
+    // page-grey fill under a grey rim read as a grey outlined pill beside the iPhone's white one.
+    const val LIGHT_TINT = 0xD9FFFFFF.toInt()
+    const val LIGHT_PLAIN = 0xFAFFFFFF.toInt()
+    const val LIGHT_RIM = 0x0A000000
     /** Effects: every plate that has been drawn (weakly held; effects/EffectsHost.kt reads it). */
     val plates = java.util.WeakHashMap<Glass, Unit>()
   }

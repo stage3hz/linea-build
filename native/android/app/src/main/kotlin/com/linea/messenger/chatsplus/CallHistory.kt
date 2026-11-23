@@ -362,7 +362,9 @@ private class CallRowView(context: Context) : LinearLayout(context) {
     val bottom = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     bottom.addView(arrow, LayoutParams(context.px(14f), context.px(14f)).apply { rightMargin = context.px(5f) })
     bottom.addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
-    column.addView(top)
+    // As wide as the name and the dot (the name still shrinks first when long): the dot stands right after the name,
+    // as the iPhone's (CallHistory.swift: `name.frame.maxX + 6`), not at the line's far end.
+    column.addView(top, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
     column.addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(4f) })
     addView(column, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = context.px(14f) })
     addView(time, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { rightMargin = context.px(14f) })

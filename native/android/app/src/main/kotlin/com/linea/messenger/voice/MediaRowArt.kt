@@ -88,9 +88,9 @@ object MediaRowArt {
 
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-  private val timePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { fontFeatureSettings = "tnum"; letterSpacing = 0.03f }
-  private val ratePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
-  private val pillPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { fontFeatureSettings = "tnum" }
+  private val timePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { fontFeatureSettings = "tnum"; letterSpacing = 0.03f; typeface = Theme.weight(400) }
+  private val ratePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(700) }
+  private val pillPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { fontFeatureSettings = "tnum"; typeface = Theme.weight(400) }
   private val path = Path()
   private val box = RectF()
 

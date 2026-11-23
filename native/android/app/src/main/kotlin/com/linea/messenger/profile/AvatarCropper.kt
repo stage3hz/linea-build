@@ -21,6 +21,8 @@ import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import com.linea.messenger.design.coverScreen
+import com.linea.messenger.design.edges
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
 import kotlin.math.floor
@@ -99,15 +101,25 @@ class AvatarCropper(context: Context, private val picture: Bitmap) : Dialog(cont
     root.setBackgroundColor(Color.BLACK)
     root.addView(canvasView, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     val top = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-    top.addView(context.words("Фото профиля", 17f, Color.WHITE, 700))
+    // WRAP_CONTENT, so the column centres it (with the vertical LinearLayout's default MATCH_PARENT it stood at the
+    // left of the line under it).
+    top.addView(context.words("Фото профиля", 17f, Color.WHITE, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     top.addView(context.words("Двигай и приближай фото пальцами", 13f, 0xB3FFFFFF.toInt()), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(4f) })
     root.addView(top, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = context.px(52f) })
     val cancel = context.words("Отмена", 17f, Color.WHITE).apply { isClickable = true; setPadding(context.px(8f), context.px(10f), context.px(8f), context.px(10f)); setOnClickListener { dismiss() } }
     val done = context.words("Готово", 17f, Color.WHITE, 700).apply { isClickable = true; setPadding(context.px(8f), context.px(10f), context.px(8f), context.px(10f)); setOnClickListener { finish() } }
     root.addView(cancel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.START).apply { leftMargin = context.px(24f); bottomMargin = context.px(40f) })
     root.addView(done, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.END).apply { rightMargin = context.px(24f); bottomMargin = context.px(40f) })
+    // The page covers the bars: the words 18 under the status bar, the buttons' words 20 above the navigation bar
+    // (iOS AvatarCropper: the safe area's top + 18, its bottom − 20; the buttons here have 10 of padding).
+    root.setOnApplyWindowInsetsListener { _, insets ->
+      val edges = insets.edges()
+      (top.layoutParams as FrameLayout.LayoutParams).let { it.topMargin = edges.top + context.px(18f); top.layoutParams = it }
+      for (button in listOf(cancel, done)) (button.layoutParams as FrameLayout.LayoutParams).let { it.bottomMargin = edges.bottom + context.px(10f); button.layoutParams = it }
+      insets
+    }
     setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-    window?.apply { setBackgroundDrawable(ColorDrawable(Color.BLACK)); setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT) }
+    window?.apply { setBackgroundDrawable(ColorDrawable(Color.BLACK)); coverScreen(darkPage = true) }
     canvasView.post { canvasView.setOnTouchListener(touch) }
   }
 

@@ -35,7 +35,9 @@ live() { # name, seconds to wait, launch arguments…
   adb shell am force-stop "$APP"
   adb shell am start -W -n "$APP/com.linea.messenger.MainActivity" --es server https://10.0.2.2:8443 "$@" | grep -E "Status|Error" || true
   sleep "$wait"
-  adb shell am force-stop com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true; sleep 1
+  adb shell am force-stop com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true
+  adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941 >/dev/null 2>&1 || true # the demo clock drifts back
+  sleep 1
   adb exec-out screencap -p > "$OUT/$name.png"
   [ "$(wc -c < "$OUT/$name.png")" -gt 2000 ] || { echo "No picture for $name" >&2; exit 1; }
   echo "shot $name"

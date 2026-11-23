@@ -46,6 +46,15 @@ class ManualEditText(context: Context) : EditText(context) {
     importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
   }
 
+  /** Fonts: the system turns a password field fixed-width and, when a field stops being one, puts the system's
+   *  default face (Roboto) back — the field keeps the app's face through any change of its input type (the eye,
+   *  the name field's capitals). */
+  override fun setInputType(type: Int) {
+    val face = typeface
+    super.setInputType(type)
+    if (face != null && typeface !== face) typeface = face
+  }
+
   override fun onTextContextMenuItem(id: Int): Boolean = false
 
   override fun getAutofillType(): Int = View.AUTOFILL_TYPE_NONE
@@ -94,6 +103,10 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
   /** Whether what is typed is behind dots now. */
   val hidden: Boolean get() = this.field.transformationMethod is PasswordTransformationMethod
 
+  /** The placeholder as given; the field shows it shortened with «…» when it is wider than the field (the iPhone's),
+   *  not cut mid-letter under the eye — an EditText never ellipsizes its hint by itself. */
+  private var placeholderText = ""
+
   init {
     orientation = VERTICAL
     // ManualField.tsx:45-47,59: the caption spaced out by 1 and 2 in; a glass plate with radius 18 and its rim (1.4
@@ -114,13 +127,14 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
     field.inputType = InputType.TYPE_CLASS_TEXT or (if (secret) InputType.TYPE_TEXT_VARIATION_PASSWORD else InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD)
     field.imeOptions = EditorInfo.IME_ACTION_GO or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
     // A hidden field would otherwise take the fixed-width font.
-    field.typeface = Typeface.DEFAULT
+    field.typeface = Theme.weight(400)
     field.setOnEditorActionListener { _, _, _ -> onReturn?.invoke(); true }
     field.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) { if (!setting) caretBefore = field.selectionStart.coerceAtLeast(0) }
       override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
       override fun afterTextChanged(s: Editable?) { if (!setting) typed(s?.toString() ?: "") }
     })
+    field.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ -> if (right - left != oldRight - oldLeft) field.post { fitHint() } }
     plate.addView(field, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
       leftMargin = context.px(17f); rightMargin = context.px(if (secret) 54f else 17f)
     })
@@ -157,8 +171,15 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
     captionText = caption
     this.caption.text = caption.uppercase(Locale.ROOT)
     field.contentDescription = caption
-    field.hint = placeholder
+    placeholderText = placeholder
+    fitHint()
     updateEye()
+  }
+
+  private fun fitHint() {
+    val room = field.width - field.totalPaddingLeft - field.totalPaddingRight
+    val shown = if (room <= 0) placeholderText else android.text.TextUtils.ellipsize(placeholderText, field.paint, room.toFloat(), android.text.TextUtils.TruncateAt.END).toString()
+    if (field.hint?.toString() != shown) field.hint = shown
   }
 
   /** Shows what is typed, or hides it behind dots. A secret being created is typed once, so it is shown while

@@ -41,6 +41,9 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
 
   private val ambient = com.linea.messenger.effects.MusicAmbientView(context, com.linea.messenger.effects.MusicAmbientView.themeTone, com.linea.messenger.effects.MusicAmbientView.themeCustom)
   private val backdrop = Backdrop(context)
+  /** The ambient and the blurred cover as a glass source: the round glass buttons show them blurred and tinted, as
+   *  the iPhone's (the reference's GlassSurface blurs the page); without it they were the plain, nearly opaque fill. */
+  private val stage = com.linea.messenger.design.GlassSource(context)
 
   private val fold = AIIconButton(context, "ion:chevron-down", 26f, Theme.text, "Свернуть плеер")
   private val kicker = context.words("", 16f, Theme.text, 500).apply { gravity = Gravity.CENTER; maxLines = 1 }
@@ -88,10 +91,12 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
   init {
     setBackgroundColor(Theme.bg)
     isClickable = true
-    addView(ambient)
-    addView(backdrop)
+    stage.addView(ambient, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    stage.addView(backdrop, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    stage.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    addView(stage)
 
-    for (button in listOf(fold, source, shuffleButton, backButton, forwardButton, repeatButton)) button.background = GlassDrawable(button)
+    for (button in listOf(fold, source, shuffleButton, backButton, forwardButton, repeatButton)) button.background = GlassDrawable(button).apply { this.source = stage }
     fold.setOnClickListener { leave() }
     source.setOnClickListener { player.current?.sourceUrl?.let { openMusicLink(context, it) } }
     for (part in listOf(fold, kicker, source, cover, heading, artist, like, more, seek, shuffleButton, backButton, playButton, forwardButton, repeatButton, waiting)) addView(part)
@@ -189,8 +194,7 @@ class PlayerScreen(context: Context, private val player: MusicPlayer) : Screen(c
   // Places
 
   override fun place(width: Int, height: Int) {
-    put(ambient, 0, 0, width, height)
-    put(backdrop, 0, 0, width, height)
+    put(stage, 0, 0, width, height)
     val coverSide = Math.round(minOf(width - dp(56f).toFloat(), height * 0.44f, dp(460f).toFloat()))
     val side = maxOf(dp(16f), Math.round((width - coverSide) / 2f))
     val top = edges.top

@@ -44,7 +44,7 @@ object ParityDemo {
     }
     if (intent.getBooleanExtra("trustdemo", false) || intent.getStringExtra("trustdemo") == "1") {
       val root = launcher.showDemo()
-      main.postDelayed({ root.pages()?.push(TrustSheet(root.context, null, "sample-peer")) }, 900)
+      main.postDelayed({ TrustSheet.present(root, null, "sample-peer") }, 900)
       return true
     }
     if (com.linea.messenger.screenshare.ScreenShareDemo.start(intent, launcher)) return true

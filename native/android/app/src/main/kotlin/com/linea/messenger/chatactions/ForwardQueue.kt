@@ -1,6 +1,5 @@
 package com.linea.messenger.chatactions
 
-import android.app.AlertDialog
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -196,13 +195,12 @@ object ForwardQueue {
       cancel(id)
       return true
     }
-    try {
-      AlertDialog.Builder(context).setMessage(job.failure)
-        .setPositiveButton("Повторить отправку") { _, _ -> retry(id) }
-        .setNeutralButton("Удалить") { _, _ -> cancel(id) }
-        .setNegativeButton("Отмена", null)
-        .show()
-    } catch (_: Exception) { /* the window is gone */ }
+    // The app's own sheet: why it failed, «Повторить отправку» and «Удалить» in red (iOS ChatActions/ForwardQueue.swift;
+    // the reference's menu glyphs refresh-outline and trash-outline); its ✕ is «Отмена».
+    ChoiceSheet(context, "", job.failure ?: "", listOf(
+      ChoiceSheet.Choice("ion:refresh-outline", "Повторить отправку") { retry(id) },
+      ChoiceSheet.Choice("ion:trash-outline", "Удалить", danger = true) { cancel(id) },
+    )).show()
     return true
   }
 

@@ -658,9 +658,9 @@ private class SavedNoteRow(context: Context) : View(context) {
 
   private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
   private val line = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE }
-  private val originPaint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-  private val textPaint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
-  private val small = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+  private val originPaint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(600) }
+  private val textPaint = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(400) }
+  private val small = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(400) }
 
   init {
     layoutParams = AbsListView.LayoutParams(AbsListView.LayoutParams.MATCH_PARENT, AbsListView.LayoutParams.WRAP_CONTENT)

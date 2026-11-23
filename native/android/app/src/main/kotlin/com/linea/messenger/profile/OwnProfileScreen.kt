@@ -59,10 +59,19 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
     }
   private val base: String get() = account?.base ?: ""
 
+  /** The banner / light as a glass source: the round glass «назад» shows it blurred, as the iPhone's (without a source
+   *  the round is the plain, nearly opaque fill). The layers are placed by `place`, not by this frame. */
+  private val topStage = object : com.linea.messenger.design.GlassSource(context) {
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(widthSpec), MeasureSpec.getSize(heightSpec))
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {}
+  }
+
   init {
     setBackgroundColor(Theme.bg)
     isClickable = true
-    addView(topLayers.back)
+    topStage.addView(topLayers.back)
+    topStage.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    addView(topStage)
     scroll.isVerticalScrollBarEnabled = false
     scroll.clipChildren = false
     content.orientation = LinearLayout.VERTICAL
@@ -87,7 +96,7 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
     barBackdrop.setBackgroundColor(Theme.bg)
     barBackdrop.alpha = 0f
     addView(barBackdrop)
-    com.linea.messenger.design.GlassBacking.put(back) // C: the reference's IconButton — a round of clear glass
+    com.linea.messenger.design.GlassBacking.put(back).source = topStage // C: the reference's IconButton — a round of clear glass
     back.contentDescription = "Назад"
     back.setOnClickListener { pagesStack()?.pop() }
     addView(back)
@@ -150,6 +159,7 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
     val padTop = top + dp(60f + 8f)
     if (content.paddingTop != padTop || content.paddingBottom != dp(36f) + edges.bottom) content.setPadding(dp(17f), padTop, dp(17f), dp(36f) + edges.bottom)
     put(scroll, 0, 0, width, height)
+    put(topStage, 0, 0, width, topLayers.backHeight(hero.bottom))
     put(topLayers.back, 0, 0, width, topLayers.backHeight(hero.bottom))
     put(topLayers.front, 0, 0, width, topLayers.frontHeight())
     put(barBackdrop, 0, 0, width, top + dp(8f + 52f + 12f))

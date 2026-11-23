@@ -52,9 +52,9 @@ class MsgRowView(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
-  private val body = TextPaint(Paint.ANTI_ALIAS_FLAG)
-  private val small = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f * d }
-  private val meta = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d }
+  private val body = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(400) }
+  private val small = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f * d; typeface = Theme.weight(400) }
+  private val meta = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Theme.weight(400) }
   // MessageRow.tsx: «Переслано от …» 11 semibold; the quote's author 11 bold over its words 12; the day 10 semibold;
   // a call's row 14 semibold over its time 11 (tabular digits).
   private val forwardPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Theme.weight(600) }
@@ -62,7 +62,7 @@ class MsgRowView(context: Context) : View(context) {
   private val quotePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Theme.weight(400) }
   private val dayPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f * d; typeface = Theme.weight(600) }
   private val callPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * d; typeface = Theme.weight(600) }
-  private val callTimePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; fontFeatureSettings = "tnum" }
+  private val callTimePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; fontFeatureSettings = "tnum"; typeface = Theme.weight(400) }
   /** Bubbles: the time in the plate's lower corner, its room kept at the end of the words. */
   private var timeCorner = false
   /** The time at the right of the reaction chips' row. */
@@ -71,7 +71,7 @@ class MsgRowView(context: Context) : View(context) {
   private var flashLight = 0f
   private var flashRun: android.animation.Animator? = null
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-  private val bigPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+  private val bigPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Theme.weight(400) }
   private val matrix = Matrix()
   private val path = Path()
   private val plateBox = android.graphics.RectF()
@@ -209,8 +209,8 @@ class MsgRowView(context: Context) : View(context) {
   /** ChatActions: whether a point of this view is on the quote of an answer. */
   fun quoteAt(px: Float, py: Float): Boolean =
     quoteLayout != null && quoteRight > quoteLeft && px >= quoteLeft - 2f * d && px <= quoteRight + 2f * d && py >= quoteTop - 3f * d && py <= quoteBottom + 3f * d
-  private val chipEmoji = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d }
-  private val chipCount = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
+  private val chipEmoji = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d; typeface = Theme.weight(400) }
+  private val chipCount = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Theme.weight(600) }
   private class Chip(val emoji: String, val count: Int, val mine: Boolean, val x: Float, val y: Float, val w: Float)
   /** Reaction chips laid out for the bubble's width (positions from the chips' own corner). */
   private var chips: List<Chip> = emptyList()

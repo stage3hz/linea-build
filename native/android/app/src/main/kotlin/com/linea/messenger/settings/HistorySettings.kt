@@ -136,7 +136,7 @@ class HistoryScreen(context: Context, private val messenger: Messenger) : Settin
     val settings = LockStore.current
     if (settings.record == null) return reveal()
     val askCode: () -> Unit = {
-      val field = EditText(context).apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD }
+      val field = EditText(context).apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD; typeface = Theme.weight(400) }
       ask(AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Код-пароль").setMessage("Чтобы показать ключ резервной копии").setView(field)
         .setNegativeButton("Отмена", null).setPositiveButton("Показать") { _, _ ->
           LockStore.check(field.text.toString()) { right -> if (right) reveal() else { failure = "Неверный код."; fill() } }

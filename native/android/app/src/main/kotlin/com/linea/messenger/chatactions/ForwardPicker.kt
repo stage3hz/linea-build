@@ -274,7 +274,10 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   private val selectButton = TextView(context)
   private val bottomBar = LinearLayout(context)
   private val commentField = EditText(context)
-  private val sendButton = TextView(context)
+  // The reference's send button (forward/ForwardPicker.tsx): a 40 dp accent capsule, ↑ and, for several, the count.
+  private val sendButton = LinearLayout(context)
+  private val sendIcon = ChatIconView(context, "ion:arrow-up", 22f, Theme.onAccent)
+  private val sendCount = TextView(context)
 
   private val d = context.resources.displayMetrics.density
   private fun dp(value: Float) = Math.round(value * d)
@@ -292,20 +295,24 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
   private val folderStore get() = com.linea.messenger.chatsplus.ChatFolderStore.of(context, messenger?.userId ?: "sample")
   private val foldersChanged: (Unit) -> Unit = { buildTabs(); filter() }
 
-  /** One chat of the picker: the person's round picture and name. */
+  /** One chat of the picker, as the reference's row (forward/ForwardPicker.tsx; iOS ForwardCell): the person's 46 dp
+   *  round picture, the name (17), a 1 dp line under the name, and while several are chosen a 24 dp round mark —
+   *  an empty ring (1.5 dp, muted) or the accent disc with the Ionicons checkmark. 62 dp high. */
   private inner class Cell : FrameLayout(context) {
     val avatar = PersonAvatarView(context)
-    val nameLabel = TextView(context).apply { textSize = 17f; setTextColor(Theme.text); maxLines = 1; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.CENTER_VERTICAL }
+    val nameLabel = TextView(context).apply { textSize = 17f; typeface = Theme.weight(400); setTextColor(Theme.text); maxLines = 1; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.CENTER_VERTICAL; includeFontPadding = false }
     /** ChatsPlus: «Избранное» has a round bookmark instead of a person's picture. */
-    val saved = ChatIconView(context, "bookmark.fill", 20f, Theme.onAccent).apply { background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.accent) } }
+    val saved = ChatIconView(context, "ion:bookmark", 22f, Theme.onAccent).apply { background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.accent) } }
     /** Composer: the mark of a chat chosen with «Выбрать». */
-    val mark = ChatIconView(context, "check.circle", 22f, Theme.accent)
+    val mark = ChatIconView(context, "", 16f, Theme.onAccent)
+    val line = View(context).apply { setBackgroundColor(Theme.veil(0.1f)) }
     init {
-      addView(avatar, LayoutParams(dp(44f), dp(44f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
-      addView(saved, LayoutParams(dp(44f), dp(44f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
-      addView(nameLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply { leftMargin = dp(72f); rightMargin = dp(52f) })
-      addView(mark, LayoutParams(dp(26f), dp(26f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(18f) })
-      layoutParams = android.widget.AbsListView.LayoutParams(android.widget.AbsListView.LayoutParams.MATCH_PARENT, dp(60f))
+      addView(avatar, LayoutParams(dp(46f), dp(46f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
+      addView(saved, LayoutParams(dp(46f), dp(46f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
+      addView(nameLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply { leftMargin = dp(76f); rightMargin = dp(16f) })
+      addView(line, LayoutParams(LayoutParams.MATCH_PARENT, maxOf(1, dp(1f)), Gravity.BOTTOM).apply { leftMargin = dp(76f) })
+      addView(mark, LayoutParams(dp(24f), dp(24f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(16f) })
+      layoutParams = android.widget.AbsListView.LayoutParams(android.widget.AbsListView.LayoutParams.MATCH_PARENT, dp(62f))
     }
     fun show(target: Target) {
       nameLabel.text = target.name
@@ -314,10 +321,12 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
       target.person?.let { avatar.show(it, messenger?.personAvatarAddress(it.avatarId) ?: "") }
       val chosen = picked.contains(target.chatId)
       mark.visibility = if (selecting) View.VISIBLE else View.GONE
-      mark.symbol = if (chosen) "check.fill" else ""
-      mark.color = Theme.accent
-      mark.background = if (chosen) null else GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(1.6f), Theme.subtle) }
+      mark.symbol = if (chosen) "ion:checkmark" else ""
+      mark.color = Theme.onAccent
+      mark.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; if (chosen) setColor(Theme.accent) else setStroke(Math.round(1.5f * d), Theme.muted) }
       mark.invalidate()
+      (nameLabel.layoutParams as LayoutParams).rightMargin = if (selecting) dp(16f + 24f + 14f) else dp(16f)
+      (line.layoutParams as LayoutParams).rightMargin = if (selecting) dp(54f) else 0
       contentDescription = if (selecting) target.name + (if (chosen) ", выбран" else "") else target.name
     }
   }
@@ -336,22 +345,29 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
       setBackgroundColor(Theme.bg)
       fitsSystemWindows = true
     }
+    // The reference's header (forward/ForwardPicker.tsx; iOS ForwardPickerController): ✕ in a 44 dp round surface2
+    // button, the title (17, bold) in the middle, «Выбрать» / «Отмена» in a 44 dp surface2 capsule (15, semibold).
     val top = FrameLayout(context)
     top.addView(TextView(context).apply {
       text = heading(count); textSize = 17f; typeface = Theme.weight(700); setTextColor(Theme.text); gravity = Gravity.CENTER
-    }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-    top.addView(TextView(context).apply {
-      text = "Отмена"; textSize = 16f; typeface = Theme.weight(600); setTextColor(Theme.accent); gravity = Gravity.CENTER_VERTICAL
+      maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+    }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply { leftMargin = dp(72f); rightMargin = dp(120f) })
+    top.addView(ChatIconView(context, "ion:close", 24f, Theme.text).apply {
+      background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.surface2) }
+      contentDescription = "Закрыть"
       isClickable = true; isFocusable = true
       setOnClickListener { dismiss() }
-    }, FrameLayout.LayoutParams(dp(84f), FrameLayout.LayoutParams.MATCH_PARENT).apply { leftMargin = dp(16f) })
+    }, FrameLayout.LayoutParams(dp(44f), dp(44f), Gravity.START or Gravity.CENTER_VERTICAL).apply { leftMargin = dp(16f) })
     // Composer: «Выбрать» several chats (and «Отмена» of it).
-    selectButton.text = "Выбрать"; selectButton.textSize = 16f; selectButton.typeface = Theme.weight(600); selectButton.setTextColor(Theme.accent)
-    selectButton.gravity = Gravity.CENTER_VERTICAL or Gravity.END
+    selectButton.text = "Выбрать"; selectButton.textSize = 15f; selectButton.typeface = Theme.weight(600); selectButton.setTextColor(Theme.text)
+    selectButton.gravity = Gravity.CENTER
+    selectButton.includeFontPadding = false
+    selectButton.setPadding(dp(16f), 0, dp(16f), 0)
+    selectButton.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 22f * d }
     selectButton.isClickable = true; selectButton.isFocusable = true
     selectButton.setOnClickListener { toggleSelecting() }
-    top.addView(selectButton, FrameLayout.LayoutParams(dp(100f), FrameLayout.LayoutParams.MATCH_PARENT, Gravity.END).apply { rightMargin = dp(16f) })
-    column.addView(top, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44f)).apply { topMargin = dp(14f) })
+    top.addView(selectButton, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, dp(44f), Gravity.END or Gravity.CENTER_VERTICAL).apply { rightMargin = dp(16f) })
+    column.addView(top, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44f)).apply { topMargin = dp(16f) })
 
     searchField.hint = "Поиск"
     searchField.setHintTextColor(Theme.muted)
@@ -361,14 +377,23 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     searchField.isSingleLine = true
     searchField.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
     searchField.imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-    searchField.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 20f * d }
-    searchField.setPadding(dp(14f), 0, dp(14f), 0)
+    searchField.typeface = Theme.weight(400)
+    searchField.background = null
+    searchField.setPadding(0, 0, dp(10f), 0)
     searchField.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {}
       override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
       override fun afterTextChanged(text: Editable?) = filter()
     })
-    column.addView(searchField, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40f)).apply { leftMargin = dp(14f); rightMargin = dp(14f); topMargin = dp(6f); bottomMargin = dp(8f) })
+    // The search: a 40 dp surface2 capsule with the Ionicons magnifier (17, muted) before the words.
+    val searchBox = LinearLayout(context).apply {
+      orientation = LinearLayout.HORIZONTAL
+      gravity = Gravity.CENTER_VERTICAL
+      background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 20f * d }
+      addView(ChatIconView(context, "ion:search", 17f, Theme.muted), LinearLayout.LayoutParams(dp(22f), dp(40f)).apply { leftMargin = dp(10f); rightMargin = dp(4f) })
+      addView(searchField, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+    }
+    column.addView(searchBox, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(40f)).apply { leftMargin = dp(16f); rightMargin = dp(16f); topMargin = dp(12f); bottomMargin = dp(10f) })
     // Media: the folder tabs under the search.
     tabsScroll.isHorizontalScrollBarEnabled = false
     tabsRow.orientation = LinearLayout.HORIZONTAL
@@ -401,23 +426,34 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     body.addView(emptyLabel, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(42f); leftMargin = dp(20f); rightMargin = dp(20f) })
     column.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
     // Composer: «Выбрать» — the comment and the send button at the bottom.
-    bottomBar.gravity = Gravity.CENTER_VERTICAL
-    bottomBar.setPadding(dp(14f), dp(8f), dp(14f), dp(14f))
+    bottomBar.gravity = Gravity.BOTTOM
+    bottomBar.setPadding(dp(12f), dp(10f), dp(12f), dp(10f))
     bottomBar.visibility = View.GONE
+    // A 1 dp line over the bar (the reference's `borderTopWidth: 1`).
+    bottomBar.background = android.graphics.drawable.LayerDrawable(arrayOf<android.graphics.drawable.Drawable>(
+      android.graphics.drawable.ColorDrawable(Theme.bg),
+      android.graphics.drawable.ColorDrawable(Theme.veil(0.1f)),
+    )).apply { setLayerHeight(1, maxOf(1, dp(1f))); setLayerGravity(1, Gravity.TOP or Gravity.FILL_HORIZONTAL) }
     commentField.hint = "Комментарий"
     commentField.setHintTextColor(Theme.muted)
     commentField.setTextColor(Theme.text)
     commentField.textSize = 16f
+    commentField.typeface = Theme.weight(400)
     commentField.maxLines = 4
     commentField.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 20f * d }
     commentField.setPadding(dp(14f), dp(9f), dp(14f), dp(9f))
     commentField.contentDescription = "Комментарий"
     bottomBar.addView(commentField, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-    sendButton.textSize = 14f; sendButton.typeface = Theme.weight(700); sendButton.setTextColor(Theme.onAccent); sendButton.gravity = Gravity.CENTER
-    sendButton.background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Theme.accent) }
-    sendButton.isClickable = true
+    sendButton.orientation = LinearLayout.HORIZONTAL
+    sendButton.gravity = Gravity.CENTER
+    sendButton.minimumWidth = dp(40f)
+    sendButton.background = GradientDrawable().apply { setColor(Theme.accent); cornerRadius = 20f * d }
+    sendButton.isClickable = true; sendButton.isFocusable = true
     sendButton.setOnClickListener { sendNow() }
-    bottomBar.addView(sendButton, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { leftMargin = dp(10f) })
+    sendButton.addView(sendIcon, LinearLayout.LayoutParams(dp(22f), dp(40f)))
+    sendCount.textSize = 15f; sendCount.typeface = Theme.weight(700); sendCount.setTextColor(Theme.onAccent); sendCount.includeFontPadding = false
+    sendButton.addView(sendCount, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(4f) })
+    bottomBar.addView(sendButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40f)).apply { leftMargin = dp(8f) })
     column.addView(bottomBar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
 
     setContentView(column, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -530,7 +566,9 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
     val size = picked.size
     sendButton.isEnabled = size > 0
     sendButton.alpha = if (size > 0) 1f else 0.4f
-    sendButton.text = if (size > 1) "$size" else "↑"
+    sendCount.text = "$size"
+    sendCount.visibility = if (size > 1) View.VISIBLE else View.GONE
+    sendButton.setPadding(if (size > 1) dp(12f) else dp(9f), 0, if (size > 1) dp(12f) else dp(9f), 0)
     sendButton.contentDescription = "Отправить в $size"
   }
 
@@ -545,6 +583,13 @@ class ForwardPicker(context: Context, private val messenger: Messenger?, private
 
   /** `chatdemo forwardmany`: «Выбрать» on, the first chats marked and a comment written. */
   fun demoChooseSeveral() {
+    // As the iPhone check: a folder «Друзья» of the first three sample chats, so the tabs show (iOS
+    // ChatScreenActions.swift, `-chatdemo forwardmany`).
+    if (messenger == null && folderStore.folders.isEmpty() && everyone.size > 1) {
+      folderStore.upsert(com.linea.messenger.chatsplus.ChatFolder("fdemo", "Друзья", everyone.take(3).map { it.chatId }))
+      buildTabs()
+      filter()
+    }
     if (!selecting) toggleSelecting()
     for (target in shown.filter { !it.isSaved }.take(3)) picked.add(target.chatId)
     commentField.setText("Глянь, это про субботу")

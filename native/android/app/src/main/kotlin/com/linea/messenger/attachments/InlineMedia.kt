@@ -306,9 +306,9 @@ object InlineMediaArt {
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-  private val pillFont = TextPaint(Paint.ANTI_ALIAS_FLAG)
+  private val pillFont = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = com.linea.messenger.design.Theme.weight(400) }
   private val nameFont = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = com.linea.messenger.design.Theme.weight(600) }
-  private val lineFont = TextPaint(Paint.ANTI_ALIAS_FLAG)
+  private val lineFont = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = com.linea.messenger.design.Theme.weight(400) }
   private val matrix = Matrix()
   private val path = Path()
   private val box = RectF()

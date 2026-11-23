@@ -17,10 +17,8 @@ import com.linea.messenger.design.SymbolView
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
-import com.linea.messenger.profile.pages
 import com.linea.messenger.settings.SettingsButton
 import com.linea.messenger.settings.SettingsNotice
-import com.linea.messenger.settings.SettingsPage
 import com.linea.messenger.settings.ThemeStore
 
 /** «Защита чата»: the safety codes of the devices of a conversation (the person's and one's own other devices), to
@@ -29,7 +27,7 @@ import com.linea.messenger.settings.ThemeStore
  *  `approveDevices`); private keys are never shown. (The previous app: `mobile/src/e2ee/TrustSheet.tsx`; iOS
  *  Security/TrustSheet.swift.) */
 @SuppressLint("ViewConstructor")
-class TrustSheet(context: Context, private val messenger: Messenger?, private val peerId: String) : SettingsPage(context, "Защита чата", large = true) {
+class TrustSheet(context: Context, private val messenger: Messenger?, private val peerId: String) : NoticeSheet(context, "Защита чата") {
   private var snapshot: Map<String, Any?>? = null
   private var loading = false
   private var failure = ""
@@ -39,7 +37,7 @@ class TrustSheet(context: Context, private val messenger: Messenger?, private va
 
   companion object {
     /** Opens the sheet over whatever is on the screen. */
-    fun present(from: View, messenger: Messenger?, peerId: String) { from.pages()?.push(TrustSheet(from.context, messenger, peerId)) }
+    fun present(from: View, messenger: Messenger?, peerId: String) { TrustSheet(from.context, messenger, peerId).present(from) }
 
     /** The line «Переписка защищена сквозным шифрованием» of a profile: « · проверить устройства», an arrow, and a tap
      *  that opens the sheet (the reference's `onSecurity` of `UserProfile.tsx`). */

@@ -316,6 +316,7 @@ class AISheet(context: Context, heading: String) : Dialog(context) {
       window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
       window.setGravity(Gravity.BOTTOM)
       window.setDimAmount(0.55f)
+      com.linea.messenger.design.sheetWindow(window, scroll) // the sheet's colour to the screen's bottom, under the bar
     }
     setCanceledOnTouchOutside(true)
     setOnDismissListener {

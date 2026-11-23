@@ -69,7 +69,13 @@ class ChatPeekMenu(
         background = android.graphics.drawable.StateListDrawable().apply { addState(intArrayOf(android.R.attr.state_pressed), ColorDrawable(Theme.veil(0.08f))) }
         val ink = if (choice.danger) Theme.danger else Theme.text
         addView(PlusIconView(context, choice.symbol, 19f, ink), LinearLayout.LayoutParams(dp(22f), dp(22f)).apply { rightMargin = dp(13f) })
-        addView(context.words(choice.label, 15.5f, ink).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        // The iPhone's row shrinks a long label to fit (down to 0.75 of 15.5) before cutting it:
+        // «Пометить как прочитанное» stays whole.
+        addView(context.words(choice.label, 15.5f, ink).apply {
+          maxLines = 1; ellipsize = TextUtils.TruncateAt.END; gravity = Gravity.CENTER_VERTICAL
+          val most = Math.round(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, 15.5f, resources.displayMetrics))
+          setAutoSizeTextTypeUniformWithConfiguration(maxOf(1, Math.round(most * 0.75f)), maxOf(2, most), 1, android.util.TypedValue.COMPLEX_UNIT_PX)
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
         setOnClickListener { dismiss(); choice.run() }
       }
       panel.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44f)))
@@ -82,8 +88,18 @@ class ChatPeekMenu(
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
       setDimAmount(0f)
       addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+      // The list behind blurs under the veil, as the iPhone's (`Theme.thinBlur`) and the message menu here.
+      if (android.os.Build.VERSION.SDK_INT >= 31) Blur.behind(this, Math.round(18f * d))
     }
     setCanceledOnTouchOutside(true)
+  }
+
+  @android.annotation.TargetApi(31)
+  private object Blur {
+    fun behind(window: Window, radius: Int) {
+      window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+      window.attributes = window.attributes.apply { blurBehindRadius = radius }
+    }
   }
 
   /** The messages arrived after the card was opened (they are read from the private storage in the background). */

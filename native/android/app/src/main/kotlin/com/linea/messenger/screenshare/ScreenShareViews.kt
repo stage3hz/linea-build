@@ -140,6 +140,9 @@ class ScreenSharePanel(context: Context) : LinearLayout(context) {
     low.visibility = if (sharing) GONE else VISIBLE
     high.visibility = if (sharing) GONE else VISIBLE
     stopButton.visibility = if (sharing) VISIBLE else GONE
+    // Alone in the row (the two qualities are hidden while sharing) it starts at the card's edge like everything
+    // else: no 8 dp gap before it.
+    (stopButton.layoutParams as? LayoutParams)?.let { params -> val gap = if (sharing) 0 else context.px(8f); if (params.leftMargin != gap) { params.leftMargin = gap; stopButton.layoutParams = params } }
     low.show(ScreenQuality.P720.label, danger = false, enabled = !starting && connected, dim = starting)
     high.show(ScreenQuality.P1080.label, danger = false, enabled = !starting && connected, dim = starting)
     stopButton.show("Остановить демонстрацию", danger = true, enabled = true, dim = false)
@@ -210,9 +213,13 @@ class ScreenShareButton(context: Context) : FrameLayout(context) {
 class ScreenViewerScreen(context: Context, private val peer: String, private val names: ((String) -> String?)?) : Screen(context) {
   private val holder = FrameLayout(context)
   private val video = ScreenVideoView(context, ratio = 0f)
-  private val title = context.words("", 15f, 0xFFFFFFFF.toInt(), 600)
-  private val close = context.words("Закрыть", 15f, 0xFFFFFFFF.toInt(), 600)
-  private val turn = context.words("Повернуть", 15f, 0xFFFFFFFF.toInt(), 600)
+  // The iPhone's top strip (ScreenShareViews.swift `ScreenViewerController`): black at 0.45 under the status bar and
+  // 52 more, ✕ (Ionicons close 22) at the left, the name and the quality centred, the turn (phone-landscape-outline)
+  // at the right.
+  private val strip = View(context).apply { setBackgroundColor(0x73000000) }
+  private val title = context.words("", 15f, 0xFFFFFFFF.toInt(), 600).apply { gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+  private val close = com.linea.messenger.chatactions.ChatIconView(context, "ion:close", 22f, 0xFFFFFFFF.toInt()).apply { contentDescription = "Закрыть" }
+  private val turn = com.linea.messenger.chatactions.ChatIconView(context, "ion:phone-landscape-outline", 22f, 0xFFFFFFFF.toInt()).apply { contentDescription = "Повернуть" }
   private var turned = false
   private var zoom = 1f
   private val changed: (Unit) -> Unit = { refresh() }
@@ -221,7 +228,7 @@ class ScreenViewerScreen(context: Context, private val peer: String, private val
   })
   private val taps = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
     override fun onDoubleTap(e: MotionEvent): Boolean { zoom = if (zoom > 1.01f) 1f else 2.5f; apply(); return true }
-    override fun onSingleTapConfirmed(e: MotionEvent): Boolean { val shown = title.visibility != VISIBLE; for (v in listOf(title, close, turn)) v.visibility = if (shown) VISIBLE else GONE; return true }
+    override fun onSingleTapConfirmed(e: MotionEvent): Boolean { val shown = title.visibility != VISIBLE; for (v in listOf(strip, title, close, turn)) v.visibility = if (shown) VISIBLE else GONE; return true }
   })
 
   init {
@@ -229,15 +236,22 @@ class ScreenViewerScreen(context: Context, private val peer: String, private val
     isClickable = true
     holder.addView(video, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
     addView(holder)
-    for (button in listOf(close, turn)) { button.isClickable = true; button.gravity = Gravity.CENTER; button.minHeight = dp(44f); button.setPadding(dp(12f), 0, dp(12f), 0); button.background = context.plate(0x59000000, 16f) }
+    for (button in listOf(close, turn)) { button.isClickable = true; button.isFocusable = true }
+    addView(strip)
     close.setOnClickListener { leave() }
     turn.setOnClickListener { turned = !turned; requestLayout() }
     addView(title); addView(close); addView(turn)
     refresh()
   }
 
-  override fun onAttachedToWindow() { super.onAttachedToWindow(); ScreenShare.changed.watch(changed); RoomVoice.changed.watch(changed) }
-  override fun onDetachedFromWindow() { ScreenShare.changed.unwatch(changed); RoomVoice.changed.unwatch(changed); super.onDetachedFromWindow() }
+  // The viewer covers the whole screen, the room's bar included (the iPhone presents it over everything): the bar is
+  // asked again when it comes and goes.
+  override fun onAttachedToWindow() { super.onAttachedToWindow(); ScreenShare.changed.watch(changed); RoomVoice.changed.watch(changed); post { com.linea.messenger.rooms.RoomOverlay.refresh() } }
+  override fun onDetachedFromWindow() {
+    ScreenShare.changed.unwatch(changed); RoomVoice.changed.unwatch(changed)
+    android.os.Handler(android.os.Looper.getMainLooper()).post { com.linea.messenger.rooms.RoomOverlay.refresh() }
+    super.onDetachedFromWindow()
+  }
 
   override fun onTouchEvent(event: MotionEvent): Boolean { pinch.onTouchEvent(event); taps.onTouchEvent(event); return true }
 
@@ -260,12 +274,11 @@ class ScreenViewerScreen(context: Context, private val peer: String, private val
       holder.rotation = 0f
       put(holder, 0, 0, width, height)
     }
-    putText(title, dp(16f), edges.top + dp(12f), width - dp(32f))
-    close.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
-    turn.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec(dp(44f), MeasureSpec.EXACTLY))
-    val bottom = height - maxOf(edges.bottom, dp(16f)) - dp(12f)
-    close.layout(dp(16f), bottom - dp(44f), dp(16f) + close.measuredWidth, bottom)
-    turn.layout(width - dp(16f) - turn.measuredWidth, bottom - dp(44f), width - dp(16f), bottom)
+    val inset = edges.top
+    put(strip, 0, 0, width, inset + dp(52f))
+    put(close, dp(8f), inset + dp(4f), dp(44f), dp(44f))
+    put(turn, width - dp(52f), inset + dp(4f), dp(44f), dp(44f))
+    put(title, dp(60f), inset + dp(4f), maxOf(0, width - dp(120f)), dp(44f))
   }
 }
 
@@ -295,6 +308,10 @@ class ScreenShareStrip(context: Context, private val roomId: String, private val
         words.addView(context.words("", 13f, Theme.text, 600).apply { tag = "name"; maxLines = 1 })
         words.addView(context.words("показывает экран", 11f, Theme.muted))
         box.addView(words, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
+        // The monitor after the words (iOS ScreenShareViews.swift: Ionicons desktop-outline 13 in the accent), 10 in
+        // from the chip's end.
+        box.addView(com.linea.messenger.chatactions.ChatIconView(context, "ion:desktop-outline", 13f, Theme.accent), LayoutParams(context.px(13f), context.px(13f)).apply { leftMargin = context.px(8f) })
+        box.setPadding(context.px(6f), context.px(6f), context.px(10f), context.px(6f))
         box.setOnClickListener { pages()?.push(ScreenViewerScreen(context, screen.peer) { id -> name(id) }) }
         addView(box, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { if (childCount > 0) leftMargin = context.px(8f) })
         Pair(box, video).also { chips[screen.peer] = it }

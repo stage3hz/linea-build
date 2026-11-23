@@ -307,5 +307,20 @@ class MsgListView(context: Context) : FrameLayout(context) {
   fun setPalette(next: MsgPalette) { if (next != palette) { palette = next; adapter.notifyDataSetChanged() } }
   fun setFontSize(size: Float) { val next = size.coerceIn(10f, 40f); if (next != fontSize) { fontSize = next; adapter.notifyDataSetChanged() } }
   /** Room above the first message and under the last one, px: what the header and the field cover. */
-  fun setPad(top: Int, bottom: Int) { if (list.paddingTop != top || list.paddingBottom != bottom) list.setPadding(0, top, 0, bottom) }
+  fun setPad(top: Int, bottom: Int) {
+    if (list.paddingTop == top && list.paddingBottom == bottom) return
+    // A list resting at its newest message stays there when the room under it changes (the emoji panel opening under
+    // the composer, the composer growing), as the iPhone's does; otherwise the last message slid under the field.
+    val count = list.adapter?.count ?: 0
+    val lastChild = if (list.childCount > 0) list.getChildAt(list.childCount - 1) else null
+    val atEnd = count > 0 && lastChild != null && list.lastVisiblePosition == count - 1 &&
+      lastChild.bottom <= list.height - list.paddingBottom + Math.round(4 * resources.displayMetrics.density)
+    val moved = bottom != list.paddingBottom
+    list.setPadding(0, top, 0, bottom)
+    if (atEnd && moved) list.post {
+      val now = list.adapter?.count ?: 0
+      val last = if (list.childCount > 0) list.getChildAt(list.childCount - 1) else null
+      if (now > 0 && last != null && list.lastVisiblePosition == now - 1) list.setSelectionFromTop(now - 1, list.height - list.paddingBottom - last.height)
+    }
+  }
 }

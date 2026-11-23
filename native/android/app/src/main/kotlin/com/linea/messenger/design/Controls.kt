@@ -34,7 +34,20 @@ fun Context.plate(fill: Int, radius: Float, line: Int = 0): GradientDrawable = G
 @SuppressLint("ViewConstructor")
 open class BusyButton(context: Context, label: String, fill: Int, private val ink: Int, radius: Float, textSize: Float = 15f, weight: Int = 600) : LinearLayout(context) {
   var onPress: (() -> Unit)? = null
-  private val text = context.words(label, textSize, ink, weight)
+  // As wide as its longest line: words that wrap (a narrow screen, «Изменить слово подтверждения») stay next to the
+  // icon before them, the group centred, as the iPhone's button — a wrapping TextView would take the whole width.
+  private val text = object : TextView(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+      super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+      val laid = layout ?: return
+      if (laid.lineCount < 2) return
+      var widest = 0f
+      for (line in 0 until laid.lineCount) widest = maxOf(widest, laid.getLineWidth(line))
+      val tight = kotlin.math.ceil(widest).toInt() + compoundPaddingLeft + compoundPaddingRight
+      // Measured again at that width, so the lines are laid out (and centred) in it, broken where they were.
+      if (tight < measuredWidth) super.onMeasure(MeasureSpec.makeMeasureSpec(tight, MeasureSpec.EXACTLY), heightMeasureSpec)
+    }
+  }.apply { text = label; this.textSize = textSize; typeface = Theme.weight(weight); setTextColor(ink); includeFontPadding = false }
   private val ring = ProgressBar(context)
   private val tick = SymbolView(context, "check", 16f, ink)
 

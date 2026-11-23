@@ -24,7 +24,6 @@ import com.linea.messenger.settings.SessionsScreen
 import com.linea.messenger.settings.SettingsButton
 import com.linea.messenger.settings.SettingsLook
 import com.linea.messenger.settings.SettingsNotice
-import com.linea.messenger.settings.SettingsPage
 import com.linea.messenger.settings.ThemeStore
 import com.linea.messenger.settings.accountCall
 import java.lang.ref.WeakReference
@@ -185,8 +184,8 @@ object AccountNotices {
   }
 
   fun openSheet(kind: String, from: View) {
-    val page: View = if (kind == "login") NewLoginSheet(from.context, logins.firstOrNull() ?: return) else RecoverySheet(from.context)
-    from.pages()?.push(page)
+    val page: NoticeSheet = if (kind == "login") NewLoginSheet(from.context, logins.firstOrNull() ?: return) else RecoverySheet(from.context)
+    page.present(from)
   }
 }
 
@@ -259,7 +258,7 @@ private fun Context.rimmed(): android.graphics.drawable.GradientDrawable = andro
 /** «Новый вход в аккаунт»: the device, its system, the app, the address the server saw, the time; «Это был не я —
  *  завершить сеанс» ends that session on the server at once, «Это был я» hides the notice. */
 @SuppressLint("ViewConstructor")
-class NewLoginSheet(context: Context, private val login: AccountNotices.NewLogin) : SettingsPage(context, "Новый вход в аккаунт", large = true) {
+class NewLoginSheet(context: Context, private val login: AccountNotices.NewLogin) : NoticeSheet(context, "Новый вход в аккаунт") {
   private var ended = false
   private var failure = ""
   private val endButton = SettingsButton(context, "Это был не я — завершить сеанс", SettingsButton.Kind.DANGER, icon = "log-out-outline")
@@ -330,7 +329,7 @@ class NewLoginSheet(context: Context, private val login: AccountNotices.NewLogin
 }
 
 /** «Восстановление аккаунта»: the open requests, each with «Это не я — отменить». */
-class RecoverySheet(context: Context) : SettingsPage(context, "Восстановление аккаунта", large = true) {
+class RecoverySheet(context: Context) : NoticeSheet(context, "Восстановление аккаунта") {
   private var busy = ""
   private var failure = ""
   private val refill: (Unit) -> Unit = { if (built) build() }
@@ -370,5 +369,47 @@ class RecoverySheet(context: Context) : SettingsPage(context, "Восстано�
       failure = problem ?: ""
       build()
     }
+  }
+}
+
+/** The reference's `Sheet` holding words, a card and buttons (NewLoginNotice.tsx, RecoveryNotice.tsx,
+ *  e2ee/TrustSheet.tsx; the iPhone presents them as sheets with a grabber): the app's own sheet (ChoiceSheet — the
+ *  floating card with the handle, the title and its round ✕, closed by a pull down or a tap outside), its body built
+ *  and rebuilt as a settings page's column: `add` with the room above, `clear`, `goBack` closes the sheet, `open`
+ *  closes it and opens a page on the screen it came from. */
+abstract class NoticeSheet(context: Context, private val heading: String) : LinearLayout(context) {
+  private var sheet: com.linea.messenger.chatactions.ChoiceSheet? = null
+  private var from: View? = null
+  /** `build()` has been called. */
+  protected var built = false
+    private set
+
+  init { orientation = VERTICAL }
+
+  protected abstract fun build()
+
+  protected fun clear() = removeAllViews()
+
+  /** Adds a part; `gap` is the room above it (none above the first). */
+  protected fun add(part: View, gap: Float = 8f) {
+    (part.parent as? android.view.ViewGroup)?.removeView(part)
+    addView(part, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = if (childCount == 0) 0 else context.px(gap) })
+  }
+
+  protected fun goBack() { sheet?.dismiss() }
+
+  protected fun open(page: View) {
+    val host = from
+    sheet?.dismiss()
+    host?.pages()?.push(page)
+  }
+
+  fun present(from: View) {
+    this.from = from
+    build()
+    built = true
+    val made = com.linea.messenger.chatactions.ChoiceSheet(context, heading, "", emptyList(), listOf(this), 0f)
+    sheet = made
+    made.show()
   }
 }

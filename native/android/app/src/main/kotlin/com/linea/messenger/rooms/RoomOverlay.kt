@@ -273,6 +273,8 @@ object RoomOverlay {
     // The room's own screen has the same controls: no bar over it. A one-to-one call has its own bar.
     val top = RoomRouter.navigation()?.top
     if (voice != null && top is RoomScreen && top.roomId == voice.roomId && top.isAttachedToWindow) voice = null
+    // A person's screen on the whole screen: nothing over it (the iPhone presents the viewer over everything).
+    if (voice != null && top is com.linea.messenger.screenshare.ScreenViewerScreen && top.isAttachedToWindow) voice = null
     if (Calls.call != null) voice = null
     if (ring == null && voice == null) {
       if (barRoom) setBarRoom(false)

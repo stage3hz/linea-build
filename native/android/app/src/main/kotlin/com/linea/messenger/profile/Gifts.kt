@@ -154,7 +154,14 @@ class GiftTileView(context: Context, gift: GiftCatalog.Gift, title: String, note
     background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(lookColor(gift.colors.first), lookColor(gift.colors.second))).apply { cornerRadius = 16f * resources.displayMetrics.density }
     setPadding(context.px(6f), pad, context.px(6f), pad)
     addView(context.words(gift.emoji, emojiSize, Theme.text).apply { gravity = Gravity.CENTER }, LayoutParams(LayoutParams.MATCH_PARENT, Math.round(emojiSize * 1.2f * resources.displayMetrics.density)))
-    addView(context.words(title, if (big) 12f else 10f, 0xFFFFFFFF.toInt(), 700).apply { gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END }, LayoutParams(LayoutParams.MATCH_PARENT, context.px(15f)).apply { topMargin = gap })
+    // The iPhone's label shrinks to fit (`adjustsFontSizeToFitWidth`, down to 0.75 of its size) before it cuts:
+    // «Бриллиант», «Шампанское» stay whole.
+    val titleSize = if (big) 12f else 10f
+    addView(context.words(title, titleSize, 0xFFFFFFFF.toInt(), 700).apply {
+      gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+      val most = Math.round(android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, titleSize, resources.displayMetrics))
+      setAutoSizeTextTypeUniformWithConfiguration(maxOf(1, Math.round(most * 0.75f)), maxOf(2, most), 1, android.util.TypedValue.COMPLEX_UNIT_PX)
+    }, LayoutParams(LayoutParams.MATCH_PARENT, context.px(15f)).apply { topMargin = gap })
     if (note.isNotEmpty()) addView(context.words(note, 11f, 0xD9FFFFFF.toInt()).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = TextUtils.TruncateAt.END }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = gap })
     isClickable = true
   }

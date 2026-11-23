@@ -366,7 +366,9 @@ class EffectsBackLayer(context: Context) : FrameLayout(context) {
     val holder = parent as? View ?: return
     val w = holder.width; val h = holder.height
     if (w <= 0 || h <= 0) return
-    if (width == w && height == h && left == 0 && top == 0) return
+    // A part put in since (the palette's page, the trail, the snow) asks for a layout that no one else gives: the page
+    // that holds this layer places only its own parts. Without it those parts stayed 0 × 0 and nothing showed.
+    if (width == w && height == h && left == 0 && top == 0 && !isLayoutRequested) return
     measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY))
     layout(0, 0, w, h)
   }
@@ -379,6 +381,7 @@ class EffectsBackLayer(context: Context) : FrameLayout(context) {
     keep(page, backdrop, 0)
     keep(this.trail, trail, if (page.parent != null) 1 else 0)
     keep(flakes, snow, childCount)
+    fit()
   }
 
   /** The theme changed: the page is drawn again in its colours. */

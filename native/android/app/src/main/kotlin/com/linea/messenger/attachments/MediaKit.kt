@@ -18,6 +18,8 @@ object KitIcons {
 
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int, weight: Float = 1.8f) {
     if (name.isEmpty()) return
+    // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
+    if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
     canvas.save()
     canvas.translate(cx - size / 2, cy - size / 2)
     canvas.scale(size / 24f, size / 24f)

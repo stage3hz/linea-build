@@ -423,8 +423,8 @@ class RecordLockPanel(context: Context, source: GlassSource?) : View(context) {
  *  in the accent colour (the words rise 22 dp and shrink to a quarter, the button comes up from 22 dp below). */
 class RecordCancelIndicator(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
-  private val words = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * resources.displayMetrics.scaledDensity }
-  private val cancelWords = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 17f * resources.displayMetrics.scaledDensity }
+  private val words = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f * resources.displayMetrics.scaledDensity; typeface = Theme.weight(400) }
+  private val cancelWords = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 17f * resources.displayMetrics.scaledDensity; typeface = Theme.weight(400) }
   private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   private val path = Path()
   private val label = "Влево — отмена"
@@ -489,7 +489,7 @@ class RecordCancelIndicator(context: Context) : View(context) {
 class RecordTooltip(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCC000000.toInt() }
-  private val text = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); textSize = 14f * resources.displayMetrics.scaledDensity }
+  private val text = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); textSize = 14f * resources.displayMetrics.scaledDensity; typeface = Theme.weight(400) }
   private var layout: android.text.StaticLayout? = null
   private var arrowX = 0f
   private val path = Path()
@@ -594,7 +594,7 @@ class VoicePreviewPanel(context: Context) : View(context) {
   private var progress = 0.0
   private var playing = false
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val timePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textSize = 13f * resources.displayMetrics.scaledDensity; fontFeatureSettings = "tnum"; textAlign = Paint.Align.RIGHT }
+  private val timePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(700); textSize = 13f * resources.displayMetrics.scaledDensity; fontFeatureSettings = "tnum"; textAlign = Paint.Align.RIGHT }
   private val rect = RectF()
   private var dragging = 0 // 0 none, 1 left, 2 right, 3 tap
   private var downX = 0f

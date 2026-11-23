@@ -102,6 +102,7 @@ abstract class ProfileSheet(context: Context) : Dialog(context) {
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
+      com.linea.messenger.design.sheetWindow(this, column) // the sheet's colour to the screen's bottom, under the bar
     }
   }
 
@@ -124,7 +125,9 @@ class PatternPicker(context: Context, private var current: String?, private val 
     val grid = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
     var row: LinearLayout? = null
     options.forEachIndexed { index, option ->
-      if (index % columns == 0) { row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }; grid.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (index > 0) topMargin = gap }) }
+      // Every row as wide as a full one: a short last row starts at the left like the others (the iPhone's grid),
+      // not centred under them.
+      if (index % columns == 0) { row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }; grid.addView(row, LinearLayout.LayoutParams(columns * side + (columns - 1) * gap, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (index > 0) topMargin = gap }) }
       val cell = FrameLayout(context)
       if (option != null) cell.addView(context.words(option, 24f, Theme.text).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
       else cell.addView(ProfileIconView(context, "ion:close", 20f, Theme.muted), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -151,13 +154,14 @@ class PatternPicker(context: Context, private var current: String?, private val 
 }
 
 /** «Так будет выглядеть профиль»: a banner photo on the profile's head before it is uploaded. */
-class BannerPreview(context: Context, messenger: Messenger?, picture: Bitmap) : ProfileSheet(context) {
+class BannerPreview(context: Context, messenger: Messenger?, picture: Bitmap, sample: Person? = null) : ProfileSheet(context) {
   var onSet: (() -> Unit)? = null
   var onAgain: (() -> Unit)? = null
 
   init {
     add(heading("Так будет выглядеть профиль").apply { maxLines = 2 }, 0f)
-    val person = messenger?.let { Person.from(it.ownProfile) } ?: Person("", "", "", "", "", 0x5E7BFF, "")
+    // Whose head: the account's; without one (the emulator check) the sample's, as the iPhone (`sample`).
+    val person = messenger?.let { Person.from(it.ownProfile) } ?: sample ?: Person("", "", "", "", "", 0x5E7BFF, "")
     val hero = ProfileHeroCard(context)
     hero.show(person, person.look, messenger?.server?.endpoint ?: "", localPicture = picture)
     add(hero, 16f)

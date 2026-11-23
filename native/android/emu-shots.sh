@@ -34,6 +34,9 @@ shot() { # name, launch arguments…
   sleep 6
   # The emulator's own launcher stalls on a slow runner and its "isn't responding" window covers the app: stop it.
   adb shell am force-stop com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true
+  # The status bar's demo clock drifts back to the real time after a while (a third of the shots showed 2:19): set
+  # again before each picture.
+  adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941 >/dev/null 2>&1 || true
   sleep 1
   adb exec-out screencap -p > "$OUT/$name.png"
   # A PNG of a real screen is far bigger than this; an empty file means the screen was not read.
@@ -223,7 +226,8 @@ shot 318-auth-wordmark --ez auth true
 shot 319-auth-wordmark-light --ez auth true --es settheme light
 shot 320-music-ambient-light --es musicdemo 1 --es settheme light
 shot 321-music-ambient-graphite --es musicdemo 1 --es settheme graphite
-shot 322-community-glass-header --es channelsdemo community
+# Back to the black theme (321 left graphite on, and every later shot — the sign-in at 429 among them — kept it).
+shot 322-community-glass-header --es channelsdemo community --es settheme black
 shot 380-screen-panel --es screendemo panel
 shot 381-screen-viewer --es screendemo viewer
 shot 382-screen-starting --es screendemo starting

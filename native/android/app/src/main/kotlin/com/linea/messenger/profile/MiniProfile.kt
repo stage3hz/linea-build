@@ -50,7 +50,14 @@ class MiniProfile(
   private val dim = View(context)
   private val card = LinearLayout(context)
   private val rows = LinearLayout(context)
-  private val note = context.words("", 13f, Theme.muted)
+  // Empty, it takes no height (as an empty label in the iPhone's stack: only the gaps above and below it stay),
+  // so no line-high gap under the group.
+  private val note = object : android.widget.TextView(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+      super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+      if (text.isNullOrEmpty()) setMeasuredDimension(measuredWidth, 0)
+    }
+  }.apply { textSize = 13f; typeface = Theme.weight(400); setTextColor(Theme.muted); includeFontPadding = false }
   private var isFriend: Boolean? = null
   private var request: String? = null
   private var blocked = false
@@ -193,7 +200,11 @@ class MiniProfile(
       if (friend != null) {
         val words = if (friend) "Удалить из друзей" else if (request == "outgoing") "Отменить заявку" else if (request == "incoming") "Принять в друзья" else "Добавить в друзья"
         group.addView(row(if (friend) "ion:person-remove-outline" else if (request == "outgoing") "ion:time-outline" else "ion:person-add-outline", words) { toggleFriend() })
-      } else group.addView(ProgressBar(c).apply { isIndeterminate = true; indeterminateTintList = android.content.res.ColorStateList.valueOf(Theme.accent) }, LinearLayout.LayoutParams(wide, c.px(48f)))
+      } else group.addView(android.widget.FrameLayout(c).apply {
+        // The iPhone's medium spinner (20 pt, accent) in the middle of a 48 pt row, not a ring the row's height.
+        addView(ProgressBar(c).apply { isIndeterminate = true; indeterminateTintList = android.content.res.ColorStateList.valueOf(Theme.accent) },
+          android.widget.FrameLayout.LayoutParams(c.px(20f), c.px(20f), Gravity.CENTER))
+      }, LinearLayout.LayoutParams(wide, c.px(48f)))
       quick.onNoCopy?.let { onNoCopy ->
         group.addView(row(if (quick.noCopy) "ion:lock-closed-outline" else "ion:lock-open-outline", "Запретить пересылку и копирование", on = quick.noCopy, hint = "Для обоих в этом чате") {
           card.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)

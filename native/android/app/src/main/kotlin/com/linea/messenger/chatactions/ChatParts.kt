@@ -547,6 +547,8 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
       text = heading; setTextColor(Theme.text); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
       com.linea.messenger.design.Titles.title(this, Theme.TypeSize.sheetTitle) // Unbounded 19, letter spacing −0.2
       if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = dp(25f)
+      // No title (a question that is only its words, as the iPhone's sheets without one): the close button keeps its place.
+      if (heading.isEmpty()) visibility = View.INVISIBLE
     }, LinearLayout.LayoutParams(0, wrap, 1f))
     val close = com.linea.messenger.design.GlassRoundButton(context, "ion:close", "Закрыть", 23f)
     close.onPress = { dismiss() }

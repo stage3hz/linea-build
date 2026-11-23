@@ -8,6 +8,7 @@ import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.text.Layout
@@ -442,13 +443,22 @@ class ChannelRowView(context: Context) : View(context) {
           val box = piece.box
           val image = ChannelImages.image(piece.id, ChannelPixels.pixels(box.width(), box.height()))
           if (image != null) {
-            val shader = cover(image, box, piece.picture, piece.pictureOf)
-            piece.picture = shader; piece.pictureOf = image
-            picture.shader = shader
-            canvas.drawCircle(box.centerX(), box.centerY(), box.width() / 2, picture)
-            picture.shader = null
+            // The picture fills the circle, centred (iOS ChannelLayout.swift `drawCover` inside the round clip): drawn
+            // into its cover rectangle under a round clip, not through a shader whose matrix could sit off the box.
+            val scale = maxOf(box.width() / image.width, box.height() / image.height)
+            val w = image.width * scale; val h = image.height * scale
+            coverBox.set(box.centerX() - w / 2, box.centerY() - h / 2, box.centerX() + w / 2, box.centerY() + h / 2)
+            roundClip.reset(); roundClip.addOval(box, Path.Direction.CW)
+            canvas.save()
+            canvas.clipPath(roundClip)
+            picture.alpha = 255
+            canvas.drawBitmap(image, null, coverBox, picture)
+            canvas.restore()
           } else {
             val gradient = piece.gradient ?: LinearGradient(box.left + box.width() * 0.1f, box.top, box.left + box.width() * 0.9f, box.bottom, piece.colors, null, Shader.TileMode.CLAMP).also { piece.gradient = it }
+            // Opaque: a shader keeps the paint's alpha, and the paint may still hold a see-through Fill's colour
+            // (a card's 6% veil) — the ball came out nearly black after one.
+            fill.color = android.graphics.Color.BLACK
             fill.shader = gradient
             canvas.drawCircle(box.centerX(), box.centerY(), box.width() / 2, fill)
             fill.shader = null
@@ -475,6 +485,8 @@ class ChannelRowView(context: Context) : View(context) {
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val matrix = Matrix()
+    private val coverBox = RectF()
+    private val roundClip = Path()
     private var drawing: ChannelPaints? = null
     private val PROFILE_ACTION = View.generateViewId()
 

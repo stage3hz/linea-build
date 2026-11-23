@@ -39,7 +39,7 @@ import kotlin.math.abs
 class CallRoundButton(context: Context, private val symbol: String, val words: String, private val active: Boolean = false, private val color: Int? = null) : View(context) {
   private val d = resources.displayMetrics.density
   private val circle = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = this@CallRoundButton.color ?: if (active) 0xFFFFFFFF.toInt() else 0x38FFFFFF }
-  private val caption = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { this.color = 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; textSize = 12f * resources.displayMetrics.scaledDensity }
+  private val caption = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { this.color = 0xFFFFFFFF.toInt(); textAlign = Paint.Align.CENTER; textSize = 12f * resources.displayMetrics.scaledDensity; typeface = Theme.weight(400) }
   var onPress: (() -> Unit)? = null
 
   init {

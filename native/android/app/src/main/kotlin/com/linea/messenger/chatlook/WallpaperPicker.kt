@@ -2,7 +2,6 @@ package com.linea.messenger.chatlook
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
@@ -232,7 +231,15 @@ class WallpaperPreview(context: Context, private var draft: WallpaperChoice, pri
     root.addView(column, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
     controls.orientation = LinearLayout.VERTICAL
     root.addView(controls, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM).apply { leftMargin = dp(14f); rightMargin = dp(14f); bottomMargin = dp(28f) })
+    // The wallpaper to the screen's edges, under the bars; the words and the controls keep clear of them.
+    root.setOnApplyWindowInsetsListener { _, insets ->
+      val edges = com.linea.messenger.design.coverEdges(insets)
+      column.setPadding(dp(14f), edges.top + dp(40f), dp(14f), 0)
+      (controls.layoutParams as FrameLayout.LayoutParams).let { it.bottomMargin = edges.bottom + dp(28f); controls.layoutParams = it }
+      insets
+    }
     setContentView(root)
+    window?.let { com.linea.messenger.design.coverWindow(it, darkPage = Theme.dark) }
     fillControls()
     paper.show(draft)
   }
@@ -343,10 +350,11 @@ class WallpaperPreview(context: Context, private var draft: WallpaperChoice, pri
 
   private fun choose() {
     if (!forChat) return finish(false)
-    val ask = AlertDialog.Builder(context).setTitle("Установить обои")
-      .setItems(arrayOf("Для этого чата", "Для всех чатов")) { _, which -> finish(which == 0) }
-      .setNegativeButton("Отмена", null)
-    try { ask.show() } catch (_: Exception) { }
+    // The reference's Sheet «Установить обои» (WallpaperPicker.tsx): two SheetActions.
+    com.linea.messenger.chatactions.ChoiceSheet(context, "Установить обои", choices = listOf(
+      com.linea.messenger.chatactions.ChoiceSheet.Choice("ion:chatbubble-outline", "Для этого чата") { finish(true) },
+      com.linea.messenger.chatactions.ChoiceSheet.Choice("ion:chatbubbles-outline", "Для всех чатов") { finish(false) },
+    )).show()
   }
 
   private fun finish(forChat: Boolean) {

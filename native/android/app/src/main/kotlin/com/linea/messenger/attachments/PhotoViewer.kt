@@ -27,6 +27,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.linea.messenger.design.coverScreen
 import com.linea.messenger.design.Theme
 import com.linea.messenger.people.PeopleIcons
 import java.nio.ByteBuffer
@@ -94,8 +95,8 @@ class PhotoViewer(
     setContentView(root)
     window?.apply {
       setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-      setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
       setDimAmount(0f)
+      coverScreen(darkPage = true) // black to the screen's edges, under the bars
     }
     picture.onTap = { if (failed) begin() }
     picture.onDrag = { part ->

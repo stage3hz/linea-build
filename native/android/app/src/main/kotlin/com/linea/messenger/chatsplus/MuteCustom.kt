@@ -43,10 +43,16 @@ class MuteCustomSheet(context: Context, private val done: (String) -> Unit) : Di
     requestWindowFeature(Window.FEATURE_NO_TITLE)
     val stack = LinearLayout(context).apply {
       orientation = LinearLayout.VERTICAL
-      setPadding(dp(20f), dp(24f), dp(20f), dp(24f))
-      background = GradientDrawable().apply { setColor(Theme.panel(Theme.surface2)); cornerRadii = floatArrayOf(28f * d, 28f * d, 28f * d, 28f * d, 0f, 0f, 0f, 0f) }
+      setPadding(dp(20f), dp(10f), dp(20f), dp(24f))
+      // An opaque card (the iPhone's page sheet, radius 28): `panel(surface2)` is see-through on some themes, so it
+      // is laid over the page colour; floating 12 dp from the sides and the bottom, as the app's other sheets.
+      background = GradientDrawable().apply { setColor(Theme.solid(Theme.panel(Theme.surface2), Theme.bg)); cornerRadius = 28f * d }
+      elevation = 12f * d
     }
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
+    // The grabber of the iPhone's sheet (ChoiceSheet's handle: 36 × 4, `subtle` at 0.45).
+    stack.addView(android.view.View(context).apply { background = GradientDrawable().apply { setColor(Theme.alpha(Theme.subtle, 0.45f)); cornerRadius = 2f * d } },
+      LinearLayout.LayoutParams(dp(36f), dp(4f)).apply { gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(10f) })
     stack.addView(TextView(context).apply { text = "На какое время?"; setTextColor(Theme.text); titled(Theme.TypeSize.sheetTitle) })
     val back = LinearLayout(context).apply {
       orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isClickable = true; contentDescription = "Назад"
@@ -78,7 +84,7 @@ class MuteCustomSheet(context: Context, private val done: (String) -> Unit) : Di
     confirm.isClickable = true
     confirm.setOnClickListener { confirmed() }
     stack.addView(confirm, LinearLayout.LayoutParams(wide, dp(50f)).apply { topMargin = dp(10f) })
-    val scroll = ScrollView(context).apply { addView(stack); isVerticalScrollBarEnabled = false }
+    val scroll = ScrollView(context).apply { addView(stack); isVerticalScrollBarEnabled = false; clipToPadding = false; setPadding(dp(12f), dp(12f), dp(12f), dp(12f)) }
     setContentView(scroll, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     window?.apply {
       setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))

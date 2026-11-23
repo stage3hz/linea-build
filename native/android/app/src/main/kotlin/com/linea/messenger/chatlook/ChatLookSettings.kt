@@ -205,7 +205,9 @@ class BubbleColorPage(context: Context) : SettingsPage(context, "Цвет сво
     box.orientation = LinearLayout.VERTICAL
     box.setPadding(dp(13f), dp(8f), dp(13f), dp(8f))
     box.background = context.plate(fill, 18f)
-    box.addView(context.words(text, 15f, Theme.text))
+    // WRAP_CONTENT, not the vertical LinearLayout's default MATCH_PARENT: with that the text was measured again at the
+    // foot's width and «Нравится, оставляю» broke after the comma (the iPhone keeps it on one line).
+    box.addView(context.words(text, 15f, Theme.text), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
     if (foot != null) box.addView(context.words(foot, 13f, footColor), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2f) })
     row.addView(box, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, if (mine) Gravity.END else Gravity.START))
     return row

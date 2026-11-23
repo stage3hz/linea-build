@@ -168,7 +168,9 @@ class SettingsProfileChrome(private val context: Context) {
     val top = page.rootWindowInsets?.systemWindowInsetTop ?: context.px(24f)
     val height = context.px(200f) + top
     val offset = scroll.scrollY
-    put(backdrop, 0, -offset, width, height)
+    // The backdrop is as tall as the light under it (180 past the banner): the page clips a child to its own box, so a
+    // backdrop only as tall as the banner cut the light off in a hard line behind the avatar (iOS: clipsToBounds off).
+    put(backdrop, 0, -offset, width, height + context.px(180f))
     put(banner, 0, 0, width, height)
     put(light, 0, 0, width, height + context.px(180f))
     val scale = 1 + pulled.toFloat() / maxOf(1, height)

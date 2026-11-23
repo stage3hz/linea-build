@@ -65,9 +65,9 @@ class CodeEntryView(context: Context, kind: String) : LinearLayout(context) {
     com.linea.messenger.design.Titles.title(titleLabel, Theme.TypeSize.sheetTitle) // Fonts
     hintLabel.gravity = Gravity.CENTER
     val texts = LinearLayout(context).apply { orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(context.px(24f), 0, context.px(24f), 0) }
-    texts.addView(titleLabel)
-    texts.addView(hintLabel, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(8f) })
-    addView(texts)
+    texts.addView(titleLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    texts.addView(hintLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(8f) })
+    addView(texts, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
 
     shaker.orientation = VERTICAL
     shaker.gravity = Gravity.CENTER_HORIZONTAL
@@ -79,6 +79,7 @@ class CodeEntryView(context: Context, kind: String) : LinearLayout(context) {
     // The app's own code must not be offered to the system's password manager.
     field.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
     field.importantForAutofill = IMPORTANT_FOR_AUTOFILL_NO
+    field.typeface = Theme.weight(400) // Fonts: a password field would otherwise take the fixed-width face
     field.imeOptions = EditorInfo.IME_ACTION_DONE
     field.gravity = Gravity.CENTER
     field.textSize = 17f
@@ -87,6 +88,8 @@ class CodeEntryView(context: Context, kind: String) : LinearLayout(context) {
     field.hint = "Пароль"
     field.background = null
     field.isSingleLine = true
+    // Again after the single-line and password set-up, so «Пароль» and the dots stay in the app's face.
+    field.typeface = Theme.weight(400)
     field.addTextChangedListener(object : TextWatcher {
       override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
       override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}

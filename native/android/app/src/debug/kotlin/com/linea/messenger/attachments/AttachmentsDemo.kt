@@ -22,14 +22,14 @@ import java.io.ByteArrayOutputStream
  *    --es attachdemo panel|panelselected|panellimited|paneldenied   the paperclip's panel with drawn tiles
  *    --es photoeditor crop|draw|size|remove|background|enhance       the photo editor on that tab, a drawn picture
  *    --es videodemo player|sheet|speed|locked|seek                   the video player over a drawn sample film
- *    --es notedemo 1                                                 the round video recorder */
+ *    --es notedemo 1                                                 the round video recorder (opened by the composer's
+ *                                                                    own path: voice/ChatMedia.kt `demo`) */
 object AttachmentsDemo {
   private var sample: String? = null
   private var wanted: String? = null
   private var done = false
   private var editor: String? = null
   private var video: String? = null
-  private var note: String? = null
   private var mediaDone = false
 
   fun read(intent: Intent) {
@@ -38,7 +38,6 @@ object AttachmentsDemo {
     done = false
     editor = intent.getStringExtra("photoeditor")
     video = intent.getStringExtra("videodemo")
-    note = intent.getStringExtra("notedemo")
     mediaDone = false
   }
 
@@ -57,7 +56,7 @@ object AttachmentsDemo {
     val tool = editor
     val state = video
     val panel = sample?.takeIf { it.startsWith("panel") }
-    if (tool == null && state == null && note == null && panel == null) return
+    if (tool == null && state == null && panel == null) return
     mediaDone = true
     host.postDelayed({
       if (!host.isAttachedToWindow) return@postDelayed
@@ -74,7 +73,6 @@ object AttachmentsDemo {
             }
           }.start()
         }
-        note != null -> com.linea.messenger.video.NoteRecorder(activity, false).show()
         panel != null -> attachments.openPanel()
       }
     }, 1000)
@@ -91,14 +89,17 @@ object AttachmentsDemo {
     InlineMedia.showReady("sample-attach-1", picture(900, 600))
     InlineMedia.showLoading("sample-attach-5", 0.4f, 2_202_009, photo = true)
     InlineMedia.showLoading("sample-attach-6", 0.35f, 1_258_291, photo = false)
+    InlineMedia.showSending("sample-attach-4", 0.4f, FileCore.sizeText(2_202_009) + " / " + FileCore.sizeText(5_505_024))
     return listOf(
       mapOf("key" to "sample-attach-1", "kind" to 0, "mine" to false, "text" to "", "time" to "09:38", "tail" to false, "media" to "photo", "thumb" to small, "thumbWide" to 1.5, "mediaTime" to FileCore.sizeText(184_320)),
       mapOf("key" to "sample-attach-5", "kind" to 0, "mine" to false, "text" to "", "time" to "09:38", "tail" to false, "media" to "photo", "thumb" to small, "thumbWide" to 0.75, "mediaTime" to FileCore.sizeText(2_202_009)),
       mapOf("key" to "sample-attach-2", "kind" to 0, "mine" to false, "text" to "Договор и приложение к нему", "time" to "09:39", "tail" to false, "media" to "file", "label" to "Договор № 7.pdf\n" + FileCore.sizeText(1_258_291) + " · PDF"),
       mapOf("key" to "sample-attach-6", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to false, "media" to "file", "label" to "Смета.xlsx\n" + FileCore.sizeText(1_258_291) + " · XLSX"),
       mapOf("key" to "sample-attach-3", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to true, "label" to "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)),
-      mapOf("key" to "sample-attach-4", "kind" to 0, "mine" to true, "text" to "", "time" to "09:41", "ticks" to 3, "tail" to true, "thumb" to picture, "thumbWide" to 1.5,
-        "label" to FileCore.sizeText(2_202_009) + " из " + FileCore.sizeText(5_505_024)),
+      // An outgoing photo on its way: the ring with ✕ and «2,1 МБ / 5,3 МБ», as the pending rows draw it
+      // (ChatAttachments.pendingRow; iOS Attachments/ChatAttachments.swift).
+      mapOf("key" to "sample-attach-4", "kind" to 0, "mine" to true, "text" to "", "time" to "09:41", "ticks" to 3, "tail" to true, "media" to "photo", "thumb" to picture, "thumbWide" to 1.5,
+        "mediaTime" to FileCore.sizeText(5_505_024)),
     )
   }
 

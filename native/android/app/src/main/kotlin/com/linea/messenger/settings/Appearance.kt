@@ -501,10 +501,12 @@ class AccentColorScreen(context: Context) : SettingsPage(context, "Цвет ин
     sample.addView(context.words("Нравится, оставляю", 15f, Theme.text), LinearLayout.LayoutParams(wrap, wrap))
     sample.addView(context.words("ссылка · 12:30", 13f, Theme.accent), LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(6f) })
     val sampleButton = context.words("Кнопка", 14f, Theme.onAccent, 700)
-    sampleButton.background = context.plate(Theme.accent, 12f)
+    // The reference's sample button (ColorSettings.tsx): a capsule 36 high, radius 18, 18 inside at the sides, in the
+    // middle of the sample.
+    sampleButton.background = context.plate(Theme.accent, 18f)
     sampleButton.gravity = Gravity.CENTER
-    sampleButton.setPadding(dp(14f), dp(8f), dp(14f), dp(8f))
-    sample.addView(sampleButton, LinearLayout.LayoutParams(wrap, wrap).apply { topMargin = dp(6f) })
+    sampleButton.setPadding(dp(18f), 0, dp(18f), 0)
+    sample.addView(sampleButton, LinearLayout.LayoutParams(wrap, dp(36f)).apply { topMargin = dp(10f); gravity = Gravity.CENTER_HORIZONTAL })
 
     // The colours offered before «Свой цвет»: two rows of round ones.
     val rowsOfColours = LinearLayout(context)

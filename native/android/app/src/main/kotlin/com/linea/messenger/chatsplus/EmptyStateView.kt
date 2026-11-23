@@ -90,8 +90,11 @@ class EmptyStateView(context: Context) : ViewGroup(context) {
     val inner = minOf(dp(310f), width - dp(56f)).coerceAtLeast(1)
     var y = maxOf(0, (height - contentHeight(width)) / 2) + dp(38f)
     val side = dp(126f)
-    art.measure(MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(side, MeasureSpec.EXACTLY))
-    art.layout((width - side) / 2, y, (width + side) / 2, y + side)
+    // The art's own box is wider than its 126 dp place: the back tile, turned 15°, reaches past the square (its
+    // corners, ~10 dp each side; the reference/iPhone draw it unclipped), so nothing of it is cut off.
+    val spill = dp(16f)
+    art.measure(MeasureSpec.makeMeasureSpec(side + spill * 2, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(side + spill * 2, MeasureSpec.EXACTLY))
+    art.layout((width - side) / 2 - spill, y - spill, (width + side) / 2 + spill, y + side + spill)
     y += side + dp(8f) + dp(13f)
     val title = measureText(titleLabel, inner)
     titleLabel.layout((width - inner) / 2, y, (width + inner) / 2, y + title)

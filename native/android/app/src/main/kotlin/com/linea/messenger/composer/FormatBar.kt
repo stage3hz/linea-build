@@ -103,7 +103,8 @@ class FormatBar(context: Context, source: GlassSource?) : GlassPill(context, sou
       row.addView(button, LinearLayout.LayoutParams(dp(if (label.length > 1 && type != "text_link") 46f else 38f), dp(32f)).apply { rightMargin = dp(6f) })
       buttons.add(button)
     }
-    val clear = ChatIconView(context, "xmark", 18f, Theme.muted)
+    // The reference's close-circle-outline 18 (format/FormatToolbar.tsx).
+    val clear = ChatIconView(context, "ion:close-circle-outline", 18f, Theme.muted)
     clear.contentDescription = "Очистить форматирование"
     clear.isClickable = true
     clear.setOnClickListener { onAction?.invoke("clear") }

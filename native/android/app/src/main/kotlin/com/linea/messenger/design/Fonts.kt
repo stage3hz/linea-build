@@ -16,9 +16,13 @@ import com.linea.messenger.R
  *   - screen titles and the big names of profiles are Unbounded ExtraBold (SIL OFL 1.1), letter spacing −0.2.
  *
  *  The faces are in res/font (copied from mobile/assets/fonts). The window's theme names Montserrat for every
- *  TextView and field (res/values/themes.xml); `install` also puts it in place of the system's default face, so
- *  the canvas-drawn texts and `Typeface.DEFAULT`/`DEFAULT_BOLD` give Montserrat too. Monospaced texts stay the
- *  system's, as the reference's MONO does.
+ *  TextView and field (res/values/themes.xml). Everything else names its face itself: every Paint that draws
+ *  words takes `Theme.weight(…)` / `Theme.title`, and a password field (which the system turns fixed-width) is
+ *  given `Theme.weight(400)` after its input type. The system's default face is never replaced: `Typeface.DEFAULT`
+ *  is a final field and `setDefault` a hidden call, which a phone's system refuses — so a Paint left without a
+ *  face, `Typeface.DEFAULT` or `Typeface.create(Typeface.DEFAULT, …)` would draw in the system's font
+ *  (FontsPagesTest walks the pages and fails on such a text). Monospaced texts stay the system's, as the
+ *  reference's MONO does.
  *
  *  For every screen (also on `Theme` in Theme.kt):
  *    Theme.weight(600)                 Montserrat SemiBold
@@ -33,31 +37,12 @@ object Fonts {
     private set
   private val faces = HashMap<Int, Typeface>()
 
-  /** Loads the faces and makes the system's default face Montserrat. Called once, at launch (MainActivity). */
+  /** Loads the faces. Called once, at launch (MainActivity), before any page is made. */
   fun install(context: Context) {
     if (family != null) return
     val resources = context.applicationContext?.resources ?: context.resources
     family = try { resources.getFont(R.font.montserrat) } catch (_: Throwable) { null }
     titleFace = try { resources.getFont(R.font.unbounded) } catch (_: Throwable) { null }
-    val base = family ?: return
-    // The public default faces read by code that names no face (a Paint, `Typeface.DEFAULT_BOLD`). Best effort:
-    // where the system does not allow it, those few texts keep the system face.
-    replace("DEFAULT", base)
-    replace("SANS_SERIF", base)
-    replace("DEFAULT_BOLD", Typeface.create(base, Typeface.BOLD))
-    try {
-      val setDefault = Typeface::class.java.getDeclaredMethod("setDefault", Typeface::class.java)
-      setDefault.isAccessible = true
-      setDefault.invoke(null, base)
-    } catch (_: Throwable) { /* the native default stays the system's */ }
-  }
-
-  private fun replace(name: String, face: Typeface) {
-    try {
-      val field = Typeface::class.java.getDeclaredField(name)
-      field.isAccessible = true
-      field.set(null, face)
-    } catch (_: Throwable) { /* kept as it was */ }
   }
 
   /** Montserrat at a weight: 800/900 ExtraBold, 700 Bold, 600 SemiBold, 500 Medium, the rest Regular. Without the

@@ -25,14 +25,14 @@ class ChatRowView(context: Context) : View(context) {
   private val d = resources.displayMetrics.density
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val orb = Paint(Paint.ANTI_ALIAS_FLAG)
-  private val sectionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); letterSpacing = 0.12f }
+  private val sectionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 11f * d; typeface = com.linea.messenger.design.Theme.weight(700); letterSpacing = 0.12f }
   private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
   // ChatsPlus: Montserrat, as the reference's row (design/Fonts.kt): the name 16 semibold, the line 15, the time 13.
   private val titlePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 16f * d; typeface = com.linea.messenger.design.Theme.weight(600) }
   private val previewPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 15f * d; typeface = com.linea.messenger.design.Theme.weight(400) }
   private val timePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f * d; typeface = com.linea.messenger.design.Theme.weight(400) }
   private val badgePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = com.linea.messenger.design.Theme.weight(700); textAlign = Paint.Align.CENTER }
-  private val avatarPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 21f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
+  private val avatarPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 21f * d; typeface = com.linea.messenger.design.Theme.weight(700); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
   private val path = Path()
   private val picture = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
   private val matrix = Matrix()
@@ -67,7 +67,7 @@ class ChatRowView(context: Context) : View(context) {
   /** Sideways shift under a finger, px: above zero the `lead` buttons show on the left, below zero `trail` on the right. */
   var swipeX = 0f
     set(value) { if (field != value) { field = value; invalidate() } }
-  private val actionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
+  private val actionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 12f * d; typeface = com.linea.messenger.design.Theme.weight(700); textAlign = Paint.Align.CENTER; color = 0xFFFFFFFF.toInt() }
   val rowId: String get() = row?.id ?: ""
   fun buttons(side: Int): List<String> = (if (side > 0) row?.lead else row?.trail).orEmpty()
   /** How far the row rests when its buttons are open. */

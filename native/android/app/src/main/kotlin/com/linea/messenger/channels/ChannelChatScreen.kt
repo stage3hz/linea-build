@@ -159,6 +159,7 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
 
     header.onBack = { endEditing(); pages()?.pop() }
     header.showsAvatar = root
+    header.source = page // the pill shows the messages under it blurred where they reach it
     addView(header)
     notice.gravity = Gravity.CENTER
     notice.maxLines = 2
@@ -337,7 +338,7 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     val top = edges.top
     val headerBottom = top + dp(ChannelHeaderView.height)
     header.safeTop = top
-    put(header, 0, 0, width, headerBottom)
+    put(header, 0, 0, width, headerBottom + dp(ChannelHeaderView.tail))
     put(notice, dp(12f), headerBottom + dp(6f), width - dp(24f), dp(40f))
     // Above the keyboard when it is up, above the system's bar otherwise.
     var floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))

@@ -204,12 +204,14 @@ class LockScreen(context: Context, private val sampleKind: String? = null) : Fra
     column.addView(name, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(14f) })
     entry = CodeEntryView(context, kind)
     entry.onSubmit = { code -> submit(code) }
-    column.addView(entry, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(28f) })
+    // The whole width: the title and the line under it are laid out at the screen's width (less the entry's own 24 dp
+    // sides), as the iPhone's, not at the width of the pad — «Введи код-пароль» stayed on one line there only.
+    column.addView(entry, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(28f) })
     val scroll = ScrollView(context)
     scroll.isFillViewport = true
     scroll.isVerticalScrollBarEnabled = false
     val middle = FrameLayout(context)
-    middle.addView(column, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { topMargin = context.px(24f); bottomMargin = context.px(28f) })
+    middle.addView(column, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER).apply { topMargin = context.px(24f); bottomMargin = context.px(28f) })
     scroll.addView(middle, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
     addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     if (sampleKind == null && LockStore.current.biometrics) LockBiometrics.label(context)?.let { label ->

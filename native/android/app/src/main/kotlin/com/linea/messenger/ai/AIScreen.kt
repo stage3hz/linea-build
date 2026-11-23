@@ -735,6 +735,9 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
   private fun render() {
     val turns = conversation.turns
     newButton.visibility = if (turns.isEmpty()) View.GONE else View.VISIBLE
+    // AIScreen.tsx: the private switch only where there is a history to keep out of — not in the quick dialog
+    // (iOS AIViewController: `privateButton.isHidden = quick`).
+    privateButton.visibility = if (quick) View.GONE else View.VISIBLE
     privateButton.active = incognito
     privateButton.contentDescription = if (incognito) "Приватная беседа включена: не сохраняется" else "Приватная беседа: не сохранять в историю"
 

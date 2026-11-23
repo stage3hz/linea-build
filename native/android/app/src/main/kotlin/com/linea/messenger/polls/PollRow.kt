@@ -100,12 +100,12 @@ class MsgPollLayout private constructor(val poll: MsgPoll, private val d: Float)
   private var retract: RectF? = null
 
   companion object {
-    private val questionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
-    private val notePaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
-    private val optionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
-    private val sharePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
-    private val votePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
-    private val retractPaint = TextPaint(Paint.ANTI_ALIAS_FLAG)
+    private val questionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(700) }
+    private val notePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(400) }
+    private val optionPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(400) }
+    private val sharePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(700) }
+    private val votePaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(700); textAlign = Paint.Align.CENTER }
+    private val retractPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Theme.weight(400) }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
 

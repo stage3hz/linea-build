@@ -30,6 +30,7 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.linea.messenger.design.coverScreen
 import com.linea.messenger.attachments.PhotoEditModel.Box
 import com.linea.messenger.attachments.PhotoEditModel.Edit
 import com.linea.messenger.attachments.PhotoEditModel.Mask
@@ -106,7 +107,9 @@ class PhotoEditor(context: Context, private val original: Bitmap) : Dialog(conte
     override fun onDraw(canvas: Canvas) {
       val color = if (on) ACCENT else 0xFFD8DCE4.toInt()
       if (on) { words.color = 0x330A84FF; canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), 12f * d, 12f * d, words) }
-      KitIcons.draw(canvas, tab.symbol, width / 2f, height / 2f - 8f * d, 21f * d, color)
+      // The reference's Ionicons glyph at 22 (photo/editor/EditorPanels.tsx `TABS`), over the name 3 below it.
+      val glyph = when (tab.id) { "crop" -> "crop-outline"; "draw" -> "brush-outline"; "remove" -> "bandage-outline"; "background" -> "image-outline"; "enhance" -> "sparkles-outline"; else -> "resize-outline" }
+      com.linea.messenger.design.IonIcon.draw(canvas, glyph, width / 2f, height / 2f - 8f * d, 22f * d, color)
       words.color = color
       var label = tab.label
       while (label.length > 3 && words.measureText(label) > width - 8f * d) label = label.dropLast(2) + "…"
@@ -241,9 +244,8 @@ class PhotoEditor(context: Context, private val original: Bitmap) : Dialog(conte
     canvas.image = original
     setContentView(root)
     window?.apply {
-      setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-      statusBarColor = Color.BLACK
-      navigationBarColor = Color.BLACK
+      setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.BLACK))
+      coverScreen(darkPage = true) // black to the screen's edges, under the bars
     }
     setOnCancelListener { finishCancel() }
     refresh()

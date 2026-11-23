@@ -99,7 +99,7 @@ class NotePlayerView(context: Context) : FrameLayout(context) {
   }
   private val pill = object : View(context) {
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x6B000000 }
-    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
+    private val text = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt(); typeface = Theme.weight(400) }
     override fun onDraw(canvas: Canvas) {
       if (pillWords.isEmpty()) return
       text.textSize = (if (pillMuted) 11f else 12f) * d

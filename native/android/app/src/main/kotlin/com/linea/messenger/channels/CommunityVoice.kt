@@ -1,7 +1,6 @@
 package com.linea.messenger.channels
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Canvas
 import android.view.Gravity
@@ -77,11 +76,21 @@ object CommunityVoice {
   fun actions(context: Context, community: Community, me: String, member: CommunityVoiceMember, name: String, messenger: Messenger?, failed: (String) -> Unit) {
     val list = items(community, me, member)
     if (list.isEmpty()) return
-    AlertDialog.Builder(context, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(name)
-      .setItems(list.map { it.first }.toTypedArray()) { _, which ->
-        val (operation, args) = list[which].second
+    // The app's own sheet with the person's name over the actions, in their order and words (iOS: the action sheet of
+    // Channels/CommunityVoice.swift; the reference's MemberMenu.tsx gives the glyphs), «Исключить» and «Заблокировать»
+    // in red.
+    val choices = list.map { (label, call) ->
+      val (operation, args) = call
+      val icon = when (label) {
+        "Включить микрофон" -> "ion:mic-outline"; "Отключить микрофон" -> "ion:mic-off-outline"
+        "Включить звук" -> "ion:headset-outline"; "Отключить звук" -> "ion:volume-mute-outline"
+        "Исключить" -> "ion:person-remove-outline"; else -> "ion:ban-outline"
+      }
+      com.linea.messenger.chatactions.ChoiceSheet.Choice(icon, label, danger = operation == "kickMember" || operation == "banMember") {
         messenger?.server?.ask(operation, args) { result -> if (result.isFailure) failed(com.linea.messenger.net.Server.error(result).words.ifEmpty { "Не получилось." }) }
-      }.setNegativeButton("Отмена", null).show()
+      }
+    }
+    com.linea.messenger.chatactions.ChoiceSheet(context, name, choices = choices).show()
   }
 }
 

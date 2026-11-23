@@ -133,11 +133,12 @@ class ProfileHeroView(context: Context) : ViewGroup(context) {
     dim.alpha = 0f
     avatarHolder.addView(dim, FrameLayout.LayoutParams(dp(116f), dp(116f)))
     column.addView(avatarHolder, LinearLayout.LayoutParams(dp(128f), dp(128f)))
-    name.textSize = 27f
-    name.typeface = Theme.weight(800)
+    // UserProfile.tsx / ProfileScreen.tsx: TITLE_FONT (Unbounded ExtraBold) 27, line 33, letter spacing −0.2 (iOS
+    // ProfileHead: Theme.title(profileName)); Montserrat here made the name clearly smaller than the iPhone's.
+    com.linea.messenger.design.Titles.title(name, Theme.TypeSize.profileName)
+    if (android.os.Build.VERSION.SDK_INT >= 28) name.lineHeight = dp(Theme.TypeSize.profileNameLine)
     name.maxLines = 2
     name.gravity = Gravity.CENTER
-    name.letterSpacing = -0.01f
     nameRow.orientation = LinearLayout.HORIZONTAL
     nameRow.gravity = Gravity.CENTER
     nameRow.addView(name, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { weight = 0f })
@@ -147,7 +148,7 @@ class ProfileHeroView(context: Context) : ViewGroup(context) {
       val place = IntArray(2); it.getLocationOnScreen(place)
       onStatus?.invoke(place[1] + it.height)
     }
-    column.addView(nameRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10f) })
+    column.addView(nameRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16f) }) // the reference's `gap: 16` after the photo
     presence.textSize = 15f
     presence.gravity = Gravity.CENTER
     column.addView(presence, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6f) })
