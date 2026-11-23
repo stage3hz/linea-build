@@ -1,0 +1,6 @@
+12500:/Users/runner/work/linea-build/linea-build/mobile/node_modules/react-native-webrtc/ios/RCTWebRTC/WebRTCModule+Transceivers.m:237:17: warning: 'setCodecPreferences:' is deprecated: Use setCodecPreferences:error: instead. [-Wdeprecated-declarations]
+12505:  153 |     RTC_OBJC_DEPRECATED("Use setCodecPreferences:error: instead.");
+13554:/Users/runner/work/linea-build/linea-build/mobile/node_modules/expo-modules-jsi/apple/Package.swift: ExpoModulesJSI: ld: warning: -undefined dynamic_lookup is deprecated on iOS-simulator
+13555:/Users/runner/work/linea-build/linea-build/mobile/node_modules/expo-modules-jsi/apple/Package.swift: ExpoModulesJSI: ld: warning: -undefined dynamic_lookup is deprecated on iOS-simulator
+49680:/Users/runner/work/linea-build/linea-build/mobile/ios/INVIZENT.xcodeproj: INVIZENT: ld: warning: ignoring duplicate libraries: '-lc++'
+49681:/Users/runner/work/linea-build/linea-build/mobile/ios/INVIZENT.xcodeproj: INVIZENT: ld: warning: search path '/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v17.6.109.0.J9As97/Metal.xctoolchain/usr/lib/swift/iphonesimulator' not found

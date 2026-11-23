@@ -1,0 +1,77 @@
+## after the previous app Mon Nov 23 16:11:52 UTC 2026
+data container: /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Data/Application/5D518E2E-7019-4DC3-B90A-55F209436200
+Documents
+Documents/linea-music
+Documents/SQLite
+Documents/SQLite/linea-e2ee-<scope>.db
+Documents/SQLite/linea-e2ee-<scope>.db-shm
+Documents/SQLite/linea-e2ee-<scope>.db-wal
+Library/Preferences
+Library/Preferences/com.linea.messenger.preview.plist
+total 4176
+drwxr-xr-x  5 runner  staff      160 Nov 23 16:07 .
+drwxr-xr-x  4 runner  staff      128 Nov 23 16:07 ..
+-rw-r--r--  1 runner  staff     4096 Nov 23 16:07 linea-e2ee-<scope>.db
+-rw-r--r--  1 runner  staff    32768 Nov 23 16:11 linea-e2ee-<scope>.db-shm
+-rw-r--r--  1 runner  staff  1919952 Nov 23 16:10 linea-e2ee-<scope>.db-wal
+-- keychain rows (genp: service | account | generic | group | accessibility; keys: tag | group | accessibility)
+sed: RE error: illegal byte sequence
+(keychain database not readable)
+## after installing the native app (not started yet) Mon Nov 23 16:12:00 UTC 2026
+data container: /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Data/Application/9220A6CF-9B51-4BBE-B80A-1E9D7164E162
+Documents
+Documents/linea-music
+Documents/SQLite
+Documents/SQLite/linea-e2ee-<scope>.db
+Documents/SQLite/linea-e2ee-<scope>.db-shm
+Documents/SQLite/linea-e2ee-<scope>.db-wal
+Library/Preferences
+Library/Preferences/com.linea.messenger.preview.plist
+total 4176
+drwxr-xr-x  5 runner  staff      160 Nov 23 16:07 .
+drwxr-xr-x  4 runner  staff      128 Nov 23 16:07 ..
+-rw-r--r--  1 runner  staff     4096 Nov 23 16:07 linea-e2ee-<scope>.db
+-rw-r--r--  1 runner  staff    32768 Nov 23 16:11 linea-e2ee-<scope>.db-shm
+-rw-r--r--  1 runner  staff  1919952 Nov 23 16:10 linea-e2ee-<scope>.db-wal
+-- keychain rows (genp: service | account | generic | group | accessibility; keys: tag | group | accessibility)
+sed: RE error: illegal byte sequence
+(keychain database not readable)
+## after the native app ran Mon Nov 23 16:15:44 UTC 2026
+data container: /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Data/Application/9220A6CF-9B51-4BBE-B80A-1E9D7164E162
+Documents
+Documents/linea-music
+Documents/SQLite
+Documents/SQLite/linea-e2ee-<scope>.db
+Documents/takeover-check-after.txt
+Documents/takeover-check-first.txt
+Library/Preferences
+Library/Preferences/com.linea.messenger.preview.plist
+total 256
+drwxr-xr-x  3 runner  staff     96 Nov 23 16:15 .
+drwxr-xr-x  6 runner  staff    192 Nov 23 16:15 ..
+-rw-r--r--  1 runner  staff  86016 Nov 23 16:15 linea-e2ee-<scope>.db
+-- keychain rows (genp: service | account | generic | group | accessibility; keys: tag | group | accessibility)
+sed: RE error: illegal byte sequence
+(keychain database not readable)
+## after the next native build ran Mon Nov 23 16:17:33 UTC 2026
+data container: /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Data/Application/B8B4DCC5-775A-4911-9AE9-F94B68CF58B7
+Documents
+Documents/linea-music
+Documents/SQLite
+Documents/SQLite/linea-e2ee-<scope>.db
+Documents/SQLite/linea-e2ee-<scope>.db-shm
+Documents/SQLite/linea-e2ee-<scope>.db-wal
+Documents/takeover-check-after.txt
+Documents/takeover-check-first.txt
+Documents/takeover-check-next.txt
+Library/Preferences
+Library/Preferences/com.linea.messenger.preview.plist
+total 368
+drwxr-xr-x  5 runner  staff    160 Nov 23 16:16 .
+drwxr-xr-x  7 runner  staff    224 Nov 23 16:15 ..
+-rw-r--r--  1 runner  staff  86016 Nov 23 16:15 linea-e2ee-<scope>.db
+-rw-r--r--  1 runner  staff  32768 Nov 23 16:16 linea-e2ee-<scope>.db-shm
+-rw-r--r--  1 runner  staff  20632 Nov 23 16:17 linea-e2ee-<scope>.db-wal
+-- keychain rows (genp: service | account | generic | group | accessibility; keys: tag | group | accessibility)
+sed: RE error: illegal byte sequence
+(keychain database not readable)

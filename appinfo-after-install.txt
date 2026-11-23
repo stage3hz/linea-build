@@ -1,0 +1,16 @@
+{
+    ApplicationType = User;
+    Bundle = "file:///Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/3577E98C-309A-4704-B2E2-7A9EDE344A9E/Invizent.app/";
+    BundleContainer = "file:///Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/3577E98C-309A-4704-B2E2-7A9EDE344A9E/";
+    CFBundleDisplayName = INVIZENT;
+    CFBundleExecutable = Invizent;
+    CFBundleIdentifier = "com.linea.messenger.preview";
+    CFBundleName = Invizent;
+    CFBundleVersion = 1;
+    DataContainer = "file:///Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Data/Application/9220A6CF-9B51-4BBE-B80A-1E9D7164E162/";
+    GroupContainers =     {
+    };
+    Path = "/Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/3577E98C-309A-4704-B2E2-7A9EDE344A9E/Invizent.app";
+    SBAppTags =     (
+    );
+}
