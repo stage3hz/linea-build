@@ -18,7 +18,13 @@ final class Messenger {
     /// Opens the account's storage and encryption. Throws when the storage cannot be opened: the app then says
     /// so and changes nothing (a lost key never silently makes a new identity).
     init(token: String, user: [String: Any]) throws {
-        guard let id = user["id"] as? String else { throw Vault.Failure.cannotOpen }
+        // The account's id: text as the server gives it; a number is taken as its digits. Without one nothing can
+        // open — the log is told so apart from the storage (only the profile's field names, never their values).
+        Vault.lastFailure = ""
+        guard let id = (user["id"] as? String) ?? (user["id"] as? NSNumber)?.stringValue, !id.isEmpty else {
+            Vault.lastFailure = "the profile has no id (fields: \(user.keys.sorted().prefix(12).joined(separator: ",")))"
+            throw Vault.Failure.cannotOpen
+        }
         self.user = user
         userId = id
         server = Server(base: Account.server, token: token)
