@@ -25,7 +25,7 @@ final class IntroView: UIView {
     private static let levels = 16
 
     private(set) var time: Double = 0
-    private var started: CFTimeInterval = 0
+    private(set) var started: CFTimeInterval = 0
     private var link: CADisplayLink?
 
     private let world = IntroModel.scene

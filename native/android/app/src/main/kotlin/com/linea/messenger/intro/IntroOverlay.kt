@@ -15,7 +15,7 @@ import com.linea.messenger.effects.Motion
 /** The first-launch intro over the sign-in screen: once per install, at a start with no session, in a window of its
  *  own above the app's (the sign-in screen stays untouched under it, and nothing the app lays over its pages — the
  *  snow — comes above it). At the end it fades out (0.35 s) and the sign-in screen is there; a tap anywhere (or
- *  Back) skips it at once and the taps of the haptics stop. Never with reduced motion (the system's animator scale 0
+ *  Back) skips it at once and the haptics stop. Never with reduced motion (the system's animator scale 0
  *  or the app's «Анимации», effects/Motion.kt): the sign-in screen is shown directly. For TalkBack it is one element,
  *  «Инвиз», gone by itself at the end. iOS: Sources/Intro/IntroOverlay.swift. */
 object IntroOverlay {
@@ -82,10 +82,10 @@ object IntroOverlay {
     }
     made.setOnClickListener { skip() }
     made.onTime = { t -> if (t >= IntroModel.DURATION) end() }
-    val taps = IntroHaptics(activity)
-    haptics = taps
+    val swell = IntroHaptics(activity)
+    haptics = swell
     window.show()
-    made.play { begin -> taps.start(begin) }
+    made.play { begin -> swell.start(begin) }
     made.post { made.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED) }
   }
 
@@ -111,6 +111,6 @@ object IntroOverlay {
     ending = false
   }
 
-  /** The app went to the background mid-intro: it is over (no taps while away). */
+  /** The app went to the background mid-intro: it is over (no haptics while away). */
   fun wentAway() { if (dialog != null) close() }
 }

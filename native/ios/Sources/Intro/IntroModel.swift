@@ -1,8 +1,8 @@
 import Foundation
 
 /// The first-launch intro, its pure side: no views, no clock. The word INVIZ made of particles, the timeline (4.6 s),
-/// the camera, the field, the light behind «N» and the taps of the haptics — the formulas of the approved preview
-/// (`build()`, `frame(t)`, `TAPS`), deterministic (the preview's seeded generator, mulberry32, seed 5). Everything is
+/// the camera, the field, the light behind «N» and the swell of the haptics — the formulas of the approved preview
+/// (`build()`, `frame(t)`, `haptic(t)`), deterministic (the preview's seeded generator, mulberry32, seed 5). Everything is
 /// in the preview's scene units (N is 10 high); a frame is drawn in 2D from the points `IntroProjector` gives.
 /// Android: intro/IntroModel.kt — the same numbers, line for line.
 enum IntroModel {
@@ -329,40 +329,25 @@ enum IntroModel {
         return out
     }()
 
-    // MARK: The haptics: taps only
+    // MARK: The haptics: one long soft swell
 
-    /// One tap of the phone's haptic engine: when (s), how strong (0…1), and its kind — a light `tap` or the one soft
-    /// `thud` when the field comes up. Never a continuous vibration.
-    struct Tap: Equatable {
-        enum Kind { case tap, thud }
-        let time: Double
-        let strength: Double
-        let kind: Kind
-    }
+    /// The preview's `SWELL`: when the touch of the haptic motor begins (the letters start to crumble), peaks (the field
+    /// comes up) and is gone, s, and how strong it is at its peak (0…1).
+    static let swellStart: Double = 1.1
+    static let swellPeak: Double = 2.68
+    static let swellEnd: Double = 4.1
+    static let swellTop: Double = 0.72
 
-    /// The preview's `TAPS`: light taps that get denser while the letters crumble (every 0.22 s down to 0.07 s, 0.25 →
-    /// 0.45), one soft thud at 2.62 s, three fading taps after it.
-    static let taps: [Tap] = {
-        var out: [Tap] = []
-        var t = 1.1
-        while t < 2.56 {
-            let k = (t - 1.1) / 1.46
-            out.append(Tap(time: t, strength: 0.25 + 0.2 * k, kind: .tap))
-            t += 0.22 - 0.15 * k
-        }
-        out.append(Tap(time: 2.62, strength: 0.8, kind: .thud))
-        for (at, strength) in [(2.78, 0.3), (2.95, 0.2), (3.15, 0.12)] { out.append(Tap(time: at, strength: strength, kind: .tap)) }
-        return out
-    }()
-
-    /// The preview's line of the haptics (strength 0…1 over time): each tap a narrow bump (0.018 s; the thud 0.05 s).
+    /// The preview's `haptic(t)`: the strength of the motor (0…1) over time — one long soft swell, barely felt at first,
+    /// growing slowly (u^2.1) to its peak, then letting go slowly ((1−u)^2). No taps, no clicks.
     static func haptic(_ t: Double) -> Double {
-        var v: Double = 0
-        for tap in taps {
-            let d = (t - tap.time) / (tap.kind == .thud ? 0.05 : 0.018)
-            if d > -3 && d < 3 { v = Swift.max(v, tap.strength * exp(-d * d)) }
+        if t <= swellStart || t >= swellEnd { return 0 }
+        if t < swellPeak {
+            let u = (t - swellStart) / (swellPeak - swellStart)
+            return swellTop * pow(u, 2.1)
         }
-        return v
+        let u = (t - swellPeak) / (swellEnd - swellPeak)
+        return swellTop * pow(1 - u, 2.0)
     }
 
     // MARK: When it plays

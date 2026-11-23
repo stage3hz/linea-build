@@ -10,6 +10,7 @@ import com.linea.messenger.intro.IntroOverlay
 import com.linea.messenger.intro.IntroView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -20,7 +21,7 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import kotlin.math.hypot
 
-/** The first-launch intro (intro/): the pure timeline against the approved preview's formulas, the taps of the
+/** The first-launch intro (intro/): the pure timeline against the approved preview's formulas, the swell of the
  *  haptics, the rules of when it plays, and pictures of four moments in build/pages/. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w411dp-h914dp-port-420dpi")
@@ -118,51 +119,51 @@ class IntroTest {
     assertTrue(IntroModel.flare(2.75) > IntroModel.flare(2.0))
   }
 
-  @Test fun theHapticsAreTapsOnly() {
-    val taps = IntroModel.taps
-    assertTrue(taps.none { it.time < 1.1 })
-    assertEquals(1, taps.count { it.kind == IntroModel.Tap.Kind.THUD })
-    val thud = taps.first { it.kind == IntroModel.Tap.Kind.THUD }
-    assertEquals(2.62, thud.time, 0.01)
-    assertEquals(0.8, thud.strength, 1e-9)
-    // While the letters crumble: denser and denser, gently stronger, every one light.
-    val crumble = taps.filter { it.time < 2.6 }
-    assertTrue(crumble.size >= 10)
-    for (k in 2 until crumble.size) assertTrue(crumble[k].time - crumble[k - 1].time < crumble[k - 1].time - crumble[k - 2].time)
-    assertEquals(0.22, crumble[1].time - crumble[0].time, 1e-9)
-    assertTrue(crumble.last().time - crumble[crumble.size - 2].time < 0.09)
-    for (k in 1 until crumble.size) assertTrue(crumble[k].strength > crumble[k - 1].strength)
-    assertTrue(crumble.all { it.strength in 0.25..0.45 })
-    // After the thud at most three fading taps within ~0.6 s, then nothing.
-    val after = taps.filter { it.time > thud.time }
-    assertTrue(after.size <= 3)
-    for (k in 1 until after.size) assertTrue(after[k].strength < after[k - 1].strength)
-    assertTrue(after.all { it.time < 3.3 && it.strength < 0.45 })
-    // The strength line: 0 before 1.1 s, 1 at most, its peak at the thud, and back to 0 between taps (nothing continuous).
+  @Test fun theHapticsAreOneSoftSwell() {
+    // 0 before 1.1 s and after 4.1 s; rises monotonically to its top 0.72 at 2.68 s, falls monotonically after; ≤ 1.
     var top = 0.0; var topAt = 0.0
+    var previous = 0.0
     var t = 0.0
     while (t <= IntroModel.DURATION) {
       val v = IntroModel.haptic(t)
-      if (t < 1.1 - 0.06) assertEquals(0.0, v, 0.0)
+      if (t <= 1.1 || t >= 4.1) assertEquals(0.0, v, 0.0)
       assertTrue(v in 0.0..1.0)
+      if (t > 1.1 && t < 2.68) assertTrue(v >= previous)
+      if (t > 2.68 && t < 4.1) assertTrue(v <= previous)
       if (v > top) { top = v; topAt = t }
+      previous = v
       t += 0.001
     }
-    assertEquals(2.62, topAt, 0.01)
-    assertTrue(IntroModel.haptic((crumble[0].time + crumble[1].time) / 2) < 0.01)
+    assertEquals(0.72, IntroModel.haptic(2.68), 1e-12)
+    assertEquals(0.72, top, 1e-3)
+    assertEquals(2.68, topAt, 0.002)
+    // Barely felt at first, grows slowly; one continuous swell (never back to 0 in between).
+    assertTrue(IntroModel.haptic(1.3) < 0.02)
+    var k = 1.11
+    while (k < 4.09) { assertTrue(IntroModel.haptic(k) > 0); k += 0.01 }
+    // Nothing remains of the taps.
+    val names = IntroModel::class.java.declaredFields.map { it.name.lowercase() } + IntroModel::class.java.declaredMethods.map { it.name.lowercase() }
+    assertTrue(names.none { it.contains("tap") || it.contains("thud") })
+    assertTrue(IntroModel::class.java.declaredClasses.none { it.simpleName == "Tap" })
   }
 
   @Test fun theHapticsPlanNeverBuzzes() {
-    val rich = IntroHaptics.plan(31, lowTick = true, tick = true, thud = true, amplitude = true)
-    assertEquals(IntroHaptics.Way.PRIMITIVE, rich.tap); assertEquals(IntroHaptics.Way.PRIMITIVE, rich.thud)
-    val eleven = IntroHaptics.plan(30, lowTick = false, tick = true, thud = false, amplitude = true)
-    assertEquals(IntroHaptics.Way.PRIMITIVE, eleven.tap); assertEquals(IntroHaptics.Way.PULSE, eleven.thud)
-    val amplitude = IntroHaptics.plan(28, lowTick = false, tick = false, thud = false, amplitude = true)
-    assertEquals(IntroHaptics.Way.PULSE, amplitude.tap); assertEquals(IntroHaptics.Way.PULSE, amplitude.thud)
-    val plain = IntroHaptics.plan(28, lowTick = false, tick = false, thud = false, amplitude = false)
-    assertEquals(IntroHaptics.Way.NONE, plain.tap); assertEquals(IntroHaptics.Way.NONE, plain.thud)
-    // Pulses are short: 10 ms taps, a 35 ms thud.
-    for (tap in IntroModel.taps) assertTrue(IntroHaptics.pulse(tap).first <= 35)
+    // Without amplitude control: no haptics at all.
+    assertNull(IntroHaptics.plan(amplitude = false))
+    // With it: one waveform of 20 ms steps over the 3 s of the swell, soft (≤ 110 of 255), following the curve.
+    val wave = IntroHaptics.plan(amplitude = true)!!
+    assertEquals(150, wave.timings.size); assertEquals(wave.timings.size, wave.amplitudes.size)
+    assertTrue(wave.timings.all { it == IntroHaptics.STEP_MS })
+    assertTrue(wave.amplitudes.all { it in 0..110 })
+    assertEquals(110, wave.amplitudes.max())
+    val peak = wave.amplitudes.indexOf(wave.amplitudes.max())
+    assertEquals(2.68, 1.1 + (peak + 0.5) * 0.02, 0.03)
+    for (i in 1..peak) assertTrue(wave.amplitudes[i] >= wave.amplitudes[i - 1])
+    for (i in peak + 1 until wave.amplitudes.size) assertTrue(wave.amplitudes[i] <= wave.amplitudes[i - 1])
+    for ((i, a) in wave.amplitudes.withIndex()) assertEquals(Math.round(IntroModel.haptic(1.1 + (i + 0.5) * 0.02) * 255 * 0.6).toInt().coerceAtMost(110), a)
+    assertEquals(0, IntroHaptics.strength(1.0)); assertEquals(0, IntroHaptics.strength(4.2))
+    // Nothing remains of the taps.
+    assertTrue(IntroHaptics::class.java.declaredClasses.none { it.simpleName == "Way" || it.simpleName == "Plan" })
   }
 
   @Test fun itPlaysOncePerInstallWithoutASessionAndWithMotion() {

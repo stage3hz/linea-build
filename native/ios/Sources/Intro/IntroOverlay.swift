@@ -3,7 +3,7 @@ import UIKit
 /// The first-launch intro over the sign-in screen: once per install, at a start with no session, in a window of its
 /// own just above the app's (the sign-in screen stays untouched under it, and nothing the app lays over its screens —
 /// the snow — comes above it). At the end it fades out (0.35 s) and the sign-in screen is there; a tap anywhere skips
-/// it at once and the taps of the haptics stop. Never with Reduce Motion (or the app's «Анимации» off,
+/// it at once and the haptics stop. Never with Reduce Motion (or the app's «Анимации» off,
 /// Effects/Motion.swift): the sign-in screen is shown directly. For VoiceOver it is one element, «Инвиз», gone by
 /// itself at the end. Android: intro/IntroOverlay.kt.
 final class IntroOverlay: NSObject {
@@ -67,7 +67,7 @@ final class IntroOverlay: NSObject {
             if t >= IntroModel.duration { self?.end() }
         }
         intro.play()
-        haptics.start()
+        haptics.start(begin: intro.started)
         away = NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] (_: Notification) -> Void in
             self?.wentAway()
         }
@@ -107,7 +107,7 @@ final class IntroOverlay: NSObject {
         ending = false
     }
 
-    /// The app went to the background mid-intro: it is over (no taps while away).
+    /// The app went to the background mid-intro: it is over (no haptics while away).
     func wentAway() { if window != nil { close() } }
 }
 

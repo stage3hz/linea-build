@@ -1,64 +1,97 @@
 import UIKit
 import CoreHaptics
 
-/// The intro's taps on the phone's haptic engine (IntroModel.taps): purely tactile — Core Haptics transient events
-/// only (soft taps, sharpness 0.3; the one round thud, sharpness 0.1), never a continuous event. Where Core Haptics is
-/// not available only the thud is given, by the system's soft impact. Silent in power saving (Effects/Motion.swift).
-/// Every failure is silent. Android: intro/IntroHaptics.kt.
+/// The intro's touch on the phone's haptic engine (IntroModel.haptic): ONE long soft swell, never a train of taps —
+/// a single Core Haptics continuous event (from 1.1 s, 3.0 s long, intensity 1.0, sharpness 0.5) whose strength follows
+/// the curve through parameter curves on the intensity control. Where Core Haptics is not available: nothing at all.
+/// Silent in power saving (Effects/Motion.swift). Every failure is silent. Android: intro/IntroHaptics.kt.
 final class IntroHaptics {
     private var engine: CHHapticEngine?
     private var player: CHHapticPatternPlayer?
-    private var fallback: DispatchWorkItem?
 
-    /// The pattern of the whole intro: one transient event per tap, at its time.
+    /// The swell's character: mid sharpness, soft and smooth.
+    static let sharpness: Float = 0.5
+    /// How often the curve is sampled into control points, s.
+    static let step: Double = 0.1
+
+    /// How long the event lasts, s (1.1 → 4.1).
+    static var length: Double { return IntroModel.swellEnd - IntroModel.swellStart }
+
+    /// The one continuous event, at the pattern's start (the pattern starts at 1.1 s on the intro's clock).
     static func events() -> [CHHapticEvent] {
-        return IntroModel.taps.map { (tap: IntroModel.Tap) -> CHHapticEvent in
-            let sharpness: Float = tap.kind == .thud ? 0.1 : 0.3
-            return CHHapticEvent(eventType: .hapticTransient, parameters: [
-                CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(tap.strength)),
-                CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
-            ], relativeTime: tap.time)
-        }
+        return [CHHapticEvent(eventType: .hapticContinuous, parameters: [
+            CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
+            CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
+        ], relativeTime: 0, duration: length)]
     }
 
-    /// Plays every tap against the intro's clock, t = 0 now.
-    func start() {
+    /// The curve's control points, every 0.1 s from the event's start (relative times), the first and the last 0.
+    static func controlPoints() -> [CHHapticParameterCurve.ControlPoint] {
+        let count = Int((length / step).rounded())
+        var points: [CHHapticParameterCurve.ControlPoint] = []
+        for i in 0...count {
+            let at = i == count ? length : Double(i) * step
+            let value: Double = (i == 0 || i == count) ? 0 : IntroModel.haptic(IntroModel.swellStart + at)
+            points.append(CHHapticParameterCurve.ControlPoint(relativeTime: at, value: Float(Swift.min(1, Swift.max(0, value)))))
+        }
+        return points
+    }
+
+    /// Core Haptics takes at most 16 control points per parameter curve.
+    static let pointsPerCurve = 16
+
+    /// The parameter curves that shape the event's intensity: the control points in runs of at most 16, each run
+    /// starting at the last point of the one before (its times relative to its own start).
+    static func curves() -> [CHHapticParameterCurve] {
+        let points = controlPoints()
+        var out: [CHHapticParameterCurve] = []
+        var first = 0
+        while first < points.count - 1 {
+            let last = Swift.min(points.count - 1, first + pointsPerCurve - 1)
+            let origin = points[first].relativeTime
+            let run = points[first...last].map { (point: CHHapticParameterCurve.ControlPoint) -> CHHapticParameterCurve.ControlPoint in
+                CHHapticParameterCurve.ControlPoint(relativeTime: point.relativeTime - origin, value: point.value)
+            }
+            out.append(CHHapticParameterCurve(parameterID: .hapticIntensityControl, controlPoints: run, relativeTime: origin))
+            first = last
+        }
+        return out
+    }
+
+    /// Plays the swell against the intro's clock: t = 0 at `begin` (CACurrentMediaTime of the intro's start). If the
+    /// swell's start has already passed (the intro started late), nothing is played.
+    func start(begin: CFTimeInterval) {
         stop()
         if Motion.saving { return }
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return startFallback() }
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+        var made: CHHapticEngine?
         do {
-            let made = try CHHapticEngine()
-            made.playsHapticsOnly = true
-            made.isAutoShutdownEnabled = true
-            made.stoppedHandler = { (_: CHHapticEngine.StoppedReason) -> Void in }
-            made.resetHandler = { () -> Void in }
-            try made.start()
-            let pattern = try CHHapticPattern(events: IntroHaptics.events(), parameters: [])
-            let made2 = try made.makePlayer(with: pattern)
-            try made2.start(atTime: CHHapticTimeImmediate)
-            engine = made
-            player = made2
+            let created = try CHHapticEngine()
+            made = created
+            created.playsHapticsOnly = true
+            created.isAutoShutdownEnabled = false
+            created.stoppedHandler = { (_: CHHapticEngine.StoppedReason) -> Void in }
+            created.resetHandler = { () -> Void in }
+            try created.start()
+            let pattern = try CHHapticPattern(events: IntroHaptics.events(), parameterCurves: IntroHaptics.curves())
+            let swell = try created.makePlayer(with: pattern)
+            let wait = IntroModel.swellStart - (CACurrentMediaTime() - begin)
+            guard wait > 0 else {
+                created.stop(completionHandler: nil)
+                return
+            }
+            try swell.start(atTime: created.currentTime + wait)
+            engine = created
+            player = swell
         } catch {
-            engine?.stop(completionHandler: nil)
+            made?.stop(completionHandler: nil)
             engine = nil
             player = nil
         }
     }
 
-    /// No Core Haptics: the thud alone, as the system's soft impact.
-    private func startFallback() {
-        guard let thud = IntroModel.taps.first(where: { (tap: IntroModel.Tap) -> Bool in tap.kind == .thud }) else { return }
-        let generator = UIImpactFeedbackGenerator(style: .soft)
-        generator.prepare()
-        let work = DispatchWorkItem { generator.impactOccurred(intensity: CGFloat(thud.strength)) }
-        fallback = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + thud.time, execute: work)
-    }
-
-    /// Nothing more: the taps not yet played are dropped.
+    /// Nothing more: the swell stops at once.
     func stop() {
-        fallback?.cancel()
-        fallback = nil
         try? player?.stop(atTime: CHHapticTimeImmediate)
         player = nil
         engine?.stop(completionHandler: nil)
