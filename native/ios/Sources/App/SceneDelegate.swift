@@ -63,6 +63,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             // status, SQLite result code, the file's size) — never a key or anything stored.
             let step = Vault.lastFailure.isEmpty ? "not the storage" : Vault.lastFailure
             NSLog("Linea: the account did not open: %@ (%@)", String(describing: type(of: error)), step)
+            // The kept profile is forgotten (only that — never a key or the storage): «Коснись, чтобы повторить» then
+            // asks the server for it afresh instead of meeting the same record again.
+            Account.cachedUser = nil
             // The storage did not open: nothing is replaced, nothing is deleted — the person is told.
             showWaiting("Не удалось открыть зашифрованное хранилище. Ключи и сообщения сохранены без изменений.\nКоснись, чтобы повторить.")
         }

@@ -179,6 +179,9 @@ class MainActivity : Activity(), Launcher, AccountHost, com.linea.messenger.sett
       com.linea.messenger.push.Push.start(this, made) // Push: the channels, the permission, this device's token (push/Push.kt)
     } catch (_: Exception) {
       // The storage did not open: nothing is replaced, nothing is deleted — the person is told.
+      // The kept profile is forgotten (only that — never a key or the storage): the retry then asks the server
+      // for it afresh instead of meeting the same record again.
+      Account.cachedUser = null
       showWaiting("Не удалось открыть зашифрованное хранилище. Ключи и сообщения сохранены без изменений.\nКоснись, чтобы повторить.")
     }
   }
