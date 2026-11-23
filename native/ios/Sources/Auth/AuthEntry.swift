@@ -217,10 +217,23 @@ final class AuthEntry: UIView, UITextFieldDelegate {
 /// A few words in a plate: something the person should know, or (in the danger colour) something that went wrong.
 final class AuthNotice: UIView {
     private let label = AuthNote()
+    /// The reference's `Notice` glyph (components.tsx:104): «alert-circle-outline» in `danger` for what went wrong,
+    /// «information-circle-outline» in the accent otherwise.
+    private let glyph = UIImageView()
+    /// The glass under the words and, for what went wrong, the `dangerBg` veil over it (components.tsx:103-104).
+    private let glass = UIVisualEffectView(effect: nil)
+    private let veil = UIView()
     private var labelLeading: NSLayoutConstraint?
     private var labelTrailing: NSLayoutConstraint?
+    private var labelTop: NSLayoutConstraint?
+    private var labelBottom: NSLayoutConstraint?
+    private var glyphLeading: NSLayoutConstraint?
+    private var glyphTop: NSLayoutConstraint?
+    private var glyphSide: [NSLayoutConstraint] = []
     /// The room left and right of the words together.
-    private var sides: CGFloat = 28
+    private var sides: CGFloat = 14 + 19 + 10 + 14
+    /// The room above and under the words together.
+    private var ends: CGFloat = 28
 
     var words: String {
         get { return label.text ?? "" }
@@ -230,49 +243,78 @@ final class AuthNotice: UIView {
         }
     }
 
+    /// The reference's `Notice` (components.tsx:102-105): glass, radius 18, 14 inside; the glyph 19, 10 to the words
+    /// (13 on lines of 19, `danger` for an error, `text` otherwise).
     init(error: Bool) {
         super.init(frame: .zero)
-        backgroundColor = error ? Theme.danger.withAlphaComponent(0.12) : Theme.surface2
-        layer.cornerRadius = 16
+        layer.cornerRadius = 18
         layer.cornerCurve = .continuous
+        clipsToBounds = true
+        glass.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark)
+        glass.isUserInteractionEnabled = false
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glass)
+        veil.backgroundColor = error ? ThemeStore.look.dangerBg : .clear
+        veil.isUserInteractionEnabled = false
+        veil.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(veil)
+        glyph.image = IonIcon.image(error ? "alert-circle-outline" : "information-circle-outline", size: 19)
+        glyph.tintColor = error ? Theme.danger : Theme.accent
+        glyph.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(glyph)
         label.font = .systemFont(ofSize: 13)
         label.textColor = error ? Theme.danger : Theme.text
         label.numberOfLines = 0
+        label.lineStep = 19
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
-        let leading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14)
+        let leading = label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14 + 19 + 10)
         let trailing = label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14)
+        let top = label.topAnchor.constraint(equalTo: topAnchor, constant: 14)
+        let bottom = label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14)
+        let markLeading = glyph.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14)
+        let markTop = glyph.topAnchor.constraint(equalTo: topAnchor, constant: 14)
+        let side = [glyph.widthAnchor.constraint(equalToConstant: 19), glyph.heightAnchor.constraint(equalToConstant: 19)]
         labelLeading = leading
         labelTrailing = trailing
-        NSLayoutConstraint.activate([
-            leading,
-            trailing,
-            label.topAnchor.constraint(equalTo: topAnchor, constant: 13),
-            label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -13),
-        ])
+        labelTop = top
+        labelBottom = bottom
+        glyphLeading = markLeading
+        glyphTop = markTop
+        glyphSide = side
+        var all: [NSLayoutConstraint] = [leading, trailing, top, bottom, markLeading, markTop]
+        all.append(contentsOf: side)
+        for part in [glass, veil] as [UIView] {
+            all.append(part.topAnchor.constraint(equalTo: topAnchor))
+            all.append(part.bottomAnchor.constraint(equalTo: bottomAnchor))
+            all.append(part.leadingAnchor.constraint(equalTo: leadingAnchor))
+            all.append(part.trailingAnchor.constraint(equalTo: trailingAnchor))
+        }
+        NSLayoutConstraint.activate(all)
         isHidden = true
     }
 
     /// The reference's box on the login step (AuthScreen.tsx:329): an Ionicons glyph (18, the accent) left of the
-    /// words, 13 inside, 10 between; `accentSoft` with a `border` rim, radius 16; the words 13 on lines of 19.
+    /// words, 13 inside, 10 between; `accentSoft` with a `border` rim, radius 16, no glass; the words 13 on lines of 19.
     func mark(icon name: String) {
-        let glyph = UIImageView(image: IonIcon.image(name, size: 18))
+        glass.removeFromSuperview()
+        veil.removeFromSuperview()
+        glyph.image = IonIcon.image(name, size: 18)
         glyph.tintColor = Theme.accent
-        glyph.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(glyph)
-        NSLayoutConstraint.activate([
-            glyph.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 13),
-            glyph.topAnchor.constraint(equalTo: topAnchor, constant: 13),
-            glyph.widthAnchor.constraint(equalToConstant: 18),
-            glyph.heightAnchor.constraint(equalToConstant: 18),
-        ])
+        glyphLeading?.constant = 13
+        glyphTop?.constant = 13
+        for side in glyphSide { side.constant = 18 }
         labelLeading?.constant = 13 + 18 + 10
         labelTrailing?.constant = -13
+        labelTop?.constant = 13
+        labelBottom?.constant = -13
         sides = 13 + 18 + 10 + 13
+        ends = 26
+        layer.cornerRadius = 16
         backgroundColor = ThemeStore.look.accentSoft
         layer.borderWidth = 1
         layer.borderColor = ThemeStore.look.border.cgColor
-        label.lineStep = 19
+        label.textColor = Theme.text
         let current = label.text
         label.text = current
     }
@@ -282,7 +324,7 @@ final class AuthNotice: UIView {
     func fitHeight(_ width: CGFloat) -> CGFloat {
         if words.isEmpty { return 0 }
         let inside = label.sizeThatFits(CGSize(width: max(0, width - sides), height: CGFloat.greatestFiniteMagnitude))
-        return ceil(inside.height) + 26
+        return ceil(inside.height) + ends
     }
 
     required init?(coder: NSCoder) { return nil }

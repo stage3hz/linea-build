@@ -235,6 +235,9 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
 @SuppressLint("ViewConstructor")
 class AuthNotice(context: Context, error: Boolean) : FrameLayout(context) {
   private val label = context.words("", 13f, if (error) Theme.danger else Theme.text)
+  /** The reference's `Notice` glyph (components.tsx:104): «alert-circle-outline» in `danger` for what went wrong,
+   *  «information-circle-outline» in the accent otherwise. */
+  private val glyph = ImageView(context)
 
   var words: String
     get() = label.text.toString()
@@ -243,10 +246,16 @@ class AuthNotice(context: Context, error: Boolean) : FrameLayout(context) {
       visibility = if (value.isEmpty()) View.GONE else View.VISIBLE
     }
 
+  /** The reference's `Notice` (components.tsx:102-105): radius 18, 14 inside, `dangerBg` under what went wrong; the
+   *  glyph 19, 10 to the words (13 on lines of 19). */
   init {
-    background = context.plate(if (error) Theme.alpha(Theme.danger, 0.12f) else Theme.surface2, 16f)
-    setPadding(context.px(14f), context.px(13f), context.px(14f), context.px(13f))
-    addView(label, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    background = context.plate(if (error) ThemeStore.look.dangerBg else Theme.surface2, 18f)
+    setPadding(context.px(14f), context.px(14f), context.px(14f), context.px(14f))
+    glyph.setImageDrawable(IonIcon.drawable(context, if (error) "alert-circle-outline" else "information-circle-outline", context.px(19f), if (error) Theme.danger else Theme.accent))
+    glyph.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    addView(glyph, LayoutParams(context.px(19f), context.px(19f), Gravity.START or Gravity.TOP))
+    addView(label, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(29f) })
+    if (android.os.Build.VERSION.SDK_INT >= 28) label.lineHeight = context.px(19f)
     if (error) accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
     visibility = View.GONE
   }
@@ -256,12 +265,10 @@ class AuthNotice(context: Context, error: Boolean) : FrameLayout(context) {
   fun mark(icon: String) {
     background = context.plate(ThemeStore.look.accentSoft, 16f).apply { setStroke(context.px(1f), ThemeStore.look.border) }
     setPadding(context.px(13f), context.px(13f), context.px(13f), context.px(13f))
-    val glyph = ImageView(context)
     glyph.setImageDrawable(IonIcon.drawable(context, icon, context.px(18f), Theme.accent))
-    glyph.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-    addView(glyph, LayoutParams(context.px(18f), context.px(18f), Gravity.START or Gravity.TOP))
+    glyph.layoutParams = LayoutParams(context.px(18f), context.px(18f), Gravity.START or Gravity.TOP)
     (label.layoutParams as LayoutParams).leftMargin = context.px(28f)
-    if (android.os.Build.VERSION.SDK_INT >= 28) label.lineHeight = context.px(19f)
+    label.setTextColor(Theme.text)
   }
 }
 
