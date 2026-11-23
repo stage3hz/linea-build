@@ -136,7 +136,7 @@ class AuthEntry(context: Context, caption: String, placeholder: String, private 
     })
     field.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ -> if (right - left != oldRight - oldLeft) field.post { fitHint() } }
     plate.addView(field, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT).apply {
-      leftMargin = context.px(17f); rightMargin = context.px(if (secret) 54f else 17f)
+      leftMargin = context.px(17f); rightMargin = context.px(if (secret) 58f else 17f) // AuthScreen.tsx:62 `paddingRight: 58`
     })
 
     eye.visibility = if (secret) View.VISIBLE else View.GONE

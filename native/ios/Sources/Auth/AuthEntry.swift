@@ -116,7 +116,7 @@ final class AuthEntry: UIView, UITextFieldDelegate {
             ring.leadingAnchor.constraint(equalTo: plate.leadingAnchor),
             ring.trailingAnchor.constraint(equalTo: plate.trailingAnchor),
             field.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 17),
-            field.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: secret ? -54 : -17),
+            field.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: secret ? -58 : -17), // AuthScreen.tsx:62 `paddingRight: 58`
             field.topAnchor.constraint(equalTo: plate.topAnchor),
             field.bottomAnchor.constraint(equalTo: plate.bottomAnchor),
             eye.trailingAnchor.constraint(equalTo: plate.trailingAnchor, constant: -5),
