@@ -691,7 +691,7 @@ class VideoPlayer(context: Context, private val file: File, private val folder: 
     row.setPadding(dp(20f), 0, dp(20f), 0)
     row.addView(KitIcon(context, symbol ?: "", 20f, color).apply { isClickable = false }, LinearLayout.LayoutParams(dp(24f), dp(24f)))
     row.addView(TextView(context).apply { text = words; textSize = 16f; setTextColor(color) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(20f) })
-    if (value != null) row.addView(TextView(context).apply { text = value; textSize = 16f; setTextColor(0xFFAAAAAA.toInt()) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8f) })
+    if (value != null) row.addView(TextView(context).apply { text = value; textSize = 16f; setTextColor(0xFFAAAAAA.toInt()) }, LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(20f) }) // `gap: 20`
     row.contentDescription = if (value != null) "$words, $value" else words
     row.isSelected = current
     row.isEnabled = enabled

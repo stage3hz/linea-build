@@ -240,7 +240,7 @@ final class NoticeCards: UIView {
         }
         if let latest = logins.first {
             let more = logins.count > 1 ? "Ещё входов: \(logins.count - 1). " : ""
-            let line = NoticeLine(symbol: NewLoginSheet.symbol(latest.session), title: "Новый вход: " + latest.label, words: more + "Если это был не ты — заверши сеанс.")
+            let line = NoticeLine(symbol: NewLoginSheet.symbol(latest.session), title: "Новый вход: " + latest.label, words: more + "Если это был не ты — заверши сеанс.", oneLine: true)
             line.accessibilityLabel = "Новый вход: " + latest.label + ". Проверить"
             line.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.onOpen?("login") }, for: .touchUpInside)
             stack.addArrangedSubview(line)
@@ -251,7 +251,9 @@ final class NoticeCards: UIView {
 
 /// One notice: a red icon, a bold line, a quiet line, an arrow; on glass with a radius of 18.
 final class NoticeLine: UIControl {
-    init(symbol: String, title: String, words: String) {
+    /// `oneLine`: the bold line stays on one line (the reference's «Новый вход», `numberOfLines={1}`); otherwise it
+    /// wraps, as RecoveryNotice.tsx's title does.
+    init(symbol: String, title: String, words: String, oneLine: Bool = false) {
         super.init(frame: .zero)
         let glass = UIVisualEffectView(effect: UIBlurEffect(style: Theme.dark ? .systemThinMaterialDark : .systemThinMaterialLight))
         glass.layer.cornerRadius = 18
@@ -265,7 +267,7 @@ final class NoticeLine: UIControl {
         icon.contentMode = .center
         icon.setContentHuggingPriority(.required, for: .horizontal)
         let name = SettingsLook.words(title, size: 14, color: Theme.text, weight: .bold)
-        name.numberOfLines = 1
+        name.numberOfLines = oneLine ? 1 : 0
         let about = SettingsLook.words(words, size: 12, color: Theme.muted)
         let texts = UIStackView(arrangedSubviews: [name, about])
         texts.axis = .vertical

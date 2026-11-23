@@ -36,7 +36,9 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
     /// The photo has grown out once (the reference's `avatarIn`).
     private var grown = false
     private let topLayers = ProfileTopLayers()
-    private let topShade = CAGradientLayer()
+    /// Profile: the scroll edge under the floating back / «Ещё» row (the reference's UserProfile.tsx `ScrollEdgeEffect`,
+    /// size: the status bar and the row), solid under the clock (EdgeFade.swift).
+    private let topEdge = ScrollEdgeView(edge: .top)
     private var avatar: DecoratedAvatarView { return hero.avatar }
     private let tiles = UIStackView()
     private let noticeLabel = UILabel()
@@ -129,9 +131,8 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         }
 
         // Profile: the content scrolls under the floating back / «Ещё» row and dissolves there.
-        topShade.colors = [Theme.bg.withAlphaComponent(0.92).cgColor, Theme.bg.withAlphaComponent(0).cgColor]
-        topShade.opacity = 0
-        topBar.layer.addSublayer(topShade)
+        topEdge.alpha = 0
+        view.addSubview(topEdge)
         topBar.backgroundColor = .clear
         topBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(topLayers.front)
@@ -261,11 +262,11 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         let heroBottom = tiles.superview?.frame.maxY ?? hero.frame.maxY
         topLayers.layout(width: view.bounds.width, topInset: view.safeAreaInsets.top, scrolled: scrolled, heroBottom: heroBottom)
         hero.applyScroll(scrolled)
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        topShade.frame = topBar.bounds
-        topShade.opacity = Float(max(0, min(1, scrolled / 60)))
-        CATransaction.commit()
+        // At rest the page's own top (the banner's colour) stays clear; the edge comes in over the first 60 pt of scroll.
+        topEdge.color = Theme.bg
+        topEdge.statusBand = view.safeAreaInsets.top
+        topEdge.place(width: view.bounds.width, size: topBar.frame.maxY)
+        topEdge.alpha = max(0, min(1, scrolled / 60))
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) { layoutTop() }
@@ -339,6 +340,11 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         config.baseForegroundColor = active ? Theme.accent : Theme.text
         let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
         glass.isUserInteractionEnabled = false
+        // The configuration's corner radius does not reach a glass custom view (it drew square with a bevelled rim):
+        // the glass is rounded itself, as the other glass cards are (SettingsKit's card).
+        glass.layer.cornerRadius = 18
+        glass.layer.cornerCurve = .continuous
+        glass.clipsToBounds = true
         config.background.customView = glass
         config.background.cornerRadius = 18
         config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 4, bottom: 12, trailing: 4)

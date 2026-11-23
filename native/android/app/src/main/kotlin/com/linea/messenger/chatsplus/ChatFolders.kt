@@ -485,7 +485,7 @@ class FoldersSettingsPage(context: Context, private val messenger: Messenger?) :
     val create = SettingsRow(context, symbol = "plus", label = "Создать папку", arrow = false)
     create.onPress = { edit(null) }
     addGroup(rows = listOf(create))
-    add(SettingsLook.caption(context, "Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты."), 8f)
+    add(SettingsLook.foot(context, "Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты."), 8f) // SettingsScreen.tsx: plain muted words (12), not a caption
   }
 
   fun edit(folder: ChatFolder?) {

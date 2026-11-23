@@ -206,6 +206,10 @@ final class GlassHeaderView: UIView {
         mark.tintColor = Theme.accent
         mark.contentMode = .center
         mark.isAccessibilityElement = false
+        // Hugs its glyph: otherwise the row stretched the holder as much as the name and the glyph stood mid-pill
+        // instead of at the right, `room` from the padding.
+        mark.setContentHuggingPriority(.required, for: .horizontal)
+        mark.setContentCompressionResistancePriority(.required, for: .horizontal)
         let holder = UIView()
         holder.addSubview(mark)
         mark.translatesAutoresizingMaskIntoConstraints = false

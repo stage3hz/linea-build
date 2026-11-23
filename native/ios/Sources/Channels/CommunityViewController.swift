@@ -17,15 +17,19 @@ final class ChannelHeaderView: UIView {
     /// The reference's header is a glass pill (GlassSurface lens, radius 27, margin 12 / 6 below, at least 60 tall).
     static let height: CGFloat = 78
     private let pill = GlassPill(interactive: false)
-    /// The page fades in under the pill, so what scrolls up goes under the glass, not over the status bar.
-    private let fade = CAGradientLayer()
+    /// The page's colour under the status bar and the pill (EdgeFade.swift), fading out over the 6 pt below the
+    /// header and as far again: the reference's header is not floating (nothing scrolls under it or under the clock),
+    /// so the cover is solid there and at rest the first row (6 below the header) is never covered.
+    private let fade = ProgressiveEdgeView(edge: .top)
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
-        fade.colors = [Theme.bg.cgColor, Theme.bg.cgColor, Theme.bg.withAlphaComponent(0).cgColor]
-        fade.locations = [0, 0.45, 1]
-        layer.addSublayer(fade)
+        fade.peak = 1
+        fade.solidThroughBar = true
+        fade.reach = 12
+        fade.fade = 12
+        addSubview(fade)
         pill.shape(radius: 27)
         pill.isUserInteractionEnabled = false
         addSubview(pill)
@@ -83,12 +87,10 @@ final class ChannelHeaderView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        fade.frame = bounds
-        CATransaction.commit()
         // The pill: 12 from the edges and from the top of the safe area, 60 tall; its content 8 inside.
         pill.frame = CGRect(x: 12, y: safeTop + 12, width: max(0, bounds.width - 24), height: 60)
+        fade.color = Theme.bg
+        fade.place(width: bounds.width, size: pill.frame.maxY)
         let top = pill.frame.minY + 8
         backButton.frame = CGRect(x: pill.frame.minX + 8, y: top, width: 44, height: 44)
         var left: CGFloat = backButton.frame.maxX + 9

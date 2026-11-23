@@ -214,7 +214,7 @@ class ChatScreen(
     val room = actions.place(width, height, top + dp(52f) + strip, top, dp(8f), composerTop, width - dp(16f), composerHeight)
     list.setPad(room.first, room.second)
     put(page, 0, 0, width, height)
-    look.place(width, height, top) // ChatLook: the pills of the header, after ChatActions placed the name and the status
+    look.place(width, height, top, room.first - dp(8f)) // ChatLook: the pills of the header, after ChatActions placed the name and the status
     look.placeFloor(width, height, composerTop) // EdgeFade: the progressive edge above the composer
   }
 

@@ -161,13 +161,17 @@ final class ProfileMediaViewer: UIViewController, UIScrollViewDelegate, UIGestur
         pager.contentOffset = CGPoint(x: CGFloat(index) * size.width, y: 0)
         let top = view.safeAreaInsets.top + 8
         chrome.frame = CGRect(x: 0, y: top, width: size.width, height: 60)
-        nameLabel.frame = CGRect(x: 60, y: 2, width: size.width - 120, height: 20)
-        countLabel.frame = CGRect(x: 60, y: 22, width: size.width - 120, height: 18)
+        // The reference's row (`alignItems: 'center'`): the name, and «n из m» under it when there are several, centred
+        // on the 44 pt button as one block, between the button and as much room on the right (`marginRight: 44`).
+        let block: CGFloat = countLabel.isHidden ? 20 : 38
+        nameLabel.frame = CGRect(x: 56, y: (44 - block) / 2, width: size.width - 112, height: 20)
+        countLabel.frame = CGRect(x: 56, y: (44 - block) / 2 + 20, width: size.width - 112, height: 18)
         bars.frame = CGRect(x: 12, y: 52, width: size.width - 24, height: 3)
     }
 
     private func showIndex() {
         countLabel.text = items.count > 1 ? "\(index + 1) из \(items.count)" : ""
+        countLabel.isHidden = items.count <= 1
         for (position, bar) in bars.arrangedSubviews.enumerated() { bar.backgroundColor = position == index ? .white : UIColor(white: 1, alpha: 0.35) }
         for (position, player) in players.enumerated() {
             if position == index { player?.play() } else { player?.pause() }

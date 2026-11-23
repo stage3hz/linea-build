@@ -427,10 +427,13 @@ class CallScreenView(context: Context) : Screen(context) {
     put(remoteVideo, 0, 0, width, height)
     put(minimizeButton, dp(16f), edges.top + dp(6f), dp(40f), dp(40f))
 
-    keyLabel.measure(MeasureSpec.makeMeasureSpec(width - dp(140f), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
-    // With the key: its own padding (12 × 6) around the lock and the emoji; before it — the words, centred in 34.
+    // With the key: its own padding (12 × 6) around the lock and the emoji; before it — the words, centred in 34, a
+    // plain line in the reference with all the width between the «Свернуть» buttons' columns (cut short at
+    // width − 140 they lost their end).
     val keyed = shown?.key != null
-    val pillWidth = minOf(width - dp(140f), keyLabel.measuredWidth + if (keyed) 0 else dp(24f))
+    val room = if (keyed) width - dp(140f) else maxOf(0, width - 2 * dp(16f + 40f))
+    keyLabel.measure(MeasureSpec.makeMeasureSpec(room, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    val pillWidth = if (keyed) minOf(room, keyLabel.measuredWidth) else room
     put(keyLabel, (width - pillWidth) / 2, top, pillWidth, if (keyed) keyLabel.measuredHeight else dp(34f))
     put(ambient, 0, 0, width, height)
     audioPanel?.let { it.bottomInset = edges.bottom; put(it, 0, 0, width, height) }

@@ -168,7 +168,8 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
   private var opened = false
   private var closing = false
 
-  private val glassOpaque: Int get() { val look = ThemeStore.look; return if (look.black) 0xFF0F1011.toInt() else if (look.dark) 0xFF17243A.toInt() else 0xFFF6F8FD.toInt() }
+  // The theme's own `glassOpaque` (theme.tsx): «Графит» has its own grey, not the blue theme's navy.
+  private val glassOpaque: Int get() = ThemeStore.look.glassOpaque
 
   private val root = object : FrameLayout(context) {
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -530,8 +531,10 @@ class AttachmentPanel(private val activity: Activity, private val pollAvailable:
         tile.clipToOutline = true
         tile.addView(ImageView(context).apply { setImageBitmap(thumb); scaleType = ImageView.ScaleType.CENTER_CROP }, FrameLayout.LayoutParams(-1, -1))
         tile.addView(label("✎ Изменить", 10f, 700, Color.WHITE).apply {
-          gravity = Gravity.CENTER; background = GradientDrawable().apply { setColor(0x99000000.toInt()); cornerRadius = 9f * d }
-        }, FrameLayout.LayoutParams(dp(70f), dp(20f), Gravity.BOTTOM or Gravity.START).apply { leftMargin = dp(5f); bottomMargin = dp(5f) })
+          // As wide as its words with 6 on each side (`paddingHorizontal: 6`): a fixed 70 left no room on the right.
+          gravity = Gravity.CENTER; setPadding(dp(6f), 0, dp(6f), 0); maxLines = 1; maxWidth = dp(94f)
+          background = GradientDrawable().apply { setColor(0x99000000.toInt()); cornerRadius = 9f * d }
+        }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, dp(20f), Gravity.BOTTOM or Gravity.START).apply { leftMargin = dp(5f); bottomMargin = dp(5f) })
         tile.addView(numberBadge(index + 1), FrameLayout.LayoutParams(-2, dp(18f)).apply { leftMargin = dp(5f); topMargin = dp(5f) })
         tile.addView(removeButton(item, 20f), FrameLayout.LayoutParams(dp(20f), dp(20f), Gravity.END).apply { rightMargin = dp(3f); topMargin = dp(3f) })
         tile.contentDescription = "Редактировать " + item.name

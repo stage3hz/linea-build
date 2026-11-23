@@ -88,9 +88,13 @@ class ProfileMediaViewer(context: Context, private val person: Person, private v
     back.contentDescription = "Закрыть"
     back.setOnClickListener { dismiss() }
     chrome.addView(back, FrameLayout.LayoutParams(context.px(44f), context.px(44f)).apply { leftMargin = context.px(12f) })
-    chrome.addView(context.words(person.displayName, 16f, Color.WHITE, 700).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(20f)).apply { topMargin = context.px(2f); leftMargin = context.px(60f); rightMargin = context.px(60f) })
+    // The reference's row (`alignItems: 'center'`): the name, and «n из m» under it when there are several, centred on
+    // the 44 dp button as one block, between the button and as much room on the right (`marginRight: 44`).
+    val blockTop = (44f - (if (items.size > 1) 38f else 20f)) / 2f
+    chrome.addView(context.words(person.displayName, 16f, Color.WHITE, 700).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(20f)).apply { topMargin = context.px(blockTop); leftMargin = context.px(56f); rightMargin = context.px(56f) })
     count.gravity = Gravity.CENTER
-    chrome.addView(count, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(18f)).apply { topMargin = context.px(22f); leftMargin = context.px(60f); rightMargin = context.px(60f) })
+    if (items.size <= 1) count.visibility = View.GONE
+    chrome.addView(count, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(18f)).apply { topMargin = context.px(blockTop + 20f); leftMargin = context.px(56f); rightMargin = context.px(56f) })
     bars.orientation = LinearLayout.HORIZONTAL
     if (items.size > 1) for (i in items.indices) bars.addView(View(context), LinearLayout.LayoutParams(0, context.px(3f), 1f).apply { if (i > 0) leftMargin = context.px(4f) })
     chrome.addView(bars, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, context.px(3f)).apply { topMargin = context.px(52f); leftMargin = context.px(12f); rightMargin = context.px(12f) })

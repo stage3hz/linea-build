@@ -63,9 +63,9 @@ open class ProgressiveEdgeView(context: Context, private val top: Boolean) : Vie
   /** Over how many dp (ending at `reach` past the bar) the colour fades out. */
   var fade = EdgeRamp.FADE
     set(value) { field = value; invalidate() }
-  /** A top edge only: the status bar's height, px. The colour is laid a second time over it (fading out 10 dp below,
-   *  as the reference's extra status-bar layer), so under the clock the cover is near-solid (1 − (1 − strength)²)
-   *  and nothing scrolling there stays readable; the strength itself is unchanged. */
+  /** A top edge only: the status bar's height, px. The colour is laid over it once more, solid (fading out 10 dp
+   *  below, as the reference's extra status-bar layer): under the clock nothing scrolling stays readable (without the
+   *  reference's blur a .85 cover still let text show there); below the band the strength is unchanged. */
   var statusBand = 0
     set(value) { if (field != value) { field = value; invalidate() } }
   /** Solid over the whole bar: the fade (still `fade` long) begins only at the bar's inner edge, so nothing behind the
@@ -112,7 +112,7 @@ open class ProgressiveEdgeView(context: Context, private val top: Boolean) : Vie
     val bandSolid = if (top) minOf(total, statusBand.toFloat()) else 0f
     if (bandSolid > 0f) {
       val bandHeight = minOf(total, bandSolid + 10 * d)
-      val full = argb(rgb, strength)
+      val full = argb(rgb, 1f)
       paint.shader = LinearGradient(0f, 0f, 0f, bandHeight, intArrayOf(full, full, argb(rgb, 0f)), floatArrayOf(0f, bandSolid / bandHeight, 1f), Shader.TileMode.CLAMP)
       canvas.drawRect(0f, 0f, width.toFloat(), bandHeight, paint)
     }

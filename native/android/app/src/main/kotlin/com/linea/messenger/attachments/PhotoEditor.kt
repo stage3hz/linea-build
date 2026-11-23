@@ -112,7 +112,9 @@ class PhotoEditor(context: Context, private val original: Bitmap) : Dialog(conte
       while (label.length > 3 && words.measureText(label) > width - 8f * d) label = label.dropLast(2) + "…"
       canvas.drawText(label, width / 2f, height / 2f + 18f * d, words)
     }
-    fun measuredWidth(): Int = minOf(dp(110f), maxOf(dp(62f), (words.measureText(tab.label) + 20f * d).roundToInt()))
+    // As wide as its words (the reference's tab has no upper bound, the row scrolls): capped at 110 «Размер и формат»
+    // lost its end.
+    fun measuredWidth(): Int = maxOf(dp(62f), kotlin.math.ceil(words.measureText(tab.label) + 20f * d).toInt())
   }
 
   /** The page: its parts placed by hand, from the bottom up, as the iOS editor lays them out. */

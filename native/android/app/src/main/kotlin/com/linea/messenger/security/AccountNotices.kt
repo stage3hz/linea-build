@@ -209,7 +209,7 @@ class NoticeCards(context: Context) : LinearLayout(context) {
     }
     logins.firstOrNull()?.let { latest ->
       val more = if (logins.size > 1) "Ещё входов: ${logins.size - 1}. " else ""
-      put(NoticeLine(context, NewLoginSheet.symbol(latest.session), "Новый вход: " + latest.label, more + "Если это был не ты — заверши сеанс.").apply {
+      put(NoticeLine(context, NewLoginSheet.symbol(latest.session), "Новый вход: " + latest.label, more + "Если это был не ты — заверши сеанс.", oneLine = true).apply {
         contentDescription = "Новый вход: " + latest.label + ". Проверить"
         setOnClickListener { onOpen?.invoke("login") }
       })
@@ -220,7 +220,9 @@ class NoticeCards(context: Context) : LinearLayout(context) {
 
 /** One notice: a red icon, a bold line, a quiet line, an arrow; on glass with a radius of 18. */
 @SuppressLint("ViewConstructor")
-class NoticeLine(context: Context, symbol: String, title: String, words: String) : LinearLayout(context) {
+/** `oneLine`: the bold line stays on one line (the reference's «Новый вход», `numberOfLines={1}`); otherwise it wraps,
+ *  as RecoveryNotice.tsx's title does. */
+class NoticeLine(context: Context, symbol: String, title: String, words: String, oneLine: Boolean = false) : LinearLayout(context) {
   private val glass = Glass(this)
 
   init {
@@ -231,7 +233,7 @@ class NoticeLine(context: Context, symbol: String, title: String, words: String)
     setWillNotDraw(false)
     addView(SymbolView(context, symbol, 22f, Theme.danger), LayoutParams(context.px(22f), context.px(22f))) // Ionicons 22
     val texts = LinearLayout(context).apply { orientation = VERTICAL }
-    texts.addView(context.words(title, 14f, Theme.text, 700).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+    texts.addView(context.words(title, 14f, Theme.text, 700).apply { if (oneLine) { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END } })
     texts.addView(context.words(words, 12f, Theme.muted), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
     addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = context.px(12f); rightMargin = context.px(12f) })
     addView(SymbolView(context, "ion:chevron-forward", 18f, Theme.muted), LayoutParams(context.px(18f), context.px(18f)))

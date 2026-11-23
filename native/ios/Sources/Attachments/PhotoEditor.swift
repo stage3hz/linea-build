@@ -787,8 +787,10 @@ final class PhotoEditorController: UIViewController {
         tabsRow.frame = CGRect(x: 0, y: tabY, width: max(0, width - 12 - 54 - 6), height: 58)
         var x: CGFloat = 8
         for button in tabButtons {
-            let fitted = button.sizeThatFits(CGSize(width: 120, height: 56))
-            let w = min(110, max(62, ceil(fitted.width)))
+            // As wide as its words (the reference's tab has no upper bound, the row scrolls): capped at 110 «Размер и
+            // формат» lost its end.
+            let fitted = button.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: 56))
+            let w = max(62, ceil(fitted.width))
             button.frame = CGRect(x: x, y: 1, width: w, height: 56)
             x += w + 2
         }

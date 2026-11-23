@@ -86,7 +86,9 @@ class PersonProfileScreen(
 
   private val scroll = ScrollView(context)
   private val content = LinearLayout(context)
-  private val topBar = View(context)
+  /** Profile: the scroll edge under the floating back / «Ещё» row (the reference's UserProfile.tsx `ScrollEdgeEffect`,
+   *  size: the status bar and the row), solid under the clock (shell/EdgeFade.kt). */
+  private val topBar = com.linea.messenger.shell.ScrollEdgeView(context, true)
   // C: back and «Ещё» are the reference's IconButtons — rounds of clear glass, the icons in the text colour.
   private val back = com.linea.messenger.design.GlassRoundButton(context, "ion:chevron-back", "Назад", 23f) // IconButton «chevron-back», 23
   private val more = com.linea.messenger.design.GlassRoundButton(context, "ion:ellipsis-horizontal", "Ещё", 23f) // IconButton «ellipsis-horizontal», 23
@@ -169,7 +171,6 @@ class PersonProfileScreen(
     addView(topLayers.front) // Profile
 
     // Profile: the content scrolls under the floating back / «Ещё» row and dissolves there.
-    topBar.background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Theme.alpha(Theme.bg, 0.92f), Theme.alpha(Theme.bg, 0f)))
     topBar.alpha = 0f
     addView(topBar)
     back.contentDescription = "Назад"
@@ -233,7 +234,9 @@ class PersonProfileScreen(
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    put(topBar, 0, 0, width, top + dp(48f))
+    topBar.color = Theme.bg
+    topBar.statusBand = top
+    topBar.place(width, top + dp(48f), height)
     put(back, dp(10f), top + dp(2f), dp(44f), dp(44f)) // C: `paddingHorizontal: 10`
     put(more, width - dp(54f), top + dp(2f), dp(44f), dp(44f))
     // Profile: the page scrolls from the very top, under the floating row.

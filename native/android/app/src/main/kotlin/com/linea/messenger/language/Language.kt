@@ -86,6 +86,15 @@ object Language {
     if (trimmed.isEmpty()) return text
     if (trimmed != text) english[trimmed]?.let { return text.replace(trimmed, it) }
     englishUpper[trimmed]?.let { return if (trimmed == text) it else text.replace(trimmed, it) }
+    // A text of several lines whose lines are known one by one (the reference puts them as separate strings around a
+    // `{'\n'}`, e.g. «Твой профиль —» / «заметнее любого другого»): each line in its turn — only when every line is
+    // known, so a text of someone's own is never half translated.
+    if (text.contains('\n')) {
+      val parts = text.split('\n')
+      val done = parts.map { tr(it, language) }
+      val whole = parts.indices.all { parts[it].isBlank() || parts[it] != done[it] }
+      if (whole && done != parts) return done.joinToString("\n")
+    }
     return text
   }
 

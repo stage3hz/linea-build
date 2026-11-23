@@ -57,6 +57,17 @@ enum Language {
         if trimmed.isEmpty { return text }
         if trimmed != text, let found = english[trimmed] { return text.replacingOccurrences(of: trimmed, with: found) }
         if let upper = englishUpper[trimmed] { return trimmed == text ? upper : text.replacingOccurrences(of: trimmed, with: upper) }
+        // A text of several lines whose lines are known one by one (the reference puts them as separate strings around
+        // a `{'\n'}`, e.g. «Твой профиль —» / «заметнее любого другого»): each line in its turn — only when every line
+        // is known, so a text of someone's own is never half translated.
+        if text.contains("\n") {
+            let parts = text.components(separatedBy: "\n")
+            let done = parts.map { (part: String) -> String in tr(part) }
+            let whole = zip(parts, done).allSatisfy { (pair: (String, String)) -> Bool in
+                pair.0.trimmingCharacters(in: .whitespaces).isEmpty || pair.0 != pair.1
+            }
+            if whole && done != parts { return done.joined(separator: "\n") }
+        }
         return text
     }
 

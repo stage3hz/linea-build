@@ -128,8 +128,8 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
     }
 
     private static var glassOpaque: UIColor {
-        let look = ThemeStore.look
-        return UIColor(hex: look.black ? 0x0F1011 : look.dark ? 0x17243A : 0xF6F8FD)
+        // The theme's own `glassOpaque` (theme.tsx): «Графит» has its own grey, not the blue theme's navy.
+        return ThemeStore.look.glassOpaque
     }
 
     // MARK: Building
@@ -639,7 +639,9 @@ final class AttachmentPanelController: UIViewController, UICollectionViewDataSou
                 editBadge.backgroundColor = UIColor(white: 0, alpha: 0.6)
                 editBadge.layer.cornerRadius = 9
                 editBadge.clipsToBounds = true
-                editBadge.frame = CGRect(x: 5, y: 104 - 5 - 20, width: 70, height: 20)
+                // As wide as its words with 6 on each side (`paddingHorizontal: 6`): a fixed 70 left no room on the right.
+                let badgeWidth = min(104 - 10, ceil(words.boundingRect(with: CGSize(width: 200, height: 20), options: [.usesLineFragmentOrigin], context: nil).width) + 12)
+                editBadge.frame = CGRect(x: 5, y: 104 - 5 - 20, width: badgeWidth, height: 20)
                 tile.addSubview(editBadge)
                 let number = numberBadge(index + 1)
                 number.frame.origin = CGPoint(x: 5, y: 5)

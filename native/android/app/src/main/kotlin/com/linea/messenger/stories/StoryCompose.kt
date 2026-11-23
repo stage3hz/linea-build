@@ -333,6 +333,11 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
 
   private val backButton = StoryIconView(context, "ion:chevron-back", 23f, Theme.text)
   private val heading = TextView(context)
+  private val header: com.linea.messenger.design.GlassHeaderView by lazy {
+    val words = heading.text.toString()
+    com.linea.messenger.design.GlassHeaderView(context, words, titleSize = Theme.TypeSize.pageTitleSize(words), lineHeight = 28f, padding = 8f,
+      minHeight = 60f, back = { goBack() }, backLabel = "Назад")
+  }
   private val preview = ImageView(context)
   private val playMark = StoryIconView(context, "ion:play", 26f, Color.WHITE, 0x66000000)
   private val spinner = ProgressBar(context)
@@ -352,7 +357,6 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
 
     backButton.contentDescription = "Назад"
     backButton.setOnClickListener { goBack() }
-    addView(backButton)
     heading.text = StoryRules.word(if (kind == "story") "removeStory" else "removePost")
     heading.textSize = 20f
     heading.typeface = Theme.weight(600)
@@ -360,10 +364,28 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
     heading.gravity = Gravity.CENTER_VERTICAL
     heading.maxLines = 1
     if (Build.VERSION.SDK_INT >= 28) heading.isAccessibilityHeading = true
-    addView(heading)
+    // The settings pages' glass header (SettingsKit: a pill 12 from the edges with the round back button and the name)
+    // in place of the bare back arrow and name: this screen has no reference of its own, and the owner's bars are glass.
+    addView(header)
 
     preview.scaleType = ImageView.ScaleType.FIT_CENTER
     preview.background = context.plate(Theme.surface2 or 0xFF000000.toInt(), 22f)
+    // The picture is fitted whole; its rounded shape is the fitted picture's, so a tall or wide one shows no square
+    // corners inside a rounded box. Before it is here: the whole box, rounded.
+    preview.outlineProvider = object : android.view.ViewOutlineProvider() {
+      override fun getOutline(view: View, outline: android.graphics.Outline) {
+        val box = Rect(0, 0, view.width, view.height)
+        val picture = preview.drawable
+        val wide = picture?.intrinsicWidth ?: 0
+        val tall = picture?.intrinsicHeight ?: 0
+        if (wide > 0 && tall > 0 && view.width > 0 && view.height > 0) {
+          val scale = minOf(view.width.toFloat() / wide, view.height.toFloat() / tall)
+          val w = (wide * scale).roundToInt(); val h = (tall * scale).roundToInt()
+          box.set((view.width - w) / 2, (view.height - h) / 2, (view.width - w) / 2 + w, (view.height - h) / 2 + h)
+        }
+        outline.setRoundRect(box, 22f * resources.displayMetrics.density)
+      }
+    }
     preview.clipToOutline = true
     addView(preview)
     playMark.visibility = View.GONE
@@ -417,9 +439,9 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
   }
 
   override fun place(width: Int, height: Int) {
-    val top = edges.top + dp(4f)
-    put(backButton, dp(6f), top, dp(44f), dp(44f))
-    put(heading, dp(52f), top, width - dp(52f) - dp(16f), dp(44f))
+    header.measure(MeasureSpec.makeMeasureSpec(width - dp(24f), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+    put(header, dp(12f), edges.top + dp(12f), width - dp(24f), header.measuredHeight)
+    val headerBottom = edges.top + dp(12f) + header.measuredHeight
     // The bar ends where the keyboard begins, so the caption is never under it.
     val barTall = dp(6f + 44f + 4f + 48f + 10f)
     val barTop = height - maxOf(edges.keyboard, edges.bottom) - dp(10f) - barTall
@@ -433,7 +455,7 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
     val problemTall = if (problemLabel.text.isNullOrEmpty()) 0 else problemLabel.measuredHeight
     val problemTop = barTop - dp(8f) - problemTall
     problemLabel.layout(dp(20f), problemTop, width - dp(20f), problemTop + problemTall)
-    val previewTop = top + dp(44f + 8f)
+    val previewTop = headerBottom + dp(8f)
     val previewTall = maxOf(0, problemTop - dp(8f) - previewTop)
     put(preview, dp(16f), previewTop, width - dp(32f), previewTall)
     val middle = previewTop + previewTall / 2
@@ -468,7 +490,7 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
     spinner.visibility = View.GONE
     if (made != null) {
       prepared = made
-      preview.setImageBitmap(made.picture)
+      preview.setImageBitmap(made.picture); preview.invalidateOutline()
       preview.contentDescription = StoryRules.word(if (made.isVideo) "video" else "photo")
       playMark.visibility = if (made.isVideo) View.VISIBLE else View.GONE
     } else {
@@ -483,6 +505,7 @@ class StoryComposeScreen(context: Context, private val messenger: Messenger?, pr
     publishButton.isEnabled = prepared != null && !busy
     captionField.isEnabled = !busy
     backButton.isEnabled = !busy
+    header.backButton?.isEnabled = !busy
   }
 
   private class Caption(val caption: String, val error: String, val left: Int)

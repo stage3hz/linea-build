@@ -1236,6 +1236,12 @@ private final class SheetRow: UIControl {
         valueLabel.font = .systemFont(ofSize: 16)
         valueLabel.textColor = UIColor(hex: 0xAAAAAA)
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
+        // The reference's row: the words take what is left (`flex: 1`, wrapping), the value keeps its whole width
+        // («Обычная» was cut to «Обыч…» by a long «Скорость воспроизведения»).
+        label.numberOfLines = 2
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        valueLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        valueLabel.setContentHuggingPriority(.required, for: .horizontal)
         for part in [icon, label, valueLabel] as [UIView] {
             part.isUserInteractionEnabled = false
             addSubview(part)
@@ -1247,7 +1253,7 @@ private final class SheetRow: UIControl {
             icon.widthAnchor.constraint(equalToConstant: 24),
             label.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 20),
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
-            valueLabel.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 8),
+            valueLabel.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 20), // `gap: 20`
             valueLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
             valueLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])

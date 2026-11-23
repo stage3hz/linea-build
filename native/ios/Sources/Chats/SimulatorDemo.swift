@@ -19,7 +19,7 @@ enum SimulatorDemo {
         let rows: [[String: Any]] = people.enumerated().map { index, person -> [String: Any] in
             let (title, preview, time, color, unread, muted, pinned, ticks, section) = person
             let orb = orbPair(color)
-            let initials = title.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined()
+            let initials = Messenger.initials(title) // the real rows' rule (upper case, as the reference's Avatar)
             return ["id": "demo-\(index)", "title": title, "preview": preview, "time": time, "unread": unread, "muted": muted, "pinned": pinned, "ticks": ticks,
                     "avatarColor": Int(0xFF00_0000 | color), "initials": initials, "orbA": orb.light, "orbB": orb.deep, "section": section,
                     "previewIcon": preview == "Голосовое сообщение" ? "mic" : ""]

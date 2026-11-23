@@ -555,7 +555,8 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     val stack = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     // The words under the title (MuteSheet.tsx): 13, line 19, `muted`, two lines at most, 6 above the actions.
     if (note.isNotEmpty()) stack.addView(TextView(context).apply {
-      text = note; textSize = 13f; typeface = Theme.weight(400); setTextColor(Theme.muted); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
+      // The reference's note has no line limit (ChatSheets.tsx): two lines cut it mid-sentence.
+      text = note; textSize = 13f; typeface = Theme.weight(400); setTextColor(Theme.muted)
       if (android.os.Build.VERSION.SDK_INT >= 28) lineHeight = dp(19f)
     }, LinearLayout.LayoutParams(wide, wrap).apply { bottomMargin = dp(6f) })
     for (choice in choices) stack.addView(row(choice), LinearLayout.LayoutParams(wide, wrap))

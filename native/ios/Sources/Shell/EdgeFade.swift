@@ -59,9 +59,9 @@ class ProgressiveEdgeView: UIView {
     var reach: CGFloat = EdgeRamp.reach
     /// Over how many points (ending at `reach` past the bar) the colour fades out.
     var fade: CGFloat = EdgeRamp.fade
-    /// A top edge only: the status bar's height. The colour is laid a second time over it (fading out 10 pt below,
-    /// as the reference's extra status-bar layer), so under the clock the cover is near-solid
-    /// (1 − (1 − strength)²) and nothing scrolling there stays readable; the strength itself is unchanged.
+    /// A top edge only: the status bar's height. The colour is laid over it once more, solid (fading out 10 pt below,
+    /// as the reference's extra status-bar layer): under the clock nothing scrolling stays readable (without the
+    /// reference's blur a .85 cover still let text show there); below the band the strength is unchanged.
     var statusBand: CGFloat = 0
     /// Solid over the whole bar: the fade (still `fade` long) begins only at the bar's inner edge, so nothing behind
     /// the bar's clear glass shows through; false: the fade ends `reach` past the bar (and may begin inside it).
@@ -121,7 +121,7 @@ class ProgressiveEdgeView: UIView {
             band.frame = CGRect(x: 0, y: 0, width: width, height: bandHeight)
             band.startPoint = CGPoint(x: 0.5, y: 0)
             band.endPoint = CGPoint(x: 0.5, y: 1)
-            band.colors = [tone.withAlphaComponent(strength).cgColor, tone.withAlphaComponent(strength).cgColor, tone.withAlphaComponent(0).cgColor]
+            band.colors = [tone.withAlphaComponent(1).cgColor, tone.withAlphaComponent(1).cgColor, tone.withAlphaComponent(0).cgColor]
             band.locations = [0, NSNumber(value: Double(bandSolid / bandHeight)), 1]
         }
         CATransaction.commit()

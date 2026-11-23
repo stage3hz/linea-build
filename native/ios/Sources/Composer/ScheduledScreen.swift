@@ -284,11 +284,12 @@ private final class ScheduledCard: UIView {
         super.layoutSubviews()
         let width = bounds.width, inner = width - 28
         mark.frame = CGRect(x: 14, y: 14, width: 18, height: 20)
-        let pillWidth: CGFloat = item.silent ? 82 : 0
+        // The reference's chip: 8 in, the glyph 13, 4, the words, 8 in — as wide as its words (a fixed 82 cut them).
+        let pillWidth: CGFloat = item.silent ? 8 + 13 + 4 + ceil(silentLabel.sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: 20)).width) + 8 : 0
         whenLabel.frame = CGRect(x: 40, y: 14, width: inner - 26 - pillWidth - 8, height: 20)
         silentPill.frame = CGRect(x: width - 14 - pillWidth, y: 14, width: pillWidth, height: 20)
         silentMark.frame = CGRect(x: 8, y: 0, width: 13, height: 20)
-        silentLabel.frame = CGRect(x: 25, y: 0, width: pillWidth - 29, height: 20)
+        silentLabel.frame = CGRect(x: 25, y: 0, width: max(0, pillWidth - 33), height: 20)
         var y: CGFloat = 42
         let bodyHeight = ceil(bodyLabel.sizeThatFits(CGSize(width: inner, height: 400)).height)
         bodyLabel.frame = CGRect(x: 14, y: y, width: inner, height: bodyHeight)

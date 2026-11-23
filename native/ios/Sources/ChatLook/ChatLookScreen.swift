@@ -254,7 +254,10 @@ final class ChatLookScreen: NSObject {
     }
 
     /// Places the header after the screen and ChatActions placed theirs (`safeTop`: the status bar).
-    func place(in view: UIView, safeTop: CGFloat) {
+    /// `coverBottom`: where what stands under the header ends (the player strip, the search line, the pinned message):
+    /// the reference measures its header with them (ChatScreen.tsx `headerHeight`), so the cover reaches past them and
+    /// no message shows through their glass; nil: the header alone.
+    func place(in view: UIView, safeTop: CGFloat, coverBottom: CGFloat? = nil) {
         let width = view.bounds.width
         let height = view.bounds.height
         wallpaper.frame = CGRect(x: 0, y: 0, width: width, height: height)
@@ -262,7 +265,7 @@ final class ChatLookScreen: NSObject {
         light.frame = CGRect(x: 0, y: -80, width: width, height: height + 140)
         guard let header, let heading, let back, let call, let status else { return }
         edge.statusBand = safeTop // EdgeFade: under the clock the colour lies twice: nothing readable there
-        edge.place(width: width, size: header.frame.maxY)
+        edge.place(width: width, size: max(header.frame.maxY, coverBottom ?? 0))
         // ChatActions hides the name while messages are being chosen: the glass goes with it.
         let choosing = heading.isHidden
         for part in [backPill, namePill, callPill] as [UIView] { part.isHidden = choosing }
@@ -357,14 +360,20 @@ final class ChatLookScreen: NSObject {
     /// The large picture with «Открыть профиль» and «Поиск».
     func showPeek() {
         guard let host else { return }
-        // Avatars: the decorated, animated avatar of 220 points (the reference's `DecoratedAvatar size={220} animated
-        // round`): its frame, art or code frame, the silent video avatar; the gap of a ring is the card's colour.
+        // Avatars: the animated avatar of 220 points (the reference's `DecoratedAvatar size={220} animated round`), the
+        // silent video avatar; the gap of a ring is the card's colour. Owner's rule: frames only in the chat list and
+        // profiles — this card belongs to the chat (as the header's avatar, `showPeer`), so it is plain: the art
+        // reached up to 1.5× past the picture and covered the name and «в сети» under it.
         let large = DecoratedAvatarView()
+        var plain = PersonLook(peer)
+        plain.avatarFrame = ""
+        plain.seal = ""
+        plain.birthday = ""
         let shownName = (peer["displayName"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? name
         large.ringBackground = Theme.dark ? UIColor(hex: 0x1C1C1E) : .white
         large.show(Person(id: peerId, username: "", displayName: shownName, bio: "", birthday: "",
                           avatarColor: peer["avatarColor"] == nil ? 0x5E7BFF : avatarColor, avatarId: avatarId),
-                   look: PersonLook(peer), base: messenger?.server.endpoint ?? "", animated: true)
+                   look: plain, base: messenger?.server.endpoint ?? "", animated: true)
         var items: [AvatarPeekController.Item] = [
             AvatarPeekController.Item(symbol: "person.crop.circle", label: "Открыть профиль", run: { [weak self] in self?.openProfile() }),
         ]

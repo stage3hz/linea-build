@@ -268,7 +268,11 @@ class SettingsPage: UIViewController {
             rules.append(made.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: side))
             rules.append(made.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -side))
             rules.append(scroll.topAnchor.constraint(equalTo: view.topAnchor))
-            // The page ends where the keyboard begins, so a field is never under it.
+            // The page ends where the keyboard begins, so a field is never under it; without the keyboard it runs to the
+            // screen's bottom, under the home indicator (the reference's `useBleed`): the guide must not stop at the safe
+            // area, or the list was cut off 34 pt above the bottom with an empty strip below. The room for the home
+            // indicator is the content's bottom inset (`viewDidLayoutSubviews`).
+            view.keyboardLayoutGuide.usesBottomSafeArea = false
             rules.append(scroll.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor))
         }
         NSLayoutConstraint.activate(rules)
@@ -284,6 +288,11 @@ class SettingsPage: UIViewController {
             let wanted = below + (ownLook?.columnTop ?? 16) - 8
             if let columnTop, columnTop.constant != wanted { columnTop.constant = wanted }
             if scroll.verticalScrollIndicatorInsets.top != below { scroll.verticalScrollIndicatorInsets.top = below }
+            let floor = view.safeAreaInsets.bottom
+            if scroll.contentInset.bottom != floor {
+                scroll.contentInset.bottom = floor
+                scroll.verticalScrollIndicatorInsets.bottom = floor
+            }
             headerEdge.color = Theme.bg
             headerEdge.place(width: view.bounds.width, size: below)
             view.bringSubviewToFront(headerEdge)

@@ -252,14 +252,17 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     put(floorEdge, 0, height - total, width, total)
   }
 
-  /** Places the header after the screen and ChatActions placed theirs (`safeTop`: the status bar), px. */
-  fun place(width: Int, height: Int, safeTop: Int) {
+  /** Places the header after the screen and ChatActions placed theirs (`safeTop`: the status bar), px. `coverBottom`:
+   *  where what stands under the header ends (the player strip, the search line, the pinned message): the reference
+   *  measures its header with them (ChatScreen.tsx `headerHeight`), so the cover reaches past them and no message
+   *  shows through their glass; 0: the header alone. */
+  fun place(width: Int, height: Int, safeTop: Int, coverBottom: Int = 0) {
     val heading = heading ?: return; val back = back ?: return; val call = call ?: return; val status = status ?: return
     // The light runs past the screen's edges (top -80, bottom -60), as in the reference.
     light.translationY = -80 * d
     light.scaleY = (height + 140 * d) / height.coerceAtLeast(1)
     light.pivotY = 0f
-    val headerSize = safeTop + dp(52f)
+    val headerSize = maxOf(safeTop + dp(52f), coverBottom)
     edge.size = headerSize.toFloat()
     edge.statusBand = safeTop // EdgeFade: under the clock the colour lies twice: nothing readable there
     put(edge, 0, 0, width, headerSize + dp(edge.past))
@@ -345,11 +348,13 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
 
   /** The large picture with «Открыть профиль», «Поиск» and «Отправить подарок». */
   fun showPeek() {
-    // Avatars: the decorated, animated avatar of 220 dp (the reference's `DecoratedAvatar size={220} animated round`):
-    // its frame, art or code frame, the silent video avatar; the gap of a ring is the card's colour.
+    // Avatars: the animated avatar of 220 dp (the reference's `DecoratedAvatar size={220} animated round`), the silent
+    // video avatar; the gap of a ring is the card's colour. Owner's rule: frames only in the chat list and profiles —
+    // this card belongs to the chat (as the header's avatar), so it is plain: the art reached up to 1.5× past the
+    // picture and covered the name and «в сети» under it.
     val large = DecoratedAvatarView(context)
     large.ringBackground = if (Theme.dark) 0xFF1C1C1E.toInt() else 0xFFFFFFFF.toInt()
-    large.show(person(), PersonLook.from(peer), base, animated = true)
+    large.show(person(), PersonLook.from(peer).copy(avatarFrame = "", seal = "", birthday = ""), base, animated = true)
     val items = arrayListOf(AvatarPeek.Item("person", "Открыть профиль") { host.openProfile() })
     onSearch?.let { items.add(AvatarPeek.Item("search", "Поиск", it)) }
     onGift?.let { items.add(AvatarPeek.Item("gift", "Отправить подарок", it)) }

@@ -202,6 +202,11 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
     private let backButton = UIButton(type: .system)
     private let heading = UILabel()
     private let preview = UIImageView()
+    /// The settings pages' glass header (SettingsKit: a pill 12 from the edges with the round back button and the
+    /// name): this screen has no reference of its own, and the owner's bars are glass.
+    private var header: GlassHeaderView?
+    /// The picture's own shape: the rounded corners belong to the picture, not to the box it is fitted in.
+    private let previewShape = CAShapeLayer()
     private let playMark = UIImageView()
     private let spinner = UIActivityIndicatorView(style: .medium)
     private let problemLabel = UILabel()
@@ -283,7 +288,12 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         publishSpinner.hidesWhenStopped = true
         publishSpinner.isUserInteractionEnabled = false
 
-        let parts: [UIView] = [backButton, heading, preview, playMark, spinner, problemLabel, bar]
+        let pageTitle = heading.text ?? ""
+        let made = GlassHeaderView(title: pageTitle, titleSize: Theme.TypeSize.pageTitleSize(pageTitle), lineHeight: 28, padding: 8, minHeight: 60,
+                                   back: { [weak self] () -> Void in self?.goBack() }, backLabel: "Назад")
+        header = made
+        preview.layer.mask = previewShape
+        let parts: [UIView] = [made, preview, playMark, spinner, problemLabel, bar]
         for part in parts {
             part.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(part)
@@ -296,15 +306,11 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         let safe = view.safeAreaLayoutGuide
         let inside = bar.contentView
         NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: safe.topAnchor, constant: 4),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 6),
-            backButton.widthAnchor.constraint(equalToConstant: 44),
-            backButton.heightAnchor.constraint(equalToConstant: 44),
-            heading.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 2),
-            heading.centerYAnchor.constraint(equalTo: backButton.centerYAnchor),
-            heading.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -16),
+            made.topAnchor.constraint(equalTo: safe.topAnchor, constant: 12),
+            made.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+            made.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
 
-            preview.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 8),
+            preview.topAnchor.constraint(equalTo: made.bottomAnchor, constant: 8),
             preview.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             preview.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             preview.bottomAnchor.constraint(equalTo: problemLabel.topAnchor, constant: -8),
@@ -341,6 +347,24 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
 
     @objc private func goBack() { navigationController?.popViewController(animated: true) }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // The picture is fitted whole (aspect fit); its rounded shape is the fitted picture's, so a tall or wide one
+        // shows no square corners inside a rounded box. Before it is here: the whole box, rounded.
+        let box = preview.bounds
+        var shape = box
+        if let image = preview.image, image.size.width > 0, image.size.height > 0, box.width > 0, box.height > 0 {
+            let scale = min(box.width / image.size.width, box.height / image.size.height)
+            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            shape = CGRect(x: (box.width - size.width) / 2, y: (box.height - size.height) / 2, width: size.width, height: size.height)
+        }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        previewShape.frame = box
+        previewShape.path = UIBezierPath(roundedRect: shape, cornerRadius: 22).cgPath
+        CATransaction.commit()
+    }
+
     @objc private func endTyping() { view.endEditing(true) }
 
     /// What was chosen is ready (or could not be made ready).
@@ -351,6 +375,7 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         case .success(let made):
             prepared = made
             preview.image = made.picture
+            view.setNeedsLayout() // the picture's own shape (`viewDidLayoutSubviews`)
             preview.accessibilityLabel = StoryRules.word(made.isVideo ? "video" : "photo")
             playMark.isHidden = !made.isVideo
         case .failure(let failure):
@@ -367,6 +392,7 @@ final class StoryComposeViewController: UIViewController, UITextFieldDelegate {
         if busy { publishSpinner.startAnimating() } else { publishSpinner.stopAnimating() }
         captionField.isEnabled = !busy
         backButton.isEnabled = !busy
+        header?.backButton?.isEnabled = !busy
     }
 
     private func checked() -> (caption: String, error: String, left: Int) {

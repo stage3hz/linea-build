@@ -135,6 +135,8 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         addSubview(keyPill)
         keyLabel.textColor = .white
         keyLabel.textAlignment = .center
+        keyLabel.adjustsFontSizeToFitWidth = true // a narrow phone: the line shrinks a little rather than lose its end
+        keyLabel.minimumScaleFactor = 0.8
         keyPill.addSubview(keyLabel)
         keyLock.image = IonIcon.image("lock-closed", size: 13)
         keyLock.tintColor = .white
@@ -482,9 +484,12 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         minimizeButton.frame = CGRect(x: 16, y: safeAreaInsets.top + 6, width: 40, height: 40)
 
         // With the key: padding 12 × 6, the lock, 6 pt, the emoji; before it — the words alone, centred.
+        // The words alone are a plain centred line in the reference (no pill, no limit but the screen): they may use
+        // all the width between the «Свернуть» buttons' columns (cut short at width − 140 they lost their end).
         let lockRoom: CGFloat = keyLock.isHidden ? 0 : 13 + 6
-        let keySize = keyLabel.sizeThatFits(CGSize(width: width - 140, height: 40))
-        let pillWidth = min(width - 140, keySize.width + lockRoom + 24)
+        let room = keyLock.isHidden ? max(0, width - 2 * minimizeButton.frame.maxX) : width - 140
+        let keySize = keyLabel.sizeThatFits(CGSize(width: room, height: 40))
+        let pillWidth = keyLock.isHidden ? room : min(room, keySize.width + lockRoom + 24)
         let pillHeight: CGFloat = keyLock.isHidden ? 34 : ceil(keySize.height) + 12
         keyPill.frame = CGRect(x: (width - pillWidth) / 2, y: top, width: pillWidth, height: pillHeight)
         keyLock.frame = CGRect(x: 12, y: (pillHeight - 13) / 2, width: 13, height: 13)

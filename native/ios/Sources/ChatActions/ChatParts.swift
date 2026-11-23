@@ -518,7 +518,7 @@ final class ChoiceSheet: UIViewController {
         style.minimumLineHeight = 19
         style.maximumLineHeight = 19
         noteLabel.attributedText = NSAttributedString(string: noteWords, attributes: [.font: UIFont.systemFont(ofSize: 13), .foregroundColor: Theme.muted, .paragraphStyle: style])
-        noteLabel.numberOfLines = 2
+        noteLabel.numberOfLines = 0 // the reference's note has no line limit (ChatSheets.tsx): two lines cut it mid-sentence
         noteLabel.isHidden = noteWords.isEmpty
         scroll.addSubview(noteLabel)
         for (index, choice) in choices.enumerated() {
@@ -603,7 +603,7 @@ final class ChoiceSheet: UIViewController {
         let inner = width - 44
         var y: CGFloat = 0
         if !noteWords.isEmpty {
-            let noteHeight = min(38, noteLabel.sizeThatFits(CGSize(width: inner, height: 38)).height)
+            let noteHeight = ceil(noteLabel.sizeThatFits(CGSize(width: inner, height: CGFloat.greatestFiniteMagnitude)).height)
             noteLabel.frame = CGRect(x: 0, y: 0, width: inner, height: noteHeight)
             y = noteHeight + 6
         }

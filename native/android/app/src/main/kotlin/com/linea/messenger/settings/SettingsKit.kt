@@ -286,10 +286,13 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       // of its own look: its margin (2) and its column's top.
       val below = edges.top + dp(12f) + header.measuredHeight + dp(if (own == null) 7f else 2f)
       val first = below + dp(own?.columnTop ?: 16f)
-      if (column.paddingTop != first) column.setPadding(dp(side), first, dp(side), dp(bottomRoom))
+      // The page ends where the keyboard begins, so a field is never under it; without the keyboard it runs to the
+      // screen's bottom, under the navigation bar (the reference's `useBleed`), and the column keeps the bar's room
+      // below its last part (ending the page at the bar cut the list off with an empty strip below).
+      val floor = if (edges.keyboard > 0) 0 else edges.bottom
+      if (column.paddingTop != first || column.paddingBottom != dp(bottomRoom) + floor) column.setPadding(dp(side), first, dp(side), dp(bottomRoom) + floor)
       put(headerEdge, 0, 0, width, below)
-      // The page ends where the keyboard begins, so a field is never under it.
-      put(behind, 0, 0, width, height - maxOf(edges.keyboard, edges.bottom))
+      put(behind, 0, 0, width, height - edges.keyboard)
     }
   }
 

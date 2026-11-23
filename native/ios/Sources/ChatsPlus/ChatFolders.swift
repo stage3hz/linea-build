@@ -537,7 +537,7 @@ final class FoldersSettingsPage: SettingsPage {
         let create = SettingsRow(symbol: "ion:add", label: "Создать папку")
         create.onPress = { [weak self] in self?.edit(nil) }
         addGroup(rows: [create])
-        add(SettingsLook.caption("Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты."), gap: 8)
+        add(SettingsLook.foot("Папки хранятся только на этом устройстве; сервер не знает, как ты группируешь чаты."), gap: 8) // SettingsScreen.tsx: plain muted words (12), not a caption
     }
 
     private func edit(_ folder: ChatFolder?) {

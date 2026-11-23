@@ -199,8 +199,11 @@ final class PollComposerController: UIViewController, UITextFieldDelegate {
             addButton.frame = CGRect(x: 16, y: y, width: width - 32, height: 36)
             y += 44
         }
-        multipleLabel.frame = CGRect(x: 16, y: y, width: width - 32 - 60, height: 32)
-        multipleSwitch.frame = CGRect(x: width - 16 - 51, y: y, width: 51, height: 31)
+        // The switch at its own size (wider than 51 on newer systems: a fixed 51 let it stick out past the margin),
+        // its right edge 16 in, centred on the label's line.
+        let knob = multipleSwitch.sizeThatFits(.zero)
+        multipleLabel.frame = CGRect(x: 16, y: y, width: max(0, width - 32 - knob.width - 9), height: 32)
+        multipleSwitch.frame = CGRect(x: width - 16 - knob.width, y: y + (32 - knob.height) / 2, width: knob.width, height: knob.height)
         y += 46
         sendButton.frame = CGRect(x: 16, y: y, width: width - 32, height: 50)
         y += 50 + 40
