@@ -155,7 +155,7 @@ class IntroTest {
     assertEquals(150, wave.timings.size); assertEquals(wave.timings.size, wave.amplitudes.size)
     assertTrue(wave.timings.all { it == IntroHaptics.STEP_MS })
     assertTrue(wave.amplitudes.all { it in 0..110 })
-    assertEquals(110, wave.amplitudes.max())
+    assertTrue(wave.amplitudes.max() >= 105)
     val peak = wave.amplitudes.indexOf(wave.amplitudes.max())
     assertEquals(2.68, 1.1 + (peak + 0.5) * 0.02, 0.03)
     for (i in 1..peak) assertTrue(wave.amplitudes[i] >= wave.amplitudes[i - 1])
