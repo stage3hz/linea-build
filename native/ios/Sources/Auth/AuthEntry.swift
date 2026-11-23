@@ -293,6 +293,21 @@ final class AuthNotice: UIView {
 final class AuthNote: UILabel {
     /// The height of each line; 0 — the font's own.
     var lineStep: CGFloat = 0
+    /// The widest the lines may be (the reference's `maxWidth`), standing in the middle of a wider label; 0 — no limit.
+    var widest: CGFloat = 0
+
+    private func narrowed(_ rect: CGRect) -> CGRect {
+        guard widest > 0, rect.width > widest else { return rect }
+        return rect.insetBy(dx: (rect.width - widest) / 2, dy: 0)
+    }
+
+    override func textRect(forBounds bounds: CGRect, limitedToNumberOfLines numberOfLines: Int) -> CGRect {
+        return super.textRect(forBounds: narrowed(bounds), limitedToNumberOfLines: numberOfLines)
+    }
+
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: narrowed(rect))
+    }
 
     override var text: String? {
         get { return super.text }
@@ -380,5 +395,111 @@ final class AuthSwitch: UIControl {
         guard sender.tag != selectedSegmentIndex else { return }
         selectedSegmentIndex = sender.tag
         sendActions(for: .valueChanged)
+    }
+}
+
+/// The three promises under the sign-in card (AuthScreen.tsx:361-362): «Сквозное шифрование», «Без почты и SMS»,
+/// «Ключи только у тебя» — each a chip (11 across, 7 down, radius 14, a 1-point rim in `border`, a faint veil: white
+/// 0.03 on dark themes, 0.4 on light), the Ionicon (13, accent) 6 before the words (11, semibold, quiet); the chips
+/// wrap and stand in the middle, 8 apart both ways.
+final class AuthTrustChips: UIView {
+    static let items: [(icon: String, words: String)] = [("lock-closed-outline", "Сквозное шифрование"),
+                                                         ("mail-unread-outline", "Без почты и SMS"),
+                                                         ("key-outline", "Ключи только у тебя")]
+    private static let gap: CGFloat = 8
+    private static let icon: CGFloat = 13
+    private var chips: [UIView] = []
+    private var marks: [UIImageView] = []
+    private var labels: [UILabel] = []
+
+    init() {
+        super.init(frame: .zero)
+        for item in AuthTrustChips.items {
+            let chip = UIView()
+            chip.layer.cornerRadius = 14
+            chip.layer.borderWidth = 1
+            chip.layer.borderColor = ThemeStore.look.border.cgColor
+            chip.backgroundColor = Theme.dark ? UIColor(white: 1, alpha: 0.03) : UIColor(white: 1, alpha: 0.4)
+            let mark = UIImageView(image: IonIcon.image(item.icon, size: AuthTrustChips.icon))
+            mark.tintColor = Theme.accent
+            let label = UILabel()
+            label.text = item.words
+            label.font = .systemFont(ofSize: 11, weight: .semibold)
+            label.textColor = Theme.muted
+            chip.addSubview(mark)
+            chip.addSubview(label)
+            chip.isAccessibilityElement = true
+            chip.accessibilityLabel = item.words
+            addSubview(chip)
+            chips.append(chip)
+            marks.append(mark)
+            labels.append(label)
+        }
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    /// One chip's size: 11 + icon + 6 + words + 11 across, 7 above and below the taller of the two.
+    private func chipSize(_ index: Int) -> CGSize {
+        let words = labels[index].sizeThatFits(CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude))
+        let width = 11 + AuthTrustChips.icon + 6 + ceil(words.width) + 11
+        let height = 7 + max(AuthTrustChips.icon, ceil(words.height)) + 7
+        return CGSize(width: width, height: height)
+    }
+
+    /// The chips in lines at this width (as many to a line as fit).
+    private func lines(_ width: CGFloat) -> [[Int]] {
+        var out: [[Int]] = []
+        var line: [Int] = []
+        var used: CGFloat = 0
+        for index in 0..<chips.count {
+            let wide = chipSize(index).width
+            if !line.isEmpty && used + AuthTrustChips.gap + wide > width {
+                out.append(line)
+                line = []
+                used = 0
+            }
+            used += (line.isEmpty ? 0 : AuthTrustChips.gap) + wide
+            line.append(index)
+        }
+        if !line.isEmpty { out.append(line) }
+        return out
+    }
+
+    /// The height the chips take at this width.
+    func fitHeight(_ width: CGFloat) -> CGFloat {
+        let rows = lines(width)
+        var total: CGFloat = 0
+        for row in rows {
+            var tallest: CGFloat = 0
+            for index in row { tallest = max(tallest, chipSize(index).height) }
+            total += tallest
+        }
+        return total + CGFloat(max(0, rows.count - 1)) * AuthTrustChips.gap
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        var y: CGFloat = 0
+        for row in lines(bounds.width) {
+            var rowWidth: CGFloat = 0
+            var tallest: CGFloat = 0
+            for index in row {
+                let size = chipSize(index)
+                rowWidth += size.width
+                tallest = max(tallest, size.height)
+            }
+            rowWidth += CGFloat(max(0, row.count - 1)) * AuthTrustChips.gap
+            var x = max(0, (bounds.width - rowWidth) / 2)
+            for index in row {
+                let size = chipSize(index)
+                chips[index].frame = CGRect(x: x, y: y, width: size.width, height: size.height)
+                marks[index].frame = CGRect(x: 11, y: (size.height - AuthTrustChips.icon) / 2, width: AuthTrustChips.icon, height: AuthTrustChips.icon)
+                let wordsWidth = size.width - 11 - AuthTrustChips.icon - 6 - 11
+                labels[index].frame = CGRect(x: 11 + AuthTrustChips.icon + 6, y: 7, width: wordsWidth, height: size.height - 14)
+                x += size.width + AuthTrustChips.gap
+            }
+            y += tallest + AuthTrustChips.gap
+        }
     }
 }

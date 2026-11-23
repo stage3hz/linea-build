@@ -58,7 +58,10 @@ final class AuthViewController: UIViewController {
     private let themePill = GlassPill(interactive: false)
     private let themeButton = UIButton(type: .custom)
     private let brand = WordmarkView(size: 60) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (Auth/AuthBackdrop.swift)
-    private let motto = UILabel()
+    /// «Сквозное шифрование», «Без почты и SMS», «Ключи только у тебя» under the card (AuthScreen.tsx:361-362); the
+    /// first to leave when the screen is short, away while the keyboard is up.
+    private let chips = AuthTrustChips()
+    private var chipsHeight: NSLayoutConstraint?
     private let heading = AppearingTextView() // Effects: the title's words rise in one after another (AppearingText)
     private let hint = AuthNote()
     private let switcher = AuthSwitch(items: ["Войти", "Создать аккаунт"])
@@ -193,9 +196,6 @@ final class AuthViewController: UIViewController {
     }
 
     private func build() {
-        motto.text = "Твоя линия связи."
-        motto.font = .systemFont(ofSize: 17)
-        motto.textColor = Theme.muted
         heading.accessibilityTraits = .header
         // The step's description: 14 on lines of 21, in the middle (AuthScreen.tsx:316).
         hint.font = .systemFont(ofSize: 14)
@@ -204,6 +204,7 @@ final class AuthViewController: UIViewController {
         hint.textAlignment = .center
         hint.lineBreakStrategy = []
         hint.lineStep = 21
+        hint.widest = 340 // AuthScreen.tsx:320 `maxWidth: 340`
 
         switcher.addTarget(self, action: #selector(switched), for: .valueChanged)
 
@@ -284,7 +285,8 @@ final class AuthViewController: UIViewController {
         column.axis = .vertical
         column.spacing = 12
         column.translatesAutoresizingMaskIntoConstraints = false
-        for part in [brand, motto, heading, hint] as [UIView] { column.addArrangedSubview(part) }
+        // AuthScreen.tsx:317-320: no line under the wordmark here («Твоя линия связи.» is the server-connect screen's).
+        for part in [brand, heading, hint] as [UIView] { column.addArrangedSubview(part) }
         // L: everything from the switch down is on the glass card (`gap: 18`, 22 inside).
         cardColumn.axis = .vertical
         cardColumn.spacing = 12
@@ -310,10 +312,14 @@ final class AuthViewController: UIViewController {
             cardColumn.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -22),
         ])
         column.addArrangedSubview(card)
-        column.setCustomSpacing(4, after: brand)
-        column.setCustomSpacing(28, after: motto)
-        column.setCustomSpacing(8, after: heading)
-        column.setCustomSpacing(24, after: hint)
+        column.addArrangedSubview(chips)
+        let chipsTall = chips.heightAnchor.constraint(equalToConstant: 0)
+        chipsTall.isActive = true
+        chipsHeight = chipsTall
+        column.setCustomSpacing(AuthFit.afterBrand, after: brand)
+        column.setCustomSpacing(AuthFit.afterHeading(true), after: heading)
+        column.setCustomSpacing(AuthFit.afterHint, after: hint)
+        column.setCustomSpacing(AuthFit.beforeChips, after: card)
         cardColumn.setCustomSpacing(18, after: switcher)
         cardColumn.setCustomSpacing(18, after: progress)
         cardColumn.setCustomSpacing(0, after: spacer)
@@ -514,6 +520,7 @@ final class AuthViewController: UIViewController {
             return ceil(label.sizeThatFits(CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)).height)
         }
         if let box = part as? AuthNotice { return box.fitHeight(width) }
+        if let row = part as? AuthTrustChips { return row.fitHeight(width) }
         let size = part.systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel)
         return ceil(size.height)
@@ -528,8 +535,8 @@ final class AuthViewController: UIViewController {
         part.alpha = shown ? 1 : 0
     }
 
-    /// Puts the screen in the arrangement it is in now (AuthFit): without the keyboard — the wordmark, the motto, the
-    /// title and the description, the card; with it — the title at the top and the card down to the keyboard with
+    /// Puts the screen in the arrangement it is in now (AuthFit): without the keyboard — the wordmark, the title and
+    /// the description, the card, the trust chips under it; with it — the title at the top and the card down to the keyboard with
     /// «Продолжить» at its bottom. Called inside the keyboard's own animation, it moves the screen together with it.
     private func arrange() {
         guard isViewLoaded, view.bounds.width > 0 else { return }
@@ -572,15 +579,15 @@ final class AuthViewController: UIViewController {
             if isIn(messages, part) { messageCost += cost(part, false) } else { core += cost(part, false) }
         }
         let brandHeight = AuthViewController.measure(brand, columnWidth)
-        let mottoHeight = AuthViewController.measure(motto, columnWidth)
+        let chipsTall = AuthViewController.measure(chips, columnWidth)
         let headingHeight = AuthViewController.measure(heading, columnWidth)
         let hintHeight = AuthViewController.measure(hint, columnWidth)
 
         // Without the keyboard: from under the theme pill's row to above the bottom edge.
         let small: CGFloat = keyboardOverlap > AuthFit.keyboard ? 0 : keyboardOverlap
         let fullRoom = view.bounds.height - max(small, safe.bottom) - AuthFit.edge - (safe.top + AuthFit.pillRow)
-        let plan = AuthFit.full(room: fullRoom, brand: brandHeight, motto: mottoHeight, heading: headingHeight, hint: hintHeight,
-                                card: 2 * AuthFit.pad + core + messageCost,
+        let plan = AuthFit.full(room: fullRoom, brand: brandHeight, heading: headingHeight, hint: hintHeight,
+                                card: 2 * AuthFit.pad + core + messageCost, chips: chipsTall,
                                 helps: parts(helps, false), chrome: parts(chrome, false), extras: parts(extras, false))
         // With the keyboard: the card's inside from under the title to above the keyboard.
         let plateTop = safe.top + AuthFit.compactTop + headingHeight + AuthFit.compactHeadingGap
@@ -593,13 +600,13 @@ final class AuthViewController: UIViewController {
             showPart(part, wants(part) && keep.contains(AuthViewController.key(part)))
         }
         showPart(brand, !compact && plan.brand)
-        showPart(motto, !compact && plan.motto)
+        showPart(chips, !compact && plan.chips)
+        chipsHeight?.constant = chipsTall
         showPart(hint, !compact && plan.hint)
         if spacer.isHidden == compact { spacer.isHidden = !compact }
         themePill.alpha = compact ? 0 : 1
         themePill.isUserInteractionEnabled = !compact
-        column.setCustomSpacing(AuthFit.afterBrand(plan.motto), after: brand)
-        column.setCustomSpacing(AuthFit.afterMotto, after: motto)
+        column.setCustomSpacing(AuthFit.afterBrand, after: brand)
         column.setCustomSpacing(compact ? AuthFit.compactHeadingGap : AuthFit.afterHeading(plan.hint), after: heading)
         column.setCustomSpacing(AuthFit.afterHint, after: hint)
         let chromeGap: CGFloat = compact ? AuthFit.compactChromeGap : AuthFit.chromeGap
@@ -734,7 +741,11 @@ final class AuthViewController: UIViewController {
         // A field that was closed for the time of a request gets the keyboard back.
         let freed = shownBusy && !busy
         shownBusy = busy
-        heading.show(headingWords(mode), font: .systemFont(ofSize: 22, weight: .semibold), color: Theme.text) // Effects
+        // AuthScreen.tsx:320: 24 Bold on lines of 30, -0.6 apart, in the middle (with the keyboard up too).
+        heading.show(headingWords(mode), font: .systemFont(ofSize: 24, weight: .bold), color: Theme.text, lineHeight: 30, kern: -0.6,
+                     alignment: .center) // Effects
+        // AuthScreen.tsx:318: the wordmark is 60 on the sign-in and register steps, 46 on the others.
+        brand.resize(isLogin || isRegister ? 60 : 46)
         hint.text = hintWords(mode)
 
         want(switcher, isLogin || isRegister)

@@ -264,3 +264,77 @@ class AuthNotice(context: Context, error: Boolean) : FrameLayout(context) {
     if (android.os.Build.VERSION.SDK_INT >= 28) label.lineHeight = context.px(19f)
   }
 }
+
+/** The three promises under the sign-in card (AuthScreen.tsx:361-362; iOS Auth/AuthEntry.swift `AuthTrustChips`):
+ *  «Сквозное шифрование», «Без почты и SMS», «Ключи только у тебя» — each a chip (11 across, 7 down, radius 14, a 1 dp
+ *  rim in `border`, a faint veil: white 0.03 on dark themes, 0.4 on light), the Ionicon (13, accent) 6 before the words
+ *  (11, semibold, quiet); the chips wrap and stand in the middle, 8 apart both ways. */
+class AuthTrustChips(context: Context) : android.view.ViewGroup(context) {
+  companion object {
+    val items = listOf("lock-closed-outline" to "Сквозное шифрование", "mail-unread-outline" to "Без почты и SMS", "key-outline" to "Ключи только у тебя")
+  }
+
+  private val gap = context.px(8f)
+
+  init {
+    for ((icon, label) in items) {
+      val chip = LinearLayout(context)
+      chip.orientation = LinearLayout.HORIZONTAL
+      chip.gravity = Gravity.CENTER_VERTICAL
+      chip.background = context.plate(if (Theme.dark) 0x08FFFFFF else 0x66FFFFFF, 14f).apply { setStroke(context.px(1f), ThemeStore.look.border) }
+      chip.setPadding(context.px(11f), context.px(7f), context.px(11f), context.px(7f))
+      val glyph = ImageView(context)
+      glyph.setImageDrawable(IonIcon.drawable(context, icon, context.px(13f), Theme.accent))
+      glyph.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+      chip.addView(glyph, LinearLayout.LayoutParams(context.px(13f), context.px(13f)))
+      chip.addView(context.words(label, 11f, Theme.muted, 600), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(6f) })
+      addView(chip)
+    }
+  }
+
+  /** The chips in lines at this width (as many to a line as fit). */
+  private fun rows(width: Int): List<List<View>> {
+    val out = ArrayList<List<View>>()
+    var line = ArrayList<View>()
+    var used = 0
+    for (index in 0 until childCount) {
+      val chip = getChildAt(index)
+      val wide = chip.measuredWidth
+      if (line.isNotEmpty() && used + gap + wide > width) {
+        out.add(line)
+        line = ArrayList()
+        used = 0
+      }
+      used += (if (line.isEmpty()) 0 else gap) + wide
+      line.add(chip)
+    }
+    if (line.isNotEmpty()) out.add(line)
+    return out
+  }
+
+  override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    val width = MeasureSpec.getSize(widthMeasureSpec)
+    val free = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+    for (index in 0 until childCount) getChildAt(index).measure(free, free)
+    val lines = rows(width)
+    var total = 0
+    for (line in lines) total += line.maxOf { it.measuredHeight }
+    total += maxOf(0, lines.size - 1) * gap
+    setMeasuredDimension(width, resolveSize(total, heightMeasureSpec))
+  }
+
+  override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+    val width = r - l
+    var y = 0
+    for (line in rows(width)) {
+      val lineWidth = line.sumOf { it.measuredWidth } + (line.size - 1) * gap
+      var x = maxOf(0, (width - lineWidth) / 2)
+      val tallest = line.maxOf { it.measuredHeight }
+      for (chip in line) {
+        chip.layout(x, y, x + chip.measuredWidth, y + chip.measuredHeight)
+        x += chip.measuredWidth + gap
+      }
+      y += tallest + gap
+    }
+  }
+}

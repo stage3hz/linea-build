@@ -879,6 +879,7 @@ class StoryViewersSheet(context: Context, private var found: StoryViewersData?) 
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, tall)
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
+      com.linea.messenger.design.sheetWindow(this, column) // the sheet's colour to the screen's bottom, under the bar
     }
     refresh()
   }

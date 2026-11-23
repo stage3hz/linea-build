@@ -748,6 +748,7 @@ class ReportSheet(context: Context, private val onSend: (String) -> Unit) : Dial
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
+      com.linea.messenger.design.sheetWindow(this, stack) // the sheet's colour to the screen's bottom, under the bar
     }
   }
 

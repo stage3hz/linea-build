@@ -63,6 +63,7 @@ class WallpaperPicker(context: Context, private val chatId: String?) : Dialog(co
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
+      com.linea.messenger.design.sheetWindow(this, stack) // the sheet's colour to the screen's bottom, under the bar
     }
     setCanceledOnTouchOutside(true)
     fill()

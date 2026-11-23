@@ -226,6 +226,7 @@ class GiftSheet(context: Context, private val messenger: Messenger?, private val
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
       setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+      com.linea.messenger.design.sheetWindow(this, stack) // the sheet's colour to the screen's bottom, under the bar
     }
     showPicked()
   }

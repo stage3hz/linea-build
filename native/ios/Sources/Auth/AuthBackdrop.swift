@@ -13,7 +13,9 @@ final class WordmarkView: UIView {
     private static let metalDark: [UInt32] = [0xB9C1CF, 0xFFFFFF, 0x8E99AD, 0xEEF1F6, 0xB9C1CF, 0xFFFFFF, 0x8E99AD]
     private static let metalLight: [UInt32] = [0x2E3542, 0x7B879B, 0x1E232D, 0x5A6477, 0x2E3542, 0x8893A7, 0x1E232D]
 
-    private let size: CGFloat
+    /// The letters' size: 60 on the sign-in and register steps, 46 on the others (AuthScreen.tsx:318
+    /// `size={isLogin||isRegister?60:46}`); `resize` changes it.
+    private(set) var size: CGFloat
     private let glow = UILabel()
     private let shadow = UILabel()
     private let metalBox = UIView()
@@ -27,6 +29,26 @@ final class WordmarkView: UIView {
         isAccessibilityElement = true
         accessibilityLabel = "Инвиз"
         accessibilityTraits = .header
+        addSubview(glow)
+        addSubview(shadow)
+        metalBox.layer.addSublayer(metal)
+        metalBox.mask = letters
+        addSubview(metalBox)
+        paint()
+        NotificationCenter.default.addObserver(self, selector: #selector(restart), name: Motion.changed, object: nil)
+    }
+
+    /// Sets the letters' size (the sweep starts again over the new width).
+    func resize(_ value: CGFloat) {
+        guard value != size else { return }
+        size = value
+        paint()
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+        restart()
+    }
+
+    private func paint() {
         let text = WordmarkView.words(size: size)
         let dark = Theme.dark
         let colours: [UIColor] = (dark ? WordmarkView.metalDark : WordmarkView.metalLight).map { UIColor(hex: $0) }
@@ -38,12 +60,8 @@ final class WordmarkView: UIView {
         metal.colors = colours.map { $0.cgColor }
         metal.startPoint = CGPoint(x: 0, y: 0.35)
         metal.endPoint = CGPoint(x: 1, y: 0.65)
-        metalBox.layer.addSublayer(metal)
         letters.attributedText = text
         letters.textAlignment = .center
-        metalBox.mask = letters
-        addSubview(metalBox)
-        NotificationCenter.default.addObserver(self, selector: #selector(restart), name: Motion.changed, object: nil)
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -59,7 +77,6 @@ final class WordmarkView: UIView {
         label.layer.shadowOpacity = 1
         label.layer.shadowRadius = radius / 2
         label.layer.shadowOffset = CGSize(width: 0, height: offset)
-        addSubview(label)
     }
 
     private static func words(size: CGFloat) -> NSAttributedString {

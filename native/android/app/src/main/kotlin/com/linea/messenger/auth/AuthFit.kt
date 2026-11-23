@@ -3,9 +3,10 @@ package com.linea.messenger.auth
 /** How the sign-in screen fits on the screen without scrolling (the same rules as iOS Auth/AuthFit.swift).
  *
  *  Two arrangements, and the screen moves between them once, together with the keyboard:
- *  - full (no keyboard): the wordmark, «Твоя линия связи.», the step's title and description, the glass card;
+ *  - full (no keyboard): the wordmark, the step's title and description (in the middle), the glass card, the three
+ *    trust chips under it (AuthScreen.tsx:317-362);
  *  - compact (the keyboard is up): the step's title at the top and the card right under it, down to the keyboard,
- *    with «Продолжить» at the card's bottom, just above the keyboard; the wordmark, the motto, the description and the
+ *    with «Продолжить» at the card's bottom, just above the keyboard; the wordmark, the description, the chips and the
  *    theme pill step aside.
  *  What does not fit leaves in a fixed order (the hint under the field stays longest), so the title, the field with its
  *  caption, what went wrong and the button are always above the keyboard. The parts above the fields (the progress and
@@ -37,20 +38,21 @@ object AuthFit {
   const val LINK_GAP = 4f
   /** A keyboard lower than this (a hardware keyboard's bar) keeps the full arrangement. */
   const val KEYBOARD = 100f
-  const val AFTER_MOTTO = 28f
+  /** Under the wordmark (AuthScreen.tsx:317 `marginBottom: 26`). */
+  const val AFTER_BRAND = 26f
+  /** Under the description (AuthScreen.tsx:320 `marginBottom: 24`). */
   const val AFTER_HINT = 24f
+  /** Above the trust chips, under the card (AuthScreen.tsx:361 `marginTop: 22`). */
+  const val BEFORE_CHIPS = 22f
 
-  /** Under the wordmark: 4 above the motto, more when the motto stepped aside. */
-  fun afterBrand(motto: Boolean): Float = if (motto) 4f else 20f
-
-  /** Under the title: 12 above the description (AuthScreen.tsx:316 `marginTop: 12`), more when it stepped aside. */
+  /** Under the title: 12 above the description (AuthScreen.tsx:320 `marginTop: 12`), more when it stepped aside. */
   fun afterHeading(hint: Boolean): Float = if (hint) 12f else 16f
 
   /** A part that may leave, with what it takes: its height and the gap that comes with it. */
   class Part(val id: String, val cost: Float)
 
   /** The full arrangement: which of the parts above the card stay, the room above them, the card's parts that stay. */
-  data class Plan(val brand: Boolean, val motto: Boolean, val hint: Boolean, val gap: Float, val kept: Set<String>)
+  data class Plan(val brand: Boolean, val chips: Boolean, val hint: Boolean, val gap: Float, val kept: Set<String>)
 
   /** Takes the parts in their order while they fit; returns what they take. */
   private fun take(parts: List<Part>, budget: Float, into: MutableSet<String>): Float {
@@ -91,12 +93,12 @@ object AuthFit {
 
   /** No keyboard: what stays above the card and on it, and the room above the wordmark.
    *  - `room`: from under the theme pill's row to above the navigation bar;
-   *  - `brand`, `motto`, `heading`, `hint`: the heights of the parts above the card;
+   *  - `brand`, `heading`, `hint`: the heights of the parts above the card; `chips`: the trust chips under it;
    *  - `card`: the card with its padding, the fields, the button and the messages (what always shows on it). */
-  fun full(room: Float, brand: Float, motto: Float, heading: Float, hint: Float, card: Float,
+  fun full(room: Float, brand: Float, heading: Float, hint: Float, card: Float, chips: Float,
            helps: List<Part>, chrome: List<Part>, extras: List<Part>, unit: Float): Plan {
-    fun top(withBrand: Boolean, withMotto: Boolean, withHint: Boolean): Float =
-      (if (withBrand) brand + afterBrand(withMotto) * unit else 0f) + (if (withMotto) motto + AFTER_MOTTO * unit else 0f) +
+    fun top(withBrand: Boolean, withHint: Boolean): Float =
+      (if (withBrand) brand + AFTER_BRAND * unit else 0f) +
         heading + (if (withHint) afterHeading(true) * unit + hint + AFTER_HINT * unit else afterHeading(false) * unit)
     var chromeCost = 0f
     for (part in chrome) chromeCost += part.cost
@@ -106,14 +108,15 @@ object AuthFit {
     for (part in extras) extraCost += part.cost
     val all = HashSet<String>()
     for (part in chrome + helps + extras) all.add(part.id)
-    // The motto leaves first, then the description.
-    for ((withMotto, withHint) in listOf(true to true, false to true, false to false)) {
-      val need = top(true, withMotto, withHint) + card + chromeCost + helpCost + extraCost
-      if (need <= room) return Plan(true, withMotto, withHint, minOf(TOP_GAP * unit, room - need), all)
+    // The chips leave first, then the description.
+    for ((withChips, withHint) in listOf(true to true, false to true, false to false)) {
+      val below = if (withChips) BEFORE_CHIPS * unit + chips else 0f
+      val need = top(true, withHint) + card + chromeCost + helpCost + extraCost + below
+      if (need <= room) return Plan(true, withChips, withHint, minOf(TOP_GAP * unit, room - need), all)
     }
     // Then the extras, then (when even the hints do not fit) the wordmark.
     for (withBrand in listOf(true, false)) {
-      val budget = room - top(withBrand, false, false) - card - chromeCost
+      val budget = room - top(withBrand, false) - card - chromeCost
       if (withBrand && budget < helpCost) continue
       val kept = HashSet<String>()
       for (part in chrome) kept.add(part.id)

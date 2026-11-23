@@ -19,8 +19,17 @@ import kotlin.math.pow
  *  variant="reveal"`, kit/ui/text-animation.tsx; iOS Effects/AppearingText.swift): word after word every 70 ms, each fades
  *  in over 400 ms (ease-out cubic) while it rises from 0.6 of a line on a soft, critically damped settle over 720 ms. It
  *  plays again when the text changes; with the app's animations off (effects/Motion.kt) the text is simply there. */
-class AppearingTextView(context: Context, size: Float, color: Int, weight: Int = 600) : View(context) {
-  private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size * resources.displayMetrics.density; this.color = color; typeface = Theme.weight(weight) }
+class AppearingTextView(context: Context, size: Float, color: Int, weight: Int = 600,
+                        /** How the lines stand: at the start (the default) or in the middle. */
+                        private val alignment: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL,
+                        /** The reference's `letterSpacing` in dp (0 — none). */
+                        spacing: Float = 0f,
+                        /** The reference's `lineHeight` in dp (0 — the font's own). */
+                        private val lineHeight: Float = 0f) : View(context) {
+  private val paint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+    textSize = size * resources.displayMetrics.density; this.color = color; typeface = Theme.weight(weight)
+    if (spacing != 0f) letterSpacing = spacing / size
+  }
   var text: String = ""
     private set
   private var layout: StaticLayout? = null
@@ -46,7 +55,11 @@ class AppearingTextView(context: Context, size: Float, color: Int, weight: Int =
     invalidate()
   }
 
-  private fun make(width: Int): StaticLayout = StaticLayout.Builder.obtain(text, 0, text.length, paint, maxOf(1, width)).setAlignment(Layout.Alignment.ALIGN_NORMAL).setIncludePad(false).build()
+  private fun make(width: Int): StaticLayout {
+    val extra = if (lineHeight > 0f) maxOf(0f, lineHeight * resources.displayMetrics.density - paint.getFontMetrics(null)) else 0f
+    return StaticLayout.Builder.obtain(text, 0, text.length, paint, maxOf(1, width)).setAlignment(alignment).setIncludePad(false)
+      .setLineSpacing(extra, 1f).build()
+  }
 
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -90,19 +103,35 @@ class AppearingTextView(context: Context, size: Float, color: Int, weight: Int =
  *  Auth/AuthBackdrop.swift): the letters are a window onto slowly moving metal, with a glint that passes now and then (a
  *  sweep across in 2.4 s, then 2.6 s of rest); under them a soft, deep shadow and a faint cool glow. It springs in once;
  *  with the app's animations off it is a still image. */
-class WordmarkView(context: Context, private val size: Float = 60f) : View(context) {
+class WordmarkView(context: Context, size: Float = 60f) : View(context) {
   private val d = resources.displayMetrics.density
   private val dark = Theme.dark
   // Platinum: cool white metal on dark themes, dark polished metal on light ones.
   private val metal = (if (dark) intArrayOf(0xB9C1CF, 0xFFFFFF, 0x8E99AD, 0xEEF1F6, 0xB9C1CF, 0xFFFFFF, 0x8E99AD) else intArrayOf(0x2E3542, 0x7B879B, 0x1E232D, 0x5A6477, 0x2E3542, 0x8893A7, 0x1E232D)).map { it or 0xFF000000.toInt() }.toIntArray()
+  /** The letters' size: 60 on the sign-in and register steps, 46 on the others (AuthScreen.tsx:318). */
+  var size: Float = size
+    set(value) {
+      if (field == value) return
+      field = value
+      paint()
+      requestLayout()
+      invalidate()
+    }
   private fun letters() = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = size * d; typeface = Theme.weight(900); letterSpacing = -0.035f; textAlign = Paint.Align.CENTER }
-  private val glow = letters().apply { color = metal[2]; setShadowLayer(size * d * 0.55f / 2, 0f, 0f, if (dark) 0x61CDDCFF else 0x40788CBE) }
-  private val shadow = letters().apply { color = metal[2]; setShadowLayer(size * d * 0.16f / 2, 0f, size * d * 0.07f, if (dark) 0xD9000000.toInt() else 0x47141C2D) }
-  private val face = letters()
+  private var glow = letters()
+  private var shadow = letters()
+  private var face = letters()
+
+  private fun paint() {
+    glow = letters().apply { color = metal[2]; setShadowLayer(size * d * 0.55f / 2, 0f, 0f, if (dark) 0x61CDDCFF else 0x40788CBE) }
+    shadow = letters().apply { color = metal[2]; setShadowLayer(size * d * 0.16f / 2, 0f, size * d * 0.07f, if (dark) 0xD9000000.toInt() else 0x47141C2D) }
+    face = letters()
+  }
   private var entered = false
   private var born = 0L
 
   init {
+    paint()
     setLayerType(LAYER_TYPE_SOFTWARE, null) // the soft shadows of text
     contentDescription = "Инвиз"
     importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES

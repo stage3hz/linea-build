@@ -3,9 +3,10 @@ import CoreGraphics
 /// How the sign-in screen fits on the screen without scrolling (the same rules as Android auth/AuthFit.kt).
 ///
 /// Two arrangements, and the screen moves between them once, together with the keyboard:
-/// - full (no keyboard): the wordmark, «Твоя линия связи.», the step's title and description, the glass card;
+/// - full (no keyboard): the wordmark, the step's title and description (in the middle), the glass card, the three
+///   trust chips under it (AuthScreen.tsx:317-362);
 /// - compact (the keyboard is up): the step's title at the top and the card right under it, down to the keyboard,
-///   with «Продолжить» at the card's bottom, just above the keyboard; the wordmark, the motto, the description and the
+///   with «Продолжить» at the card's bottom, just above the keyboard; the wordmark, the description, the chips and the
 ///   theme pill step aside.
 /// What does not fit leaves in a fixed order (the hint under the field stays longest), so the title, the field with its
 /// caption, what went wrong and the button are always above the keyboard. The parts above the fields (the progress and
@@ -36,13 +37,14 @@ enum AuthFit {
     static let linkGap: CGFloat = 4
     /// A keyboard lower than this (a hardware keyboard's bar) keeps the full arrangement.
     static let keyboard: CGFloat = 100
-    static let afterMotto: CGFloat = 28
+    /// Under the wordmark (AuthScreen.tsx:317 `marginBottom: 26`).
+    static let afterBrand: CGFloat = 26
+    /// Under the description (AuthScreen.tsx:320 `marginBottom: 24`).
     static let afterHint: CGFloat = 24
+    /// Above the trust chips, under the card (AuthScreen.tsx:361 `marginTop: 22`).
+    static let beforeChips: CGFloat = 22
 
-    /// Under the wordmark: 4 above the motto, more when the motto stepped aside.
-    static func afterBrand(_ motto: Bool) -> CGFloat { return motto ? 4 : 20 }
-
-    /// Under the title: 12 above the description (AuthScreen.tsx:316 `marginTop: 12`), more when it stepped aside.
+    /// Under the title: 12 above the description (AuthScreen.tsx:320 `marginTop: 12`), more when it stepped aside.
     static func afterHeading(_ hint: Bool) -> CGFloat { return hint ? 12 : 16 }
 
     /// A part that may leave, with what it takes: its height and the gap that comes with it.
@@ -54,7 +56,7 @@ enum AuthFit {
     /// The full arrangement: which of the parts above the card stay, the room above them, the card's parts that stay.
     struct Plan {
         let brand: Bool
-        let motto: Bool
+        let chips: Bool
         let hint: Bool
         let gap: CGFloat
         let kept: Set<Int>
@@ -97,9 +99,9 @@ enum AuthFit {
 
     /// No keyboard: what stays above the card and on it, and the room above the wordmark.
     /// - `room`: from under the theme pill's row to above the bottom edge;
-    /// - `brand`, `motto`, `heading`, `hint`: the heights of the parts above the card;
+    /// - `brand`, `heading`, `hint`: the heights of the parts above the card; `chips`: the trust chips under it;
     /// - `card`: the card with its padding, the fields, the button and the messages (what always shows on it).
-    static func full(room: CGFloat, brand: CGFloat, motto: CGFloat, heading: CGFloat, hint: CGFloat, card: CGFloat,
+    static func full(room: CGFloat, brand: CGFloat, heading: CGFloat, hint: CGFloat, card: CGFloat, chips: CGFloat,
                      helps: [Part], chrome: [Part], extras: [Part]) -> Plan {
         var chromeCost: CGFloat = 0
         for part in chrome { chromeCost += part.cost }
@@ -109,32 +111,32 @@ enum AuthFit {
         for part in extras { extraCost += part.cost }
         var all = Set<Int>()
         for part in chrome + helps + extras { all.insert(part.id) }
-        // The motto leaves first, then the description.
+        // The chips leave first, then the description.
         let steps: [(Bool, Bool)] = [(true, true), (false, true), (false, false)]
-        for (withMotto, withHint) in steps {
-            let above = AuthFit.above(brand: brand, motto: motto, heading: heading, hint: hint, withBrand: true, withMotto: withMotto, withHint: withHint)
-            let need = above + card + chromeCost + helpCost + extraCost
-            if need <= room { return Plan(brand: true, motto: withMotto, hint: withHint, gap: min(topGap, room - need), kept: all) }
+        for (withChips, withHint) in steps {
+            let above = AuthFit.above(brand: brand, heading: heading, hint: hint, withBrand: true, withHint: withHint)
+            let below: CGFloat = withChips ? beforeChips + chips : 0
+            let need = above + card + chromeCost + helpCost + extraCost + below
+            if need <= room { return Plan(brand: true, chips: withChips, hint: withHint, gap: min(topGap, room - need), kept: all) }
         }
         // Then the extras, then (when even the hints do not fit) the wordmark.
         for withBrand in [true, false] {
-            let above = AuthFit.above(brand: brand, motto: motto, heading: heading, hint: hint, withBrand: withBrand, withMotto: false, withHint: false)
+            let above = AuthFit.above(brand: brand, heading: heading, hint: hint, withBrand: withBrand, withHint: false)
             let budget = room - above - card - chromeCost
             if withBrand && budget < helpCost { continue }
             var kept = Set<Int>()
             for part in chrome { kept.insert(part.id) }
             let left = budget - take(helps, budget, &kept)
             _ = take(extras, left, &kept)
-            return Plan(brand: withBrand, motto: false, hint: false, gap: 0, kept: kept)
+            return Plan(brand: withBrand, chips: false, hint: false, gap: 0, kept: kept)
         }
-        return Plan(brand: false, motto: false, hint: false, gap: 0, kept: all)
+        return Plan(brand: false, chips: false, hint: false, gap: 0, kept: all)
     }
 
     /// What the parts above the card take, with their gaps.
-    private static func above(brand: CGFloat, motto: CGFloat, heading: CGFloat, hint: CGFloat, withBrand: Bool, withMotto: Bool, withHint: Bool) -> CGFloat {
+    private static func above(brand: CGFloat, heading: CGFloat, hint: CGFloat, withBrand: Bool, withHint: Bool) -> CGFloat {
         var total: CGFloat = heading
-        if withBrand { total += brand + afterBrand(withMotto) }
-        if withMotto { total += motto + afterMotto }
+        if withBrand { total += brand + afterBrand }
         if withHint {
             total += afterHeading(true) + hint + afterHint
         } else {

@@ -72,7 +72,7 @@ class PagesTest {
     val page = activity.window.decorView
     assertNotNull(find(page, "AuthScreen"))
     assertEquals(null, find(page, "RootScreen"))
-    assertTrue(texts(page).containsAll(listOf("Инвиз", "Твоя линия связи.", "Логин", "Продолжить")))
+    assertTrue(texts(page).containsAll(listOf("Инвиз", "Логин", "Продолжить")))
     // The launch arguments of the shell do nothing without `demo`.
     val other = launch("05-auth-not-demo", intent().putExtra("chat", true).putExtra("tab", "profile"))
     assertNotNull(find(other.window.decorView, "AuthScreen"))

@@ -51,7 +51,8 @@ class PersonAvatarView(context: Context) : View(context) {
       canvas.drawCircle(w / 2, h / 2, radius, picture)
       return
     }
-    orb.shader = LinearGradient(w * 0.1f, 0f, w * 0.9f, h, colors, null, Shader.TileMode.CLAMP)
+    // components.tsx:150 `Avatar`: [lighter, colour, deeper] from (.9, 1) to (.1, 0) — the lighter at the bottom right.
+    orb.shader = LinearGradient(w * 0.9f, h, w * 0.1f, 0f, colors, null, Shader.TileMode.CLAMP)
     canvas.drawCircle(w / 2, h / 2, radius, orb)
     orb.shader = null
     // The letters shrink to fit the ball (down to 0.6 of their size).

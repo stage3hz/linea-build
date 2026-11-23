@@ -44,7 +44,9 @@ final class AvatarFaceView: UIView {
         let pair = orbPair(person.avatarColor)
         let light = UIColor(hex: UInt32(truncatingIfNeeded: pair.light) & 0xFFFFFF)
         let deep = UIColor(hex: UInt32(truncatingIfNeeded: pair.deep) & 0xFFFFFF)
-        orb.colors = [deep.cgColor, UIColor(hex: person.avatarColor).cgColor, light.cgColor]
+        // components.tsx:150 `Avatar`: orbColors = [lighter, colour, deeper] from (.9, 1) to (.1, 0) — the lighter at the
+        // bottom right (as Android avatars/DecoratedAvatarView.kt and the chat list draw it).
+        orb.colors = [light.cgColor, UIColor(hex: person.avatarColor).cgColor, deep.cgColor]
         letters.text = String(Messenger.initials(person.displayName).prefix(2))
         pictureId = person.avatarId
         self.base = base

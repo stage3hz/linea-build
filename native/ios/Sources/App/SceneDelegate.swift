@@ -55,6 +55,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             window?.rootViewController = NavigationController(rootViewController: RootViewController(messenger: messenger))
             Push.shared.start(messenger) // Push: permission once, this device's token for the session (Shell/Push.swift)
         } catch {
+            // Which step failed, for the device's log: the error's kind and Vault's own non-secret note (keychain
+            // status, SQLite result code, the file's size) — never a key or anything stored.
+            let step = Vault.lastFailure.isEmpty ? "not the storage" : Vault.lastFailure
+            NSLog("Linea: the account did not open: %@ (%@)", String(describing: type(of: error)), step)
             // The storage did not open: nothing is replaced, nothing is deleted — the person is told.
             showWaiting("Не удалось открыть зашифрованное хранилище. Ключи и сообщения сохранены без изменений.\nКоснись, чтобы повторить.")
         }

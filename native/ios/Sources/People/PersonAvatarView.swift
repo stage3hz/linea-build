@@ -12,8 +12,9 @@ final class PersonAvatarView: UIView {
         super.init(frame: frame)
         clipsToBounds = true
         isUserInteractionEnabled = false
-        orb.startPoint = CGPoint(x: 0.1, y: 0)
-        orb.endPoint = CGPoint(x: 0.9, y: 1)
+        // components.tsx:150 `Avatar`: [lighter, colour, deeper] from (.9, 1) to (.1, 0) — the lighter at the bottom right.
+        orb.startPoint = CGPoint(x: 0.9, y: 1)
+        orb.endPoint = CGPoint(x: 0.1, y: 0)
         layer.addSublayer(orb)
         letters.textColor = .white
         letters.textAlignment = .center

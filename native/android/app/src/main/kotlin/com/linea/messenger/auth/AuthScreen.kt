@@ -93,13 +93,18 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
   private val brandBox = FrameLayout(context)
   private val themePill = AuthThemePill(context)
   private val brand = com.linea.messenger.effects.WordmarkView(context, 60f) // Effects: «Инвиз» in moving platinum, the reference's Wordmark (effects/AppearingText.kt)
-  private val motto = context.words("Твоя линия связи.", 17f, Theme.muted)
-  private val heading = com.linea.messenger.effects.AppearingTextView(context, 22f, Theme.text, 600) // Effects: the title's words rise in one after another
-  // The step's description: 14 on lines of 21, in the middle (AuthScreen.tsx:316).
+  // AuthScreen.tsx:317-320: no line under the wordmark here («Твоя линия связи.» is the server-connect screen's).
+  // The title: 24 Bold on lines of 30, -0.6 apart, in the middle (AuthScreen.tsx:320), with the keyboard up too.
+  private val heading = com.linea.messenger.effects.AppearingTextView(context, 24f, Theme.text, 700, android.text.Layout.Alignment.ALIGN_CENTER,
+    spacing = -0.6f, lineHeight = 30f) // Effects: the title's words rise in one after another
+  // The step's description: 14 on lines of 21, in the middle, at most 340 wide (AuthScreen.tsx:320).
   private val hint = context.words("", 14f, Theme.muted).apply {
     gravity = Gravity.CENTER_HORIZONTAL
     if (Build.VERSION.SDK_INT >= 28) lineHeight = context.px(21f)
   }
+  /** «Сквозное шифрование», «Без почты и SMS», «Ключи только у тебя» under the card (AuthScreen.tsx:361-362): the
+   *  first to leave when the screen is short, away while the keyboard is up. */
+  private val chips = AuthTrustChips(context)
   private val switcher = LinearLayout(context)
   private val switches = listOf(context.words("Войти", 12f, Theme.muted, 500), context.words("Создать аккаунт", 12f, Theme.muted, 500))
   private val progress = LinearLayout(context)
@@ -221,8 +226,8 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     super.onDetachedFromWindow()
   }
 
-  // Nothing scrolls. Two arrangements (AuthFit): without the keyboard — the wordmark, the motto, the step's title and
-  // description, the card; with it — the title at the top and the card right under it down to the keyboard, «Продолжить»
+  // Nothing scrolls. Two arrangements (AuthFit): without the keyboard — the wordmark, the step's title and
+  // description, the card, the trust chips; with it — the title at the top and the card right under it down to the keyboard, «Продолжить»
   // at the card's bottom. The screen moves from one to the other once, frame by frame with the keyboard's own motion
   // (`KeyboardMotion`, Android 11 and later; a short animation of the same length before that).
 
@@ -343,7 +348,10 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       view.measure(MeasureSpec.makeMeasureSpec(wide.coerceAtLeast(0), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
       return view.measuredHeight.toFloat()
     }
-    for (view in listOf(brandBox, motto, heading, hint)) heights[view] = measured(view, columnWidth)
+    // The description is at most 340 wide, in the middle of the column (`maxWidth: 340`).
+    val hintSide = maxOf(0, (columnWidth - dp(340f)) / 2)
+    if (hint.paddingLeft != hintSide) hint.setPadding(hintSide, 0, hintSide, 0)
+    for (view in listOf(brandBox, heading, hint, chips)) heights[view] = measured(view, columnWidth)
     for (view in cardParts + links + listOf(proceed)) if (wanted(view)) heights[view] = measured(view, innerWidth)
     fun h(view: View): Float = heights[view] ?: 0f
     fun gapAfter(view: View, compact: Boolean): Float =
@@ -361,14 +369,12 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     val small = if (keyboardUp) 0 else edges.keyboard
     val fullTop = edges.top + AuthFit.PILL_ROW * unit
     val fullBottom = height - maxOf(small, edges.bottom) - AuthFit.EDGE * unit
-    val plan = AuthFit.full(fullBottom - fullTop, h(brandBox), h(motto), h(heading), h(hint), 2 * AuthFit.PAD * unit + core + messages,
+    val plan = AuthFit.full(fullBottom - fullTop, h(brandBox), h(heading), h(hint), 2 * AuthFit.PAD * unit + core + messages, h(chips),
       parts(helpParts, false), parts(chromeParts, false), parts(extraParts, false), unit)
     val full = Frame()
     var y = fullTop + plan.gap
     full.top[brandBox] = y
-    if (plan.brand) { full.shown.add(brandBox); y += h(brandBox) + AuthFit.afterBrand(plan.motto) * unit }
-    full.top[motto] = y
-    if (plan.motto) { full.shown.add(motto); y += h(motto) + AuthFit.AFTER_MOTTO * unit }
+    if (plan.brand) { full.shown.add(brandBox); y += h(brandBox) + AuthFit.AFTER_BRAND * unit }
     full.top[heading] = y
     y += h(heading) + AuthFit.afterHeading(plan.hint) * unit
     full.top[hint] = y
@@ -396,13 +402,15 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       }
     }
     full.plateBottom = y + AuthFit.PAD * unit
+    full.top[chips] = full.plateBottom + AuthFit.BEFORE_CHIPS * unit
+    if (plan.chips) full.shown.add(chips)
 
     // With the keyboard: the title at the top, the card down to the keyboard (the parts that stay are chosen for the
     // keyboard's end, so they do not change while it moves).
     val compact = Frame()
     val headingTop = edges.top + AuthFit.COMPACT_TOP * unit
     val shift = headingTop - (full.top[heading] ?: 0f)
-    for (view in listOf(brandBox, motto, heading, hint)) compact.top[view] = (full.top[view] ?: 0f) + shift
+    for (view in listOf(brandBox, heading, hint)) compact.top[view] = (full.top[view] ?: 0f) + shift
     compact.plateTop = headingTop + h(heading) + AuthFit.COMPACT_HEADING_GAP * unit
     val keyboardNow = if (keyboardMoving) lerp(keyboardFrom, keyboardTo, keyboardFraction) else keyboardHeight.toFloat()
     val keyboardEnd = if (keyboardMoving) keyboardTo else keyboardHeight.toFloat()
@@ -417,6 +425,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       if (!optional(view) || id(view) in kept) { compact.shown.add(view); y += h(view) + gapAfter(view, true) }
     }
     compact.plateBottom = height - keyboardNow - AuthFit.COMPACT_EDGE * unit
+    compact.top[chips] = (full.top[chips] ?: 0f) + (compact.plateBottom - full.plateBottom)
     var bottom = compact.plateBottom - AuthFit.COMPACT_PAD * unit
     val shownLinks = links.filter { wanted(it) && id(it) in kept }
     for (index in shownLinks.indices.reversed()) {
@@ -438,7 +447,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
       view.alpha = alpha
       view.visibility = if (alpha > 0.01f) View.VISIBLE else View.INVISIBLE
     }
-    for (view in listOf(brandBox, motto, hint)) {
+    for (view in listOf(brandBox, hint, chips)) {
       put(view, left, at(view), columnWidth, Math.round(h(view)))
       fade(view, view in full.shown, false)
     }
@@ -525,7 +534,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
 
     // In the order a screen reader reads them; the card's glass under its parts.
     brandBox.addView(brand, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
-    addView(brandBox); addView(motto); addView(heading); addView(hint)
+    addView(brandBox); addView(heading); addView(hint)
     plate.background = com.linea.messenger.design.GlassDrawable(plate, context.px(32f).toFloat(), clear = false)
     // A touch on the card itself does not put the keyboard away (a touch beside it does).
     plate.isClickable = true
@@ -533,6 +542,7 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     addView(plate)
     for (item in cardParts) part(item)
     part(proceed); part(forgot); part(back)
+    addView(chips)
     // A touch beside the card puts the keyboard away (there is nothing to scroll it away with).
     setOnClickListener {
       findFocus()?.clearFocus()
@@ -661,6 +671,8 @@ class AuthScreen(context: Context, private val server: Server) : Screen(context)
     val freed = shownBusy && !busy
     shownBusy = busy
     heading.show(headingWords(mode)) // Effects
+    // AuthScreen.tsx:318: the wordmark is 60 on the sign-in and register steps, 46 on the others.
+    brand.size = if (isLogin || isRegister) 60f else 46f
     hint.text = hintWords(mode)
 
     show(switcher, isLogin || isRegister)

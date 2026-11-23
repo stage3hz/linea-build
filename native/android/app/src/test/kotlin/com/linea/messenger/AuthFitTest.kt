@@ -58,25 +58,27 @@ class AuthFitTest {
     assertTrue(taken <= room)
   }
 
-  @Test fun withoutTheKeyboardTheMottoLeavesFirstThenTheDescriptionThenTheWordmark() {
-    val roomy = AuthFit.full(900f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
-    assertTrue(roomy.brand && roomy.motto && roomy.hint)
+  @Test fun withoutTheKeyboardTheChipsLeaveFirstThenTheDescriptionThenTheWordmark() {
+    // brand 90, heading 27, hint 40, card 300 (+69 the switch and the progress), chips 30.
+    val roomy = AuthFit.full(900f, 90f, 27f, 40f, 300f, 30f, emptyList(), chrome, emptyList(), 1f)
+    assertTrue(roomy.brand && roomy.chips && roomy.hint)
     assertEquals(AuthFit.TOP_GAP, roomy.gap, 0.01f)
-    // Everything: 90+4+20+28+27+12+40+24 = 245 above the card, 300+69 the card.
-    val noMotto = AuthFit.full(600f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
-    assertTrue(noMotto.brand && !noMotto.motto && noMotto.hint)
-    val noHint = AuthFit.full(530f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
-    assertTrue(noHint.brand && !noHint.motto && !noHint.hint)
-    assertEquals(8f, noHint.gap, 0.01f)
-    val tight = AuthFit.full(480f, 90f, 20f, 27f, 40f, 300f, listOf(Part("help", 60f)), chrome, listOf(Part("manual", 40f)), 1f)
-    assertFalse(tight.brand)
+    // Everything: 90+26+27+12+40+24 = 219 above the card, 300+69 the card, 22+30 the chips = 640.
+    val noChips = AuthFit.full(600f, 90f, 27f, 40f, 300f, 30f, emptyList(), chrome, emptyList(), 1f)
+    assertTrue(noChips.brand && !noChips.chips && noChips.hint)
+    // Without the chips: 219+369 = 588; without the description too: 90+26+27+16+369 = 528.
+    val noHint = AuthFit.full(540f, 90f, 27f, 40f, 300f, 30f, emptyList(), chrome, emptyList(), 1f)
+    assertTrue(noHint.brand && !noHint.chips && !noHint.hint)
+    assertEquals(12f, noHint.gap, 0.01f)
+    val tight = AuthFit.full(480f, 90f, 27f, 40f, 300f, 30f, listOf(Part("help", 60f)), chrome, listOf(Part("manual", 40f)), 1f)
+    assertFalse(tight.brand || tight.chips)
     assertTrue(tight.kept.contains("help"))
     assertFalse(tight.kept.contains("manual"))
   }
 
   @Test fun theRoomAboveTheWordmarkShrinksBeforeAnythingLeaves() {
-    val plan = AuthFit.full(245f + 369f + 30f, 90f, 20f, 27f, 40f, 300f, emptyList(), chrome, emptyList(), 1f)
-    assertTrue(plan.brand && plan.motto && plan.hint)
+    val plan = AuthFit.full(640f + 30f, 90f, 27f, 40f, 300f, 30f, emptyList(), chrome, emptyList(), 1f)
+    assertTrue(plan.brand && plan.chips && plan.hint)
     assertEquals(30f, plan.gap, 0.01f)
   }
 }

@@ -114,7 +114,7 @@ enum TakeoverCheck {
                 need(inHistory)
             }
         } catch {
-            lines.append("vaultopen=FAILED (\(error))")
+            lines.append("vaultopen=FAILED (\(error); step: \(Vault.lastFailure.isEmpty ? "after opening" : Vault.lastFailure))")
             need(false)
         }
         lines.append("VERDICT=\(ok ? "PASS" : "FAIL")")

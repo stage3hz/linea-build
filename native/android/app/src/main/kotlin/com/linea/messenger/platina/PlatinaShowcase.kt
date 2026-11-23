@@ -124,6 +124,7 @@ class PlatinaShowcaseSheet(context: Context, private val from: View, private val
       setLayout(WindowManager.LayoutParams.MATCH_PARENT, height)
       setGravity(Gravity.BOTTOM)
       setDimAmount(0.5f)
+      com.linea.messenger.design.sheetWindow(this, root) // the sheet's colour to the screen's bottom, under the bar
     }
     PlatinaState.refresh()
     refresh()
