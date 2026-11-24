@@ -128,20 +128,25 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ///   -storiesdemo strip|viewer|viewers|compose|posts|own / -stories viewer|own|ownstories|compose    stories and posts: samples with drawn pictures, no account; with an account, the strip's first person, the account's own page (Stories/StoriesSimulator.swift)
     ///   -linkdemo 1|composer / -linksend 1    cards of links: sample rows in the -demo chat (composer: also the card above the field); with -openchat 1 on the local test server, sends one message with a prepared card (LinkPreview/LinkDemo.swift)
     ///   -profiledemo rings|code|art|list|marks|fonts|person|birthday|own|gifts|showcase|studio|confetti|offer|mini|mini-chat|media|cropper|banner|pattern|status|giftsheet    avatars, profiles, Platina, gifts, fonts with samples, no account (Profile/ProfileSimulator.swift)
-    ///   -intro hold <seconds>          the sign-in screen with the first-launch intro frozen at that time (Intro/IntroOverlay.swift)
+    ///   -intro hold <seconds> / step <0..4> / still <0..4>    the sign-in screen with the first-launch intro frozen at that time of its ident, at that progress through its steps, or at that progress of its still stages (Intro/IntroOverlay.swift)
     ///   -motionblur 1|0|hold           motion blur of slides forced on / off / on with the strongest smear held for a still shot (Effects/MotionBlur.swift) // MotionBlur:
     private func simulatorStart() -> Bool {
         let args = UserDefaults.standard
         if args.bool(forKey: "corecheck") { window?.rootViewController = CoreCheckViewController(); return true }
         // Update check: what the previous app left on the phone, read only (Storage/TakeoverCheck.swift).
         if args.bool(forKey: "takeovercheck") { window?.rootViewController = TakeoverCheckViewController(); return true }
-        // Intro: -intro hold <seconds> — the sign-in screen with the first-launch intro frozen at that time, no haptics,
-        // the seen flag untouched (Intro/IntroOverlay.swift).
+        // Intro: -intro hold <seconds> | step <0..4> | still <0..4> — the sign-in screen with the first-launch intro frozen
+        // at that time of its ident, at that progress through its steps, or at that progress of its still stages; no
+        // haptics, the seen flag untouched (Intro/IntroOverlay.swift).
         let arguments = ProcessInfo.processInfo.arguments
-        if let at = arguments.firstIndex(of: "-intro"), at + 1 < arguments.count, arguments[at + 1] == "hold" {
-            let seconds = at + 2 < arguments.count ? (Double(arguments[at + 2]) ?? 0) : 0
+        if let at = arguments.firstIndex(of: "-intro"), at + 1 < arguments.count, ["hold", "step", "still"].contains(arguments[at + 1]) {
+            let number = at + 2 < arguments.count ? (Double(arguments[at + 2]) ?? 0) : 0
             showAuth()
-            IntroOverlay.shared.hold(over: window, at: seconds)
+            switch arguments[at + 1] {
+            case "hold": IntroOverlay.shared.hold(over: window, at: number)
+            case "step": IntroOverlay.shared.step(over: window, at: number)
+            default: IntroOverlay.shared.step(over: window, at: number, stills: true)
+            }
             return true
         }
         if args.bool(forKey: "auth") { showAuth(); return true }

@@ -1,23 +1,28 @@
 import UIKit
 import CoreHaptics
 
-/// The intro's touch on the phone's haptic engine (IntroModel.haptic): ONE long soft swell, never a train of taps —
-/// a single Core Haptics continuous event (from 1.1 s, 3.0 s long, intensity 1.0, sharpness 0.5) whose strength follows
-/// the curve through parameter curves on the intensity control. Where Core Haptics is not available: nothing at all.
-/// Silent in power saving (Effects/Motion.swift). Every failure is silent. Android: intro/IntroHaptics.kt.
+/// The intro's touch on the phone's haptic engine: ONE long soft swell (IntroModel.haptic) that begins exactly when
+/// the letters begin to crumble and lets go as N comes to the centre — a single Core Haptics continuous event
+/// (intensity 1.0, sharpness 0.5) whose strength follows the curve through parameter curves on the intensity control,
+/// never a train of taps — and one short soft tick when the honeycomb layer is passed. Nothing else. Where Core Haptics
+/// is not available the swell is nothing at all. Silent in power saving (Effects/Motion.swift). Every failure is
+/// silent. Android: intro/IntroHaptics.kt.
 final class IntroHaptics {
     private var engine: CHHapticEngine?
     private var player: CHHapticPatternPlayer?
+    private var tap: UIImpactFeedbackGenerator?
 
     /// The swell's character: mid sharpness, soft and smooth.
     static let sharpness: Float = 0.5
     /// How often the curve is sampled into control points, s.
     static let step: Double = 0.1
+    /// How strong the tick is (0…1).
+    static let tickStrength: CGFloat = 0.6
 
-    /// How long the event lasts, s (1.1 → 4.1).
+    /// How long the event lasts, s (from the first crumbling square to N at the centre).
     static var length: Double { return IntroModel.swellEnd - IntroModel.swellStart }
 
-    /// The one continuous event, at the pattern's start (the pattern starts at 1.1 s on the intro's clock).
+    /// The one continuous event, at the pattern's start (the pattern starts when the letters begin to crumble).
     static func events() -> [CHHapticEvent] {
         return [CHHapticEvent(eventType: .hapticContinuous, parameters: [
             CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
@@ -58,43 +63,60 @@ final class IntroHaptics {
         return out
     }
 
-    /// Plays the swell against the intro's clock: t = 0 at `begin` (CACurrentMediaTime of the intro's start). If the
-    /// swell's start has already passed (the intro started late), nothing is played.
-    func start(begin: CFTimeInterval) {
-        stop()
-        if Motion.saving { return }
+    /// The engine is made and started ahead of the swell, so the swell begins on its moment.
+    func prepare() {
+        if engine != nil || Motion.saving { return }
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-        var made: CHHapticEngine?
         do {
             let created = try CHHapticEngine()
-            made = created
             created.playsHapticsOnly = true
             created.isAutoShutdownEnabled = false
             created.stoppedHandler = { (_: CHHapticEngine.StoppedReason) -> Void in }
             created.resetHandler = { () -> Void in }
             try created.start()
-            let pattern = try CHHapticPattern(events: IntroHaptics.events(), parameterCurves: IntroHaptics.curves())
-            let swell = try created.makePlayer(with: pattern)
-            let wait = IntroModel.swellStart - (CACurrentMediaTime() - begin)
-            guard wait > 0 else {
-                created.stop(completionHandler: nil)
-                return
-            }
-            try swell.start(atTime: created.currentTime + wait)
             engine = created
-            player = swell
         } catch {
-            made?.stop(completionHandler: nil)
             engine = nil
-            player = nil
         }
     }
 
-    /// Nothing more: the swell stops at once.
+    /// The letters begin to crumble now: the swell plays from its start.
+    func swell() {
+        try? player?.stop(atTime: CHHapticTimeImmediate)
+        player = nil
+        if Motion.saving { return }
+        prepare()
+        guard let running = engine else { return }
+        do {
+            // The system may have stopped the engine meanwhile; starting one that runs does nothing.
+            try running.start()
+            let pattern = try CHHapticPattern(events: IntroHaptics.events(), parameterCurves: IntroHaptics.curves())
+            let made = try running.makePlayer(with: pattern)
+            try made.start(atTime: CHHapticTimeImmediate)
+            player = made
+            // The engine rests once the swell has played.
+            running.notifyWhenPlayersFinished { (_: Error?) -> CHHapticEngine.FinishedAction in
+                return .stopEngine
+            }
+        } catch {
+            stop()
+        }
+    }
+
+    /// The honeycomb layer is passed: one short soft tick (the system's own soft touch).
+    func tick() {
+        if Motion.saving { return }
+        let made = UIImpactFeedbackGenerator(style: .soft)
+        made.impactOccurred(intensity: IntroHaptics.tickStrength)
+        tap = made
+    }
+
+    /// Nothing more: whatever plays stops at once.
     func stop() {
         try? player?.stop(atTime: CHHapticTimeImmediate)
         player = nil
         engine?.stop(completionHandler: nil)
         engine = nil
+        tap = nil
     }
 }

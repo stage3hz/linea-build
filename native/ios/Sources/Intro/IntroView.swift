@@ -1,334 +1,479 @@
 import UIKit
-import Accelerate
+import Metal
 
-/// The first-launch intro drawn for time t (Intro/IntroModel.swift has every number): the graphite background, the
-/// honeycomb field lit by its ring wave, the plate of light behind N, N's slab with its thickness (the back and the
-/// side as offset layers, the front face with its honeycomb), the particles as small squares sorted back to front,
-/// and a soft glow — the bright layers drawn once more into a small bitmap, blurred (vImage) and laid over at 0.7 as
-/// a sublayer. Plays on a display link; `hold(_:)` freezes it at t. Core Graphics at no more than 2× the points (a
-/// 565-particle frame: 16 particle fills, at most 16 line strokes, ~14 outline fills — a few ms on a phone).
-/// Android: intro/IntroView.kt.
+/// The first-launch intro on the screen: the scene (Intro/IntroSceneView.swift) or, with motion reduced or where the
+/// scene cannot be drawn, four still stages; over it the hint «Проведи вверх». It feeds the person's way through the
+/// intro (`IntroFlow`) with the time of every frame and with the touches, and reports what happened (`onEvents`: the
+/// haptic swell starts, the honeycomb layer is passed, the intro is finished). There is nothing to tap and no way to
+/// skip. Android: intro/IntroView.kt.
 final class IntroView: UIView {
-    /// Called on every frame with the time, s (the overlay ends the intro by it).
-    var onTime: ((Double) -> Void)?
-    /// A tap from VoiceOver's activate (the overlay skips).
-    var onActivate: (() -> Void)?
+    let flow: IntroFlow
+    /// Bits of `IntroFlow.swell`, `pass`, `finishedBit`.
+    var onEvents: ((Int) -> Void)?
 
-    /// The graphite of the preview's stage.
-    static let background = UIColor(red: 11 / 255, green: 12 / 255, blue: 16 / 255, alpha: 1)
-    /// N's colours (0…1), lit: the face, its honeycomb lines, the side at the front and at the back.
-    private static let faceColour: [Double] = [0.13, 0.145, 0.175]
-    private static let faceLineColour: [Double] = [0.5, 0.55, 0.66]
-    private static let sideFront: [Double] = [0.3, 0.33, 0.39]
-    private static let sideBack: [Double] = [0.08, 0.09, 0.11]
-    private static let slabLayers = 10
-    private static let levels = 16
+    /// The page behind everything.
+    static let page = UIColor(
+        red: CGFloat(IntroModel.background[0] / 255), green: CGFloat(IntroModel.background[1] / 255),
+        blue: CGFloat(IntroModel.background[2] / 255), alpha: 1
+    )
+    /// A tap's own wobble, points: the first few points of a touch do not count.
+    private static let slop: CGFloat = 8
+    /// A finger that leaves moving up faster than this (points a second) has flung.
+    private static let flingSpeed: CGFloat = 500
 
-    private(set) var time: Double = 0
-    private(set) var started: CFTimeInterval = 0
+    private var scene: IntroSceneView?
+    private var stills: IntroStills?
+    private let hint = IntroHint(frame: .zero)
+    private var art: IntroArt?
     private var link: CADisplayLink?
+    private var ready = false
+    private var last: CFTimeInterval = 0
+    private var frozenDrawn = 0
+    private var left: Double = -12
+    private var right: Double = 39
+    private var laidOut: CGSize = .zero
+    private var giveUp: DispatchWorkItem?
 
-    private let world = IntroModel.scene
-    private let edges = IntroModel.field
-    private let face = IntroModel.faceCells
-    private let plateOutline = IntroModel.plate()
+    // The touch that is down.
+    private var downY: CGFloat = 0
+    private var lastY: CGFloat = 0
+    private var lastTime: TimeInterval = 0
+    private var velocity: CGFloat = 0
 
-    // Work arrays: filled anew each frame, never reallocated.
-    private var quads: [CGPoint]
-    private var depth: [Double]
-    private var bright: [Double]
-    private var order: [Int]
-    private var fieldLight: [Double]
-
-    private let glowLayer = CALayer()
-    private var glowContext: CGContext?
-    private var glowWork: UnsafeMutableRawPointer?
-    private var glowWorkSize = 0
-    private let sheen: CGGradient? = CGGradient(colorSpace: CGColorSpaceCreateDeviceRGB(), colorComponents: [1, 1, 1, 0.22, 1, 1, 1, 0, 1, 1, 1, 0.08], locations: [0, 0.55, 1], count: 3)
-
-    override init(frame: CGRect) {
-        let count = IntroModel.scene.particles.count
-        quads = [CGPoint](repeating: .zero, count: count * 4)
-        depth = [Double](repeating: 0, count: count)
-        bright = [Double](repeating: 0, count: count)
-        order = Array(0..<count)
-        fieldLight = [Double](repeating: 0, count: IntroModel.field.count)
+    init(frame: CGRect, flow: IntroFlow) {
+        self.flow = flow
         super.init(frame: frame)
-        backgroundColor = IntroView.background
+        backgroundColor = IntroView.page
         isOpaque = true
-        contentMode = .redraw
-        glowLayer.opacity = 0.7
-        glowLayer.magnificationFilter = .linear
-        glowLayer.contentsGravity = .resize
-        layer.addSublayer(glowLayer)
-        isAccessibilityElement = true
-        accessibilityLabel = "Инвиз"
-        accessibilityTraits = .image
+        isMultipleTouchEnabled = false
+        art = IntroArt.make()
+        if flow.stills { showStills() } else { showScene() }
+        addSubview(hint)
     }
 
     required init?(coder: NSCoder) { return nil }
 
-    deinit {
-        link?.invalidate()
-        glowWork?.deallocate()
+    private func showScene() {
+        guard let art, let device = MTLCreateSystemDefaultDevice() else {
+            NSLog("Linea: intro: no scene on this phone: the still stages")
+            toStills()
+            return
+        }
+        let memory = Int(ProcessInfo.processInfo.physicalMemory / (1024 * 1024))
+        let count = IntroModel.particleCount(memoryMB: memory)
+        let modest = count <= 60_000
+        let made = IntroSceneView(frame: bounds, device: device, art: art, count: count, glow: !modest, finest: modest ? 720 : 1080)
+        made.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        made.onReady = { [weak self] (l: Double, r: Double) -> Void in
+            guard let self else { return }
+            self.left = l
+            self.right = r
+            self.ready = true
+            self.giveUp?.cancel()
+            self.giveUp = nil
+            self.shape()
+        }
+        made.onFailed = { [weak self] () -> Void in self?.toStills() }
+        scene = made
+        insertSubview(made, at: 0)
+        // No picture after three seconds: the still stages. (A frozen picture on a slow simulator is given the time it takes.)
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.ready, self.scene != nil else { return }
+            NSLog("Linea: intro: no picture in three seconds: the still stages")
+            self.toStills()
+        }
+        giveUp = work
+        let patience: Double = flow.frozen ? 30 : 3
+        DispatchQueue.main.asyncAfter(deadline: .now() + patience, execute: work)
     }
 
-    override func accessibilityActivate() -> Bool {
-        onActivate?()
-        return true
+    private func showStills() {
+        let made = IntroStills(frame: bounds, art: art)
+        made.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        stills = made
+        insertSubview(made, at: 0)
+        hint.moving = false
+        ready = true
     }
 
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        // At most 2× (the frame is drawn on the CPU); the glow is soft anyway.
-        let scale = window?.screen.scale ?? UIScreen.main.scale
-        contentScaleFactor = Swift.min(scale, 2)
-        if window == nil { stop() }
+    private func toStills() {
+        giveUp?.cancel()
+        giveUp = nil
+        if let gone = scene {
+            scene = nil
+            gone.letGo()
+            gone.removeFromSuperview()
+        }
+        flow.toStills()
+        if stills == nil { showStills() }
+    }
+
+    /// The screen's shape decides where the camera passes the honeycomb layer.
+    private func shape() {
+        if bounds.width > 0 && bounds.height > 0 {
+            flow.passAt = IntroModel.shieldPass(nDistance: IntroModel.nDistance(total: right - left, aspect: Double(bounds.width / bounds.height)))
+        }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        glowLayer.frame = bounds
-        CATransaction.commit()
-        setNeedsDisplay()
+        if bounds.size != laidOut {
+            laidOut = bounds.size
+            frozenDrawn = 0
+            shape()
+        }
+        // The hint stands at the bottom, above the home indicator.
+        let inset = safeAreaInsets.bottom
+        let height = Swift.min(bounds.height, inset + 176)
+        hint.inset = inset
+        hint.frame = CGRect(x: 0, y: bounds.height - height, width: bounds.width, height: height)
     }
 
-    /// Starts the clock now (t = 0).
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        setNeedsLayout()
+    }
+
+    // MARK: The clock
+
+    /// Runs on the screen's frames (again after `pause`).
     func play() {
-        stop()
-        started = CACurrentMediaTime()
-        time = 0
-        let made = CADisplayLink(target: self, selector: #selector(step))
-        made.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
+        if link != nil { return }
+        last = 0
+        let made = CADisplayLink(target: self, selector: #selector(onFrame(_:)))
         made.add(to: .main, forMode: .common)
         link = made
-        setNeedsDisplay()
     }
 
-    /// Shows the frame at t and stays there.
-    func hold(_ t: Double) {
-        stop()
-        time = t
-        setNeedsDisplay()
-    }
-
-    func stop() {
-        link?.invalidate()
+    /// The app left the screen: nothing moves, nothing is drawn; a finger that was down is as lifted.
+    func pause() {
+        guard let running = link else { return }
+        running.invalidate()
         link = nil
+        flow.touchCancel()
     }
 
-    @objc private func step() {
-        time = CACurrentMediaTime() - started
-        setNeedsDisplay()
-        onTime?(time)
+    /// The overlay is gone.
+    func letGo() {
+        pause()
+        giveUp?.cancel()
+        giveUp = nil
+        onEvents = nil
+        if let gone = scene {
+            scene = nil
+            gone.letGo()
+            gone.removeFromSuperview()
+        }
+    }
+
+    @objc private func onFrame(_ sender: CADisplayLink) {
+        // A long hitch does not make the picture jump.
+        let now = sender.timestamp
+        let dt = last == 0 ? 0 : Swift.min(0.1, now - last)
+        last = now
+        step(dt)
+    }
+
+    /// One frame: `dt` seconds have passed since the last.
+    func step(_ dt: Double) {
+        if !ready {
+            // The first picture is tried on every frame until it is on the screen (the scene then says it is ready).
+            if let scene, scene.paint(t: flow.t, p: flow.p, clock: flow.clock, speed: flow.speed, squares: flow.t + flow.past), flow.frozen {
+                frozenDrawn += 1
+            }
+            return
+        }
+        let events = flow.tick(dt)
+        // A frozen picture is drawn a few times and left.
+        if let scene, !flow.frozen || frozenDrawn < 3 {
+            let drew = scene.paint(t: flow.t, p: flow.p, clock: flow.clock, speed: flow.speed, squares: flow.t + flow.past)
+            if drew && flow.frozen { frozenDrawn += 1 }
+        }
+        stills?.show(flow.p)
+        hint.update(wanted: flow.hintVisible, dt: dt)
+        if events != 0 { onEvents?(events) }
+    }
+
+    // MARK: The touches
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else { return }
+        let y = touch.location(in: self).y
+        downY = y
+        lastY = y
+        lastTime = touch.timestamp
+        velocity = 0
+        flow.touchDown()
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else { return }
+        let y = touch.location(in: self).y
+        follow(y, at: touch.timestamp)
+        flow.drag(up: up(y))
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else { return }
+        let y = touch.location(in: self).y
+        follow(y, at: touch.timestamp)
+        flow.drag(up: up(y))
+        // A finger that stopped before it left has not flung.
+        let fresh = touch.timestamp - lastTime < 0.1
+        flow.touchUp(fling: fresh && velocity < -IntroView.flingSpeed && downY - y > 0)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        flow.touchCancel()
+    }
+
+    /// The finger's speed down the screen, points a second, from its last moves.
+    private func follow(_ y: CGFloat, at time: TimeInterval) {
+        let passed = time - lastTime
+        if passed < 0.002 { return }
+        let now = (y - lastY) / CGFloat(passed)
+        velocity = velocity * 0.4 + now * 0.6
+        lastY = y
+        lastTime = time
+    }
+
+    /// How far the finger is above where it came down, in steps: a little under half the screen is a whole step; the
+    /// first few points (a tap's own wobble) do not count.
+    private func up(_ y: CGFloat) -> Double {
+        let moved = downY - y
+        let span = Swift.max(1, bounds.height * 0.45)
+        if moved > IntroView.slop { return Double((moved - IntroView.slop) / span) }
+        if moved < 0 { return Double(moved / span) }
+        return 0
+    }
+}
+
+/// «Проведи вверх» with a finger mark that moves up, again and again. Drawn by the app over the scene, not part of it.
+/// With motion reduced the mark stands still (an arrow up). It comes and goes softly. Android: IntroHint.
+final class IntroHint: UIView {
+    /// The finger mark moves (false: the still arrow).
+    var moving = true
+    /// The home indicator's room at the bottom, points.
+    var inset: CGFloat = 0 {
+        didSet { if inset != oldValue { setNeedsDisplay() } }
+    }
+
+    private static let words = "Проведи вверх"
+    private var shown: Double = 0
+    private var phase: Double = 0
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        contentMode = .redraw
+        isAccessibilityElement = true
+        accessibilityLabel = IntroHint.words
+        accessibilityTraits = .staticText
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    /// Called every frame: whether the hint is wanted now, and the time since the last frame.
+    func update(wanted: Bool, dt: Double) {
+        let before = shown
+        shown = IntroModel.clamp(shown + (wanted ? dt : -dt) / 0.35, 0, 1)
+        if shown <= 0 {
+            phase = 0
+        } else if moving {
+            phase += dt / 1.8
+            if phase >= 1 { phase -= 1 }
+        }
+        if shown > 0 || before > 0 { setNeedsDisplay() }
     }
 
     override func draw(_ rect: CGRect) {
-        guard let ctx = UIGraphicsGetCurrentContext() else { return }
-        let w = Double(bounds.width), h = Double(bounds.height)
-        guard w > 0, h > 0 else { return }
-        let t = Swift.min(time, IntroModel.duration)
-        ctx.setFillColor(IntroView.background.cgColor)
-        ctx.fill(bounds)
-        let projector = IntroProjector(camera: IntroModel.camera(t, world: world), width: w, height: h)
-        prepare(projector, t)
-        drawScene(ctx, projector, t, scale: 1, light: false)
-        drawGlow(projector, t, w, h)
+        guard shown > 0, let context = UIGraphicsGetCurrentContext() else { return }
+        let a = IntroModel.ease(shown)
+        let cx = bounds.width / 2
+        let baseline = bounds.height - inset - 44
+        let font = Theme.font(15, .semibold)
+        let text = NSAttributedString(string: IntroHint.words, attributes: [
+            .font: font,
+            .foregroundColor: UIColor(white: 1, alpha: CGFloat(0.84 * a)),
+        ])
+        let size = text.size()
+        text.draw(at: CGPoint(x: cx - size.width / 2, y: baseline - font.ascender))
+
+        let from = baseline - 44
+        let travel: CGFloat = 52
+        context.setLineWidth(1.6)
+        context.setLineCap(.round)
+        if !moving {
+            // A plain arrow up.
+            let top = from - 26
+            let wing: CGFloat = 8
+            context.setStrokeColor(UIColor(white: 1, alpha: CGFloat(0.8 * a)).cgColor)
+            context.move(to: CGPoint(x: cx, y: from))
+            context.addLine(to: CGPoint(x: cx, y: top))
+            context.move(to: CGPoint(x: cx - wing, y: top + wing))
+            context.addLine(to: CGPoint(x: cx, y: top))
+            context.addLine(to: CGPoint(x: cx + wing, y: top + wing))
+            context.strokePath()
+            return
+        }
+        let rise = CGFloat(IntroModel.ease(phase / 0.7))
+        let light = sin(Double.pi * Swift.min(1.0, phase / 0.9)) * a
+        let y = from - travel * rise
+        context.setStrokeColor(UIColor(white: 1, alpha: CGFloat(0.22 * light)).cgColor)
+        context.move(to: CGPoint(x: cx, y: y + 10))
+        context.addLine(to: CGPoint(x: cx, y: y + 10 + travel * rise * 0.55))
+        context.strokePath()
+        context.setStrokeColor(UIColor(white: 1, alpha: CGFloat(0.5 * light)).cgColor)
+        context.strokeEllipse(in: CGRect(x: cx - 13, y: y - 13, width: 26, height: 26))
+        context.setFillColor(UIColor(white: 1, alpha: CGFloat(0.9 * light)).cgColor)
+        context.fillEllipse(in: CGRect(x: cx - 6, y: y - 6, width: 12, height: 12))
+    }
+}
+
+/// The intro without flights (motion reduced, or a phone that cannot draw the scene): four calm still stages that
+/// cross-fade one into the next with the steps — the word, N alone, the cipher, a soft dim blur. Android: IntroStills.
+final class IntroStills: UIView {
+    private struct Row {
+        let signs: String
+        let y: CGFloat
+        let size: CGFloat
+        let light: CGFloat
     }
 
-    // MARK: The frame
+    private let art: IntroArt?
+    /// The word and N alone, cut from the word's picture.
+    private var wordPicture: UIImage?
+    private var signPicture: UIImage?
+    private var rows: [Row] = []
+    private var builtFor: CGSize = .zero
+    private var p: Double = 0
 
-    /// The per-frame numbers both passes use: the particles' squares on the screen in depth order, the field's light.
-    private func prepare(_ projector: IntroProjector, _ t: Double) {
-        let cell = world.cell
-        for i in 0..<world.particles.count {
-            let s = IntroModel.particle(world.particles[i], t, cell: cell)
-            let half = s.size / 2
-            let c = cos(s.angle), sn = sin(s.angle)
-            bright[i] = s.brightness
-            for k in 0..<4 {
-                let sx = (k == 0 || k == 3) ? -half : half
-                let sy = k < 2 ? -half : half
-                let p = projector.project(s.x + sx * c - sy * sn, s.y + sx * sn + sy * c, s.z)
-                quads[i * 4 + k] = CGPoint(x: p.0, y: p.1)
+    init(frame: CGRect, art: IntroArt?) {
+        self.art = art
+        super.init(frame: frame)
+        isOpaque = true
+        backgroundColor = IntroView.page
+        isUserInteractionEnabled = false
+        contentMode = .redraw
+        if let art, let whole = art.image() {
+            let top = Int(IntroArt.base - IntroArt.cap)
+            let tall = Int(IntroArt.cap)
+            let wordLeft = Int(IntroArt.left)
+            let wordWide = Int(art.wordEnd) + 1 - wordLeft
+            if let cut = whole.cropping(to: CGRect(x: wordLeft, y: top, width: wordWide, height: tall)) { wordPicture = UIImage(cgImage: cut) }
+            let signLeft = Int(art.spans[1][0])
+            let signWide = Int(art.spans[1][0] + art.spans[1][1]) + 1 - signLeft
+            if let cut = whole.cropping(to: CGRect(x: signLeft, y: top, width: signWide, height: tall)) { signPicture = UIImage(cgImage: cut) }
+        }
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    /// The progress through the steps, 0…4.
+    func show(_ progress: Double) {
+        if abs(progress - p) < 1e-6 { return }
+        p = progress
+        setNeedsDisplay()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let w = bounds.width
+        let h = bounds.height
+        if w <= 0 || h <= 0 || bounds.size == builtFor { return }
+        builtFor = bounds.size
+        // The cipher: rows of signs in groups, most of them dim and small, a few large and bright.
+        var random = IntroModel.Random(seed: 7)
+        var made: [Row] = []
+        var y: CGFloat = 0
+        var index = 0
+        while y < h + 40 {
+            let large = index % 5 == 2
+            let size: CGFloat = large ? 30 : (index % 2 == 0 ? 13 : 18)
+            y += size * 1.7
+            let length = Int(w / (size * 0.6)) + 2
+            var signs = [String](repeating: " ", count: length)
+            var k = 0
+            while k < length {
+                let n = random.next() < 0.5 ? 2 : 4
+                let on = random.next() < (large ? 0.3 : 0.6)
+                for _ in 0..<n {
+                    if k < length && on {
+                        signs[k] = IntroArt.signs[Swift.max(0, Swift.min(15, Int(random.next() * 16)))]
+                    }
+                    k += 1
+                }
+                k += 1
             }
-            depth[i] = half <= 0 ? -1 : projector.project(s.x, s.y, s.z).2
+            made.append(Row(signs: signs.joined(), y: y, size: size, light: large ? 0.85 : (index % 2 == 0 ? 0.2 : 0.34)))
+            index += 1
         }
-        // Back to front (insertion sort: the order hardly changes from one frame to the next).
-        if order.count > 1 {
-            for i in 1..<order.count {
-                let v = order[i]
-                var j = i - 1
-                while j >= 0 && depth[order[j]] < depth[v] { order[j + 1] = order[j]; j -= 1 }
-                order[j + 1] = v
-            }
-        }
-        for i in 0..<edges.count { fieldLight[i] = IntroModel.edgeGlow(edges, i, t) }
+        rows = made
+        setNeedsDisplay()
     }
 
-    /// One pass of the scene. `scale` maps the view's points to the context (the glow's small bitmap: < 1); `light`
-    /// draws only the bright layers (the glow pass).
-    private func drawScene(_ ctx: CGContext, _ projector: IntroProjector, _ t: Double, scale: CGFloat, light: Bool) {
-        ctx.saveGState()
-        ctx.scaleBy(x: scale, y: scale)
-        drawField(ctx, projector, scale: scale, light: light)
-        drawPlate(ctx, projector, t, light: light)
-        drawParticles(ctx, light: light)
-        drawSlab(ctx, projector, t, scale: scale, light: light)
-        ctx.restoreGState()
-    }
-
-    private func level(_ v: Double) -> Int { return Swift.min(IntroView.levels - 1, Swift.max(0, Int(IntroModel.clamp(v, 0, 1) * Double(IntroView.levels)))) }
-
-    private func drawField(_ ctx: CGContext, _ projector: IntroProjector, scale: CGFloat, light: Bool) {
-        var paths: [CGMutablePath?] = [CGMutablePath?](repeating: nil, count: IntroView.levels)
-        let l = edges.lines
-        for i in 0..<edges.count {
-            let v = fieldLight[i]
-            if v < 0.01 { continue }
-            let at = level(v)
-            let a = projector.project(l[4 * i], l[4 * i + 1], IntroModel.fieldZ)
-            let b = projector.project(l[4 * i + 2], l[4 * i + 3], IntroModel.fieldZ)
-            let path = paths[at] ?? CGMutablePath()
-            path.move(to: CGPoint(x: a.0, y: a.1))
-            path.addLine(to: CGPoint(x: b.0, y: b.1))
-            paths[at] = path
+    override func draw(_ rect: CGRect) {
+        guard let context = UIGraphicsGetCurrentContext() else { return }
+        context.setFillColor(IntroView.page.cgColor)
+        context.fill(bounds)
+        let w = bounds.width
+        let h = bounds.height
+        if w <= 0 || h <= 0 { return }
+        let first = IntroModel.clamp(1 - p, 0, 1)
+        let second = IntroModel.clamp(1 - abs(p - 1), 0, 1)
+        let third = IntroModel.clamp(1 - abs(p - 2), 0, 1)
+        let fourth = IntroModel.clamp(p - 2, 0, 1)
+        let cap = CGFloat(IntroArt.cap)
+        if let art, let picture = wordPicture, first > 0 {
+            // The word across the screen less the margins.
+            let span = CGFloat(art.wordEnd - IntroArt.left)
+            let scale = Swift.min(w * CGFloat(1 - 2 * IntroModel.margin) / span, h * 0.3 / cap)
+            let x = (w - span * scale) / 2
+            let y = h * 0.46 - cap * scale / 2
+            stand(context, picture, CGRect(x: x, y: y, width: span * scale, height: cap * scale), first)
         }
-        ctx.setLineCap(.round)
-        ctx.setLineWidth(Swift.max(1 / scale, 0.8))
-        for (index, path) in paths.enumerated() {
-            guard let path else { continue }
-            let v = (CGFloat(index) + 0.5) / CGFloat(IntroView.levels)
-            ctx.setStrokeColor(light ? UIColor(white: 1, alpha: v).cgColor : UIColor(red: 236 / 255, green: 240 / 255, blue: 1, alpha: v).cgColor)
-            ctx.addPath(path)
-            ctx.strokePath()
+        if let art, let picture = signPicture, second > 0 {
+            // N alone at the centre.
+            let wide = CGFloat(art.spans[1][1])
+            let scale = Swift.min(h * 0.25 / cap, w * 0.58 / wide)
+            let x = (w - wide * scale) / 2
+            let y = h * 0.46 - cap * scale / 2
+            stand(context, picture, CGRect(x: x, y: y, width: wide * scale, height: cap * scale), second)
         }
-    }
-
-    private func outline(_ projector: IntroProjector, _ pieces: [[Double]], _ z: Double) -> CGPath {
-        let path = CGMutablePath()
-        for piece in pieces {
-            for k in stride(from: 0, to: piece.count, by: 2) {
-                let p = projector.project(piece[k], piece[k + 1], z)
-                if k == 0 { path.move(to: CGPoint(x: p.0, y: p.1)) } else { path.addLine(to: CGPoint(x: p.0, y: p.1)) }
-            }
-            path.closeSubpath()
-        }
-        return path
-    }
-
-    private func drawPlate(_ ctx: CGContext, _ projector: IntroProjector, _ t: Double, light: Bool) {
-        let hal = CGFloat(IntroModel.clamp(IntroModel.flare(t), 0, 1))
-        ctx.setFillColor(light ? UIColor(white: 1, alpha: hal * 0.9).cgColor : UIColor(white: hal, alpha: 1).cgColor)
-        ctx.addPath(outline(projector, plateOutline, IntroModel.plateZ))
-        ctx.fillPath()
-    }
-
-    private func drawParticles(_ ctx: CGContext, light: Bool) {
-        var paths: [CGMutablePath?] = [CGMutablePath?](repeating: nil, count: IntroView.levels)
-        for n in 0..<order.count {
-            let i = order[n]
-            if depth[i] < 0 { continue }
-            let at = level(bright[i])
-            let path = paths[at] ?? CGMutablePath()
-            path.addLines(between: [quads[i * 4], quads[i * 4 + 1], quads[i * 4 + 2], quads[i * 4 + 3]])
-            path.closeSubpath()
-            paths[at] = path
-        }
-        for (index, path) in paths.enumerated() {
-            guard let path else { continue }
-            let v = (CGFloat(index) + 0.5) / CGFloat(IntroView.levels)
-            ctx.setFillColor(light ? UIColor(white: 1, alpha: v).cgColor : UIColor(white: v, alpha: 1).cgColor)
-            ctx.addPath(path)
-            ctx.fillPath()
-        }
-    }
-
-    private func colour(_ c: [Double], _ k: Double) -> CGColor {
-        return UIColor(red: CGFloat(IntroModel.clamp(c[0] * k, 0, 1)), green: CGFloat(IntroModel.clamp(c[1] * k, 0, 1)), blue: CGFloat(IntroModel.clamp(c[2] * k, 0, 1)), alpha: 1).cgColor
-    }
-
-    private func drawSlab(_ ctx: CGContext, _ projector: IntroProjector, _ t: Double, scale: CGFloat, light: Bool) {
-        let body = IntroModel.body(t)
-        if !light {
-            // The back and the side: the outline drawn at depths from the back to the front, darker behind.
-            for layerIndex in 0..<IntroView.slabLayers {
-                let k = Double(layerIndex) / Double(IntroView.slabLayers)
-                let z = IntroModel.slabBack + (IntroModel.slabFront - IntroModel.slabBack) * k
-                let a = IntroView.sideBack, b = IntroView.sideFront
-                ctx.setFillColor(colour([a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k], body))
-                ctx.addPath(outline(projector, world.mark, z))
-                ctx.fillPath()
-            }
-        }
-        // The front face: dark and glossy, the honeycomb lighter on it.
-        let front = outline(projector, world.mark, IntroModel.slabFront)
-        ctx.saveGState()
-        ctx.addPath(front)
-        ctx.clip()
-        if !light {
-            ctx.setFillColor(colour(IntroView.faceColour, body))
-            ctx.addPath(front)
-            ctx.fillPath()
-            if let sheen {
-                let a = projector.project(-6, 10.5, IntroModel.slabFront), b = projector.project(4, 0, IntroModel.slabFront)
-                ctx.saveGState()
-                ctx.setAlpha(CGFloat(body))
-                ctx.drawLinearGradient(sheen, start: CGPoint(x: a.0, y: a.1), end: CGPoint(x: b.0, y: b.1), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-                ctx.restoreGState()
-            }
-        }
-        let lines = CGMutablePath()
-        for k in stride(from: 0, to: face.count, by: 4) {
-            let a = projector.project(face[k], face[k + 1], IntroModel.slabFront)
-            let b = projector.project(face[k + 2], face[k + 3], IntroModel.slabFront)
-            lines.move(to: CGPoint(x: a.0, y: a.1))
-            lines.addLine(to: CGPoint(x: b.0, y: b.1))
-        }
-        // The lines' width: 0.15 scene units (the preview's border band of each cell) at N's depth.
-        let middle = projector.project(0, 5, IntroModel.slabFront)
-        ctx.setLineWidth(Swift.max(1 / scale, CGFloat(0.15 * projector.focal / middle.2)))
-        ctx.setLineCap(.round)
-        ctx.setStrokeColor(light ? UIColor(white: 1, alpha: CGFloat(0.15 * body)).cgColor : colour(IntroView.faceLineColour, body))
-        ctx.addPath(lines)
-        ctx.strokePath()
-        ctx.restoreGState()
-    }
-
-    /// The glow: the bright layers into a small premultiplied bitmap, blurred twice with a box (≈ a Gaussian), shown by
-    /// the glow sublayer at 0.7 — white light × alpha over the frame, the preview's screen-blended bloom.
-    private func drawGlow(_ projector: IntroProjector, _ t: Double, _ w: Double, _ h: Double) {
-        let down = 2.7 // points per glow pixel (Android: 2.7 dp)
-        let gw = Swift.max(1, Int((w / down).rounded())), gh = Swift.max(1, Int((h / down).rounded()))
-        if glowContext == nil || glowContext?.width != gw || glowContext?.height != gh {
-            glowContext = CGContext(data: nil, width: gw, height: gh, bitsPerComponent: 8, bytesPerRow: 0,
-                                    space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-            glowWork?.deallocate()
-            glowWork = nil
-            if let made = glowContext {
-                glowWorkSize = made.bytesPerRow * gh
-                glowWork = UnsafeMutableRawPointer.allocate(byteCount: glowWorkSize, alignment: 16)
+        if third > 0 {
+            for row in rows {
+                let font = UIFont.monospacedSystemFont(ofSize: row.size, weight: .bold)
+                let colour = UIColor(red: 0xBF / 255.0, green: 0xD6 / 255.0, blue: 1, alpha: row.light * CGFloat(third))
+                let text = NSAttributedString(string: row.signs, attributes: [.font: font, .foregroundColor: colour])
+                text.draw(at: CGPoint(x: 0, y: row.y - font.ascender))
             }
         }
-        guard let small = glowContext, let data = small.data, let work = glowWork else { return }
-        small.clear(CGRect(x: 0, y: 0, width: gw, height: gh))
-        small.saveGState()
-        // Top-left origin, as the view's own context.
-        small.translateBy(x: 0, y: CGFloat(gh))
-        small.scaleBy(x: 1, y: -1)
-        drawScene(small, projector, t, scale: CGFloat(Double(gw) / w), light: true)
-        small.restoreGState()
-        var source = vImage_Buffer(data: data, height: vImagePixelCount(gh), width: vImagePixelCount(gw), rowBytes: small.bytesPerRow)
-        var target = vImage_Buffer(data: work, height: vImagePixelCount(gh), width: vImagePixelCount(gw), rowBytes: small.bytesPerRow)
-        let flags = vImage_Flags(kvImageEdgeExtend)
-        _ = vImageBoxConvolve_ARGB8888(&source, &target, nil, 0, 0, 5, 5, nil, flags)
-        _ = vImageBoxConvolve_ARGB8888(&target, &source, nil, 0, 0, 5, 5, nil, flags)
-        let image = small.makeImage()
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        glowLayer.contents = image
-        CATransaction.commit()
+        if fourth > 0 {
+            let colours = [
+                UIColor(red: 0x23 / 255.0, green: 0x2B / 255.0, blue: 0x42 / 255.0, alpha: 1).cgColor,
+                UIColor(red: 0x10 / 255.0, green: 0x14 / 255.0, blue: 0x1F / 255.0, alpha: 1).cgColor,
+                IntroView.page.cgColor,
+            ] as CFArray
+            let stops: [CGFloat] = [0, 0.55, 1]
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colours, locations: stops) {
+                let centre = CGPoint(x: w / 2, y: h * 0.46)
+                context.saveGState()
+                context.setAlpha(CGFloat(fourth))
+                context.drawRadialGradient(gradient, startCenter: centre, startRadius: 0, endCenter: centre, endRadius: Swift.max(w, h) * 0.75, options: [.drawsAfterEndLocation])
+                context.restoreGState()
+            }
+        }
+    }
+
+    /// The picture at `place`, with a faint mirror image under it.
+    private func stand(_ context: CGContext, _ picture: UIImage, _ place: CGRect, _ light: Double) {
+        picture.draw(in: place, blendMode: .normal, alpha: CGFloat(0.92 * light))
+        context.saveGState()
+        context.translateBy(x: 0, y: 2 * place.maxY)
+        context.scaleBy(x: 1, y: -1)
+        picture.draw(in: place, blendMode: .normal, alpha: CGFloat(0.1 * light))
+        context.restoreGState()
     }
 }
