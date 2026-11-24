@@ -85,14 +85,14 @@ object IntroOverlay {
     show(activity, flow, real = true)
   }
 
-  /** The emulator check: the intro frozen at the ident's time `t` over the sign-in screen, no haptics, the seen flag
+  /** The emulator check (it tries the scene whatever the phone says of itself, and the log keeps what it said): the intro frozen at the ident's time `t` over the sign-in screen, no haptics, the seen flag
    *  untouched (`--es intro hold --es introat 2.9`). */
-  fun hold(activity: Activity, t: Double) = show(activity, IntroFlow(stills = !canDrawScene(activity)).apply { freeze(t, 0.0) }, real = false)
+  fun hold(activity: Activity, t: Double) = show(activity, IntroFlow(stills = false).also { canDrawScene(activity) }.apply { freeze(t, 0.0) }, real = false)
 
   /** The same, frozen at a progress through the steps, 0…4 (`--es intro step --es introat 1.5`); `stills` — the still
    *  stages (`--es intro still --es introat 2`). */
   fun step(activity: Activity, p: Double, stills: Boolean = false) =
-    show(activity, IntroFlow(stills = stills || !canDrawScene(activity)).apply { freeze(IntroModel.IDENT_END, p) }, real = false)
+    show(activity, IntroFlow(stills = stills).also { canDrawScene(activity) }.apply { freeze(IntroModel.IDENT_END, p) }, real = false)
 
   private fun show(activity: Activity, flow: IntroFlow, real: Boolean) {
     close()
