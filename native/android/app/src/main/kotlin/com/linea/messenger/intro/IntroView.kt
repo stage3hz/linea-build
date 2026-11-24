@@ -49,7 +49,7 @@ class IntroView(context: Context, val flow: IntroFlow) : FrameLayout(context), C
   private var tracker: VelocityTracker? = null
   private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
   private val flingSpeed = 500f * resources.displayMetrics.density
-  private val giveUp = Runnable { if (!ready && scene != null) toStills() }
+  private val giveUp = Runnable { if (!ready && scene != null) { android.util.Log.e("intro", "no picture in three seconds: the still stages"); toStills() } }
 
   init {
     setBackgroundColor(IntroModel.BACKGROUND)

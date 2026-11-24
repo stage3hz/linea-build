@@ -124,20 +124,22 @@ internal class IntroGlView(
     try {
       val pictures = art ?: IntroArt.make(app).also { art = it }
       val numbers = geometry ?: IntroGeometry.build(pictures, count).also { geometry = it }
-      if (!egl(texture)) return fail()
+      if (!egl(texture)) return fail("no OpenGL ES 3 surface, EGL error 0x" + Integer.toHexString(EGL14.eglGetError()))
       val made = IntroRenderer(pictures, numbers, glow, finest)
-      if (!made.create()) { made.release(); return fail() }
+      if (!made.create()) { made.release(); return fail("the scene's programs were not made") }
       made.resize(width, height)
       renderer = made
       draw()
       val left = numbers.left.toDouble(); val right = numbers.right.toDouble()
       main.post { if (!released) onReady?.invoke(left, right) }
-    } catch (_: Throwable) {
-      fail()
+    } catch (e: Throwable) {
+      fail("the scene was not built: $e")
     }
   }
 
-  private fun fail() {
+  /** The still stages take over; why is left in the log. */
+  private fun fail(why: String) {
+    android.util.Log.e("intro", why)
     broken = true
     stop()
     main.post { if (!released) onFailed?.invoke() }
@@ -174,8 +176,8 @@ internal class IntroGlView(
     try {
       made.draw(time, progress, clock, speed, squares)
       EGL14.eglSwapBuffers(display, surface)
-    } catch (_: Throwable) {
-      fail()
+    } catch (e: Throwable) {
+      fail("a frame was not drawn: $e")
     }
   }
 

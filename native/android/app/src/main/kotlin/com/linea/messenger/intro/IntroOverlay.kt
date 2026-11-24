@@ -59,7 +59,9 @@ object IntroOverlay {
 
   /** The phone can draw the scene (OpenGL ES 3.0). */
   fun canDrawScene(context: Context): Boolean = try {
-    ((context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.deviceConfigurationInfo?.reqGlEsVersion ?: 0) >= 0x30000
+    val version = (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)?.deviceConfigurationInfo?.reqGlEsVersion ?: 0
+    if (version < 0x30000) android.util.Log.e("intro", "OpenGL ES 0x" + Integer.toHexString(version) + ": the still stages")
+    version >= 0x30000
   } catch (_: Exception) { false }
 
   /** How the intro is shown at this start (IntroModel.mode with this phone's answers). A start with a screen reader
