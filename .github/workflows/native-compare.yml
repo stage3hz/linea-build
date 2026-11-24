@@ -377,7 +377,9 @@ jobs:
           # when it fails. The fourth run: takeover-check PASS, yet every native screen showed the storage error and
           # 56 flows waited minutes each for a chat list that never came. The line is kept (native-open.txt) and the
           # gestures are left out.
-          opened=$(limit 180 xcrun simctl spawn "$UDID" log show --last 5m --style compact --predicate 'eventMessage CONTAINS "Linea: the account did not open"' 2>/dev/null | grep -o 'Linea: the account did not open.*' | tail -1 || true)
+          # (The log tool prints its own filter first, with these very words: only the app's line, which goes on
+          # with «: <error>», counts. The sixth run took that header for a failure while the account was open.)
+          opened=$(limit 180 xcrun simctl spawn "$UDID" log show --last 5m --style compact --predicate 'eventMessage CONTAINS "Linea: the account did not open"' 2>/dev/null | grep -o 'Linea: the account did not open: .*' | tail -1 || true)
           if [ -n "$opened" ]; then
             echo "$opened" > "$OUT/native-open.txt"
             NATIVE_STORAGE=failed
