@@ -43,6 +43,7 @@ class IntroView(context: Context, val flow: IntroFlow) : FrameLayout(context), C
   private var running = false
   private var ready = false
   private var last = 0L
+  private var frozenDrawn = 0
   private var left = -12.0
   private var right = 39.0
   private var downY = 0f
@@ -67,7 +68,8 @@ class IntroView(context: Context, val flow: IntroFlow) : FrameLayout(context), C
     scene = made
     addView(made, 0, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     // No picture after three seconds (a window that cannot hold the texture): the still stages.
-    postDelayed(giveUp, 3000)
+    // (A frozen picture on a software-drawn emulator is given the time it takes.)
+    postDelayed(giveUp, if (flow.frozen) 30_000 else 3000)
   }
 
   private fun showStills() {
@@ -93,6 +95,7 @@ class IntroView(context: Context, val flow: IntroFlow) : FrameLayout(context), C
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     super.onSizeChanged(w, h, oldw, oldh)
+    frozenDrawn = 0
     shape()
   }
 
@@ -141,7 +144,8 @@ class IntroView(context: Context, val flow: IntroFlow) : FrameLayout(context), C
   fun step(dt: Double) {
     if (!ready) return
     val events = flow.tick(dt)
-    scene?.frame(flow.t, flow.p, flow.clock, flow.speed, flow.t + flow.past)
+    // A frozen picture is drawn a few times and left: drawing it on every frame took a software-drawn emulator down.
+    if (!flow.frozen || frozenDrawn < 3) { scene?.frame(flow.t, flow.p, flow.clock, flow.speed, flow.t + flow.past); if (flow.frozen) frozenDrawn++ }
     stills?.show(flow.p)
     hint.update(flow.hintVisible, dt)
     if (events != 0) onEvents?.invoke(events)

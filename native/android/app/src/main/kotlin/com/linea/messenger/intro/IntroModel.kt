@@ -289,7 +289,9 @@ class IntroFlow(
   private var idle = 0.0
   private var passed = false
   private var pending = 0
-  private var frozen = false
+  /** Frozen for a still picture (`freeze`). */
+  var frozen = false
+    private set
 
   val identOver: Boolean get() = t >= IntroModel.IDENT_END
   val finished: Boolean get() = done >= IntroModel.STEPS

@@ -52,19 +52,6 @@ shot 02-sections --ez demo true --ez sections true
 shot 03-settings --ez demo true --es tab profile
 shot 04-chat --ez demo true --ez chat true
 shot 05-auth --ez auth true
-# Intro: the first-launch intro over the sign-in screen, frozen: the word standing, the crumble, N at the centre, the
-# pass of the honeycomb layer, inside N, the cipher, the blur at the end; then the still stages of reduced motion.
-shot 05i-intro-ident --es intro hold --es introat 1.8
-shot 05j-intro-crumble --es intro hold --es introat 3.1
-shot 05k-intro-n --es intro hold --es introat 4.9
-shot 05l-intro-honeycomb --es intro step --es introat 0.55
-shot 05m-intro-inside --es intro step --es introat 1.2
-shot 05n-intro-cipher --es intro step --es introat 2.5
-shot 05o-intro-blur --es intro step --es introat 4
-shot 05p-intro-still-word --es intro still --es introat 0
-shot 05q-intro-still-cipher --es intro still --es introat 2
-# Why the scene gave way to the still stages, if it did (intro/IntroGlView.kt).
-adb logcat -d -s intro:E > "$OUT/intro-log.txt" 2>/dev/null || true
 shot 06b-register --ez auth true --es authmode register
 shot 06c-recover --ez auth true --es authmode recover
 shot 06d-waiting --ez auth true --es authmode waiting
@@ -315,6 +302,20 @@ shot 460-forward-pending --ez demo true --ez chat true --es chatdemo forwardpend
 # Last: on the runner's software-drawn emulator this page (eight frames drawn live) once took the emulator down.
 shot 101-avatar-code-frames --es profiledemo code
 
+# Last of all, for the same reason: the scene is drawn by the processor here.
+# Intro: the first-launch intro over the sign-in screen, frozen: the word standing, the crumble, N at the centre, the
+# pass of the honeycomb layer, inside N, the cipher, the blur at the end; then the still stages of reduced motion.
+shot 05i-intro-ident --es intro hold --es introat 1.8
+shot 05j-intro-crumble --es intro hold --es introat 3.4
+shot 05k-intro-n --es intro hold --es introat 4.9
+shot 05l-intro-honeycomb --es intro step --es introat 0.55
+shot 05m-intro-inside --es intro step --es introat 1.2
+shot 05n-intro-cipher --es intro step --es introat 2.5
+shot 05o-intro-blur --es intro step --es introat 4
+shot 05p-intro-still-word --es intro still --es introat 0
+shot 05q-intro-still-cipher --es intro still --es introat 2
+# Why the scene gave way to the still stages, if it did (intro/IntroGlView.kt).
+adb logcat -d -s intro:E > "$OUT/intro-log.txt" 2>/dev/null || true
 # What the app itself said while it ran (crashes show here).
 adb logcat -d -t 400 '*:E' > "$OUT/logcat-errors.txt" 2>/dev/null || true
 adb shell dumpsys package "$APP" | grep -E "versionName|primaryCpuAbi" || true
