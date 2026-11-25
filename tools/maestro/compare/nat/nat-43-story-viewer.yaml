@@ -5,7 +5,6 @@ appId: com.linea.messenger.preview
 - tapOn:
     text: "Анна Лебедева, (новых историй|истории просмотрены|запись).*"
     index: 0
-- waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"
     timeout: 1500

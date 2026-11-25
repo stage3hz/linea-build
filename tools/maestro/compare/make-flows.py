@@ -28,6 +28,12 @@ def tap_once(t, index=None):
     s = f'- tapOn:\n    text: {q(t)}\n'
     if index is not None: s += f'    index: {index}\n'
     return s + '    retryTapIfNoChange: false\n- waitForAnimationToEnd\n'
+# A tap that is not followed by a wait for the screen to come to rest: what it opens keeps moving (a story's
+# progress line), and by the time Maestro stops waiting the story has played out and closed.
+def tap_now(t, index=None):
+    s = f'- tapOn:\n    text: {q(t)}\n'
+    if index is not None: s += f'    index: {index}\n'
+    return s
 def tapid(i, optional=False):
     return f'- tapOn:\n    id: {q(i)}\n' + ('    optional: true\n' if optional else '')
 def hold(t):
@@ -196,8 +202,10 @@ pair('39-saved-menu', 1, '', 25, tap('Избранное.*', index=0) + wait('.*
 pair('40-chat-failed', 1, '', 25, reveal('Вера.*') + tap('Вера.*') + pause(3000), 'same', start='home')
 pair('41-chat-blocked', 1, '', 25, reveal('Игорь.*') + tap('Игорь.*') + pause(3000), 'same', start='home')
 pair('42-new-chat', 2, '', 25, tap('Новый чат'), 'same', start='home')
-pair('43-story-viewer', 3, '', 25, '|' + tap('Анна Лебедева, (новых историй|истории просмотрены|запись).*', index=0) + pause(1500), 'same', start='home')
-pair('44-own-story', 3, '', 25, tap('Моя история', index=0) + pause(1500), 'same', start='home')
+# In the run of 34bf134d both apps were photographed back on the chat list: the story had been opened and had ended
+# while Maestro waited for the screen to stop moving.
+pair('43-story-viewer', 3, '', 25, '|' + tap_now('Анна Лебедева, (новых историй|истории просмотрены|запись).*', index=0) + pause(1500), 'same', start='home')
+pair('44-own-story', 3, '', 25, tap_now('Моя история', index=0) + pause(1500), 'same', start='home')
 # The account has a story, so its circle reads «Моя история» and its «+» is inside it (not a control of its own to
 # Maestro); a hold on the circle adds a story on both apps (mobile/src/stories/StoriesStrip.tsx onLongPress,
 # native/ios/Sources/Stories/StoriesStrip.swift heldDown).
