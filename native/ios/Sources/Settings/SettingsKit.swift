@@ -612,7 +612,8 @@ final class SettingsSwitchRow: UIView {
         let texts = UIStackView(arrangedSubviews: [top])
         texts.axis = .vertical
         texts.spacing = 3
-        if !words.isEmpty { texts.addArrangedSubview(SettingsLook.words(words, size: 12, color: Theme.muted)) }
+        // SettingsScreen.tsx:141 `Toggle`: the description is 12 on lines of 17.
+        if !words.isEmpty { texts.addArrangedSubview(SettingsLook.para(words, size: 12, color: Theme.muted, line: 17)) }
         toggle.isOn = value
         toggle.isEnabled = enabled
         SettingsLook.paint(toggle)
