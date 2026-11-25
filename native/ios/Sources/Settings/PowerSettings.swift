@@ -60,7 +60,8 @@ final class PowerSettingsViewController: SettingsPage {
         var rows: [UIView] = [SettingsLook.inset(top, top: 14, side: 14, bottom: 6)]
         let caption = UILabel()
         caption.attributedText = NSAttributedString(string: "РЕСУРСОЁМКИЕ ПРОЦЕССЫ", attributes: [.kern: 1.2, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
-        rows.append(SettingsLook.inset(caption, top: 14, side: 14, bottom: 0))
+        // SettingsScreen.tsx: the caption keeps 18 above it and 4 under it.
+        rows.append(SettingsLook.inset(caption, top: 18, side: 14, bottom: 4))
         let items: [(String, String, String, String)] = [
             ("autoplayVideo", "ion:videocam", "Автозапуск видео", "Кружки и видео в чатах сами играют без звука, видео-аватары двигаются."),
             ("autoplayGif", "ion:images", "Автозапуск GIF", "GIF в чатах, на аватарах и баннерах проигрываются сами."),
@@ -78,7 +79,7 @@ final class PowerSettingsViewController: SettingsPage {
         rows.append(animations)
         let reason = SettingsLook.words("", size: 12, color: Theme.muted)
         reasonLabel = reason
-        rows.append(SettingsLook.inset(reason, top: 6, side: 14, bottom: 10))
+        rows.append(SettingsLook.inset(reason, top: 6, side: 14, bottom: 14))
         let card = UIStackView(arrangedSubviews: rows)
         card.axis = .vertical
         let holder = UIView()
@@ -95,7 +96,9 @@ final class PowerSettingsViewController: SettingsPage {
             card.leadingAnchor.constraint(equalTo: holder.leadingAnchor),
             card.trailingAnchor.constraint(equalTo: holder.trailingAnchor),
         ])
-        add(holder, gap: 16)
+        // The page opens with its card, not with a group's name (which brings 8 of its own above it): the card stands
+        // the whole distance under the header, as in the previous app.
+        add(SettingsLook.inset(holder, top: 8), gap: 16)
         refreshWords()
     }
 
@@ -116,8 +119,17 @@ final class PowerSettingsViewController: SettingsPage {
             if let battery = Motion.power.level { now = " (сейчас \(Motion.percent(battery))%)" }
             foot = "Автоматически отключать все ресурсоёмкие процессы при заряде менее \(percent)%" + now + "."
         }
-        footLabel?.text = foot
-        reasonLabel?.text = Motion.reason
+        footLabel?.attributedText = PowerSettingsViewController.lines(foot)
+        reasonLabel?.attributedText = PowerSettingsViewController.lines(Motion.reason)
+    }
+
+    /// Words of 12 on lines of 17, as the previous app sets them under the slider and under the rows.
+    private static func lines(_ text: String) -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 17
+        style.maximumLineHeight = 17
+        style.lineBreakStrategy = []
+        return NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: Theme.muted, .paragraphStyle: style])
     }
 }
 
@@ -215,7 +227,7 @@ final class PowerRow: UIView {
         icon.translatesAutoresizingMaskIntoConstraints = false
         chip.addSubview(icon)
         let name = SettingsLook.words(title, size: 15, color: Theme.text)
-        let words = SettingsLook.words(text, size: 12, color: Theme.muted)
+        let words = SettingsLook.para(text, size: 12, color: Theme.muted, line: 16) // PowerRow: 12 on lines of 16
         let texts = UIStackView(arrangedSubviews: [name, words])
         texts.axis = .vertical
         texts.spacing = 2
