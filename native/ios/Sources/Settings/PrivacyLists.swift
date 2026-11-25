@@ -68,6 +68,8 @@ final class LastSeenExceptionsViewController: SettingsPage, UITextFieldDelegate 
     private let rule: String
     private var listed: [[String: Any]]?
     private var friends: [[String: Any]] = []
+    /// The people of the account's chats: offered after the friends, as in the previous app.
+    private var partners: [[String: Any]] = []
     private var found: [[String: Any]] = []
     private var query = ""
     private var busy = ""
@@ -103,6 +105,13 @@ final class LastSeenExceptionsViewController: SettingsPage, UITextFieldDelegate 
             guard let self, case .success(let body) = result else { return }
             self.friends = body["users"] as? [[String: Any]] ?? []
             self.fill()
+        }
+        messenger.chats { [weak self] (result: Result<[Messenger.ChatSummary], ServerError>) -> Void in
+            DispatchQueue.main.async {
+                guard let self, case .success(let list) = result else { return }
+                self.partners = list.compactMap { (chat: Messenger.ChatSummary) -> [String: Any]? in chat.chat["peer"] as? [String: Any] }
+                self.fill()
+            }
         }
         fill()
     }
@@ -193,7 +202,7 @@ final class LastSeenExceptionsViewController: SettingsPage, UITextFieldDelegate 
         let own = messenger.userId
         var seen = Set<String>()
         var candidates: [[String: Any]] = []
-        for person in friends + found {
+        for person in friends + partners + found {
             guard let id = person["id"] as? String, id != own, !seen.contains(id), !inList.contains(id) else { continue }
             seen.insert(id)
             let name = (person["displayName"] as? String ?? "").lowercased()
