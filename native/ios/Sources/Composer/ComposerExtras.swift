@@ -29,6 +29,8 @@ final class ComposerExtras: NSObject {
     /// Record: the emoji button fades away with the field's text while a voice take or its preview is shown.
     var emojiView: UIView? { emojiButton }
     private var panel: EmojiPanel?
+    /// When the panel was opened last (CACurrentMediaTime).
+    private var panelOpened: CFTimeInterval = 0
     private var keyboardHeight: CGFloat = 0
     private var keyboardShown = false
     private let formatBar = FormatBar(frame: .zero)
@@ -142,21 +144,31 @@ final class ComposerExtras: NSObject {
     // MARK: The keyboard and the emoji panel
 
     @objc private func keyboardWillShow(_ note: Notification) {
-        if let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue, frame.height > 0 { keyboardHeight = frame.height }
+        let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
+        if let frame, frame.height > 0 { keyboardHeight = frame.height }
         keyboardShown = true
-        // The keyboard came back: the panel gives way to it.
-        if panel != nil { closeEmoji(animated: false) }
+        guard panel != nil else { return }
+        // The keyboard came back: the panel gives way to it. Only a keyboard that is really coming counts — one that
+        // stands on the screen, or one asked for by the field; a notice about a keyboard that is not shown (nothing
+        // is being typed in, its frame is under the screen's edge) leaves the panel where it is.
+        let typing = field?.isFirstResponder ?? false
+        var onScreen = false
+        if let frame { onScreen = frame.height > 0 && frame.minY < UIScreen.main.bounds.height }
+        if typing || onScreen { closeEmoji(animated: false) }
     }
 
     @objc private func keyboardWillHide() { keyboardShown = false }
 
     @objc private func toggleEmoji() {
         if panel != nil {
+            // One touch is one change: a second call right after the panel opened is not a wish to shut it.
+            guard CACurrentMediaTime() - panelOpened > 0.4 else { return }
             // The keyboard replaces the panel.
             field?.becomeFirstResponder()
             return
         }
         guard let host else { return }
+        panelOpened = CACurrentMediaTime()
         UISelectionFeedbackGenerator().selectionChanged()
         let made = EmojiPanel(frame: .zero)
         made.onPick = { [weak self] (emoji: String) -> Void in self?.insert(emoji) }
