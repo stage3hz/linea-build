@@ -579,7 +579,8 @@ class SettingsSwitchRow(context: Context, label: String, words: String, value: B
     top.addView(context.words(label, 15f, Theme.text), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
     if (badge.isNotEmpty()) top.addView(paddedLabel(context, badge, 11f), LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(7f) })
     texts.addView(top, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-    if (words.isNotEmpty()) texts.addView(context.words(words, 12f, Theme.muted), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
+    // SettingsScreen.tsx:141 `Toggle`: the description is 12 on lines of 17.
+    if (words.isNotEmpty()) texts.addView(SettingsLook.para(context, words, 12f, Theme.muted, line = 17f), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(3f) })
     addView(texts, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f))
 
     SettingsLook.paint(toggle) // E: the reference's switch colours
