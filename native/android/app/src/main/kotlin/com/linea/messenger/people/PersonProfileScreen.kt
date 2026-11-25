@@ -367,6 +367,9 @@ class PersonProfileScreen(
       for (video in listOf(false, true)) {
         makeTile(if (video) "ion:videocam" else "ion:call", if (video) "Видео" else "Звонок", loading = false).setOnClickListener {
           com.linea.messenger.calls.CallEntry.call(messenger, chatId, userId, name, shownPerson, video)
+          // The profile is left as the call starts, as the previous app does (UserProfile.tsx: onClose, then
+          // calls.start): a call put away into its strip is over the chat, not over the profile.
+          pages()?.let { stack -> if (stack.top === this) stack.pop(animated = false) }
         }
       }
     } else {
