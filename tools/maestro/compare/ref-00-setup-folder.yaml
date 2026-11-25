@@ -34,7 +34,12 @@ appId: com.linea.messenger.preview
 - tapOn:
     text: "Название, например «Работа»"
 - waitForAnimationToEnd
-- inputText: "Работа"
+- inputText: "Р"
+- inputText: "а"
+- inputText: "б"
+- inputText: "о"
+- inputText: "т"
+- inputText: "а"
 - pressKey: enter
 - waitForAnimationToEnd
 - extendedWaitUntil:

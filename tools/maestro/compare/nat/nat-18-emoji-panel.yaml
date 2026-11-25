@@ -1,6 +1,6 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1 -chataction emoji; then these gestures.
+# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1 -chataction emoji -keyboardheight 326; then these gestures.
 - runFlow:
     when:
       visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
@@ -13,3 +13,21 @@ appId: com.linea.messenger.preview
     optional: true
 - waitForAnimationToEnd
 - takeScreenshot: nat-18-emoji-panel
+- tapOn:
+    text: "Скрыть эмодзи"
+    retryTapIfNoChange: false
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
+- tapOn:
+    text: "Стикеры и эмодзи"
+    retryTapIfNoChange: false
+    optional: true
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 2500
+    optional: true
+- takeScreenshot: nat-18b-emoji-tap

@@ -156,7 +156,10 @@ def pair(name, shard, args, wait_s, ref, nat=None, start='', phase='main', look=
 # list's rows and the stories strip. «Сохранить» is under the twelve rows and needs a scroll
 # (mobile/src/ChatFolders.tsx, FolderEditor; the third run tapped the bare names, found nothing, and «Сохранить»
 # stayed disabled and out of sight).
-pair('00-setup-folder', 1, '', 0, SETTINGS + setting('Папки с чатами') + tap('Создать папку') + tap('Название, например «Работа»') + typ('Работа')
+# The name is typed a letter at a time: typed in one go, the reference's field (its text is kept by the page and
+# written back on every change) took the letters out of order — the folder of the run of 734fa7cc was «Ротааб», and
+# 21-folder-tab found no «Работа» to touch.
+pair('00-setup-folder', 1, '', 0, SETTINGS + setting('Папки с чатами') + tap('Создать папку') + tap('Название, например «Работа»') + ''.join(typ(letter) for letter in 'Работа')
      # The keyboard is put away by its Return key. Maestro's hideKeyboard does it by a small swipe in the middle of the
      # screen, which the sheet took for a touch on the row there (the run of 00dde8d5: Dimas ticked, the list moved a
      # little, nothing else done); the sheet then comes down, and is waited for before its rows are looked for.
@@ -212,15 +215,30 @@ pair('17-attach-panel', 1, '-openchat 1', 30, OPEN_TIMUR + flow('paperclip.yaml'
 # The native app is started with its panel open (-chataction emoji, ChatActions/ChatScreenActions.swift simulatorAct):
 # three runs of the same touch on «Стикеры и эмодзи» left its panel shut at the shot, and why is not known yet. The
 # reference still opens its own by the touch.
-pair('18-emoji-panel', 1, '-openchat 1 -chataction emoji', 30, OPEN_TIMUR + flow('emoji.yaml'), nat=wait('Скрыть эмодзи', 20000) + SETTLE, start='chat')
+# -keyboardheight 326: the panel is as tall as the keyboard last was, and the reference has typed before this shot (its
+# card is 282 tall: a keyboard of 326, less the home indicator's 34 and the 10 under the card); the native app, started
+# for the picture, has seen no keyboard and would take the height of «never seen» (Composer/ComposerExtras.swift).
+# After the scored shot the same native flow shuts the panel and opens it again by ONE plain touch, and photographs
+# that as nat-18b-emoji-tap: a picture of its own, kept with the others and not scored (it is in no line of plan.txt),
+# which shows whether the touch leaves the panel open.
+pair('18-emoji-panel', 1, '-openchat 1 -chataction emoji -keyboardheight 326', 30, OPEN_TIMUR + flow('emoji.yaml'),
+     nat=wait('Скрыть эмодзи', 20000) + SETTLE + '@SHOT@'
+     + '- tapOn:\n    text: "Скрыть эмодзи"\n    retryTapIfNoChange: false\n    optional: true\n' + SETTLE + pause(1500)
+     + '- tapOn:\n    text: "Стикеры и эмодзи"\n    retryTapIfNoChange: false\n    optional: true\n' + pause(2500)
+     + '- takeScreenshot: nat-18b-emoji-tap\n', start='chat')
 pair('19-chatlist-search', 3, '-chatsearch "Тим"', 30, flow('chat-search.yaml'))
 pair('20-sections', 3, '', 25, flow('sections.yaml'), 'same')
-pair('21-folder-tab', 1, '', 25, tap('Работа.*', index=0), 'same', start='home')
+# The folder's tab is found by the letters of its name in any order (see 00-setup-folder), should they be mixed again.
+pair('21-folder-tab', 1, '', 25, wait('[Рработ]{6}', 15000) + tap('[Рработ]{6}', index=0), 'same', start='home')
 # The row is waited for and touched once; the archive is there when its first row («‹ Архив», «Вернуться к чатам») is,
 # and a touch that was lost (the native app stayed on «Чаты» in the run of d526af5f) is made once more.
 pair('22-archive', 3, '', 25, wait('Архив.*', 30000) + reveal('Архив.*') + tap_once('Архив.*', index=0) + wait('.*Вернуться к чатам.*', 8000)
      + when('.*Вернуться к чатам.*', tap_once('Архив.*', index=0), visible=False) + wait('.*Вернуться к чатам.*', 15000), 'same', start='home')
-pair('23-chat-top', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Собрал всё, что обещал.*', timeout=120000), 'same', start='chat')
+# The chat's very first message cannot be brought to the middle: both apps are taken to the top of the history by three
+# more swipes, so the two rest at the same place whatever the scroll before them did (the reference of the run of
+# 734fa7cc had stopped with the message behind the pinned bar).
+TO_TOP = '- swipe:\n    start: "50%,40%"\n    end: "50%,75%"\n    duration: 500\n' * 3 + SETTLE
+pair('23-chat-top', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Собрал всё, что обещал.*', timeout=120000) + TO_TOP, 'same', start='chat')
 pair('24-chat-photo-reply', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Вот здесь, у озера.*', timeout=90000), 'same', start='chat')
 pair('25-chat-album', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Три кадра с прогулки.*', timeout=90000), 'same', start='chat')
 # The music file's row is read differently by the two apps (the reference: «Тимур Богданов: Северный ветер.wav»;
@@ -256,8 +274,14 @@ pair('41-chat-blocked', 1, '', 25, reveal('Игорь.*') + tap('Игорь.*') 
 pair('42-new-chat', 2, '', 25, tap('Новый чат'), 'same', start='home')
 # In the run of 34bf134d both apps were photographed back on the chat list: the story had been opened and had ended
 # while Maestro waited for the screen to stop moving.
-pair('43-story-viewer', 3, '', 25, '|' + tap_now('Анна Лебедева, (новых историй|истории просмотрены|запись).*', index=0) + pause(700), 'same', start='home')
-pair('44-own-story', 3, '', 25, tap_now('Моя история', index=0) + pause(700), 'same', start='home')
+# In the run of 734fa7cc the reference was photographed still on its chat list, 0.7 s after the touch: its viewer had
+# not come yet. The viewer is waited for by its own «Закрыть» (both apps name the button so) and photographed as soon
+# as it is there — for three seconds at most, so that a viewer Maestro cannot read is still photographed while its
+# first story (five seconds) plays. No second touch: over an open viewer it would land on «Предыдущее».
+def story(circle):
+    return tap_now(circle, index=0) + wait('Закрыть', 3000)
+pair('43-story-viewer', 3, '', 25, '|' + story('Анна Лебедева, (новых историй|истории просмотрены|запись).*'), 'same', start='home')
+pair('44-own-story', 3, '', 25, story('Моя история'), 'same', start='home')
 # The account has a story, so its circle reads «Моя история» and its «+» is inside it (not a control of its own to
 # Maestro); a hold on the circle adds a story on both apps (mobile/src/stories/StoriesStrip.tsx onLongPress,
 # native/ios/Sources/Stories/StoriesStrip.swift heldDown).
@@ -288,7 +312,14 @@ pair('53-own-profile', 2, '-settings root', 20, SETTINGS + '|' + OWN_PROFILE, 's
 pair('54-own-profile-scrolled', 2, '-settings root', 20, SETTINGS + '|' + OWN_PROFILE + swipe_up(), 'same')
 pair('55-profile-editor', 2, '-settings profile', 25, SETTINGS + EDITOR)
 pair('56-editor-banner', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + tap('Изменить баннер|Установить баннер', index=0), 'same')
-pair('57-status-sheet', 2, '-settings root', 20, SETTINGS + '|' + tap('Сменить статус рядом с именем'), 'same')
+# The native app of the run of 734fa7cc stayed on the settings after the touch on the status. The picker is known by
+# its first cell («Значок Platina по умолчанию»); should it still not be there, the native flow opens the profile by
+# its row and touches the status beside the name there (the picker then hangs from the touch, not from the header).
+pair('57-status-sheet', 2, '-settings root', 20, SETTINGS + '|' + tap('Сменить статус рядом с именем'),
+     nat=tap('Сменить статус рядом с именем') + wait('Значок Platina по умолчанию', 6000)
+     + when('Значок Platina по умолчанию', tap('Мой профиль', index=0, optional=True) + wait('Изменить.*', 8000)
+            + '- tapOn:\n    text: "Статус .*"\n    index: 0\n    retryTapIfNoChange: false\n    optional: true\n' + SETTLE, visible=False)
+     + pause(1000))
 # The sheet is waited for: in the run of 00dde8d5 both apps were photographed with the row pressed and no sheet yet.
 pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Узор фона.*', 'DOWN') + tap('Узор фона.*', index=0) + wait('Без узора', 8000) + pause(1200), 'same')
 pair('59-editor-color', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('Персональный цвет.*') + tap('Персональный цвет.*'), 'same')
@@ -301,15 +332,20 @@ pair('65-folders-settings', 2, '-settings root', 20, SETTINGS + '|' + setting('�
 pair('66-power', 2, '-settings power', 20, SETTINGS + setting('Энергосбережение и анимации'))
 pair('67-language', 2, '-settings language', 20, SETTINGS + reveal('Язык.*') + tap('Язык.*', index=0))
 pair('68-night', 2, '-settings night', 20, SETTINGS + tap('Оформление.*') + setting('Ночная тема'))
-pair('69-colors', 2, '-settings appearance', 20, SETTINGS + tap('Оформление.*') + '|' + setting('Свои цвета'), 'same')
-pair('70-wallpapers', 2, '-settings appearance', 20, SETTINGS + tap('Оформление.*') + '|' + setting('Обои чатов'), 'same')
+# «Свои цвета» is a group's name, not a row: its first row «Цвет интерфейса» opens the page of colours. Both rows are
+# brought to the middle first — left at the bottom edge they were under the tab bar, and neither app opened anything
+# in the run of 734fa7cc (69 was the picture of 09 again, 70 the page scrolled).
+pair('69-colors', 2, '-settings appearance', 20, SETTINGS + tap('Оформление.*') + '|' + setting_low('Цвет интерфейса') + pause(1500), 'same')
+pair('70-wallpapers', 2, '-settings appearance', 20, SETTINGS + tap('Оформление.*') + '|' + setting_low('Обои чатов') + pause(1500), 'same')
 pair('71-lastseen', 2, '-settings lastseen', 20, SETTINGS + setting('Конфиденциальность') + setting('Время захода'))
 # «Всегда показывать» exists only when «Время захода» is not «Все» (mobile/src/SettingsScreen.tsx; the native
 # launch argument opens the list itself): «Мои друзья» is chosen for the shot and «Все» chosen back afterwards, so the
 # native app later finds the setting as 71-lastseen showed it.
 pair('72-lastseen-allow', 2, '-settings lastseenallow', 20, SETTINGS + setting('Конфиденциальность') + setting('Время захода') + tap('Мои друзья.*') + setting('Всегда показывать') + '@SHOT@'
      + flow('ref-home.yaml') + SETTINGS + setting('Конфиденциальность') + setting('Время захода') + tap('Все', optional=True))
-pair('73-call-privacy', 2, '-settings callrules', 20, SETTINGS + setting('Конфиденциальность') + setting('Звонки'))
+# «Кто может звонить» and its lists stand on «Конфиденциальность» itself in both apps: the page is opened and that
+# part brought to the middle by the same gesture (the native side used to be its separate page of the lists alone).
+pair('73-call-privacy', 2, '-settings privacy', 20, SETTINGS + setting('Конфиденциальность') + '|' + center('Кто может звонить.*', 'DOWN'), 'same')
 pair('74-passcode', 2, '-settings passcode', 20, SETTINGS + setting('Конфиденциальность') + tap('Код-пароль.*', index=0))
 # The code entry is photographed and left: the code is never set (it would lock every later start).
 pair('75-passcode-entry', 2, '-settings passcode', 20, SETTINGS + setting('Конфиденциальность') + tap('Код-пароль.*', index=0) + '|' + tap('Включить код-пароль'), 'same')

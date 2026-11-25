@@ -10,9 +10,39 @@ appId: com.linea.messenger.preview
     element:
       text: "Обои чатов.*"
     direction: DOWN
-    timeout: 30000
+    timeout: 40000
+    centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Обои чатов.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: "Обои чатов.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "Обои чатов.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- waitForAnimationToEnd
 - tapOn:
     text: "Обои чатов.*"
     index: 0
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
 - takeScreenshot: nat-70-wallpapers

@@ -38,4 +38,17 @@ appId: com.linea.messenger.preview
           timeout: 120000
           centerElement: true
 - waitForAnimationToEnd
+- swipe:
+    start: "50%,40%"
+    end: "50%,75%"
+    duration: 500
+- swipe:
+    start: "50%,40%"
+    end: "50%,75%"
+    duration: 500
+- swipe:
+    start: "50%,40%"
+    end: "50%,75%"
+    duration: 500
+- waitForAnimationToEnd
 - takeScreenshot: nat-23-chat-top

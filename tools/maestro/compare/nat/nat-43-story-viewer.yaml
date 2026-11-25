@@ -13,7 +13,7 @@ appId: com.linea.messenger.preview
     retryTapIfNoChange: false
     waitToSettleTimeoutMs: 300
 - extendedWaitUntil:
-    visible: "a text that never shows 7f3k"
-    timeout: 700
+    visible: "Закрыть"
+    timeout: 3000
     optional: true
 - takeScreenshot: nat-43-story-viewer

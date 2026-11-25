@@ -1,0 +1,40 @@
+appId: com.linea.messenger.preview
+---
+# Comparison shot 73-call-privacy of the native app, started by the workflow with: -settings privacy; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+- scrollUntilVisible:
+    element:
+      text: "Кто может звонить.*"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Кто может звонить.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: "Кто может звонить.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "Кто может звонить.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- waitForAnimationToEnd
+- takeScreenshot: nat-73-call-privacy

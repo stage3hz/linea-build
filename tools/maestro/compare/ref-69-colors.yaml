@@ -29,11 +29,41 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
-      text: "Свои цвета.*"
+      text: "Цвет интерфейса.*"
     direction: DOWN
-    timeout: 30000
+    timeout: 40000
+    centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Цвет интерфейса.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: "Цвет интерфейса.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "Цвет интерфейса.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- waitForAnimationToEnd
 - tapOn:
-    text: "Свои цвета.*"
+    text: "Цвет интерфейса.*"
     index: 0
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
 - takeScreenshot: ref-69-colors

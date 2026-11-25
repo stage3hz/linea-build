@@ -35,11 +35,33 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
-      text: "Звонки.*"
+      text: "Кто может звонить.*"
     direction: DOWN
-    timeout: 30000
-- tapOn:
-    text: "Звонки.*"
-    index: 0
+    timeout: 40000
+    centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Кто может звонить.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: "Кто может звонить.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "Кто может звонить.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-73-call-privacy

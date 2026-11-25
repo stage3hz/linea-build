@@ -340,7 +340,9 @@ jobs:
             while IFS=$'\t' read -r -u 3 name look wait args; do
               setlook "$look"
               THEME=()
-              if [ "$look" = light ]; then THEME=(-settheme light); NATLIGHT=1; elif [ "$NATLIGHT" = 1 ]; then THEME=(-settheme black); NATLIGHT=0; fi
+              # After a light pair: black again, and the night theme back to «Системная» as the previous app has it
+              # (-settheme alone left it off, and «Оформление» then showed «Ночной режим» off where the reference has it on).
+              if [ "$look" = light ]; then THEME=(-settheme light); NATLIGHT=1; elif [ "$NATLIGHT" = 1 ]; then THEME=(-settheme black -setnight system); NATLIGHT=0; fi
               eval "ARGS=($args)"
               if [ "$1" = main ] && [ "$NATIVE_STORAGE" != ok ]; then
                 # Not a comparison picture (the storage error, see above): kept as what was shown instead.
