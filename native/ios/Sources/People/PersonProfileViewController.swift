@@ -158,7 +158,8 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 48 + 18), // Profile: under the floating row
+            // UserProfile.tsx: the floating row is 56 tall (the 44 buttons with `paddingVertical: 6`), the page 18 under it.
+            content.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 56 + 18), // Profile: under the floating row
             content.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -32),
             content.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 18),
             content.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -18),
@@ -177,13 +178,13 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             topBar.topAnchor.constraint(equalTo: view.topAnchor),
             topBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             topBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            topBar.bottomAnchor.constraint(equalTo: safe.topAnchor, constant: 48),
+            topBar.bottomAnchor.constraint(equalTo: safe.topAnchor, constant: 56),
             back.leadingAnchor.constraint(equalTo: topBar.leadingAnchor, constant: 10), // C: `paddingHorizontal: 10`
-            back.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -2),
+            back.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -6),
             back.widthAnchor.constraint(equalToConstant: 44),
             back.heightAnchor.constraint(equalToConstant: 44),
             more.trailingAnchor.constraint(equalTo: topBar.trailingAnchor, constant: -10),
-            more.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -2),
+            more.bottomAnchor.constraint(equalTo: topBar.bottomAnchor, constant: -6),
             more.widthAnchor.constraint(equalToConstant: 44),
             more.heightAnchor.constraint(equalToConstant: 44),
         ])
