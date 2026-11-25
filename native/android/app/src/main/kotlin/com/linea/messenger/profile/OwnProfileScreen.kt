@@ -41,7 +41,7 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
   private val noticeLabel = context.words("", 13f, Theme.accent)
   private val barBackdrop = View(context)
   private val back = IconButton(context, "ion:chevron-back", 23f, Theme.text) // IconButton «chevron-back», 23
-  private val edit = context.words("Изменить", 16f, Theme.text, 600)
+  private val edit = context.words("Изм.", 16f, Theme.text, 600)
   private val smallName = context.words("", 16f, Theme.text, 700)
   private val smallStatus = context.words("в сети", 12f, Theme.muted)
   private val titleBox = LinearLayout(context)

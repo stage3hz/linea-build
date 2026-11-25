@@ -229,9 +229,9 @@ class SettingsPagesTest {
   @Test fun theProfileIsSentOnlyWhenSaved() {
     launch()
     press("Мой профиль")
-    // Profile: «Мой профиль» is the read-only profile; «Изменить» there opens the editor.
+    // Profile: «Мой профиль» is the read-only profile; «Изм.» there opens the editor.
     assertEquals("OwnProfileScreen", topName)
-    press("Изменить")
+    press("Изм.")
     assertEquals("ProfileEditScreen", topName)
     // The editor as the previous app has it: «Изменить» between «close» and a saving «checkmark», no button «Сохранить»;
     // the colour and the pattern are rows that open sheets.
@@ -270,7 +270,7 @@ class SettingsPagesTest {
 
     // The gender is chosen from three; the words say what it is for.
     // The reference's Sheet «Пол»: SheetActions with checkmark-circle on the chosen one.
-    press("Изменить")
+    press("Изм.")
     press("Пол")
     val choice = com.linea.messenger.chatactions.ChoiceSheet.last!!.get()!!
     assertEquals("Пол", choice.heading)
@@ -291,7 +291,7 @@ class SettingsPagesTest {
     assertEquals("OwnProfileScreen", topName)
     assertEquals("female", account.profile["gender"])
     val sent = account.count("profile")
-    press("Изменить")
+    press("Изм.")
     pressRound("Сохранить")
     assertEquals("OwnProfileScreen", topName)
     assertEquals(sent, account.count("profile"))
@@ -300,7 +300,7 @@ class SettingsPagesTest {
   @Test fun theEditorsBirthdayAndPatternAreSheets() {
     launch()
     press("Мой профиль")
-    press("Изменить")
+    press("Изм.")
     press("День рождения")
     val days = question()
     assertEquals("День рождения", days.heading)

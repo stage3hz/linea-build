@@ -35,7 +35,7 @@ final class SettingsProfileChrome {
         page.view.addSubview(effect)
         editGlass.clipsToBounds = true
         editGlass.layer.cornerRadius = 22
-        editButton.setTitle("Изменить", for: .normal) // SettingsScreen.tsx:181: the whole word
+        editButton.setTitle("Изм.", for: .normal) // Owner's rule: the short word (the previous app has the whole one)
         editButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         editButton.setTitleColor(Theme.text, for: .normal)
         editButton.addTarget(self, action: #selector(editPressed), for: .touchUpInside)

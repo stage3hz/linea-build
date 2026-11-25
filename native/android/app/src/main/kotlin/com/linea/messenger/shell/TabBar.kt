@@ -122,12 +122,13 @@ internal object TabFlow {
   const val BLUR_REACH = 0.22f
   val STOPS = floatArrayOf(0f, 0.3f, 0.55f, 0.8f, 1f)
   val FALL = floatArrayOf(1f, 0.85f, 0.55f, 0.2f, 0f)
-  /** The line on the top edge: 54×3, white; its glow (box-shadow 0 0 18px 5px) the centre's colour, lightened, at 0.8. */
-  const val LINE_WIDTH = 54f
-  const val LINE_HEIGHT = 3f
+  /** The line on the top edge: white; its glow the centre's colour, lightened, at 0.8. Half the sketch's size by the
+   *  owner's rule (the sketch: 54×3, box-shadow 0 0 18px 5px). */
+  const val LINE_WIDTH = 27f
+  const val LINE_HEIGHT = 1.5f
   const val LINE_GLOW = 0.8f
-  const val LINE_BLUR = 18f
-  const val LINE_SPREAD = 5f
+  const val LINE_BLUR = 9f
+  const val LINE_SPREAD = 2.5f
   /** How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6). */
   const val LINE_WHITE = 0.3f
   const val GRAIN = 0.08f

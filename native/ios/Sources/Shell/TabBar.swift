@@ -107,12 +107,13 @@ enum TabFlow {
   static let blurReach: CGFloat = 0.22
   static let stops: [CGFloat] = [0, 0.3, 0.55, 0.8, 1]
   static let fall: [CGFloat] = [1, 0.85, 0.55, 0.2, 0]
-  /// The line on the top edge: 54×3, white; its glow (box-shadow 0 0 18px 5px) the centre's colour, lightened, at 0.8.
-  static let lineWidth: CGFloat = 54
-  static let lineHeight: CGFloat = 3
+  /// The line on the top edge: white; its glow the centre's colour, lightened, at 0.8. Half the sketch's size by the
+  /// owner's rule (the sketch: 54×3, box-shadow 0 0 18px 5px).
+  static let lineWidth: CGFloat = 27
+  static let lineHeight: CGFloat = 1.5
   static let lineGlow: CGFloat = 0.8
-  static let lineBlur: CGFloat = 18
-  static let lineSpread: CGFloat = 5
+  static let lineBlur: CGFloat = 9
+  static let lineSpread: CGFloat = 2.5
   /// How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6).
   static let lineWhite: CGFloat = 0.3
   static let grain: CGFloat = 0.08
