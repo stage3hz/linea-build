@@ -223,11 +223,13 @@ final class GlassHeaderView: UIView {
         tools.isHidden = false
     }
 
-    /// A round button on the right (glass; `filled`: the accent round of «Создать», 42).
+    /// A round button on the right (glass; `filled`: the accent round of «Создать», 42 with a glyph of 21 unless
+    /// `filledSide` and `filledIcon` say otherwise).
     @discardableResult
-    func addTool(symbol: String, label: String, filled: Bool = false, iconSize: CGFloat = 19, action: @escaping () -> Void) -> GlassRoundButton {
-        let side: CGFloat = filled ? 42 : 44
-        let button = GlassRoundButton(symbol: symbol, label: label, iconSize: filled ? 21 : iconSize, weight: filled ? .medium : .regular, filled: filled, side: side)
+    func addTool(symbol: String, label: String, filled: Bool = false, iconSize: CGFloat = 19, filledSide: CGFloat = 42, filledIcon: CGFloat = 21,
+                 action: @escaping () -> Void) -> GlassRoundButton {
+        let side: CGFloat = filled ? filledSide : 44
+        let button = GlassRoundButton(symbol: symbol, label: label, iconSize: filled ? filledIcon : iconSize, weight: filled ? .medium : .regular, filled: filled, side: side)
         button.onPress = action
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([

@@ -192,6 +192,8 @@ class SettingsPage: UIViewController {
         var columnSide: CGFloat
         var columnTop: CGFloat       // from the pill's bottom (+2) to the first part
         var columnBottom: CGFloat
+        /// An editor (ProfileScreen.tsx editing): the left button is «close» and the name stands in the middle.
+        var closes: Bool = false
     }
     var ownLook: OwnLook? { return nil }
     /// The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14.
@@ -259,6 +261,10 @@ class SettingsPage: UIViewController {
             if let own {
                 made.titleLabel.attributedText = NSAttributedString(string: pageName, attributes: [.font: own.titleFont, .kern: own.titleKern, .foregroundColor: Theme.text])
                 if !own.mark.isEmpty { made.addMark(IonIcon.image(own.mark, size: own.markSize), room: own.markRoom) }
+                if own.closes {
+                    made.backButton?.setSymbol("ion:close", size: 23)
+                    made.titleLabel.textAlignment = .center
+                }
             }
             made.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(made)
@@ -306,8 +312,15 @@ class SettingsPage: UIViewController {
     /// Subclasses put their content into `column` here.
     func build() {}
 
-    private func goBack() {
+    /// The header's left button. An editor overrides it (it stays while it is saving).
+    func goBack() {
         navigationController?.popViewController(animated: true)
+    }
+
+    /// The round accent button at the right of an editor's header (ProfileScreen.tsx: 44, «checkmark» 24 in `onAccent`).
+    @discardableResult
+    func setConfirm(label: String, action: @escaping () -> Void) -> GlassRoundButton? {
+        return header?.addTool(symbol: "ion:checkmark", label: label, filled: true, filledSide: 44, filledIcon: 24, action: action)
     }
 
     /// An icon on the right of the header (pages with a back button only): a round glass button in the pill.
@@ -461,6 +474,7 @@ final class SettingsRow: UIControl {
     private let valueLabel = UILabel()
     private let rowName: String
     private var iconChip: UIView?
+    private var swatchDot: UIView?
 
     init(symbol: String = "", label: String, value: String = "", danger: Bool = false, arrow: Bool = true, swatch: UIColor? = nil, checked: Bool? = nil) {
         rowName = label
@@ -523,6 +537,7 @@ final class SettingsRow: UIControl {
             dot.widthAnchor.constraint(equalToConstant: 20).isActive = true
             dot.heightAnchor.constraint(equalToConstant: 20).isActive = true
             content.addArrangedSubview(dot)
+            swatchDot = dot
         }
         if let checked {
             // One of several: the chosen one has a mark, the others an empty place of the same size.
@@ -556,6 +571,11 @@ final class SettingsRow: UIControl {
         valueLabel.text = value
         valueLabel.isHidden = value.isEmpty
         accessibilityLabel = value.isEmpty ? rowName : rowName + ": " + value
+    }
+
+    /// The colour of the row's dot (a row made with a `swatch`).
+    func setSwatch(_ color: UIColor) {
+        swatchDot?.backgroundColor = color
     }
 
     override var isHighlighted: Bool {
@@ -1047,20 +1067,34 @@ final class SettingsTextArea: UIView, UITextViewDelegate {
     var limit = 0
     var onEdit: (() -> Void)?
 
-    init(placeholder: String) {
+    /// `glass`: the reference's multiline `Field` of the profile editor (ProfileScreen.tsx) — regular glass, radius 18, at
+    /// least 48 tall, 17 in from the sides and 14 above and below the words.
+    init(placeholder: String, glass: Bool = false) {
         super.init(frame: .zero)
-        backgroundColor = SettingsLook.card
-        layer.cornerRadius = 14
         layer.cornerCurve = .continuous
-        layer.borderWidth = 0.5
-        layer.borderColor = SettingsLook.line.cgColor
+        if glass {
+            layer.cornerRadius = 18
+            clipsToBounds = true
+            let plate = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
+            plate.isUserInteractionEnabled = false
+            plate.frame = bounds
+            plate.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            addSubview(plate)
+        } else {
+            backgroundColor = SettingsLook.card
+            layer.cornerRadius = 14
+            layer.borderWidth = 0.5
+            layer.borderColor = SettingsLook.line.cgColor
+        }
+        let above: CGFloat = glass ? 14 : 13
+        let beside: CGFloat = glass ? 12 : 10
         area.backgroundColor = .clear
         area.font = .systemFont(ofSize: 16)
         area.textColor = Theme.text
         area.tintColor = Theme.text
         area.keyboardAppearance = Theme.dark ? .dark : .light
         area.isScrollEnabled = false
-        area.textContainerInset = UIEdgeInsets(top: 13, left: 10, bottom: 13, right: 10)
+        area.textContainerInset = UIEdgeInsets(top: above, left: beside, bottom: above, right: beside)
         area.accessibilityLabel = placeholder
         area.delegate = self
         area.translatesAutoresizingMaskIntoConstraints = false
@@ -1076,9 +1110,9 @@ final class SettingsTextArea: UIView, UITextViewDelegate {
             area.bottomAnchor.constraint(equalTo: bottomAnchor),
             area.leadingAnchor.constraint(equalTo: leadingAnchor),
             area.trailingAnchor.constraint(equalTo: trailingAnchor),
-            area.heightAnchor.constraint(greaterThanOrEqualToConstant: 50),
-            hint.topAnchor.constraint(equalTo: topAnchor, constant: 13),
-            hint.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 15),
+            area.heightAnchor.constraint(greaterThanOrEqualToConstant: glass ? 48 : 50),
+            hint.topAnchor.constraint(equalTo: topAnchor, constant: above),
+            hint.leadingAnchor.constraint(equalTo: leadingAnchor, constant: beside + 5),
         ])
     }
 

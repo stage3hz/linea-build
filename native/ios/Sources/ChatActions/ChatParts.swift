@@ -451,6 +451,9 @@ final class ChoiceSheet: UIViewController {
     private var parts: [UIView] = []
     private var partsGap: CGFloat = 10
     private let partsStack = UIStackView()
+    /// How much of the screen's bottom the keyboard covers (a sheet with a field in it stands above the keyboard, as
+    /// the reference's `Sheet` does in its KeyboardAvoidingView).
+    private var keyboardOverlap: CGFloat = 0
 
     /// The same sheet holding `parts` one under another, `gap` apart (ProfileScreen.tsx: the media sheet's Buttons, 10).
     convenience init(heading: String, parts: [UIView], gap: CGFloat) {
@@ -476,16 +479,19 @@ final class ChoiceSheet: UIViewController {
 
     required init?(coder: NSCoder) { return nil }
 
+    deinit { NotificationCenter.default.removeObserver(self) }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardMoved(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
         // The dim: «Чёрная» rgba(0,0,0,0.55), other dark themes rgba(0,5,19,0.5), light rgba(20,32,60,0.28).
         dim.backgroundColor = ThemeStore.look.black ? UIColor(white: 0, alpha: 0.55)
             : Theme.dark ? UIColor(red: 0, green: 5 / 255, blue: 19 / 255, alpha: 0.5) : UIColor(red: 20 / 255, green: 32 / 255, blue: 60 / 255, alpha: 0.28)
         dim.isAccessibilityElement = true
         dim.accessibilityLabel = "Закрыть"
         dim.accessibilityTraits = .button
-        dim.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(closePressed)))
+        dim.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(dimPressed)))
         view.addSubview(dim)
 
         card.backgroundColor = ThemeStore.look.glassOpaque
@@ -544,6 +550,25 @@ final class ChoiceSheet: UIViewController {
 
     @objc private func closePressed() {
         dismiss(animated: true)
+    }
+
+    /// A touch beside the card closes the sheet; while the keyboard is up it puts the keyboard away first.
+    @objc private func dimPressed() {
+        if keyboardOverlap > 0 {
+            view.endEditing(true)
+            return
+        }
+        dismiss(animated: true)
+    }
+
+    @objc private func keyboardMoved(_ note: Notification) {
+        guard isViewLoaded, let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
+        let overlap = max(0, view.bounds.maxY - view.convert(end, from: nil).minY)
+        guard overlap != keyboardOverlap else { return }
+        keyboardOverlap = overlap
+        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.25
+        view.setNeedsLayout()
+        UIView.animate(withDuration: duration) { () -> Void in self.view.layoutIfNeeded() }
     }
 
     /// The reference's swipe-to-dismiss (swipeDismiss.tsx, swipeDismissModel.ts): the card follows the finger down 1:1 and
@@ -620,9 +645,9 @@ final class ChoiceSheet: UIViewController {
         scroll.contentSize = CGSize(width: inner, height: y)
         let titleHeight = max(44, min(50, headingLabel.sizeThatFits(CGSize(width: inner - 44 - 12, height: 50)).height))
         let top: CGFloat = 22 + 4 + 17 + titleHeight + 13
-        let most = view.bounds.height * 0.88
+        let bottom = keyboardOverlap > 0 ? keyboardOverlap + 12 : max(12, safe.bottom)
+        let most = min(view.bounds.height * 0.88, view.bounds.height - bottom - safe.top - 8)
         let height = min(most, top + y + 25)
-        let bottom = max(12, safe.bottom)
         card.bounds = CGRect(x: 0, y: 0, width: width, height: height)
         card.center = CGPoint(x: view.bounds.width / 2, y: view.bounds.height - bottom - height / 2)
         grabber.frame = CGRect(x: (width - 36) / 2, y: 22, width: 36, height: 4)
