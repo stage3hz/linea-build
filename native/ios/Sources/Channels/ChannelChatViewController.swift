@@ -94,7 +94,8 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         view.addSubview(spinner)
 
         header.onBack = { [weak self] in self?.navigationController?.popViewController(animated: true) }
-        header.showsAvatar = root
+        // CommunityScreen.tsx:146: a channel's header has the community's picture too, before «# name».
+        header.showsAvatar = true
         view.addSubview(header)
         notice.titleLabel?.font = .systemFont(ofSize: 13)
         notice.titleLabel?.numberOfLines = 2
@@ -208,8 +209,8 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
 
     /// The words that depend on the community and on what the person may do in it.
     private func showWords() {
+        header.avatar.show(community.summary)
         if root {
-            header.avatar.show(community.summary)
             header.setWords(community.summary.name, community.summary.countWords)
         } else {
             header.setWords("# " + channel.name, channel.topic.isEmpty ? community.summary.name : channel.topic)
