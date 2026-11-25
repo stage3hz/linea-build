@@ -255,7 +255,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         if inArchive || !wanted.isEmpty || archivedCount == 0 { _ = plus?.archivePull(count: 0) } // ChatsPlus: no pull here
         if inArchive {
             rows.append(special(ChatListActions.backRow, title: "‹ Архив", preview: "Вернуться к чатам", initials: "‹"))
-        } else if archivedCount > 0 && wanted.isEmpty && !(plus?.archivePull(count: archivedCount) ?? false) { // ChatsPlus: behind the pull when it can be
+        } else if archivedCount > 0 && wanted.isEmpty && (plus?.filter ?? "all") == "all" && !(plus?.archivePull(count: archivedCount) ?? false) {
+            // ChatListScreen.tsx `archiveRow`: only in «Все» — a folder shows its own chats right under the tabs.
             let count = "\(archivedCount) " + ChatListActions.plural(archivedCount, "чат", "чата", "чатов")
             rows.append(special(ChatListActions.archiveRow, title: "Архив", preview: count, initials: "▤"))
         }
