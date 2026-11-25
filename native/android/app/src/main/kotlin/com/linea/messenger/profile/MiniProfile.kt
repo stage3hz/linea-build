@@ -124,15 +124,15 @@ class MiniProfile(
     name.show(person.displayName, look.platina)
     nameRow.addView(name)
     nameRow.addView(StatusEmojiView(c).apply { show(look, 18f, animated = true) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = c.px(6f) })
-    column.addView(nameRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(6f) })
+    column.addView(nameRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(10f) }) // the column's gap 4 and the name row's marginTop 6
     val handleRow = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     handleRow.addView(c.words(if (person.username.isEmpty()) "" else "@" + person.username, 14f, Theme.muted))
     if (look.platina) handleRow.addView(PlatinaSealView(c, small = true).apply { owner = person.id to person.displayName }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = c.px(8f) })
     column.addView(handleRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(4f) })
     statusWords?.let { column.addView(c.words(it, 13f, Theme.muted), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(4f) }) }
-    if (person.bio.isNotEmpty()) column.addView(c.words(person.bio, 14f, Theme.text).apply { maxLines = 4 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(8f) })
+    if (person.bio.isNotEmpty()) column.addView(c.words(person.bio, 14f, Theme.text).apply { maxLines = 4 }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(12f) }) // gap 4, marginTop 8
     rows.orientation = LinearLayout.VERTICAL
-    column.addView(rows, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(14f) })
+    column.addView(rows, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = c.px(18f) }) // gap 4, marginTop 14
     card.clipChildren = false
     card.addView(column, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = -c.px(36f); leftMargin = c.px(16f); rightMargin = c.px(16f); bottomMargin = c.px(16f) })
     buildRows()
@@ -141,7 +141,7 @@ class MiniProfile(
   private fun actionButton(symbol: String, label: String, primary: Boolean, action: () -> Unit): View {
     val c = context
     val line = LinearLayout(c).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; background = c.plate(if (primary) Theme.accent else Theme.surface2, 14f); minimumHeight = c.px(44f) }
-    val ink = if (primary) Theme.onAccent else Theme.text // onAccent: readable on every theme's accent (the reference's #FFFFFF vanishes on «Чёрная»)
+    val ink = if (primary) 0xFFFFFFFF.toInt() else Theme.text // the reference's #FFFFFF on the accent, whatever the theme
     line.addView(ProfileIconView(c, symbol, 18f, ink), LinearLayout.LayoutParams(c.px(18f), c.px(18f))) // Ionicons 18
     line.addView(c.words(label, 14f, ink, 700), LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = c.px(7f) })
     line.isClickable = true
