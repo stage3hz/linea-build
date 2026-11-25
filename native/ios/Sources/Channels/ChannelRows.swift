@@ -11,6 +11,8 @@ struct ChannelAuthor: Equatable {
     var avatarId: String
     /// 0xRRGGBB.
     var avatarColor: UInt32
+    /// The author's Platina is active (the person's `seal`): the small gem stands after the name.
+    var platina = false
 
     init(name: String, username: String, avatarId: String, avatarColor: UInt32) {
         self.name = name
@@ -25,6 +27,7 @@ struct ChannelAuthor: Equatable {
         username = fields["username"] as? String ?? ""
         avatarId = fields["avatarId"] as? String ?? ""
         avatarColor = Messenger.color(fields["avatarColor"] as? String)
+        platina = fields["seal"] as? String == "platina"
     }
 }
 
@@ -85,6 +88,8 @@ struct ChannelRow: Equatable {
     /// The colour of the author's highest role (0xRRGGBB); nil: the usual colour of text.
     var authorColor: UInt32?
     var owner = false
+    /// The author's Platina is active: the gem after the name (ChannelChat.tsx:199 `PlatinaGem size={10}`).
+    var platina = false
     var avatarId = ""
     var avatarColor: UInt32 = 0x5E7BFF
     var initials = ""
@@ -180,6 +185,7 @@ final class ChannelRowMaker {
             row.avatarId = author.avatarId
             row.avatarColor = author.avatarColor
             row.initials = Messenger.initials(author.name)
+            row.platina = author.platina
         }
         row.authorColor = context.roleColors[message.senderId]
         row.owner = message.senderId == context.ownerId
