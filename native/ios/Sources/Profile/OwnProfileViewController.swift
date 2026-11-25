@@ -52,6 +52,9 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
         view.addSubview(topLayers.back)
         scroll.alwaysBounceVertical = true
         scroll.showsVerticalScrollIndicator = false
+        // ProfileScreen.tsx: `contentInsetAdjustmentBehavior="never"`, `paddingTop: 60 + 8` — the page starts 68 from the
+        // screen's top, not from under the status bar (the photo stood a status bar's height too low).
+        scroll.contentInsetAdjustmentBehavior = .never
         scroll.delegate = self
         scroll.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scroll)
@@ -151,7 +154,9 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
         topLayers.celebrate(in: view)
         if opensStatusPicker {
             opensStatusPicker = false
-            openStatusPicker(anchorY: hero.convert(CGPoint(x: 0, y: hero.bounds.height - 60), to: nil).y)
+            // ProfileScreen.tsx:203: opened from the settings, the picker is anchored at `headerHeight + 230` (92 + 230),
+            // so it stands under the name and «в сети», over «имя пользователя».
+            openStatusPicker(anchorY: 92 + 230)
         }
     }
 
@@ -175,6 +180,9 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
     }
 
     private func layoutTop() {
+        // The page ends above the home indicator (the scroll no longer adds the safe area by itself).
+        let under = view.safeAreaInsets.bottom
+        if scroll.contentInset.bottom != under { scroll.contentInset.bottom = under }
         let scrolled = scroll.contentOffset.y + scroll.adjustedContentInset.top
         let heroBottom = hero.frame.maxY
         topLayers.layout(width: view.bounds.width, topInset: view.safeAreaInsets.top, scrolled: scrolled, heroBottom: heroBottom)
