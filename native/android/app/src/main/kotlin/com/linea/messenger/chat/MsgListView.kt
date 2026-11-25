@@ -54,6 +54,15 @@ class MsgListView(context: Context) : FrameLayout(context) {
   private var palette = MsgPalette.DARK
   private var fontSize = 17f
   private var lastTouchY = 0f
+  /** Where the finger of the touch in progress came down and where it is now (the screen's px), whether that touch
+   *  was taken away, and whether the list is moving. */
+  private var downX = 0f
+  private var downY = 0f
+  private var nowX = 0f
+  private var nowY = 0f
+  private var touchTaken = false
+  private var moving = false
+  private val holdSlop = android.view.ViewConfiguration.get(context).scaledTouchSlop
   private var askedAt = ""
 
   private val adapter = object : BaseAdapter() {
@@ -76,7 +85,13 @@ class MsgListView(context: Context) : FrameLayout(context) {
   }
 
   private val list = object : ListView(context) {
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean { lastTouchY = event.rawY; upX = event.x; upY = event.y; return super.dispatchTouchEvent(event) }
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+      lastTouchY = event.rawY; upX = event.x; upY = event.y
+      nowX = event.rawX; nowY = event.rawY
+      if (event.actionMasked == MotionEvent.ACTION_DOWN) { downX = nowX; downY = nowY; touchTaken = false }
+      if (event.actionMasked == MotionEvent.ACTION_CANCEL) touchTaken = true
+      return super.dispatchTouchEvent(event)
+    }
   }.apply {
     divider = null; dividerHeight = 0
     selector = ColorDrawable(Color.TRANSPARENT); cacheColorHint = Color.TRANSPARENT
@@ -111,10 +126,22 @@ class MsgListView(context: Context) : FrameLayout(context) {
     }
     setOnItemLongClickListener { _, _, position, _ ->
       val row = rows.getOrNull(position) ?: return@setOnItemLongClickListener false
-      onMsgLongPress(row.key, lastTouchY); true
+      // A list that is moving is being scrolled, not held; nor is a finger that has left its place.
+      if (moving || Math.abs(nowX - downX) > holdSlop || Math.abs(nowY - downY) > holdSlop) return@setOnItemLongClickListener false
+      val key = row.key; val y = lastTouchY; val startX = nowX; val startY = nowY
+      // The hold's time can run out while the finger's moves still wait to be read (the app was busy drawing): the
+      // hold is then taken from a touch that has in fact left its place, and a scroll opened the message's menu. The
+      // menu is asked for a moment later, and only when the finger stayed where it was and the list has not gone
+      // with it.
+      postDelayed({
+        if (touchTaken || moving || !isAttachedToWindow) return@postDelayed
+        if (Math.abs(nowX - startX) > holdSlop || Math.abs(nowY - startY) > holdSlop) return@postDelayed
+        onMsgLongPress(key, y)
+      }, 80)
+      true
     }
     setOnScrollListener(object : AbsListView.OnScrollListener {
-      override fun onScrollStateChanged(view: AbsListView?, state: Int) {}
+      override fun onScrollStateChanged(view: AbsListView?, state: Int) { moving = state != AbsListView.OnScrollListener.SCROLL_STATE_IDLE }
       override fun onScroll(view: AbsListView?, first: Int, visible: Int, total: Int) {
         // Once per «oldest row»: asked again only after older rows have arrived.
         val oldest = rows.firstOrNull()?.key ?: return
