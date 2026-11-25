@@ -158,6 +158,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         selectionBar.isHidden = true
         selectionBar.onForward = { [weak self] in self?.forwardSelected() }
         selectionBar.onShare = { [weak self] in self?.shareSelected() }
+        selectionBar.onSave = { [weak self] in self?.saveSelected() }
         selectionBar.onDelete = { [weak self] in self?.deleteSelected() }
         host.view.addSubview(selectionBar)
 
@@ -1022,6 +1023,14 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         let share = UIActivityViewController(activityItems: [words], applicationActivities: nil)
         share.popoverPresentationController?.sourceView = selectionBar
         host.present(share, animated: true)
+    }
+
+    /// «В Избранное» of the bar: each chosen message that can be read goes there, and the choosing ends (ChatScreen.tsx).
+    private func saveSelected() {
+        let messages = chosenMessages().filter { ChatScreenActions.readable($0) }
+        guard !messages.isEmpty else { return }
+        history.selection = nil
+        saveToFavorites(messages)
     }
 
     private func deleteSelected() {

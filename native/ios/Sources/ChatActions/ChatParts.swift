@@ -357,12 +357,14 @@ final class SelectionHeader: UIView {
     }
 }
 
-/// The bar of the multi-select, where the field usually is: «Переслать», «Поделиться», «Удалить».
+/// The bar of the multi-select, where the field usually is: «Переслать», «Поделиться», «В Избранное», «Удалить»
+/// (ChatScreen.tsx: the reference's own glyphs, 22, over words of 10).
 final class SelectionBar: UIVisualEffectView {
     static let height: CGFloat = 60
     private var buttons: [UIButton] = []
     var onForward: (() -> Void)?
     var onShare: (() -> Void)?
+    var onSave: (() -> Void)?
     var onDelete: (() -> Void)?
 
     init() {
@@ -370,10 +372,10 @@ final class SelectionBar: UIVisualEffectView {
         clipsToBounds = true
         layer.cornerRadius = 28
         layer.cornerCurve = .continuous
-        let specs: [(String, String, Bool)] = [("arrowshape.turn.up.right", "Переслать", false), ("square.and.arrow.up", "Поделиться", false), ("trash", "Удалить", true)]
+        let specs: [(String, String, Bool)] = [("ion:arrow-redo-outline", "Переслать", false), ("ion:share-outline", "Поделиться", false), ("ion:bookmark-outline", "В Избранное", false), ("ion:trash-outline", "Удалить", true)]
         for (index, spec) in specs.enumerated() {
             var config = UIButton.Configuration.plain()
-            config.image = chatSymbol(spec.0, 18)
+            config.image = chatSymbol(spec.0, 22)
             config.imagePlacement = .top
             config.imagePadding = 4
             var words = AttributedString(spec.1)
@@ -395,19 +397,20 @@ final class SelectionBar: UIVisualEffectView {
     func show(export: Bool, chosen: Bool) {
         if effect == nil { effect = chatGlass() }
         for button in buttons {
-            let on = button.tag == 2 ? chosen : export
+            let on = button.tag == 3 ? chosen : export
             button.isEnabled = on
             button.alpha = on ? 1 : 0.35
         }
     }
 
     /// The «Удалить» button, for the sheet it opens on a wide screen.
-    var deleteSource: UIView? { buttons.count > 2 ? buttons[2] : nil }
+    var deleteSource: UIView? { buttons.count > 3 ? buttons[3] : nil }
 
     @objc private func pressed(_ sender: UIButton) {
         switch sender.tag {
         case 0: onForward?()
         case 1: onShare?()
+        case 2: onSave?()
         default: onDelete?()
         }
     }
