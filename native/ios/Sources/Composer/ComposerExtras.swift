@@ -110,6 +110,8 @@ final class ComposerExtras: NSObject {
             field.frame = frame
         }
         emojiButton.isHidden = hidden
+        // Nothing of the composer that was added later (the take's strip, its preview) may lie over the button.
+        emojiButton.superview?.bringSubviewToFront(emojiButton)
         // <Icon name={stickers ? 'keypad-outline' : 'happy-outline'} size={22}>, the accent while the panel is open.
         emojiButton.setImage(chatSymbol(panel == nil ? "ion:happy-outline" : "ion:keypad-outline", 22), for: .normal)
         emojiButton.tintColor = panel == nil ? Theme.muted : Theme.accent
@@ -390,6 +392,11 @@ final class ComposerExtras: NSObject {
     // MARK: The simulator check
 
     #if targetEnvironment(simulator)
+    /// `-chataction emoji` with `-openchat 1`: the chat with its emoji panel open (ChatScreenActions.simulatorAct).
+    func simulatorOpenEmoji() {
+        if panel == nil { toggleEmoji() }
+    }
+
     /// `-composerdemo silent|later|scheduled|emoji|format` with `-demo 1 -chat 1`: what the composer shows.
     private func simulatorSeed() {
         guard messenger == nil, let ask = UserDefaults.standard.string(forKey: "composerdemo") else { return }

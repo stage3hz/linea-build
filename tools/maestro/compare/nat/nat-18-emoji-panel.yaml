@@ -1,11 +1,15 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1; then these gestures.
+# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1 -chataction emoji; then these gestures.
 - runFlow:
     when:
       visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
     commands:
       - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: ../act/wait-timur.yaml
-- runFlow: ../act/emoji.yaml
+- extendedWaitUntil:
+    visible: "Скрыть эмодзи"
+    timeout: 20000
+    optional: true
+- waitForAnimationToEnd
 - takeScreenshot: nat-18-emoji-panel

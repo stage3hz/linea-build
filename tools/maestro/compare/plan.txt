@@ -20,7 +20,7 @@
 05-message-menu | 1 | main | dark | 30 | -openchat 1
 06-chat-avatar-peek | 1 | main | dark | 30 | -openchat 1
 17-attach-panel | 1 | main | dark | 30 | -openchat 1
-18-emoji-panel | 1 | main | dark | 30 | -openchat 1
+18-emoji-panel | 1 | main | dark | 30 | -openchat 1 -chataction emoji
 19-chatlist-search | 3 | main | dark | 30 | -chatsearch "Тим"
 20-sections | 3 | main | dark | 25 | 
 21-folder-tab | 1 | main | dark | 25 | 

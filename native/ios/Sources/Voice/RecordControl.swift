@@ -1016,6 +1016,8 @@ final class RecordOverlayView: UIView {
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         for view in touchables.reversed() where !view.isHidden && view.alpha > 0.01 {
+            // A part whose holder is put away (the lock's panel before a take) is not there to be touched.
+            if let holder = view.superview, holder !== self, holder.isHidden || holder.alpha <= 0.01 { continue }
             let local = convert(point, to: view)
             if view.point(inside: local, with: event) {
                 return view.hitTest(local, with: event) ?? view

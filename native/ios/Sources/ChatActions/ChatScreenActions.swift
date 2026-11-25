@@ -1286,7 +1286,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
 
     /// What the simulator check asks of an open chat, once its messages are on screen:
     ///   -chatdemo menu|delete|reply|edit|pinned|select|forward|quotes|typing|draft   the sample chat (with -demo 1 -chat 1)
-    ///   -chataction menu|delete|reply|edit|pin|select|forward|react                  the first chat of an account (with -openchat 1)
+    ///   -chataction menu|delete|reply|edit|pin|select|forward|react|emoji            the first chat of an account (with -openchat 1)
     ///   -chataction forwardsend -forwardto <name>                                     its attachments forwarded to the chat of @<name>… (live check)
     private func simulatorAct() {
         guard !simulatorDone else { return }
@@ -1354,6 +1354,9 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         // Composer: -chatdemo gift — «Отправить подарок» from the chat; -chatdemo forwardmany — «Выбрать» in «Переслать».
         case "gift":
             sendGift()
+        // Composer: -chataction emoji — the emoji panel open under the field.
+        case "emoji":
+            extras.simulatorOpenEmoji()
         default:
             break
         }
