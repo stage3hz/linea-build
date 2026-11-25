@@ -35,6 +35,8 @@ enum AuthFit {
     static let gap: CGFloat = 12
     /// Between «Продолжить» and the links under it.
     static let linkGap: CGFloat = 4
+    /// Between the parts of the card, the links too, in the full arrangement (AuthScreen.tsx:321 `gap: 18`).
+    static let fullGap: CGFloat = 18
     /// A keyboard lower than this (a hardware keyboard's bar) keeps the full arrangement.
     static let keyboard: CGFloat = 100
     /// Under the wordmark (AuthScreen.tsx:317 `marginBottom: 26`).
@@ -117,6 +119,9 @@ enum AuthFit {
             let above = AuthFit.above(brand: brand, heading: heading, hint: hint, withBrand: true, withHint: withHint)
             let below: CGFloat = withChips ? beforeChips + chips : 0
             let need = above + card + chromeCost + helpCost + extraCost + below
+            // The chips come only when the page also keeps its whole room above the wordmark: in the previous app
+            // they stand under the card, past the bottom edge of a phone, and the page starts at its own place.
+            if withChips && need + topGap > room { continue }
             if need <= room { return Plan(brand: true, chips: withChips, hint: withHint, gap: min(topGap, room - need), kept: all) }
         }
         // Then the extras, then (when even the hints do not fit) the wordmark.

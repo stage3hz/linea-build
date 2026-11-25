@@ -561,9 +561,9 @@ final class AuthViewController: UIViewController {
             return heights[ObjectIdentifier(part)] ?? 0
         }
         func cost(_ part: UIView, _ tight: Bool) -> CGFloat {
-            if isIn(links, part) { return height(part) + AuthFit.linkGap }
+            if isIn(links, part) { return height(part) + (tight ? AuthFit.linkGap : AuthFit.fullGap) }
             if isIn(chrome, part) { return height(part) + (tight ? AuthFit.compactChromeGap : AuthFit.chromeGap) }
-            return height(part) + AuthFit.gap
+            return height(part) + (tight ? AuthFit.gap : AuthFit.fullGap)
         }
         func parts(_ list: [UIView], _ tight: Bool) -> [AuthFit.Part] {
             var made: [AuthFit.Part] = []
@@ -572,11 +572,21 @@ final class AuthViewController: UIViewController {
             }
             return made
         }
+        // The same parts take more in the full arrangement: its gaps are the previous app's 18, not the 12 kept
+        // while the keyboard is up.
         var core = height(proceed)
         var messageCost: CGFloat = 0
+        var fullCore = height(proceed)
+        var fullMessageCost: CGFloat = 0
         for part in cardColumn.arrangedSubviews {
             if part === spacer || part === proceed || !wants(part) || isIn(mayLeave, part) { continue }
-            if isIn(messages, part) { messageCost += cost(part, false) } else { core += cost(part, false) }
+            if isIn(messages, part) {
+                messageCost += cost(part, true)
+                fullMessageCost += cost(part, false)
+            } else {
+                core += cost(part, true)
+                fullCore += cost(part, false)
+            }
         }
         let brandHeight = AuthViewController.measure(brand, columnWidth)
         let chipsTall = AuthViewController.measure(chips, columnWidth)
@@ -587,7 +597,7 @@ final class AuthViewController: UIViewController {
         let small: CGFloat = keyboardOverlap > AuthFit.keyboard ? 0 : keyboardOverlap
         let fullRoom = view.bounds.height - max(small, safe.bottom) - AuthFit.edge - (safe.top + AuthFit.pillRow)
         let plan = AuthFit.full(room: fullRoom, brand: brandHeight, heading: headingHeight, hint: hintHeight,
-                                card: 2 * AuthFit.pad + core + messageCost, chips: chipsTall,
+                                card: 2 * AuthFit.pad + fullCore + fullMessageCost, chips: chipsTall,
                                 helps: parts(helps, false), chrome: parts(chrome, false), extras: parts(extras, false))
         // With the keyboard: the card's inside from under the title to above the keyboard.
         let plateTop = safe.top + AuthFit.compactTop + headingHeight + AuthFit.compactHeadingGap
@@ -612,6 +622,9 @@ final class AuthViewController: UIViewController {
         let chromeGap: CGFloat = compact ? AuthFit.compactChromeGap : AuthFit.chromeGap
         cardColumn.setCustomSpacing(chromeGap, after: switcher)
         cardColumn.setCustomSpacing(chromeGap, after: progress)
+        cardColumn.spacing = compact ? AuthFit.gap : AuthFit.fullGap
+        cardColumn.setCustomSpacing(compact ? AuthFit.linkGap : AuthFit.fullGap, after: proceed)
+        cardColumn.setCustomSpacing(compact ? 0 : AuthFit.fullGap, after: forgot)
         let pad: CGFloat = compact ? AuthFit.compactPad : AuthFit.pad
         cardPadTop?.constant = pad
         cardPadBottom?.constant = -pad

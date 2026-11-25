@@ -138,6 +138,8 @@ final class AuthEntry: UIView, UITextFieldDelegate {
         indent.headIndent = 2
         self.caption.attributedText = NSAttributedString(string: caption.uppercased(), attributes: [.kern: 1, .paragraphStyle: indent, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         field.accessibilityLabel = caption
+        // ManualField.tsx:48: the field's test name is «field-» and its caption (the simulator flows find it by that).
+        field.accessibilityIdentifier = "field-" + caption
         field.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [.foregroundColor: Theme.subtle])
         updateEye()
     }
