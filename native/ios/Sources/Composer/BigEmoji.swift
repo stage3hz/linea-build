@@ -35,5 +35,9 @@ enum BigEmoji {
     /// The size of the emoji for their count. Avatars: on iPhone the reference shows big emoji as AnimatedEmoji
     /// boxes of 112 / 84 / 68 points whose glyph is 0.86 of the box (MessageRow.tsx, platina/AnimatedEmoji.tsx
     /// `NativeEmoji`); 64 / 52 / 44 is its plain-text fallback, which the iPhone never takes.
-    static func fontSize(_ count: Int) -> CGFloat { count == 1 ? 112 * 0.86 : count == 2 ? 84 * 0.86 : 68 * 0.86 }
+    static func fontSize(_ count: Int) -> CGFloat { box(count) * 0.86 }
+
+    /// The square each emoji stands in, for their count (the reference's AnimatedEmoji box): the row of a message
+    /// of emoji is as tall as it, and the boxes stand 2 apart.
+    static func box(_ count: Int) -> CGFloat { count == 1 ? 112 : count == 2 ? 84 : 68 }
 }

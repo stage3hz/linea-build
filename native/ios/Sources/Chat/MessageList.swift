@@ -181,15 +181,16 @@ func msgChips(_ row: MsgRow, width: CGFloat) -> (chips: [MsgChip], size: CGSize)
     i += 3
     var w = ceil(NSAttributedString(string: emoji, attributes: [.font: msgChipEmoji]).size().width) + 16 + border
     if count > 1 { w += 4 + ceil(NSAttributedString(string: String(count), attributes: [.font: msgChipCount]).size().width) }
+    // A chip is 30 tall in the previous app (3 above and below a line that an emoji makes 24 tall), 5 between rows.
     if x > 0 && x + w > width {
       x = 0
-      y += 29 + border
+      y += 35 + border
     }
-    chips.append(MsgChip(emoji: emoji, count: count, mine: mine, frame: CGRect(x: x, y: y, width: w, height: 24 + border)))
+    chips.append(MsgChip(emoji: emoji, count: count, mine: mine, frame: CGRect(x: x, y: y, width: w, height: 30 + border)))
     x += w + 5
     widest = max(widest, x - 5)
   }
-  return (chips, chips.isEmpty ? .zero : CGSize(width: widest, height: y + 24 + border))
+  return (chips, chips.isEmpty ? .zero : CGSize(width: widest, height: y + 30 + border))
 }
 
 private func msgAttrSize(_ text: NSAttributedString, _ width: CGFloat, _ maxHeight: CGFloat) -> CGSize {
@@ -292,6 +293,12 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
   let lift = max(0, (msgLineHeight(fontSize) - base.lineHeight) / 2)
   let result = NSMutableAttributedString(string: row.text, attributes: [.font: base, .foregroundColor: text, .paragraphStyle: msgBodyStyle(fontSize), .baselineOffset: lift])
   let total = (row.text as NSString).length
+  if row.bigEmoji > 1 && total > 0 {
+    // MessageRow.tsx: each big emoji stands in a box of its own, the boxes 2 apart — further apart than the glyphs
+    // of one line (every emoji but the last carries the room after it).
+    let last = (row.text as NSString).rangeOfComposedCharacterSequence(at: total - 1).location
+    if last > 0 { result.addAttribute(.kern, value: BigEmoji.box(row.bigEmoji) - fontSize + 2, range: NSRange(location: 0, length: last)) }
+  }
   var i = 0
   while i + 2 < row.fmt.count {
     let flags = row.fmt[i], start = row.fmt[i + 1], length = row.fmt[i + 2]
@@ -382,6 +389,8 @@ private var msgEdge: CGFloat { msgOpenLook ? 6 : 9 } // ChatScreen.tsx listSide:
 /// keeps the 2-point line + 10 + 1 at the other side's left and 4 + 1 at its right, own words 4 + 1 at the left and
 /// 0 + 1 at the right. A photo with words keeps its card.
 func msgPads(_ row: MsgRow) -> (left: CGFloat, right: CGFloat) {
+  // MessageRow.tsx: big emoji have no bubble around them; a glyph stands 8 inside its box (0.86 of it).
+  if row.bigEmoji > 0 { return (8, 8) }
   // MessageRow.tsx `flush`: a captioned photo, video or album fills its card (2 around it); the words stand 2 + 9 in.
   if msgFlush(row) { return (11, 11) }
   if !msgOpenLook || row.media == "photo" { return (12, 12) }
@@ -564,6 +573,12 @@ struct MsgLayout {
     }
     // Below: 6 under words that carry the time; else the time's own row (4 above it, 5 below).
     h += layout.timeInline || layout.timeCorner ? 6 : 4 + ceil(msgMetaFont.lineHeight) + 5
+    if row.bigEmoji > 0 {
+      // MessageRow.tsx: a message of big emoji is its boxes (112 / 84 / 68 tall) and, 2 under them, the time on a
+      // small plate (2 above and below the time) — no 6 above, and not the line's own height, which is taller
+      // than the box (each such message was about 20 taller than in the previous app).
+      h -= layout.textSize.height - BigEmoji.box(row.bigEmoji) + 9
+    }
     // Bubbles are at least 60 wide; 6 under the last message of a run, 2 inside one (`groupNext`).
     layout.bubble = CGSize(width: flush ? flushWidth + 4 : max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h)
     layout.height = h + msgFailedRoom(row) + (row.tail ? 6 : 2)
@@ -805,7 +820,9 @@ final class MsgRowCanvas: UIView {
       return
     }
     // Attachments: a photo with words keeps its card in the open look too («a picture with a caption keeps its card»).
-    if !msgOpenLook || item.media == "photo" || msgFlush(item) {
+    if item.bigEmoji > 0 {
+      // MessageRow.tsx: big emoji stand alone, with no plate and no line beside them.
+    } else if !msgOpenLook || item.media == "photo" || msgFlush(item) {
       context.setFillColor((item.mine ? palette.mine : palette.theirs).cgColor)
       context.addPath(shape.cgPath)
       context.fillPath()
@@ -925,7 +942,11 @@ final class MsgRowCanvas: UIView {
       y += layoutInfo.poll.size.height + 4
     }
     bodyBox = .zero
+    // Big emoji: the glyphs are centred in their boxes, which start at the row's top (the line is taller than the
+    // box, and there is no 6 above it).
+    let emojiOver: CGFloat = item.bigEmoji > 0 ? layoutInfo.textSize.height - BigEmoji.box(item.bigEmoji) : 0
     if layoutInfo.textSize != .zero {
+      if item.bigEmoji > 0 { y -= 6 + emojiOver / 2 }
       bodyBox = CGRect(x: x, y: y, width: inner, height: layoutInfo.textSize.height + 2)
       if hideBody && item.bigEmoji > 0 {
         // Avatars: the big emoji is drawn by its pop for the moment (Sources/Avatars/BigEmojiPop.swift).
@@ -954,6 +975,7 @@ final class MsgRowCanvas: UIView {
         laid.draw(at: CGPoint(x: x, y: y))
       }
       y += layoutInfo.textSize.height
+      if item.bigEmoji > 0 { y -= emojiOver / 2 }
     }
     // LinkPreview: the card of the link, under the text.
     if layoutInfo.card.size != .zero, let card = item.linkCard {
@@ -1002,13 +1024,22 @@ final class MsgRowCanvas: UIView {
     // MessageRow.tsx: in the corner of a bubble 10 from the right and 6 from the bottom; on a row of its own at the
     // right of the content (justify flex-end), 5 above the plate's bottom.
     let corner = layoutInfo.timeCorner && bodyBox != .zero
-    let under = left + bubble.width - (corner ? 10 : msgFlush(item) ? 2 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
+    // Under big emoji the time stands on its own small plate, which ends where the boxes do (7 inside it).
+    let under = left + bubble.width - (item.bigEmoji > 0 ? 7 : corner ? 10 : msgFlush(item) ? 2 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
     let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks + (item.silent ? 15 : 0) : under // Composer: room for the bell
     // Inline, the time shares the last line's baseline (it is a trailing run of the words in the reference).
     let bodyFont = UIFont.systemFont(ofSize: fontSize)
     let lift = max(0, (msgLineHeight(fontSize) - bodyFont.lineHeight) / 2)
     let baseline = bodyBox.minY + layoutInfo.timeAt.y - lift + bodyFont.descender
-    let timeBottom = inline ? baseline - msgMetaFont.ascender + timeSize.height : bubble.height - (corner ? 6 : layoutInfo.timeBeside ? 6 : 5)
+    let timeBottom = inline ? baseline - msgMetaFont.ascender + timeSize.height : bubble.height - (item.bigEmoji > 0 ? 2 : corner ? 6 : layoutInfo.timeBeside ? 6 : 5)
+    if item.bigEmoji > 0 {
+      // MessageRow.tsx: rgba(0,0,0,0.42) on dark, rgba(255,255,255,0.85) on light, radius 10, 7 at the sides, 2 above and below.
+      let wide = ceil(timeSize.width) + marks + (item.silent ? 15 : 0)
+      let plate = CGRect(x: right - wide - 7, y: timeBottom - timeSize.height - 2, width: wide + 14, height: timeSize.height + 4)
+      context.setFillColor((Theme.dark ? UIColor(white: 0, alpha: 0.42) : UIColor(white: 1, alpha: 0.85)).cgColor)
+      context.addPath(UIBezierPath(roundedRect: plate, cornerRadius: min(10, plate.height / 2)).cgPath)
+      context.fillPath()
+    }
     time.draw(at: CGPoint(x: right - marks - ceil(timeSize.width), y: timeBottom - timeSize.height))
     // Composer: «без звука» — <Icon name="notifications-off" size={11} color={t.subtle}> before the time, 4 apart.
     if item.silent {
