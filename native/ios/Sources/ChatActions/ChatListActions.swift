@@ -234,7 +234,9 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     private func refresh() {
         let visible = chats.filter { !removed($0) }
         let archivedCount = visible.filter { archived($0) }.count
-        if archiveOpen && archivedCount == 0 { archiveOpen = false }
+        // The archive shuts when its last chat has left it — not while the list itself is momentarily empty (a
+        // reload in between would throw the person back to «Чаты»).
+        if archiveOpen && archivedCount == 0 && !visible.isEmpty { archiveOpen = false }
         let inArchive = archiveOpen
         let wanted = query.trimmingCharacters(in: .whitespaces).lowercased()
         var shown = visible.filter { archived($0) == inArchive }
