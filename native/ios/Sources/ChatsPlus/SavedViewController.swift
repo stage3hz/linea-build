@@ -40,6 +40,9 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private let clip = GlassRoundButton(symbol: "ion:add", label: "Сохранить фото, видео или файл", iconSize: 23)
 
     private var lines: [Line] = []
+    /// The screen has not shown its newest notes yet: they are read from the storage after the screen is made, and
+    /// the list then stood at its oldest ones (the previous app opens «Избранное» at the newest).
+    private var startsAtNewest = true
     private var searching = false
     private var editingRow: [String: Any]?
     private var selection: Set<String>?
@@ -399,6 +402,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         table.frame = CGRect(x: 0, y: y, width: width, height: max(0, composer.frame.minY - 5 - y))
         empty.frame = table.frame
         notice.frame = CGRect(x: (width - 200) / 2, y: y + 4, width: 200, height: 30)
+        if startsAtNewest { showNewest() }
     }
 
     @objc private func keyboardMoved(_ note: Notification) {
@@ -439,10 +443,15 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
             else { empty.show(symbol: "ion:bookmark-outline", title: "Здесь пока пусто", words: "Пиши заметки, сохраняй файлы и голосовые. Любое сообщение из чата можно отправить сюда через долгое нажатие → «В Избранное».") }
         }
         if !saved.error.isEmpty { flash(saved.error) }
-        if scrollToNewest, !lines.isEmpty {
-            table.layoutIfNeeded()
-            table.scrollToRow(at: IndexPath(row: lines.count - 1, section: 0), at: .bottom, animated: false)
-        }
+        if scrollToNewest || startsAtNewest { showNewest() }
+    }
+
+    /// The list at its newest note, once there are notes and the list has its place on the screen.
+    private func showNewest() {
+        guard !lines.isEmpty, table.bounds.height > 0 else { return }
+        startsAtNewest = false
+        table.layoutIfNeeded()
+        table.scrollToRow(at: IndexPath(row: lines.count - 1, section: 0), at: .bottom, animated: false)
     }
 
     @objc private func changed() { rebuild(scrollToNewest: false) }
