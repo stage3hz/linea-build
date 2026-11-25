@@ -278,11 +278,11 @@ enum InlineMediaArt {
     /// The card of a file: at least 200, at most 270 pt wide (and never wider than the row allows).
     static func fileSize(_ row: MsgRow, inner: CGFloat) -> CGSize {
         let pieces = parts(row)
-        let room = min(270, inner) - 48 - 11
+        // MediaBubble.tsx `FileBubble`: the words share what is left of the row (`flex: 1`), so they never widen it
+        // past its least width of 200 — a longer name goes onto a second line (the row grew to 270 for it).
+        let room = min(200, inner) - 48 - 11
         let name = NSAttributedString(string: pieces.name, attributes: [.font: nameFont]).boundingRect(with: CGSize(width: max(1, room), height: 40), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
-        let line = ceil(NSAttributedString(string: pieces.line, attributes: [.font: lineFont]).size().width)
-        let wide = 48 + 11 + max(ceil(name.width), line)
-        let width = min(inner, min(270, max(200, wide)))
+        let width = min(inner, 200)
         let textHeight = min(ceil(name.height), ceil(nameFont.lineHeight * 2) + 1) + 3 + ceil(lineFont.lineHeight)
         return CGSize(width: width, height: max(48, textHeight) + 8)
     }

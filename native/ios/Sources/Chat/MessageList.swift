@@ -391,6 +391,8 @@ private var msgEdge: CGFloat { msgOpenLook ? 6 : 9 } // ChatScreen.tsx listSide:
 func msgPads(_ row: MsgRow) -> (left: CGFloat, right: CGFloat) {
   // MessageRow.tsx: big emoji have no bubble around them; a glyph stands 8 inside its box (0.86 of it).
   if row.bigEmoji > 0 { return (8, 8) }
+  // MessageRow.tsx `circle`: a round video stands at the row's own edge, with nothing around it.
+  if row.media == "note" { return (0, 0) }
   // MessageRow.tsx `flush`: a captioned photo, video or album fills its card (2 around it); the words stand 2 + 9 in.
   if msgFlush(row) { return (11, 11) }
   if !msgOpenLook || row.media == "photo" { return (12, 12) }
@@ -553,15 +555,18 @@ struct MsgLayout {
       return layout
     }
     // MessageRow.tsx: 6 above the content (`flush`: 2; the forward line 7 more, the quote 8 more).
-    var h: CGFloat = flush ? 2 : 6
+    // A round video has no bubble: 1 above it, 1 under it, then the time's row with nothing below.
+    let note = row.media == "note"
+    var h: CGFloat = note ? 1 : flush ? 2 : 6
     if !row.forward.isEmpty { h += ceil(msgForwardFont.lineHeight) + 4 + (flush ? 7 : 0) }
     if layout.quoteSize != .zero { h += msgQuoteHeight(layout.quoteSize.height, thumb: !row.quoteThumb.isEmpty) + 6 + (flush ? 8 : 0) }
-    if layout.thumbSize != .zero { h += layout.thumbSize.height + (flush ? 7 : 6) }
-    if layout.voiceSize != .zero { h += layout.voiceSize.height + 4 }
+    if layout.thumbSize != .zero { h += layout.thumbSize.height + (note ? 1 : flush ? 7 : 6) }
+    // MessageRow.tsx: a voice message has 1 under it before the time's row (4 more); it had 4.
+    if layout.voiceSize != .zero { h += layout.voiceSize.height + 1 }
     if layout.labelSize != .zero { h += layout.labelSize.height + 4 }
     if layout.fileSize != .zero { h += layout.fileSize.height + 4 } // Attachments
     if layout.album.size != .zero { h += layout.album.size.height + (flush ? 7 : 6) } // Attachments
-    if layout.poll.size != .zero { h += layout.poll.size.height + 4 } // Polls
+    if layout.poll.size != .zero { h += layout.poll.size.height } // Polls: the time's row keeps its own 4 above
     h += layout.textSize.height
     if layout.card.size != .zero { h += layout.card.size.height + 7 }
     if layout.reactSize != .zero { h += layout.reactSize.height + 6 }
@@ -579,6 +584,7 @@ struct MsgLayout {
       // than the box (each such message was about 20 taller than in the previous app).
       h -= layout.textSize.height - BigEmoji.box(row.bigEmoji) + 9
     }
+    if note { h -= 5 }
     // Bubbles are at least 60 wide; 6 under the last message of a run, 2 inside one (`groupNext`).
     layout.bubble = CGSize(width: flush ? flushWidth + 4 : max(msgOpenLook ? 0 : 60, w + pads.left + pads.right), height: h)
     layout.height = h + msgFailedRoom(row) + (row.tail ? 6 : 2)
@@ -837,7 +843,7 @@ final class MsgRowCanvas: UIView {
     let x = left + pads.left
     // MessageRow.tsx `flush`: 2 around the picture; the forward line 12 in and 7 lower, the quote 8 in and 8 lower.
     let flush = msgFlush(item)
-    var y: CGFloat = flush ? 2 : 6
+    var y: CGFloat = item.media == "note" ? 1 : flush ? 2 : 6
     let inner = bubble.width - pads.left - pads.right
     let metaColor = item.mine ? palette.mineMeta : palette.muted
     let markColor = item.mine ? palette.mineMark : palette.accent
@@ -895,7 +901,7 @@ final class MsgRowCanvas: UIView {
     // MessageRow.tsx `flush`: the picture 2 in from the card's edges, its corners max(4, the card's − 3), 7 above the words.
     let pictureX = flush ? left + 2 : x
     let pictureRadius: CGFloat = flush ? max(4, ChatBubbleLook.radius - 3) : 12
-    let pictureGap: CGFloat = flush ? 7 : 6
+    let pictureGap: CGFloat = item.media == "note" ? 1 : flush ? 7 : 6
     let mediaPicture = CGRect(x: pictureX, y: y, width: layoutInfo.thumbSize.width, height: layoutInfo.thumbSize.height)
     if layoutInfo.thumbSize != .zero && (item.media == "video" || item.media == "note") {
       mediaBoxes.thumb = mediaPicture
@@ -924,7 +930,7 @@ final class MsgRowCanvas: UIView {
     if mediaBoxes.thumb != .zero { MediaRowArt.marks(context, row: item, state: mediaState, palette: palette, box: mediaBoxes.thumb, hosted: subviews.contains { $0 is NotePlayerView }) }
     if layoutInfo.voiceSize != .zero {
       mediaBoxes = MediaRowArt.voice(context, row: item, state: mediaState, palette: palette, box: CGRect(x: x, y: y, width: layoutInfo.voiceSize.width, height: layoutInfo.voiceSize.height))
-      y += layoutInfo.voiceSize.height + 4
+      y += layoutInfo.voiceSize.height + 1
     }
     if layoutInfo.labelSize != .zero {
       draw(item.label, msgSmallFont, markColor, CGRect(x: x, y: y, width: inner, height: layoutInfo.labelSize.height), lines: true)
@@ -939,7 +945,7 @@ final class MsgRowCanvas: UIView {
     if layoutInfo.poll.size != .zero, let poll = item.poll {
       pollBox = CGRect(x: x, y: y, width: layoutInfo.poll.size.width, height: layoutInfo.poll.size.height)
       layoutInfo.poll.draw(poll, in: context, at: pollBox.origin, palette: palette)
-      y += layoutInfo.poll.size.height + 4
+      y += layoutInfo.poll.size.height
     }
     bodyBox = .zero
     // Big emoji: the glyphs are centred in their boxes, which start at the row's top (the line is taller than the
@@ -1025,13 +1031,15 @@ final class MsgRowCanvas: UIView {
     // right of the content (justify flex-end), 5 above the plate's bottom.
     let corner = layoutInfo.timeCorner && bodyBox != .zero
     // Under big emoji the time stands on its own small plate, which ends where the boxes do (7 inside it).
-    let under = left + bubble.width - (item.bigEmoji > 0 ? 7 : corner ? 10 : msgFlush(item) ? 2 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
+    // Under a round video the time starts at the circle's own edge: its left for the other side's, its right for mine.
+    let noteTime: CGFloat? = item.media == "note" ? (item.mine ? left + bubble.width : left + ceil(timeSize.width)) : nil
+    let under = noteTime ?? left + bubble.width - (item.bigEmoji > 0 ? 7 : corner ? 10 : msgFlush(item) ? 2 : msgOpenLook && item.media != "photo" ? pads.right - 1 : 11)
     let right = inline ? bodyBox.minX + layoutInfo.timeAt.x + ceil(timeSize.width) + marks + (item.silent ? 15 : 0) : under // Composer: room for the bell
     // Inline, the time shares the last line's baseline (it is a trailing run of the words in the reference).
     let bodyFont = UIFont.systemFont(ofSize: fontSize)
     let lift = max(0, (msgLineHeight(fontSize) - bodyFont.lineHeight) / 2)
     let baseline = bodyBox.minY + layoutInfo.timeAt.y - lift + bodyFont.descender
-    let timeBottom = inline ? baseline - msgMetaFont.ascender + timeSize.height : bubble.height - (item.bigEmoji > 0 ? 2 : corner ? 6 : layoutInfo.timeBeside ? 6 : 5)
+    let timeBottom = inline ? baseline - msgMetaFont.ascender + timeSize.height : bubble.height - (item.media == "note" ? 0 : item.bigEmoji > 0 ? 2 : corner ? 6 : layoutInfo.timeBeside ? 6 : 5)
     if item.bigEmoji > 0 {
       // MessageRow.tsx: rgba(0,0,0,0.42) on dark, rgba(255,255,255,0.85) on light, radius 10, 7 at the sides, 2 above and below.
       let wide = ceil(timeSize.width) + marks + (item.silent ? 15 : 0)
