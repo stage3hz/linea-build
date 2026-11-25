@@ -105,6 +105,9 @@ final class AvatarPeekController: UIViewController {
     private let items: [Item]
     private let top: CGFloat
     private let backdrop = UIVisualEffectView(effect: nil)
+    /// ContextMenu.tsx: the chat under the card is blurred and darkened — rgba(0,0,0,0.34) on dark, rgba(20,30,60,0.14)
+    /// on light — as under a message's menu (the blur alone left it a light grey).
+    private let dim = UIView()
     private let card = UIView()
     private let menu = GlassPill(interactive: false)
 
@@ -129,6 +132,12 @@ final class AvatarPeekController: UIViewController {
         view.addSubview(backdrop)
         let close = UITapGestureRecognizer(target: self, action: #selector(closeNow))
         backdrop.addGestureRecognizer(close)
+        dim.backgroundColor = Theme.dark ? UIColor(white: 0, alpha: 0.34) : UIColor(red: 20 / 255, green: 30 / 255, blue: 60 / 255, alpha: 0.14)
+        dim.isUserInteractionEnabled = false
+        dim.alpha = 0
+        dim.frame = view.bounds
+        dim.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(dim)
 
         card.backgroundColor = Theme.dark ? UIColor(hex: 0x1C1C1E) : .white
         card.layer.cornerRadius = 28
@@ -195,7 +204,8 @@ final class AvatarPeekController: UIViewController {
         let spring = UISpringTimingParameters(mass: 1, stiffness: 320, damping: 24, initialVelocity: .zero)
         let animator = UIViewPropertyAnimator(duration: 0, timingParameters: spring)
         animator.addAnimations {
-            self.backdrop.effect = UIBlurEffect(style: Theme.dark ? .systemThinMaterialDark : .systemThinMaterialLight)
+            self.backdrop.effect = Theme.thinBlur
+            self.dim.alpha = 1
             self.card.transform = .identity
             self.menu.transform = .identity
             self.menu.alpha = 1
