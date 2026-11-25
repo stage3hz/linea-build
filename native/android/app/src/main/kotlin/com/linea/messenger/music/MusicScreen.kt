@@ -253,6 +253,10 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
   private val cover = MusicCoverView(context, 12f, artwork = true)
   private val heading = AIKit.label(context, "", 14f, 700, lines = 1)
   private val line = AIKit.label(context, "", 12f, color = Theme.muted, lines = 1)
+  /** The title over the artist: one button to the ear, «Открыть плеер: …» (PlayerControls.tsx:74). */
+  private val words = object : LinearLayout(context) {
+    override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
+  }
   private val back = AIIconButton(context, "prev", 20f, Theme.text, "Предыдущий трек или начало текущего")
   // PlaybackButton: a 46 round of the accent gradient under the play / pause (23, on-accent); `scale: pressed ? .95 : 1`.
   private val toggle = object : AIIconButton(context, "play", 23f, Theme.onAccent, "Слушать") {
@@ -287,9 +291,14 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
     // padding 9, 12 under (the progress line lies there), gap 9.
     setPadding(context.px(9f), context.px(9f), context.px(9f), context.px(12f))
     addView(cover, LayoutParams(context.px(46f), context.px(46f)))
-    val words = LinearLayout(context).apply { orientation = VERTICAL }
+    words.orientation = VERTICAL
     words.addView(heading)
     AIKit.add(words, line, 4f)
+    // The block opens the full player by itself (a touch on it is the strip's own tap and swipe).
+    words.isClickable = true
+    words.isFocusable = true
+    words.setOnClickListener { onOpen?.invoke() }
+    words.setOnTouchListener { _, event -> swipe.onTouchEvent(event) }
     addView(words, LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = context.px(11f); marginEnd = context.px(9f) })
     for (button in listOf(back, forward, close)) button.background = com.linea.messenger.design.GlassDrawable(button)
     addView(back, LayoutParams(context.px(36f), context.px(44f)))
@@ -336,8 +345,9 @@ class MiniPlayerView(context: Context, private val player: MusicPlayer) : Linear
     if (current == null) return
     cover.bind(current)
     if (heading.text.toString() != current.title) heading.text = current.title
-    val words = MusicWords.miniLine(current.artist, player.error.isNotEmpty(), player.loading)
-    if (line.text.toString() != words) line.text = words
+    val under = MusicWords.miniLine(current.artist, player.error.isNotEmpty(), player.loading)
+    if (line.text.toString() != under) line.text = under
+    words.contentDescription = "Открыть плеер: ${current.title}, ${current.artist}"
     line.setTextColor(if (player.error.isEmpty()) Theme.muted else Theme.danger)
     toggle.symbol = if (player.playing) "pause" else "play"
     toggle.contentDescription = if (player.playing) "Пауза" else "Слушать"
