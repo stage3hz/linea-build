@@ -77,7 +77,8 @@ final class MiniProfileViewController: UIViewController {
         NSLayoutConstraint.activate([
             card.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             card.widthAnchor.constraint(equalToConstant: width),
-            card.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            // MiniProfile.tsx: the card stands 12 from the screen's own bottom edge (its window does not keep the home bar's room).
+            card.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
         ])
         build(width: width)
         if quick != nil, let messenger {
@@ -140,7 +141,7 @@ final class MiniProfileViewController: UIViewController {
         ring.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([ring.widthAnchor.constraint(equalToConstant: 80), ring.heightAnchor.constraint(equalToConstant: 80)])
         column.addArrangedSubview(ring)
-        column.setCustomSpacing(6, after: ring)
+        column.setCustomSpacing(10, after: ring) // the column's gap 4 and the name row's marginTop 6
         let name = PlatinaNameLabel()
         name.font = .systemFont(ofSize: 20, weight: .heavy)
         name.show(person.displayName, platina: look.platina)
@@ -167,12 +168,12 @@ final class MiniProfileViewController: UIViewController {
             let bio = SettingsLook.words(person.bio, size: 14, color: Theme.text)
             bio.numberOfLines = 4
             column.addArrangedSubview(bio)
-            column.setCustomSpacing(8, after: column.arrangedSubviews[column.arrangedSubviews.count - 2])
+            column.setCustomSpacing(12, after: column.arrangedSubviews[column.arrangedSubviews.count - 2]) // gap 4, marginTop 8
         }
         rows.axis = .vertical
         rows.spacing = 10
         column.addArrangedSubview(rows)
-        column.setCustomSpacing(14, after: column.arrangedSubviews[column.arrangedSubviews.count - 2])
+        column.setCustomSpacing(18, after: column.arrangedSubviews[column.arrangedSubviews.count - 2]) // gap 4, marginTop 14
         rows.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
         NSLayoutConstraint.activate([
             top.topAnchor.constraint(equalTo: card.topAnchor),
@@ -193,7 +194,7 @@ final class MiniProfileViewController: UIViewController {
         config.imagePadding = 7
         config.attributedTitle = AttributedString(NSAttributedString(string: label, attributes: [.font: UIFont.systemFont(ofSize: 14, weight: .bold)]))
         config.baseBackgroundColor = primary ? Theme.accent : Theme.surface2
-        config.baseForegroundColor = primary ? Theme.onAccent : Theme.text // onAccent: readable on every theme's accent (the reference's #FFFFFF vanishes on «Чёрная»)
+        config.baseForegroundColor = primary ? UIColor.white : Theme.text // the reference's #FFFFFF on the accent, whatever the theme
         config.background.cornerRadius = 14
         let button = UIButton(configuration: config)
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true

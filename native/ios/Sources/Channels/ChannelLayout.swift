@@ -226,7 +226,11 @@ final class ChannelRowLayout {
                 // ChannelChat.tsx:199: the Platina gem (`PlatinaGem size={10}`: a platinum round of 14 with the
                 // reference's own «diamond» glyph, 6.2, in it) after the name, 8 apart.
                 let gem: CGFloat = row.platina ? 22 : 0
-                let name = ChannelType.line(row.author, ChannelLook.name, row.authorColor.map { UIColor(hex: $0) } ?? ChannelLook.text, width: max(20, inner - time.width - 8 - ribbon - gem))
+                // ChannelChat.tsx:199: a name without a role's colour is `PlatinaName` (still, not animated) for an author
+                // with Platina — the metal's own tone (PlatinaMark.tsx NAME_METAL / NAME_METAL_LIGHT), not the text's.
+                let metal = UIColor(hex: Theme.dark ? 0xC9D0DC : 0x3B4352)
+                let nameColor: UIColor = row.authorColor.map { UIColor(hex: $0) } ?? (row.platina ? metal : ChannelLook.text)
+                let name = ChannelType.line(row.author, ChannelLook.name, nameColor, width: max(20, inner - time.width - 8 - ribbon - gem))
                 let baseline = y + name.ascent
                 pieces.append(.text(name.line, CGPoint(x: left, y: baseline)))
                 var after = left + name.width + 8
@@ -246,7 +250,9 @@ final class ChannelRowLayout {
                 y += name.height + 2
             }
             y = content(x: left, width: inner, y: y, gap: 0)
-            if row.header { y = max(y, headTop + 40) }
+            // A run's first message is never lower than the name's line, 2, and one line of text of 21
+            // (ChannelChat.tsx: fontSize 15.5, lineHeight 21), which is a little more than the avatar's 40.
+            if row.header { y = max(y, headTop + 42) }
             y += 2
         }
         if row.forMe {
