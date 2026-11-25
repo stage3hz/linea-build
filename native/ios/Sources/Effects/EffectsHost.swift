@@ -53,6 +53,8 @@ final class EffectsHost: NSObject {
     /// The switches of «Оформление» as they are now.
     static var wantsSnow: Bool { return allowed && (DevicePreferences.flag("snow") ?? true) && Motion.enabled }
     static var wantsTrail: Bool { return allowed && (DevicePreferences.flag("pixelTrail") ?? true) && Motion.enabled }
+    /// Whether the snow also lies on the interface (the previous app's way). Off by the owner's rule.
+    static let snowLies = false
     static var wantsIce: Bool { return allowed && (DevicePreferences.flag("ice") ?? true) }
 
     /// On the simulator the effects run only when a shot asks for them (`-effects 1`): falling snow in every other
@@ -300,6 +302,9 @@ final class EffectsHost: NSObject {
             if let before = seen[id], EffectsHost.same(before, spec) { steady.append(spec) }
         }
         seen = current
+        // Owner's rule: the snow only falls at the back of the screens; nothing lies on the buttons and panels, so
+        // the engine is given no ledges (no caps, nothing to knock off, no meltwater).
+        if !EffectsHost.snowLies { steady = [] }
         steady.sort { (a: SnowLedgeSpec, b: SnowLedgeSpec) -> Bool in a.id < b.id }
         let changed = steady.count != given.count || zip(steady, given).contains { (pair: (SnowLedgeSpec, SnowLedgeSpec)) -> Bool in
             pair.0.id != pair.1.id || !EffectsHost.same(pair.0, pair.1)

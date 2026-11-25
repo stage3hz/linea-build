@@ -14,7 +14,7 @@ extension AppearanceViewController {
         let trail = SettingsSwitchRow(label: "Пиксельный след", words: "Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой", value: DevicePreferences.flag("pixelTrail") ?? true)
         trail.onChange = { (on: Bool) -> Void in DevicePreferences.set(["pixelTrail": on]) }
         addGroup(rows: [trail])
-        let snow = SettingsSwitchRow(label: "Снег", words: "Снег падает и ложится на кнопки и панели; нажатие стряхивает его, а когда телефон нагревается — он тает", value: DevicePreferences.flag("snow") ?? true)
+        let snow = SettingsSwitchRow(label: "Снег", words: "Снег падает на фоне экрана, за кнопками и панелями", value: DevicePreferences.flag("snow") ?? true)
         snow.onChange = { (on: Bool) -> Void in DevicePreferences.set(["snow": on]) }
         addGroup(rows: [snow])
         let ice = SettingsSwitchRow(label: "Ледяное стекло", words: "Иней по кромке стеклянных кнопок, панелей и карточек; тает, когда телефон нагревается", value: DevicePreferences.flag("ice") ?? true)

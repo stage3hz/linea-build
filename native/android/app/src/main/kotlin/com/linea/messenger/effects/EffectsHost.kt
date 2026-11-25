@@ -46,6 +46,8 @@ import kotlin.math.min
  *  looked at as they are: a few times a second while an effect is on, and a rectangle is handed over only once two
  *  looks in a row agree (a control that moves or just appeared carries no snow until it rests). */
 object EffectsHost {
+  /** Whether the snow also lies on the interface (the previous app's way). Off by the owner's rule. */
+  private const val SNOW_LIES = false
   private var window = WeakReference<Activity>(null)
   private var overlay: EffectsOverlay? = null
   private val main = Handler(Looper.getMainLooper())
@@ -261,7 +263,9 @@ object EffectsHost {
     // The round or pill buttons of the header (the upper quarter of the window).
     for (screen in screens(decor)) gatherButtons(screen, 0, decor, d, current)
     // Reported only once two looks in a row agree; a moving or new control is left out until it rests.
-    val steady = current.values.filter { spec -> seen[spec.id]?.let { same(it, spec) } == true }.sortedBy { it.id }
+    // Owner's rule: the snow only falls at the back of the screens; nothing lies on the buttons and panels, so the
+    // engine is given no ledges (no caps, nothing to knock off, no meltwater).
+    val steady = if (!SNOW_LIES) emptyList() else current.values.filter { spec -> seen[spec.id]?.let { same(it, spec) } == true }.sortedBy { it.id }
     seen = current
     val moved = steady.size != given.size || steady.zip(given).any { (a, b) -> a.id != b.id || !same(a, b) }
     if (moved) { given = steady; SnowHub.setLedges(steady) }

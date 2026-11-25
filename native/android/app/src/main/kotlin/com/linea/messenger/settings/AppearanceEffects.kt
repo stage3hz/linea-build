@@ -30,7 +30,7 @@ fun SettingsPage.addEffectGroups() {
   val trail = SettingsSwitchRow(context, "Пиксельный след", "Сетка пикселей подсвечивается под пальцем и курсором: белая в тёмной теме, чёрная в светлой", DevicePreferences.flag("pixelTrail") ?: true)
   trail.onChange = { on -> DevicePreferences.set(mapOf("pixelTrail" to on)) }
   addGroup(rows = listOf(trail))
-  val snow = SettingsSwitchRow(context, "Снег", "Снег падает и ложится на кнопки и панели; нажатие стряхивает его, а когда телефон нагревается — он тает", DevicePreferences.flag("snow") ?: true)
+  val snow = SettingsSwitchRow(context, "Снег", "Снег падает на фоне экрана, за кнопками и панелями", DevicePreferences.flag("snow") ?: true)
   snow.onChange = { on -> DevicePreferences.set(mapOf("snow" to on)) }
   addGroup(rows = listOf(snow))
   val ice = SettingsSwitchRow(context, "Ледяное стекло", "Иней по кромке стеклянных кнопок, панелей и карточек; тает, когда телефон нагревается", DevicePreferences.flag("ice") ?: true)
