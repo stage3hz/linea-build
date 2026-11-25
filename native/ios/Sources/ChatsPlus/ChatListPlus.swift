@@ -111,6 +111,8 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         tabs.onChange = { [weak self] (id: String) -> Void in self?.choose(id) }
         tabs.onEdit = { [weak self] (folder: ChatFolder) -> Void in self?.editFolder(folder) }
         host.view.addSubview(tabs)
+        // The folders kept from an earlier start: the bar has its tabs before the first layout.
+        tabs.set(folders: folders.folders, filter: filter)
         // The floating header's edge: above the rows, under the title and the buttons.
         host.view.insertSubview(headerEdge, aboveSubview: list)
         edit.install(host: host, actions: actions)
@@ -144,8 +146,10 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     }
 
     /// Places the line under the title, the connection words, the folder tabs, the skeleton and the empty state;
-    /// gives the top of the list. `listTop`: where the list would start without them.
-    func place(in view: UIView, safeTop: CGFloat, listTop: CGFloat) -> CGFloat {
+    /// gives the top of the list. `listTop`: where the list would start without them. `strip`: places the strip of
+    /// stories at the height it is given and says how tall it is (nothing when it is not shown) — the previous app's
+    /// header holds the stories and, under them, the folders, and the list scrolls under both.
+    func place(in view: UIView, safeTop: CGFloat, listTop: CGFloat, strip: (CGFloat) -> CGFloat) -> CGFloat {
         let width = view.bounds.width
         let searching = listTop > safeTop + 60
         subtitle.frame = CGRect(x: 21, y: safeTop + 47, width: width - 42 - 96, height: 16)
@@ -155,10 +159,17 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         statusWords.frame = CGRect(x: 26, y: 0, width: status.bounds.width - 26, height: 41)
         var top = listTop + (searching ? 0 : 10)
         let showTabs = !folders.folders.isEmpty && !(actions?.showingArchive ?? false) && !searching
+        // The stories, then the folders 8 above the header's end; the first row stands 12 under the header (the
+        // previous app's 10 and its row's taller top).
+        let stripHeight = strip(top + 1)
         tabs.isHidden = !showTabs
-        if showTabs {
-            tabs.frame = CGRect(x: 16, y: top, width: width - 32, height: 40)
-            top += 48
+        if showTabs || stripHeight > 0 {
+            top += 1 + stripHeight
+            if showTabs {
+                tabs.frame = CGRect(x: 16, y: top, width: width - 32, height: 40)
+                top += 48
+            }
+            top += 12
         }
         edit.place(in: view, safeTop: safeTop, searchLeft: width - 20 - 40 - 8 - 40)
         let below = top + (savedOnScreen ? 76 : 0) + (actions?.showingArchive ?? false ? 76 : 0)

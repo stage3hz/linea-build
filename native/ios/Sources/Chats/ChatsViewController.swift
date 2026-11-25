@@ -70,8 +70,8 @@ final class ChatsViewController: UIViewController {
             self?.view.setNeedsLayout() // Stories: the strip is not shown in «Архив»
         }
         actions.onReload = { [weak self] in self?.reload() }
-        // Stories: the strip is the list's header.
-        stories.install(host: self, list: list)
+        // Stories: the strip stands in the header, over the list.
+        stories.install(host: self)
         list.onRowPress = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
             // ChatActions: «Архив», a found message, and the chats of an account are opened there.
@@ -211,14 +211,18 @@ final class ChatsViewController: UIViewController {
         // ChatActions: the search button beside «Новый чат»; the search field, when open, under the heading.
         let listTop = actions.place(in: view, safeTop: top)
         // ChatsPlus: the line under the title and the folder tabs take their room above the list.
-        let plusTop = plus.place(in: view, safeTop: top, listTop: listTop)
+        // Stories: the strip stands in the header, above the folders; not in «Архив», not while searching (the
+        // search field takes room under the heading) and not while choosing chats.
+        let storiesAllowed = heading.text == "Чаты" && listTop <= top + 58 && !plus.selecting
+        let width = view.bounds.width
+        let plusTop = plus.place(in: view, safeTop: top, listTop: listTop) { (y: CGFloat) -> CGFloat in
+            self.stories.place(allowed: storiesAllowed, top: y, width: width)
+        }
         // Security: «Новый вход» and «Запрос восстановления» under the heading (Security/AccountNotices.swift).
         let noticesEnd = AccountNotices.shared.place(in: view, top: plusTop, account: messenger != nil)
         list.setPad(top: Double(noticesEnd), bottom: Double(barRoom))
         plus.placeHeaderEdge(top: noticesEnd, width: view.bounds.width) // ChatsPlus: the floating header's edge
         newChat.isHidden = plus.selecting // ChatsPlus: «Выбрать» — «Новый чат» gives way
-        // Stories: not in «Архив» and not while searching (the search field takes room under the heading).
-        stories.place(allowed: heading.text == "Чаты" && listTop <= top + 58 && !plus.selecting, width: view.bounds.width) // ChatsPlus: not while choosing
         empty.frame = CGRect(x: 20, y: view.bounds.midY - 12, width: view.bounds.width - 40, height: 24)
     }
 }

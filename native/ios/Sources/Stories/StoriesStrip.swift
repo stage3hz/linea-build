@@ -6,7 +6,7 @@ import UIKit
 // small clock and «заявка»; one shown for a post, «запись». The strip is not there at all while nobody has
 // anything. Who is in it is the server's decision; the order and the words are the core's.
 //
-// The strip is the header of the chats' table, so it scrolls away with them. Its cells are reused; the pictures
+// The strip stands in the chats' floating header, as in the previous app: the list scrolls under it. Its cells are reused; the pictures
 // of people come through the avatars' own loader, decoded off the main queue.
 
 final class StoryStripCell: UICollectionViewCell {
@@ -106,17 +106,16 @@ final class StoryStripCell: UICollectionViewCell {
 /// The strip and what its taps do. Made by the chats' screen, which hands over the list in `install` and says
 /// in `place` whether the strip may be shown. Main queue only.
 final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionViewDelegate {
-    static let height: CGFloat = StoryStripCell.size.height + 6
+    /// The strip's height in the header: the ring, the name and 6 under it; a line more when somebody carries
+    /// «запись» or «заявка» (StoriesStrip.tsx).
+    static func height(sub: Bool) -> CGFloat { return sub ? 106 : 92 }
 
     private let messenger: Messenger?
     private weak var host: UIViewController?
-    private weak var list: ChatListView?
     private let holder = UIView()
     private let collection: UICollectionView
     private var publisher: StoryPublisher?
     private var allowed = true
-    private var shown = false
-    private var shownWidth: CGFloat = 0
     #if targetEnvironment(simulator)
     /// For the simulator check: the strip of the chats' screen.
     static weak var simulatorCurrent: StoriesStrip?
@@ -138,10 +137,11 @@ final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionView
 
     private var store: StoriesStore { return StoriesStore.shared }
 
-    func install(host: UIViewController, list: ChatListView) {
+    func install(host: UIViewController) {
         self.host = host
-        self.list = list
         holder.backgroundColor = .clear
+        holder.isHidden = true
+        host.view.addSubview(holder)
         collection.backgroundColor = .clear
         collection.showsHorizontalScrollIndicator = false
         collection.alwaysBounceHorizontal = true
@@ -167,25 +167,23 @@ final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionView
         #endif
     }
 
-    /// From the screen's layout. `allowed`: not in «Архив» and not while searching (as in the reference).
-    func place(allowed next: Bool, width: CGFloat) {
+    /// From the screen's layout. `allowed`: not in «Архив» and not while searching (as in the reference); `top`:
+    /// where the strip starts in the screen. Gives the height it takes (nothing when it is not shown).
+    func place(allowed next: Bool, top: CGFloat, width: CGFloat) -> CGFloat {
         allowed = next
-        apply(width: width)
+        let want = allowed && store.show && width > 0
+        holder.isHidden = !want
+        guard want else { return 0 }
+        let height = StoriesStrip.height(sub: store.people.contains(where: { !$0.sub.isEmpty }))
+        holder.frame = CGRect(x: 0, y: top, width: width, height: height)
+        collection.frame = CGRect(x: 0, y: 0, width: width, height: StoryStripCell.size.height)
+        return height
     }
 
     @objc private func storeChanged() {
         collection.reloadData()
-        apply(width: shownWidth)
-    }
-
-    private func apply(width: CGFloat) {
-        let want = allowed && store.show && width > 0
-        if want == shown && width == shownWidth { return }
-        shown = want
-        shownWidth = width
-        holder.frame = CGRect(x: 0, y: 0, width: width, height: StoriesStrip.height)
-        collection.frame = CGRect(x: 0, y: 0, width: width, height: StoryStripCell.size.height)
-        list?.setHeader(want ? holder : nil)
+        // The strip may have come, gone or grown a line: the screen places its header again.
+        host?.view.setNeedsLayout()
     }
 
     // MARK: The cells

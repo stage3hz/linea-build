@@ -105,6 +105,7 @@ final class FolderTabsView: UIView {
         glass.contentView.addSubview(tint)
         scroller.showsHorizontalScrollIndicator = false
         scroller.alwaysBounceHorizontal = false
+        scroller.contentInsetAdjustmentBehavior = .never
         glass.contentView.addSubview(scroller)
         capsule.isUserInteractionEnabled = false
         capsule.layer.cornerRadius = 16
@@ -119,7 +120,11 @@ final class FolderTabsView: UIView {
 
     func paint() {
         glass.effect = UIBlurEffect(style: Theme.dark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight)
-        tint.backgroundColor = Theme.dark ? UIColor(white: 1, alpha: 0.04) : UIColor(white: 1, alpha: 0.72)
+        // The previous app's own glass under the tabs: its dark fill over the blur (the bare material was lighter),
+        // and the glass's thin edge.
+        tint.backgroundColor = Theme.dark ? UIColor(red: 18 / 255, green: 19 / 255, blue: 20 / 255, alpha: 0.7) : UIColor(white: 1, alpha: 0.72)
+        glass.layer.borderWidth = 1
+        glass.layer.borderColor = (Theme.dark ? UIColor(white: 1, alpha: 0.08) : UIColor(white: 1, alpha: 0.85)).cgColor
         capsule.backgroundColor = Theme.dark ? UIColor(white: 1, alpha: 0.16) : UIColor(red: 20 / 255, green: 30 / 255, blue: 60 / 255, alpha: 0.08)
         capsule.layer.borderColor = (Theme.dark ? UIColor(white: 1, alpha: 0.10) : UIColor(red: 20 / 255, green: 30 / 255, blue: 60 / 255, alpha: 0.08)).cgColor
         for button in buttons { button.setTitleColor(Theme.text, for: .normal) }
@@ -169,8 +174,9 @@ final class FolderTabsView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         glass.frame = bounds
-        tint.frame = glass.contentView.bounds
-        scroller.frame = glass.contentView.bounds
+        // The bar's own size: the glass lays its content out a pass later, and the tabs were placed in an empty box.
+        tint.frame = bounds
+        scroller.frame = bounds
         let height: CGFloat = 32
         var x: CGFloat = 4
         if fits {
