@@ -239,11 +239,12 @@ class PersonProfileScreen(
     val top = edges.top
     topBar.color = Theme.bg
     topBar.statusBand = top
-    topBar.place(width, top + dp(48f), height)
-    put(back, dp(10f), top + dp(2f), dp(44f), dp(44f)) // C: `paddingHorizontal: 10`
-    put(more, width - dp(54f), top + dp(2f), dp(44f), dp(44f))
+    // UserProfile.tsx: the floating row is 56 tall (the 44 buttons with `paddingVertical: 6`), the page 18 under it.
+    topBar.place(width, top + dp(56f), height)
+    put(back, dp(10f), top + dp(6f), dp(44f), dp(44f)) // C: `paddingHorizontal: 10`
+    put(more, width - dp(54f), top + dp(6f), dp(44f), dp(44f))
     // Profile: the page scrolls from the very top, under the floating row.
-    val padTop = top + dp(48f + 18f)
+    val padTop = top + dp(56f + 18f)
     if (content.paddingBottom != dp(32f) + edges.bottom || content.paddingTop != padTop) content.setPadding(dp(18f), padTop, dp(18f), dp(32f) + edges.bottom)
     put(scroll, 0, 0, width, height)
     put(backdrop, 0, 0, width, height)
