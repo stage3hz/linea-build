@@ -338,7 +338,9 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       top = headerBottom + dp(4f) + dp(ChatSearchBar.HEIGHT) + dp(8f)
     }
     if (pinnedBar.visibility == View.VISIBLE) {
-      put(pinnedBar, dp(12f), headerBottom + dp(6f), width - dp(24f), dp(PinnedBar.height)) // marginTop 6
+      // ChatScreen.tsx: the header's column keeps a gap of 6 between its parts and the pinned pill has a marginTop of 6
+      // of its own: 12 under the header's pills (it stood 6 higher than in the previous app).
+      put(pinnedBar, dp(12f), headerBottom + dp(12f), width - dp(24f), dp(PinnedBar.height))
       top = headerBottom + dp(4f) + dp(PinnedBar.height) + dp(8f)
     }
     var noticeY = top
