@@ -114,7 +114,7 @@ final class ChannelHeaderView: UIView {
 /// A community: for a game server — its channels in groups, with what is unread in each; for a blog channel —
 /// its posts at once. The header leads to inviting and to the settings.
 /// Reference: mobile/src/communities/CommunityScreen.tsx.
-final class CommunityViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+final class CommunityViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, KeepsTabBar {
     private let messenger: Messenger?
     private let communityId: String
     private var known: CommunitySummary?
@@ -234,7 +234,9 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         header.safeTop = top
         header.frame = CGRect(x: 0, y: 0, width: width, height: top + ChannelHeaderView.height)
         table.frame = view.bounds
-        let insets = UIEdgeInsets(top: header.frame.maxY, left: 0, bottom: max(view.safeAreaInsets.bottom, 12) + 18, right: 0)
+        // The bar of the sections stays over a community, as in the previous app: the list ends above it.
+        let barRoom = (navigationController as? NavigationController)?.barRoom(over: self) ?? 0
+        let insets = UIEdgeInsets(top: header.frame.maxY, left: 0, bottom: max(view.safeAreaInsets.bottom, 12, barRoom) + 18, right: 0)
         if table.contentInset != insets {
             table.contentInset = insets
             table.contentOffset = CGPoint(x: 0, y: -insets.top)

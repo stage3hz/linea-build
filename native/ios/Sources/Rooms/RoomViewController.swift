@@ -163,7 +163,7 @@ private final class RoomRoundButton: UIControl {
 /// how many are inside, and the room's actions; below — «Позвать всех» (rings like a call for those who are not
 /// inside) and either «Зайти» or the microphone, the sound's route and the way out.
 /// Pushed over «Каналы»: a swipe from the left edge goes back (the voice goes on — see RoomOverlay.swift).
-final class RoomViewController: UIViewController {
+final class RoomViewController: UIViewController, KeepsTabBar {
     let roomId: String
     private let bar = UIVisualEffectView(effect: nil)
     private let backButton = UIButton(type: .system)
@@ -416,7 +416,9 @@ final class RoomViewController: UIViewController {
         statusLabel.textColor = inside.isEmpty ? Theme.muted : RoomRules.talk
 
         // The controls, from the bottom up.
-        var bottom = view.bounds.height - 18 - view.safeAreaInsets.bottom
+        // The bar of the sections stays over a room, as in the previous app: the controls stand above it.
+        let barRoom = (navigationController as? NavigationController)?.barRoom(over: self) ?? 0
+        var bottom = view.bounds.height - 18 - view.safeAreaInsets.bottom - barRoom
         let inRoom = voice != nil
         enterButton.isHidden = inRoom
         for button in [speakerButton, micButton, leaveButton] { button.isHidden = !inRoom }

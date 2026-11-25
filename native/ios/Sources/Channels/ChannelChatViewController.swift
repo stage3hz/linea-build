@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 /// The screen itself does almost nothing: ChannelEngine reads, merges and lays out off the main thread, the
 /// list (ChannelListView) puts finished rows into a table. Communities are not end-to-end encrypted, by the
 /// reference's design: messages are sent and read as they are.
-final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHPickerViewControllerDelegate {
+final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHPickerViewControllerDelegate, KeepsTabBar {
     private let messenger: Messenger?
     private var community: Community
     private let channel: CommunityChannel
@@ -284,6 +284,12 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         header.frame = CGRect(x: 0, y: 0, width: width, height: top + ChannelHeaderView.height)
         notice.frame = CGRect(x: 12, y: header.frame.maxY + 6, width: width - 24, height: 40)
         var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
+        // The bar of the sections stays over a channel, as in the previous app: without the keyboard the field
+        // stands above it.
+        if keyboardTop == nil, let stack = navigationController as? NavigationController {
+            let room = stack.barRoom(over: self)
+            if room > 0 { floor = view.bounds.height - room }
+        }
         if canWrite {
             // The row: 10 from the sides, 8 under; the attach button only while not editing (then the field starts at 10).
             let bottomPad: CGFloat = 8

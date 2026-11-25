@@ -154,7 +154,7 @@ enum SettingsLook {
 
 /// A page of the settings. The root of the section has the large heading; every other page has a back
 /// button and its name. Subclasses fill `column` in `build()`.
-class SettingsPage: UIViewController {
+class SettingsPage: UIViewController, KeepsTabBar {
     let scroll = UIScrollView()
     let column = UIStackView()
     private let heading = UILabel()
@@ -297,7 +297,12 @@ class SettingsPage: UIViewController {
             let wanted = below + (ownLook?.columnTop ?? 16) - (ownLook == nil ? 8 : 0)
             if let columnTop, columnTop.constant != wanted { columnTop.constant = wanted }
             if scroll.verticalScrollIndicatorInsets.top != below { scroll.verticalScrollIndicatorInsets.top = below }
-            let floor = view.safeAreaInsets.bottom
+            var floor = view.safeAreaInsets.bottom
+            // The bar of the sections stands over a pushed page of the settings, as in the previous app: the list
+            // ends above it, with the room the sections themselves leave.
+            if let stack = navigationController as? NavigationController, stack.barKept(over: self) {
+                floor = BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12
+            }
             if scroll.contentInset.bottom != floor {
                 scroll.contentInset.bottom = floor
                 scroll.verticalScrollIndicatorInsets.bottom = floor
