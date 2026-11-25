@@ -223,7 +223,8 @@ final class ChannelRowLayout {
                 avatarBox = box
                 let time = ChannelType.line(row.time, ChannelLook.small, ChannelLook.subtle, width: 60)
                 let ribbon: CGFloat = row.owner ? 19 : 0
-                // ChannelChat.tsx:199: the Platina gem (a round of 14 with the diamond in it) after the name, 8 apart.
+                // ChannelChat.tsx:199: the Platina gem (`PlatinaGem size={10}`: a platinum round of 14 with the
+                // reference's own «diamond» glyph, 6.2, in it) after the name, 8 apart.
                 let gem: CGFloat = row.platina ? 22 : 0
                 let name = ChannelType.line(row.author, ChannelLook.name, row.authorColor.map { UIColor(hex: $0) } ?? ChannelLook.text, width: max(20, inner - time.width - 8 - ribbon - gem))
                 let baseline = y + name.ascent
@@ -232,7 +233,7 @@ final class ChannelRowLayout {
                 if row.platina {
                     let round = CGRect(x: after, y: baseline - 12, width: 14, height: 14)
                     pieces.append(.fill(round, 7, UIColor(hex: 0xD9DEE8).cgColor))
-                    pieces.append(.icon("diamond.fill", round.insetBy(dx: 3, dy: 3), UIColor(hex: 0x1A1F2A)))
+                    pieces.append(.icon("diamond", round.insetBy(dx: 3.9, dy: 3.9), UIColor(hex: 0x1A1F2A)))
                     after += gem
                 }
                 if row.owner {
