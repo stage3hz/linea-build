@@ -72,7 +72,7 @@ enum ProfileEditMedia {
             avatar.heightAnchor.constraint(equalToConstant: 96),
             avatarBadge.trailingAnchor.constraint(equalTo: ring.trailingAnchor, constant: -2),
             avatarBadge.bottomAnchor.constraint(equalTo: ring.bottomAnchor, constant: -2),
-            words.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 2),
+            words.topAnchor.constraint(equalTo: ring.bottomAnchor),
             words.centerXAnchor.constraint(equalTo: box.centerXAnchor),
             hint.topAnchor.constraint(equalTo: words.bottomAnchor, constant: 0),
             hint.leadingAnchor.constraint(equalTo: box.leadingAnchor),

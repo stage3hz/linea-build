@@ -1,7 +1,9 @@
 import UIKit
 
-/// «Мой профиль»: the name, a few words about oneself, the public @username, the birthday, the colour.
-/// (The previous app: the editor of `mobile/src/ProfileScreen.tsx`.) Nothing is sent until «Сохранить».
+/// «Изменить»: the editor of one's own profile — the banner and the photo, a few words about oneself, the name, the
+/// public @username, the birthday, the gender, the colour, the background pattern, the decorations of Platina.
+/// (The previous app: the editing state of `mobile/src/ProfileScreen.tsx`.) The header's «close» discards the draft,
+/// its «checkmark» saves and closes; nothing is sent before that.
 final class ProfileEditViewController: SettingsPage {
     private let messenger: Messenger
     private var birthday: String?
@@ -20,33 +22,49 @@ final class ProfileEditViewController: SettingsPage {
     private lazy var media = ProfilePhotoChange(messenger: messenger, host: self)
     private let noticeBox = UIStackView()
     private let nameField = SettingsField(caption: "", placeholder: "Имя")
-    private let bioArea = SettingsTextArea(placeholder: "О себе")
+    private let bioArea = SettingsTextArea(placeholder: "О себе", glass: true)
     private let handleRow = SettingsRow(symbol: "ion:at", label: "Имя пользователя")
     private let birthdayRow = SettingsRow(symbol: "ion:gift", label: "День рождения")
     private let genderRow = SettingsRow(symbol: "ion:person", label: "Пол")
-    private let saveButton = SettingsButton(label: "Сохранить")
-    private var swatches: [UIButton] = []
+    private let colorRow = SettingsRow(symbol: "ion:color-palette", label: "Персональный цвет", swatch: UIColor.clear)
+    private var saveButton: GlassRoundButton?
 
-    /// The colours a person can be seen in while there is no photo (the reference's eight).
-    private static let colors = ["#596FE8", "#4088C7", "#9271C3", "#B78358", "#AD6C8C", "#667FA4", "#3FA37C", "#D0644E"]
+    /// The colour of a profile that has none yet.
+    private static let plainColor = "#5E7BFF"
 
     init(messenger: Messenger) {
         self.messenger = messenger
         let own = messenger.ownProfile
         birthday = own["birthday"] as? String
         gender = own["gender"] as? String
-        color = own["avatarColor"] as? String ?? "#5E7BFF"
+        color = own["avatarColor"] as? String ?? ProfileEditViewController.plainColor
         pattern = own["profilePattern"] as? String // Profile
-        super.init(name: "Мой профиль")
+        super.init(name: "Изменить")
     }
 
     required init?(coder: NSCoder) { return nil }
 
     deinit { NotificationCenter.default.removeObserver(self) }
 
+    override var ownLook: OwnLook? {
+        // ProfileScreen.tsx, editing: the pill 14 from the sides, 10 inside, at least 68 tall; «Изменить» 20 Bold with
+        // letter spacing −0.5 in the middle, «close» at the left and the accent «checkmark» at the right. The column is
+        // 17 from the sides, 8 under the pill's 2 of margin (4 of them are the top part's own), 36 at the end.
+        return OwnLook(side: 14, padding: 10, minHeight: 68, clear: false, titleFont: .systemFont(ofSize: 20, weight: .bold), titleKern: -0.5,
+                       mark: "", markSize: 0, markRoom: 0, backLabel: "Отменить изменения",
+                       columnSide: 17, columnTop: 4, columnBottom: 36, closes: true)
+    }
+
+    /// «Отменить изменения»: the draft is dropped. Not while it is being saved.
+    override func goBack() {
+        guard !busy else { return }
+        super.goBack()
+    }
+
     override func build() {
         let own = messenger.ownProfile
         NotificationCenter.default.addObserver(self, selector: #selector(profileChanged), name: Messenger.ownProfileChanged, object: nil)
+        saveButton = setConfirm(label: "Сохранить") { [weak self] () -> Void in self?.finishEdit() }
 
         add(ProfileEditMedia.top(banner: bannerTile, art: bannerArt, avatar: ball, words: photoWords), gap: 0) // Profile
         bannerTile.addAction(UIAction { [weak self] (_: UIAction) -> Void in self?.media.ask(kind: "banner") }, for: .touchUpInside)
@@ -59,77 +77,70 @@ final class ProfileEditViewController: SettingsPage {
         }
         PlatinaState.shared.start(messenger)
 
+        // The parts stand 17 apart (the top part keeps 4 of its own under its last line). The place of a notice takes
+        // no room while there is none.
         noticeBox.axis = .vertical
         noticeBox.spacing = 8
-        add(noticeBox, gap: 10)
+        noticeBox.isHidden = true
+        add(noticeBox, gap: 13)
 
+        // «О себе» first, with its words 6 under it (12 on lines of 17, 14 in from the sides).
+        bioArea.limit = 160
+        bioArea.value = own["bio"] as? String ?? ""
+        bioArea.onEdit = { [weak self] in self?.clearNotice() }
+        add(bioArea, gap: 17)
+        add(SettingsLook.inset(SettingsLook.para("Несколько слов о себе — например, чем занимаешься. Видно в профиле.", size: 12, color: Theme.muted, line: 17),
+                               top: 0, side: 14, bottom: 0), gap: 6)
+
+        // The name, and the @username's row 6 under it.
         nameField.limit = 50
         nameField.input.autocapitalizationType = .words
         nameField.value = own["displayName"] as? String ?? ""
         nameField.onEdit = { [weak self] in self?.edited() }
-        add(nameField, gap: 10)
-
-        bioArea.limit = 160
-        bioArea.value = own["bio"] as? String ?? ""
-        bioArea.onEdit = { [weak self] in self?.clearNotice() }
-        add(bioArea, gap: 10)
-        add(SettingsLook.foot("Несколько слов о себе — например, чем занимаешься. Видно в профиле."), gap: 6)
+        add(nameField, gap: 17)
 
         handleRow.onPress = { [weak self] in
             guard let self, !self.busy else { return }
             self.open(UsernameViewController(messenger: self.messenger))
         }
-        addGroup(rows: [handleRow])
+        add(SettingsGroup(rows: [handleRow]), gap: 6)
 
+        // «День рождения» and «Персональный цвет» are sheets over the editor (ProfileEditSheets.swift).
         birthdayRow.onPress = { [weak self] in
             guard let self, !self.busy else { return }
-            let page = BirthdayViewController(value: self.birthday, done: { [weak self] chosen in
+            let sheet = ProfileEditSheets.birthday(value: self.birthday) { [weak self] (chosen: String?) -> Void in
                 self?.birthday = chosen
                 self?.showValues()
                 self?.clearNotice()
-            })
-            self.open(page)
+            }
+            self.present(sheet, animated: true)
         }
         genderRow.onPress = { [weak self] in self?.chooseGender() }
-        // Profile: «Узор фона» — the emoji around the photo in the profile (saved with «Сохранить»).
+        colorRow.onPress = { [weak self] in
+            guard let self, !self.busy else { return }
+            let sheet = ProfileEditSheets.color(current: self.color) { [weak self] (chosen: String) -> Void in
+                self?.color = chosen
+                self?.showValues()
+                self?.clearNotice()
+            }
+            self.present(sheet, animated: true)
+        }
+        // Profile: «Узор фона» — the emoji around the photo in the profile (saved with the rest).
         patternRow.onPress = { [weak self] in
             guard let self, !self.busy else { return }
-            let picker = PatternPickerViewController(current: self.pattern) { [weak self] (chosen: String?) -> Void in
+            let sheet = ProfileEditSheets.pattern(current: self.pattern) { [weak self] (chosen: String?) -> Void in
                 self?.pattern = chosen
                 self?.showValues()
                 self?.clearNotice()
             }
-            self.present(picker, animated: true, completion: nil)
+            self.present(sheet, animated: true)
         }
-        addGroup(rows: [birthdayRow, genderRow, patternRow])
+        add(SettingsGroup(rows: [birthdayRow, genderRow, colorRow, patternRow]), gap: 17)
 
-        let row = UIStackView()
-        row.axis = .horizontal
-        row.distribution = .equalSpacing
-        row.alignment = .center
-        for (index, value) in ProfileEditViewController.colors.enumerated() {
-            let dot = UIButton(type: .custom)
-            dot.backgroundColor = UIColor(hex: Messenger.color(value))
-            dot.layer.cornerRadius = 16
-            dot.layer.borderColor = Theme.text.cgColor
-            dot.tag = index
-            dot.accessibilityLabel = "Цвет \(index + 1)"
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            dot.widthAnchor.constraint(equalToConstant: 32).isActive = true
-            dot.heightAnchor.constraint(equalToConstant: 32).isActive = true
-            dot.addTarget(self, action: #selector(colorPicked(_:)), for: .touchUpInside)
-            row.addArrangedSubview(dot)
-            swatches.append(dot)
-        }
-        addGroup("Персональный цвет", rows: [SettingsLook.inset(row, top: 12, side: 14, bottom: 12)])
-        add(SettingsLook.foot("Этим цветом тебя видят в чатах у других, пока нет фото."), gap: 7)
-
-        saveButton.onPress = { [weak self] in self?.save() }
-        add(saveButton, gap: 20)
         // Profile: «Рамки и анимации» — the decorations of Platina, saved at once (Sources/Platina/PlatinaStudio.swift).
-        add(SettingsLook.caption("Рамки и анимации"), gap: 24)
+        add(SettingsLook.sectionLabel("Рамки и анимации"), gap: 17)
         let studio = PlatinaStudioView(messenger: messenger, compact: true)
-        add(SettingsLook.inset(ProfileEditMedia.card(studio), top: 0, side: 0, bottom: 0), gap: 7)
+        add(SettingsLook.inset(ProfileEditMedia.card(studio), top: 0, side: 0, bottom: 0), gap: 8)
         showValues()
     }
 
@@ -165,20 +176,9 @@ final class ProfileEditViewController: SettingsPage {
         let day = BirthdayWords.format(birthday)
         birthdayRow.setValue(day.isEmpty ? "Не указан" : day)
         genderRow.setValue(gender == "male" ? "Мужской" : gender == "female" ? "Женский" : "Не указан")
+        colorRow.setSwatch(UIColor(hex: Messenger.color(color)))
         patternRow.setValue(pattern ?? "Нет") // Profile
-        for (index, dot) in swatches.enumerated() {
-            let on = ProfileEditViewController.colors[index].uppercased() == color.uppercased()
-            dot.layer.borderWidth = on ? 3 : 0
-            if on { dot.accessibilityTraits.insert(.selected) } else { dot.accessibilityTraits.remove(.selected) }
-        }
         showBall()
-    }
-
-    @objc private func colorPicked(_ sender: UIButton) {
-        guard !busy, sender.tag >= 0, sender.tag < ProfileEditViewController.colors.count else { return }
-        color = ProfileEditViewController.colors[sender.tag]
-        clearNotice()
-        showValues()
     }
 
     private func chooseGender() {
@@ -205,19 +205,42 @@ final class ProfileEditViewController: SettingsPage {
             noticeBox.removeArrangedSubview(part)
             part.removeFromSuperview()
         }
+        noticeBox.isHidden = true
     }
 
     private func showNotice(_ words: String, error: Bool) {
         clearNotice()
         noticeBox.addArrangedSubview(SettingsNotice(words, error: error))
+        noticeBox.isHidden = false
         scroll.setContentOffset(.zero, animated: true)
     }
 
     private func setBusy(_ value: Bool) {
         busy = value
-        saveButton.setBusy(value)
+        saveButton?.isEnabled = !value
         nameField.setEnabled(!value)
         bioArea.setEnabled(!value)
+    }
+
+    /// Whether anything of the draft differs from the profile as the server has it.
+    private var changed: Bool {
+        let own = messenger.ownProfile
+        if nameField.value.trimmingCharacters(in: .whitespacesAndNewlines) != (own["displayName"] as? String ?? "") { return true }
+        if bioArea.value.trimmingCharacters(in: .whitespacesAndNewlines) != (own["bio"] as? String ?? "") { return true }
+        if birthday != (own["birthday"] as? String) { return true }
+        if gender != (own["gender"] as? String) { return true }
+        if color.uppercased() != (own["avatarColor"] as? String ?? ProfileEditViewController.plainColor).uppercased() { return true }
+        return pattern != (own["profilePattern"] as? String)
+    }
+
+    /// The header's «Сохранить»: nothing changed — the editor just closes; otherwise it closes once the profile is saved.
+    private func finishEdit() {
+        guard !busy else { return }
+        if !changed {
+            navigationController?.popViewController(animated: true)
+            return
+        }
+        save()
     }
 
     private func save() {
@@ -249,7 +272,8 @@ final class ProfileEditViewController: SettingsPage {
                     self.pattern = fresh["profilePattern"] as? String // Profile
                     self.showValues()
                 }
-                self.showNotice("Профиль сохранён.", error: false)
+                // Saved: the editor closes, as the previous app's does.
+                self.navigationController?.popViewController(animated: true)
             case .failure(let error):
                 self.showNotice(error.words.isEmpty ? "Не удалось сохранить профиль." : error.words, error: true)
             }
