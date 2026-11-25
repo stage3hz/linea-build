@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 65-folders-settings of the native app, started by the workflow with: -settings root; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - scrollUntilVisible:
     element:
       text: "Папки с чатами.*"

@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 69-colors of the native app, started by the workflow with: -settings appearance; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - scrollUntilVisible:
     element:
       text: "Свои цвета.*"

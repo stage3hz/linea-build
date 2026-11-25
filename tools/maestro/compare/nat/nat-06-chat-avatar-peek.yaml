@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 06-chat-avatar-peek of the native app, started by the workflow with: -openchat 1; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: ../act/wait-timur.yaml
 - runFlow: ../act/avatar-peek.yaml
 - takeScreenshot: nat-06-chat-avatar-peek

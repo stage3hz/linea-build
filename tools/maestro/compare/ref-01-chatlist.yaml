@@ -1,5 +1,10 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 01-chatlist of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: act/ref-home.yaml
 - takeScreenshot: ref-01-chatlist

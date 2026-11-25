@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 53-own-profile of the native app, started by the workflow with: -settings root; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - tapOn:
     text: "Мой профиль"
     index: 0

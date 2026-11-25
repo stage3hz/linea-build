@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 100-signin of the native app, started by the workflow with: -auth 1; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - extendedWaitUntil:
     visible: "Логин.*|Войти.*"
     timeout: 120000

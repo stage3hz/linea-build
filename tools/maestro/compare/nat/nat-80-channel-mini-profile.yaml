@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 80-channel-mini-profile of the native app, started by the workflow with: -channels chat; then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - extendedWaitUntil:
     visible: ".*глянь, пожалуйста.*"
     timeout: 60000

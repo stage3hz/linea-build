@@ -4,6 +4,12 @@ appId: com.linea.messenger.preview
 # should iOS still ask, the question is answered.
 - tapOn:
     text: "Вложения: галерея, файлы, опрос"
+# The system asks about the photos a moment after the panel opens: it is waited for, or the next check comes too
+# early and the question stays over every screen after this one (a run lost seventeen chat screens to it).
+- extendedWaitUntil:
+    visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    timeout: 5000
+    optional: true
 - runFlow:
     when:
       visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"

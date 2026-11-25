@@ -1,6 +1,11 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 05-message-menu of the reference app (.github/workflows/native-compare.yml, plan.txt).
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: act/ref-home.yaml
 - runFlow: act/open-timur.yaml
 - longPressOn:

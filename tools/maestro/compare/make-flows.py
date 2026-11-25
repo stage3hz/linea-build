@@ -316,7 +316,11 @@ for old in glob.glob(os.path.join(ROOT, 'ref-*.yaml')) + glob.glob(os.path.join(
 if os.path.exists(os.path.join(ROOT, 'names.txt')):
     os.remove(os.path.join(ROOT, 'names.txt'))
 
+ASKS = '"Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"'
+# A system question left over a screen by an earlier flow is answered before anything else is done.
+ANSWER = f'- runFlow:\n    when:\n      visible: {ASKS}\n    commands:\n      - tapOn: {ASKS}\n'
 def body(steps, act, shotname):
+    steps = ANSWER + steps
     steps = steps.replace('@ACT@', act).replace(HIDEKB, HIDEKB_NAT if act == '../act' else HIDEKB_REF)
     shot = f'- takeScreenshot: {shotname}\n'
     return steps.replace('@SHOT@', shot) if '@SHOT@' in steps else steps + shot

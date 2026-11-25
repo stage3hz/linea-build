@@ -1,5 +1,10 @@
 appId: com.linea.messenger.preview
 ---
 # Comparison shot 20-sections of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow:
+    when:
+      visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
+    commands:
+      - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: ../act/sections.yaml
 - takeScreenshot: nat-20-sections
