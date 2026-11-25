@@ -129,8 +129,9 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
       topLayers.celebrate(this)
       if (opensStatusPicker) {
         opensStatusPicker = false
-        val place = IntArray(2); hero.getLocationOnScreen(place)
-        openStatusPicker(place[1] + hero.height - dp(60f))
+        // ProfileScreen.tsx:203: opened from the settings, the picker is anchored at `headerHeight + 230` (92 + 230),
+        // so it stands under the name and «в сети», over «имя пользователя».
+        openStatusPicker(dp(92f + 230f))
       }
     }
   }
@@ -156,7 +157,9 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
 
   override fun place(width: Int, height: Int) {
     val top = edges.top
-    val padTop = top + dp(60f + 8f)
+    // ProfileScreen.tsx: the list bleeds up under the status bar and has `paddingTop: 60 + 8` — the page starts 68
+    // from the screen's top, not from under the status bar (the photo stood a status bar's height too low).
+    val padTop = dp(60f + 8f)
     if (content.paddingTop != padTop || content.paddingBottom != dp(36f) + edges.bottom) content.setPadding(dp(17f), padTop, dp(17f), dp(36f) + edges.bottom)
     put(scroll, 0, 0, width, height)
     put(topStage, 0, 0, width, topLayers.backHeight(hero.bottom))
