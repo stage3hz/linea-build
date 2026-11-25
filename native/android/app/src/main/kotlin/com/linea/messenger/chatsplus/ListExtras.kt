@@ -17,10 +17,10 @@ import com.linea.messenger.design.words
 import com.linea.messenger.people.Person
 import com.linea.messenger.people.findPeople
 
-/** ChatsPlus: «Архив» as the reference keeps it — above the first chat, out of sight until the list is pulled down
- *  (ChatListScreen.tsx `archiveRow`): the box icon on a rounded square, «Архив» and how many chats are in it. The
- *  list (chats/ChatListView.kt `setPull`) shows it while pulled and lets it settle open or shut
- *  (native/ios/Sources/ChatsPlus/ListExtras.swift). */
+/** ChatsPlus: «Архив» as a view above the first chat, out of sight until the list is pulled down: the box icon on a
+ *  rounded square, «Архив» and how many chats are in it. The list (chats/ChatListView.kt `setPull`) can show it while
+ *  pulled and let it settle open or shut. Not put in the list now: «Архив» is an ordinary row under «Избранное», as
+ *  the previous app's list shows it (chatsplus/ChatListPlus.kt `archivePull`, chatactions/ChatListActions.kt). */
 @SuppressLint("ViewConstructor")
 class ArchivePullView(context: Context) : LinearLayout(context) {
   private val count: TextView = context.words("", 12f, Theme.muted)

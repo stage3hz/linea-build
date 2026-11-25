@@ -215,16 +215,13 @@ class ChatListPlus(private val context: Context, private val messenger: Messenge
     headerEdge.place(width, top, 0)
   }
 
-  /** «Архив» goes behind the pull in «Все» (not while searching or choosing). True: it is there, the actions must not
-   *  add its row. `count`: the archived chats (0 takes it away). */
+  /** «Архив» is a row of the list, right under «Избранное», as the previous app's list shows it (ChatListScreen.tsx,
+   *  the row `__archive`): nothing is kept behind the pull, and the actions add the row. Always false. `count`: the
+   *  archived chats. */
+  @Suppress("UNUSED_PARAMETER")
   fun archivePull(count: Int): Boolean {
-    if (count <= 0 || filter != "all" || edit.selecting) {
-      list?.setPull(null)
-      return false
-    }
-    archivePullView.set(count)
-    list?.setPull(archivePullView)
-    return true
+    list?.setPull(null)
+    return false
   }
 
   /** «Люди» under the chats the search found. */

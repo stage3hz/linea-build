@@ -222,14 +222,16 @@ class ChatListActions(private val context: Context, private val messenger: Messe
   private fun removed(chat: Chat): Boolean = local?.isRemoved(chat.id, lastId(chat)) ?: false
 
   private fun refresh() {
-    // ChatsPlus: the badges count every chat; «Архив» behind the pull; «Избранное», folders, choosing, people.
+    // ChatsPlus: the badges count every chat; «Архив» as a row; «Избранное», folders, choosing, people.
     val plus = plus
     val visible = chats.filter { !removed(it) }
     val now = Instant.now()
     plus?.listed(visible.map { com.linea.messenger.chatsplus.ChatListStatus.Counted(it.id, unread(it), marked(it.id), muted(it, now), archived(it)) },
       visible.map { Messenger.ChatSummary(it.id, it.peerId, it.title, it.peerLastRead, it.row, it.chat, it.last) })
     val archivedCount = visible.count { archived(it) }
-    val inArchive = archiveOpen && archivedCount > 0
+    // The archive shuts when its last chat has left it — not while the list itself is momentarily empty (a reload in
+    // between would throw the person back to «Чаты»).
+    val inArchive = archiveOpen && (archivedCount > 0 || visible.isEmpty())
     val wanted = query.trim(' ')
     val pulled = if (plus == null) false else if (inArchive || wanted.isNotEmpty() || archivedCount == 0) plus.archivePull(0) else plus.archivePull(archivedCount)
     val made = rows(State(chats, messenger?.userId, archiveOpen, query, hits, searchingHistory, fills, local?.hiddenKeys?.toSet() ?: emptySet(),
@@ -797,7 +799,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     fun rows(state: State): Made {
       val visible = state.chats.filter { !state.removed(it) }
       val archivedCount = visible.count { archived(it) }
-      val inArchive = state.archiveOpen && archivedCount > 0
+      val inArchive = state.archiveOpen && (archivedCount > 0 || visible.isEmpty())
       val wanted = state.query.trim(' ').lowercase()
       var shown = visible.filter { archived(it) == inArchive }
       // ChatsPlus: the folder shown keeps its own chats (not in «Архив»).

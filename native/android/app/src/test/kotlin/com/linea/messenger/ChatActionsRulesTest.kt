@@ -311,6 +311,8 @@ class ChatActionsRulesTest {
     assertEquals(listOf("unarchive:Вернуть", "delete:Удалить", "mute:Без звука"), archive.rows[1]["trail"])
     // Nothing is in the archive any more: the list of chats is shown again.
     assertFalse(ChatListActions.rows(state(chats.take(3), archiveOpen = true)).archiveOpen)
+    // A list that is momentarily empty during a reload does not shut the archive.
+    assertTrue(ChatListActions.rows(state(emptyList(), archiveOpen = true)).archiveOpen)
   }
 
   @Test fun theLineOfAChatWhoseLastMessageIsNotOneToShow() {
