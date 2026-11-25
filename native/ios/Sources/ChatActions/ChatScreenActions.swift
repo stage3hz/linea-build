@@ -348,7 +348,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
 
         var above = composerFrame.minY
         composer?.isHidden = chosen
-        selectionBar.frame = CGRect(x: 12, y: composerFrame.maxY - SelectionBar.height, width: width - 24, height: SelectionBar.height)
+        // The bar of the chosen messages keeps 10 under it where the composer's row keeps 8.
+        selectionBar.frame = CGRect(x: 12, y: composerFrame.maxY - 2 - SelectionBar.height, width: width - 24, height: SelectionBar.height)
         if chosen {
             above = selectionBar.frame.minY
         } else if !composerBar.isHidden {
@@ -359,8 +360,10 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         above = links.place(composerFrame: composerFrame, above: above, hidden: chosen)
         // Composer: the formatting bar over a selection, the emoji button and panel, the scheduled pill.
         above = extras.place(in: view, composerFrame: composerFrame, above: above, top: top, hidden: chosen)
-        downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 10 - DownButton.side, width: DownButton.side, height: DownButton.side) // right 14, bottom 10
-        return (top, view.bounds.height - above + 8)
+        // ChatScreen.tsx: the composer's block has 4 of its own above its topmost part; the way down stands 10 above
+        // the block (right 14) and the newest message ends 8 above it (chatLayout.ts COMPOSER_GAP) — each was 4 lower.
+        downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 4 - 10 - DownButton.side, width: DownButton.side, height: DownButton.side)
+        return (top, view.bounds.height - above + 4 + 8)
     }
 
     private func relayout() {

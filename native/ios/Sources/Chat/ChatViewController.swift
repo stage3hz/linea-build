@@ -196,7 +196,9 @@ final class ChatViewController: UIViewController {
         // paperclip and the microphone, and its text stands 14 pt in from the pill's edges (ChatScreen.tsx).
         let pill = ComposerPills.fieldPill(width: width - 16, height: 0)
         let composerHeight = actions.composerHeight(fieldWidth: pill.width - 28)
-        var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - max(view.safeAreaInsets.bottom, 12))
+        // ChatScreen.tsx: the composer's row keeps 8 under it — above the keyboard, the emoji panel or the home
+        // indicator's strip (it stood on the strip itself, 8 lower than in the previous app).
+        var floor = keyboardTop.map { $0 - 8 } ?? (view.bounds.height - view.safeAreaInsets.bottom - 8)
         // Composer: the emoji panel stands where the keyboard was (Sources/Composer/EmojiPanel.swift).
         if keyboardTop == nil, let panelTop = actions.extras.panelTop(in: view) { floor = panelTop - 8 }
         composer.frame = CGRect(x: 8, y: floor - composerHeight, width: width - 16, height: composerHeight)
