@@ -32,12 +32,34 @@ appId: com.linea.messenger.preview
     visible: "Имя пользователя.*"
     timeout: 30000
     optional: true
-- scrollUntilVisible:
-    element:
-      text: "Персональный цвет.*"
-    direction: DOWN
-    timeout: 30000
+- swipe:
+    start: "98%,72%"
+    end: "98%,48%"
+    duration: 800
+- waitForAnimationToEnd
 - tapOn:
     text: "Персональный цвет.*"
+    index: 0
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Готово"
+    timeout: 8000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Готово"
+    commands:
+      - tapOn:
+          text: "Персональный цвет.*"
+          index: 0
+          optional: true
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Готово"
+    timeout: 8000
+    optional: true
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1200
+    optional: true
 - takeScreenshot: ref-59-editor-color

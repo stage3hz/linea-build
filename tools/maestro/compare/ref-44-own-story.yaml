@@ -12,8 +12,5 @@ appId: com.linea.messenger.preview
     index: 0
     retryTapIfNoChange: false
     waitToSettleTimeoutMs: 300
-- extendedWaitUntil:
-    visible: "Закрыть"
-    timeout: 3000
-    optional: true
+- evalScript: ${var until = Date.now() + 1800; while (Date.now() < until);}
 - takeScreenshot: ref-44-own-story

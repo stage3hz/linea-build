@@ -6,35 +6,13 @@ appId: com.linea.messenger.preview
       visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
     commands:
       - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
-- scrollUntilVisible:
-    element:
-      text: "Рамки и анимации.*"
-    direction: DOWN
-    timeout: 40000
-    centerElement: true
-    optional: true
-- runFlow:
-    when:
-      visible: "Переслать"
-    commands:
-      - tapOn:
-          point: "50%,8%"
-      - waitForAnimationToEnd
-      - scrollUntilVisible:
-          element:
-            text: "Рамки и анимации.*"
-          direction: DOWN
-          timeout: 40000
-          centerElement: true
-- runFlow:
-    when:
-      notVisible: "Рамки и анимации.*"
-    commands:
-      - scrollUntilVisible:
-          element:
-            text: "Рамки и анимации.*"
-          direction: DOWN
-          timeout: 40000
-          centerElement: true
+- swipe:
+    start: "98%,72%"
+    end: "98%,48%"
+    duration: 800
+- swipe:
+    start: "98%,72%"
+    end: "98%,48%"
+    duration: 800
 - waitForAnimationToEnd
 - takeScreenshot: nat-61-editor-studio

@@ -271,15 +271,23 @@ pair('38-saved', 1, '', 25, tap('Избранное.*', index=0) + pause(3000), 
 pair('39-saved-menu', 1, '', 25, tap('Избранное.*', index=0) + wait('.*Как тебе фото.*') + hold('.*Как тебе фото.*'), 'same', start='home')
 pair('40-chat-failed', 1, '', 25, reveal('Вера.*') + tap('Вера.*') + pause(3000), 'same', start='home')
 pair('41-chat-blocked', 1, '', 25, reveal('Игорь.*') + tap('Игорь.*') + pause(3000), 'same', start='home')
-pair('42-new-chat', 2, '', 25, tap('Новый чат'), 'same', start='home')
+# The first native shot of its shard: in the run of 1fc2c7dd the touch on «Новый чат» opened nothing (the same build's
+# button answers every other time it is asked). «Люди» is known by its «Друзья»; a touch that was lost is made once more.
+pair('42-new-chat', 2, '', 25, tap('Новый чат', index=0) + wait('Друзья.*', 8000)
+     + when('Друзья.*', tap('Новый чат', index=0, optional=True), visible=False) + wait('Друзья.*', 15000), 'same', start='home')
 # In the run of 34bf134d both apps were photographed back on the chat list: the story had been opened and had ended
 # while Maestro waited for the screen to stop moving.
 # In the run of 734fa7cc the reference was photographed still on its chat list, 0.7 s after the touch: its viewer had
-# not come yet. The viewer is waited for by its own «Закрыть» (both apps name the button so) and photographed as soon
-# as it is there — for three seconds at most, so that a viewer Maestro cannot read is still photographed while its
-# first story (five seconds) plays. No second touch: over an open viewer it would land on «Предыдущее».
+# not come yet. No second touch: over an open viewer it would land on «Предыдущее».
+# In the run of 1fc2c7dd the native app was photographed in its story and the reference back on its chat list, with
+# the circles already grey: its viewer had opened, played out and closed while Maestro waited for «Закрыть» — reading
+# the screen of the reference takes as long as a story lasts while one is playing (its progress line never lets the
+# app come to rest), and three people's stories had gone by before the picture of 44. So nothing is asked of the
+# screen between the touch and the picture: the flow only lets a moment pass (the viewer needs under a second to
+# come, a story lasts five) and photographs.
+HOLD_STILL = '- evalScript: ${var until = Date.now() + 1800; while (Date.now() < until);}\n'
 def story(circle):
-    return tap_now(circle, index=0) + wait('Закрыть', 3000)
+    return tap_now(circle, index=0) + HOLD_STILL
 pair('43-story-viewer', 3, '', 25, '|' + story('Анна Лебедева, (новых историй|истории просмотрены|запись).*'), 'same', start='home')
 pair('44-own-story', 3, '', 25, story('Моя история'), 'same', start='home')
 # The account has a story, so its circle reads «Моя история» and its «+» is inside it (not a control of its own to
@@ -320,11 +328,22 @@ pair('57-status-sheet', 2, '-settings root', 20, SETTINGS + '|' + tap('Смен�
      + when('Значок Platina по умолчанию', tap('Мой профиль', index=0, optional=True) + wait('Изменить.*', 8000)
             + '- tapOn:\n    text: "Статус .*"\n    index: 0\n    retryTapIfNoChange: false\n    optional: true\n' + SETTLE, visible=False)
      + pause(1000))
-# The sheet is waited for: in the run of 00dde8d5 both apps were photographed with the row pressed and no sheet yet.
-pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Узор фона.*', 'DOWN') + tap('Узор фона.*', index=0) + wait('Без узора', 8000) + pause(1200), 'same')
-pair('59-editor-color', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('Персональный цвет.*') + tap('Персональный цвет.*'), 'same')
-pair('60-editor-birthday', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('День рождения.*') + tap('День рождения.*'), 'same')
-pair('61-editor-studio', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Рамки и анимации.*', 'DOWN'), 'same')
+# The editor's page is moved by a finger that starts beside its cards, at the screen's right edge: Maestro's own scroll
+# starts in the middle of the screen, on «О себе», and its press before the move put the cursor into the native
+# field (the native 61 of the run of 1fc2c7dd was photographed with the keyboard up). One move brings the rows from
+# «День рождения» to «Узор фона» to the middle of the screen, clear of the tab bar that stands over the editor.
+def edit_down(times=1):
+    return '- swipe:\n    start: "98%,72%"\n    end: "98%,48%"\n    duration: 800\n' * times + SETTLE
+# A row of the editor that opens a sheet. Every sheet ends in «Готово» and nothing else on the page is called so
+# (the header's checkmark is «Сохранить»): the sheet is waited for by it, and a touch that opened nothing — the
+# native 59 and 60 of the run of 1fc2c7dd stayed on the editor — is made once more.
+def edit_sheet(row):
+    return (edit_down() + tap(row, index=0) + wait('Готово', 8000)
+            + when('Готово', tap(row, index=0, optional=True), visible=False) + wait('Готово', 8000) + pause(1200))
+pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + edit_sheet('Узор фона.*'), 'same')
+pair('59-editor-color', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + edit_sheet('Персональный цвет.*'), 'same')
+pair('60-editor-birthday', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + edit_sheet('День рождения.*'), 'same')
+pair('61-editor-studio', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + edit_down(2), 'same')
 pair('62-editor-username', 2, '-settings username', 25, SETTINGS + EDITOR + tap('Имя пользователя.*', index=0))
 pair('63-platina-showcase', 2, '-settings root', 20, SETTINGS + '|' + tap('Инвиз Platina', index=0) + pause(2000), 'same')
 pair('64-notifications', 2, '-settings notifications', 20, SETTINGS + setting('Уведомления и звуки'))
