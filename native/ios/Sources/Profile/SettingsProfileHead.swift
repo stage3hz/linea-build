@@ -35,7 +35,7 @@ final class SettingsProfileChrome {
         page.view.addSubview(effect)
         editGlass.clipsToBounds = true
         editGlass.layer.cornerRadius = 22
-        editButton.setTitle("Изм.", for: .normal)
+        editButton.setTitle("Изменить", for: .normal) // SettingsScreen.tsx:181: the whole word
         editButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         editButton.setTitleColor(Theme.text, for: .normal)
         editButton.addTarget(self, action: #selector(editPressed), for: .touchUpInside)
@@ -72,7 +72,9 @@ final class SettingsProfileChrome {
         let status = StatusEmojiView()
         status.show(person.look, size: 22, animated: true) // Avatars: animated as the reference
         status.isUserInteractionEnabled = true
-        status.accessibilityHint = "Сменить статус рядом с именем"
+        // SettingsScreen.tsx:191: the status beside the name is a button called by what it does.
+        status.accessibilityLabel = "Сменить статус рядом с именем"
+        status.accessibilityTraits = .button
         status.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(statusPressed)))
         // The status stands right after the name (the reference's row hugs its content), not at the far edge.
         let rest = UIView()

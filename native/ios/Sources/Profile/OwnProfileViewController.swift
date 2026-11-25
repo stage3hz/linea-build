@@ -87,7 +87,7 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
         back.addTarget(self, action: #selector(goBack), for: .touchUpInside)
         GlassBacking.put(under: back) // C: the reference's IconButton — a round of clear glass
         var look = UIButton.Configuration.filled()
-        look.attributedTitle = AttributedString(NSAttributedString(string: "Изм.", attributes: [.font: UIFont.systemFont(ofSize: 16, weight: .semibold)]))
+        look.attributedTitle = AttributedString(NSAttributedString(string: "Изменить", attributes: [.font: UIFont.systemFont(ofSize: 16, weight: .semibold)]))
         look.baseBackgroundColor = Theme.surface2
         look.baseForegroundColor = Theme.text
         look.cornerStyle = .capsule
