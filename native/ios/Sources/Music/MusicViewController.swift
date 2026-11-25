@@ -108,6 +108,8 @@ final class MiniPlayerView: UIView {
     private let cover = MusicCoverView(radius: 12, look: .artwork)
     private let heading = UILabel()
     private let line = UILabel()
+    /// The title over the artist: one button to the ear, «Открыть плеер: …» (PlayerControls.tsx:74).
+    private let words = UIStackView()
     private let back = UIButton(type: .custom)
     private let toggle = UIButton(type: .custom)
     /// `PlaybackButton`: a 46 round of the accent gradient under the play / pause (23, on-accent).
@@ -127,10 +129,13 @@ final class MiniPlayerView: UIView {
         heading.font = .systemFont(ofSize: 14, weight: .bold)
         heading.textColor = Theme.text
         line.font = .systemFont(ofSize: 12)
-        let words = UIStackView(arrangedSubviews: [heading, line])
+        words.addArrangedSubview(heading)
+        words.addArrangedSubview(line)
         words.axis = .vertical
         words.spacing = 4
         words.isUserInteractionEnabled = false
+        words.isAccessibilityElement = true
+        words.accessibilityTraits = .button
         // MiniPlayer (PlayerControls.tsx): the skips (20) on clear glass 36 × 44, the play disc 46, the close (20) 34 × 44.
         func set(_ button: UIButton, _ symbol: String, _ label: String, _ action: Selector, tint: UIColor = Theme.text, wide: CGFloat = 36, high: CGFloat = 44, size: CGFloat = 20, glass: Bool = true) {
             button.setImage(IonIcon.image(symbol, size: size), for: .normal)
@@ -200,6 +205,7 @@ final class MiniPlayerView: UIView {
         guard let current = player.current else { return }
         cover.bind(current)
         heading.text = current.title
+        words.accessibilityLabel = "Открыть плеер: \(current.title), \(current.artist)"
         line.text = !player.error.isEmpty ? "Есть сообщение · открыть" : (player.loading ? "Загружаем трек…" : current.artist)
         line.textColor = player.error.isEmpty ? Theme.muted : Theme.danger
         toggle.setImage(IonIcon.image(player.playing ? "pause" : "play", size: 23), for: .normal)
