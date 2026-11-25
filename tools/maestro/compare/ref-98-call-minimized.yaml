@@ -19,7 +19,7 @@ appId: com.linea.messenger.preview
     text: "Звонок"
 - waitForAnimationToEnd
 - tapOn:
-    text: "Allow|Разрешить|OK"
+    text: "AllowРазрешить|OK"
     optional: true
 - waitForAnimationToEnd
 - extendedWaitUntil:

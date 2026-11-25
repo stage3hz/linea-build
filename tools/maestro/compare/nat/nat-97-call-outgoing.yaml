@@ -1,6 +1,18 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 97-call-outgoing of the native app, started by the workflow with: -profile chat; then these gestures.
+# Comparison shot 97-call-outgoing of the native app, started by the workflow with: (no launch arguments); then these gestures.
+- runFlow: ../act/nat-home.yaml
+- tapOn:
+    text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
+- runFlow: ../act/wait-timur.yaml
+- tapOn:
+    text: "Профиль Тимур Богданов.*"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    notVisible: ".*Как тебе фото.*"
+    timeout: 15000
+    optional: true
+- waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Звонок"
     timeout: 30000

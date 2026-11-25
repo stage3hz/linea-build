@@ -107,8 +107,8 @@
 92-data | 3 | main | dark | 20 | -settings data
 95-channels-light | 3 | main | light | 25 | -tab channels
 96-call-incoming | 3 | main | dark | 25 | 
-97-call-outgoing | 3 | main | dark | 40 | -profile chat
-98-call-minimized | 3 | main | dark | 40 | -profile chat
+97-call-outgoing | 3 | main | dark | 25 | 
+98-call-minimized | 3 | main | dark | 25 | 
 99-call-history | 3 | main | dark | 25 | -tab people
 100-signin | 3 | auth | dark | 15 | -auth 1
 101-signin-password | 3 | auth | dark | 15 | -auth 1

@@ -288,8 +288,13 @@ pair('95-channels-light', 3, '-tab channels', 25, section('Каналы') + wait
 # Calls last of the main part: they leave call rows in Анна's and Тимур's chats.
 pair('96-call-incoming', 3, '', 25, script('ring.js') + pause(7000) + '@SHOT@' + script('hangup.js'), 'same', start='home')
 # The phone's call button is the profile's «Звонок» on both apps (no «Позвонить» in either phone header).
-pair('97-call-outgoing', 3, '-profile chat', 40, PROFILE_TIMUR + '|' + wait('Звонок', 30000) + tap('Звонок') + tap('Allow|Разрешить|OK', optional=True) + pause(4000), 'same')
-pair('98-call-minimized', 3, '-profile chat', 40, PROFILE_TIMUR + '|' + wait('Звонок', 30000) + tap('Звонок') + tap('Allow|Разрешить|OK', optional=True) + pause(3000) + tap('Свернуть звонок') + pause(1500) + '@SHOT@' + tap('Завершить звонок|Завершить', index=0, optional=True), 'same')
+# The native app reaches Тимур's profile by the same gestures here, not by `-profile chat`: that opens the first chat
+# the server lists, and after the ring of 96 that is Анна's (the run of 34bf134d photographed a call to her).
+NAT_TIMUR = '- tapOn:\n    text: "Тимур Богданов( [^.,]+)?(\\\\. .*|, непрочитанных.*|, помечен.*)?"\n' + flow('wait-timur.yaml') + tap('Профиль Тимур Богданов.*') + PROFILE_UP
+CALL = wait('Звонок', 30000) + tap('Звонок') + tap('Allow|Разрешить|OK', optional=True)
+MINIMIZED = pause(3000) + tap('Свернуть звонок') + pause(1500) + '@SHOT@' + tap('Завершить звонок|Завершить', index=0, optional=True)
+pair('97-call-outgoing', 3, '', 25, PROFILE_TIMUR + CALL + pause(4000), nat=NAT_TIMUR + CALL + pause(4000), start='home')
+pair('98-call-minimized', 3, '', 25, PROFILE_TIMUR + CALL + MINIMIZED, nat=NAT_TIMUR + CALL + MINIMIZED, start='home')
 pair('99-call-history', 3, '-tab people', 25, section('Люди') + '|' + tap('Звонки.*', index=0) + pause(2000), 'same')
 # Signed out (the workflow removes the app and the simulator's keychain, then installs it fresh).
 SIGNIN = waitid('field-Логин', 300000, optional=False)
