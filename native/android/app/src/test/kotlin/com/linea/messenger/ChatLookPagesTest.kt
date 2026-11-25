@@ -87,7 +87,7 @@ class ChatLookPagesTest {
     chat("171-chatlook-peek", "chatlook" to "peek")
     val peek = AvatarPeek.last?.get()
     assertNotNull(peek)
-    assertEquals(listOf("Открыть профиль", "Поиск", "Отправить подарок"), peek!!.items.map { it.label })
+    assertEquals(listOf("Открыть профиль", "Поиск"), peek!!.items.map { it.label })
     dialog("171-chatlook-peek-card")
     chat("172-chatlook-bubbles", "chatlook" to "bubbles")
     assertFalse(ChatBubbleLook.open)

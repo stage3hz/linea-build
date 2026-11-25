@@ -57,18 +57,22 @@ class AvatarPeek(context: Context, picture: View, name: String, status: String, 
     val cardFill = if (Theme.dark) 0xFF1C1C1E.toInt() else 0xFFFFFFFF.toInt()
     card.background = GradientDrawable().apply { setColor(cardFill); cornerRadius = 28 * d }
     card.isClickable = true
-    card.addView(picture, FrameLayout.LayoutParams(dp(220f), dp(220f)).apply { leftMargin = dp(18f); topMargin = dp(18f) })
+    // ContextMenu.tsx:50, 91: the card takes the menu's whole column (340, or the screen less 12 a side), the picture
+    // in its middle.
+    val cardWidth = minOf(dp(340f), context.resources.displayMetrics.widthPixels - dp(24f))
+    card.addView(picture, FrameLayout.LayoutParams(dp(220f), dp(220f), Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(18f) })
     card.addView(TextView(context).apply {
       text = name; textSize = 18f; typeface = Theme.weight(700); setTextColor(Theme.text); gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-    }, FrameLayout.LayoutParams(dp(232f), dp(22f)).apply { leftMargin = dp(12f); topMargin = dp(18f + 220f + 14f) })
+    }, FrameLayout.LayoutParams(cardWidth - dp(24f), dp(22f)).apply { leftMargin = dp(12f); topMargin = dp(18f + 220f + 14f) })
     card.addView(TextView(context).apply {
       text = status; textSize = 14f; setTextColor(Theme.muted); gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-    }, FrameLayout.LayoutParams(dp(232f), dp(18f)).apply { leftMargin = dp(12f); topMargin = dp(18f + 220f + 14f + 24f) })
+    }, FrameLayout.LayoutParams(cardWidth - dp(24f), dp(18f)).apply { leftMargin = dp(12f); topMargin = dp(18f + 220f + 14f + 24f) })
     val cardHeight = dp(18f + 220f + 14f + 22f + 2f + 18f + 18f)
-    root.addView(card, FrameLayout.LayoutParams(dp(256f), cardHeight, Gravity.CENTER_HORIZONTAL).apply { topMargin = top })
+    root.addView(card, FrameLayout.LayoutParams(cardWidth, cardHeight, Gravity.CENTER_HORIZONTAL).apply { topMargin = top })
 
+    // ContextMenu.tsx:92 and `MenuItem`: 250 wide, radius 26; rows 44 tall, 13 before the words (15.5).
     menu.orientation = LinearLayout.VERTICAL
-    menu.background = GradientDrawable().apply { setColor(if (Theme.dark) 0xF22A2B2E.toInt() else 0xF7F7F7F9.toInt()); cornerRadius = 18 * d }
+    menu.background = GradientDrawable().apply { setColor(if (Theme.dark) 0xF22A2B2E.toInt() else 0xF7F7F7F9.toInt()); cornerRadius = 26 * d }
     menu.clipToOutline = true
     for (item in items) {
       val row = LinearLayout(context).apply {
@@ -80,11 +84,11 @@ class AvatarPeek(context: Context, picture: View, name: String, status: String, 
         background = android.graphics.drawable.StateListDrawable().apply { addState(intArrayOf(android.R.attr.state_pressed), ColorDrawable(Theme.veil(0.08f))) }
         setOnClickListener { dismiss(); item.run() }
       }
-      row.addView(ChatIconView(context, item.symbol, 18f, Theme.text), LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { rightMargin = dp(12f) })
-      row.addView(TextView(context).apply { text = item.label; textSize = 16f; setTextColor(Theme.text) })
-      menu.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48f)))
+      row.addView(ChatIconView(context, item.symbol, 18f, Theme.text), LinearLayout.LayoutParams(dp(24f), dp(24f)).apply { rightMargin = dp(13f) })
+      row.addView(TextView(context).apply { text = item.label; textSize = 15.5f; setTextColor(Theme.text) })
+      menu.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44f)))
     }
-    root.addView(menu, FrameLayout.LayoutParams(dp(250f), dp(48f) * items.size, Gravity.CENTER_HORIZONTAL).apply { topMargin = top + cardHeight + dp(10f) })
+    root.addView(menu, FrameLayout.LayoutParams(dp(250f), dp(44f) * items.size, Gravity.CENTER_HORIZONTAL).apply { topMargin = top + cardHeight + dp(8f) })
     setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     window?.apply {
       setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))

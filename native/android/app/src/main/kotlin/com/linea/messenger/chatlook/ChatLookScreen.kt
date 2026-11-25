@@ -66,7 +66,7 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
 
   /** «Поиск» in the avatar's menu: set by whoever gives the chat its search (shown only when set). */
   var onSearch: (() -> Unit)? = null
-  /** «Отправить подарок» in the avatar's menu (the reference keeps it in the chat's menu): set by the chat. */
+  /** «Отправить подарок», set by the chat. Not in the avatar's card: the previous app has two choices there. */
   var onGift: (() -> Unit)? = null
 
   private val unreadWatcher: (Unit) -> Unit = { unreadChanged() }
@@ -346,7 +346,7 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
 
   // Touches
 
-  /** The large picture with «Открыть профиль», «Поиск» and «Отправить подарок». */
+  /** The large picture with «Открыть профиль» and «Поиск». */
   fun showPeek() {
     // Avatars: the animated avatar of 220 dp (the reference's `DecoratedAvatar size={220} animated round`), the silent
     // video avatar; the gap of a ring is the card's colour. Owner's rule: frames only in the chat list and profiles —
@@ -357,8 +357,10 @@ class ChatLookScreen(private val host: ChatScreen, private val messenger: Messen
     large.show(person(), PersonLook.from(peer).copy(avatarFrame = "", seal = "", birthday = ""), base, animated = true)
     val items = arrayListOf(AvatarPeek.Item("person", "Открыть профиль") { host.openProfile() })
     onSearch?.let { items.add(AvatarPeek.Item("search", "Поиск", it)) }
-    onGift?.let { items.add(AvatarPeek.Item("gift", "Отправить подарок", it)) }
-    val top = (host.rootWindowInsets?.systemWindowInsetTop ?: 0) + dp(60f)
+    // The card has the previous app's two choices (ChatScreen.tsx:839-842); a gift is sent from the profile. It
+    // stands 8 under the status bar: the reference asks for 60 and its menu lifts that by 70, down to its upper limit
+    // (ContextMenu.tsx:48, 51).
+    val top = (host.rootWindowInsets?.systemWindowInsetTop ?: 0) + dp(8f)
     AvatarPeek(context, large, shownName, status?.text?.toString() ?: "", top, items).show()
   }
 
