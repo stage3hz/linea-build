@@ -150,16 +150,17 @@ final class AvatarPeekController: UIViewController {
         statusLabel.tag = 2
         card.addSubview(statusLabel)
 
-        menu.shape(radius: 18)
+        // ContextMenu.tsx:92 and `MenuItem`: 250 wide, radius 26; rows 44 tall, the sign 19, 13 before the words (15.5).
+        menu.shape(radius: 26)
         view.addSubview(menu)
         for (index, item) in items.enumerated() {
             let row = UIButton(type: .system)
             row.tag = index
             row.contentHorizontalAlignment = .leading
             var config = UIButton.Configuration.plain()
-            config.image = UIImage(systemName: item.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular))
-            config.imagePadding = 12
-            config.title = item.label
+            config.image = UIImage(systemName: item.symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .regular))
+            config.imagePadding = 13
+            config.attributedTitle = AttributedString(NSAttributedString(string: item.label, attributes: [.font: UIFont.systemFont(ofSize: 15.5)]))
             config.baseForegroundColor = Theme.text
             config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
             row.configuration = config
@@ -171,16 +172,18 @@ final class AvatarPeekController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let width = view.bounds.width
-        let cardWidth: CGFloat = 220 + 36
+        // ContextMenu.tsx:50, 91: the card takes the menu's whole column (340, or the screen less 12 a side), the
+        // picture in its middle.
+        let cardWidth: CGFloat = min(340, width - 24)
         let cardHeight: CGFloat = 18 + 220 + 14 + 22 + 2 + 18 + 18
         card.frame = CGRect(x: (width - cardWidth) / 2, y: top, width: cardWidth, height: cardHeight)
-        picture.frame = CGRect(x: 18, y: 18, width: 220, height: 220)
+        picture.frame = CGRect(x: (cardWidth - 220) / 2, y: 18, width: 220, height: 220)
         card.viewWithTag(1)?.frame = CGRect(x: 12, y: 18 + 220 + 14, width: cardWidth - 24, height: 22)
         card.viewWithTag(2)?.frame = CGRect(x: 12, y: 18 + 220 + 14 + 24, width: cardWidth - 24, height: 18)
         let menuWidth: CGFloat = 250
-        menu.frame = CGRect(x: (width - menuWidth) / 2, y: card.frame.maxY + 10, width: menuWidth, height: CGFloat(items.count) * 48)
+        menu.frame = CGRect(x: (width - menuWidth) / 2, y: card.frame.maxY + 8, width: menuWidth, height: CGFloat(items.count) * 44)
         for case let row as UIButton in menu.contentView.subviews {
-            row.frame = CGRect(x: 0, y: CGFloat(row.tag) * 48, width: menuWidth, height: 48)
+            row.frame = CGRect(x: 0, y: CGFloat(row.tag) * 44, width: menuWidth, height: 44)
         }
     }
 

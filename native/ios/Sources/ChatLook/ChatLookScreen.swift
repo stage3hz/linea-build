@@ -42,7 +42,7 @@ final class ChatLookScreen: NSObject {
 
     /// «Поиск» in the avatar's menu: set by whoever gives the chat its search (shown only when set).
     var onSearch: (() -> Void)?
-    /// «Отправить подарок» in the avatar's menu (the reference keeps it in the chat's menu): set by the chat.
+    /// «Отправить подарок», set by the chat. Not in the avatar's card: the previous app has two choices there.
     var onGift: (() -> Void)?
 
     init(messenger: Messenger?, chatId: String, peerId: String, name: String) {
@@ -381,10 +381,10 @@ final class ChatLookScreen: NSObject {
         if let onSearch {
             items.append(AvatarPeekController.Item(symbol: "magnifyingglass", label: "Поиск", run: onSearch))
         }
-        if let onGift {
-            items.append(AvatarPeekController.Item(symbol: "gift", label: "Отправить подарок", run: onGift))
-        }
-        let peek = AvatarPeekController(picture: large, name: shownName, status: status?.text ?? "", top: host.view.safeAreaInsets.top + 60, items: items)
+        // The card has the previous app's two choices (ChatScreen.tsx:839-842); a gift is sent from the profile.
+        // It stands 8 under the status bar: the reference asks for 60 and its menu lifts that by 70, down to its
+        // upper limit (ContextMenu.tsx:48, 51).
+        let peek = AvatarPeekController(picture: large, name: shownName, status: status?.text ?? "", top: host.view.safeAreaInsets.top + 8, items: items)
         host.present(peek, animated: true)
     }
 
