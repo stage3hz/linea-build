@@ -1096,6 +1096,10 @@ final class MsgRowCell: UITableViewCell {
       canvas.quoteImage = row.quoteThumb.isEmpty ? nil : Data(base64Encoded: row.quoteThumb, options: .ignoreUnknownCharacters).flatMap { UIImage(data: $0) }
     }
     if row.media == "photo" { InlineMedia.shared.want(row.key) } // Attachments: a photo up to 10 MB comes by itself
+    // Attachments: so do the photos of an album (a photo sent without a small picture showed an empty tile).
+    if let parts = row.album?.parts {
+      for part in parts where !part.video { InlineMedia.shared.want(part.key) }
+    }
     // LinkPreview: the card's picture is decoded once per cell, not on every drawing.
     // Attachments: the small pictures of an album are decoded once per cell.
     let albumKeys = row.album?.parts.map { $0.key }.joined(separator: ",") ?? ""
@@ -1201,7 +1205,10 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   @objc private func inlineMediaChanged(_ note: Notification) {
     guard let key = note.object as? String else { return }
     for cell in table.visibleCells {
-      guard let rowCell = cell as? MsgRowCell, rowCell.canvas.row?.key == key else { continue }
+      guard let rowCell = cell as? MsgRowCell, let shown = rowCell.canvas.row else { continue }
+      // The row itself, or the album that has this photo as one of its tiles.
+      let inAlbum = shown.album?.parts.contains(where: { (part: MsgAlbum.Part) -> Bool in part.key == key }) ?? false
+      guard shown.key == key || inAlbum else { continue }
       rowCell.canvas.setNeedsDisplay()
     }
   }

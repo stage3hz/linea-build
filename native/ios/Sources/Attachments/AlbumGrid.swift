@@ -122,7 +122,8 @@ struct MsgAlbumLayout: Equatable {
         for tile in tiles where tile.index < album.parts.count {
             let part = album.parts[tile.index]
             let box = tile.frame.offsetBy(dx: origin.x, dy: origin.y)
-            if let image = pictures[part.key], image.size.width > 0, image.size.height > 0 {
+            // The photo itself once it has come (Attachments/InlineMedia.swift), the small picture until then.
+            if let image = InlineMedia.shared.picture(part.key) ?? pictures[part.key], image.size.width > 0, image.size.height > 0 {
                 context.saveGState()
                 context.clip(to: box)
                 let scale = max(box.width / image.size.width, box.height / image.size.height)
