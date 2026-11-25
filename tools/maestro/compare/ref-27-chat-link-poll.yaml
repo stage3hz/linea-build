@@ -12,7 +12,31 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Куда идём в субботу.*"
     direction: UP
-    timeout: 90000
+    timeout: 45000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Куда идём в субботу.*"
+          direction: UP
+          timeout: 90000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Куда идём в субботу.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Куда идём в субботу.*"
+          direction: UP
+          timeout: 90000
+          centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-27-chat-link-poll

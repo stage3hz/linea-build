@@ -35,35 +35,53 @@ appId: com.linea.messenger.preview
     text: "Название, например «Работа»"
 - waitForAnimationToEnd
 - inputText: "Работа"
-- hideKeyboard
+- pressKey: enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
 - runFlow:
     when:
-      visible: "Максим Голубев[, ]+Максим Голубев.*"
+      visible: ".*Максим Голубев.*"
     commands:
       - tapOn:
-          text: "Максим Голубев[, ]+Максим Голубев.*"
+          text: ".*Максим Голубев.*"
+          index: 0
+          retryTapIfNoChange: false
       - waitForAnimationToEnd
 - runFlow:
     when:
-      notVisible: "Максим Голубев[, ]+Максим Голубев.*"
+      notVisible: ".*Максим Голубев.*"
     commands:
       - tapOn:
           point: "50%,62.5%"
       - waitForAnimationToEnd
 - runFlow:
     when:
-      visible: "Анна Лебедева[, ]+Анна Лебедева.*"
+      visible: ".*Анна Лебедева.*"
     commands:
       - tapOn:
-          text: "Анна Лебедева[, ]+Анна Лебедева.*"
+          text: ".*Анна Лебедева.*"
+          index: 0
+          retryTapIfNoChange: false
       - waitForAnimationToEnd
 - runFlow:
     when:
-      notVisible: "Анна Лебедева[, ]+Анна Лебедева.*"
+      notVisible: ".*Анна Лебедева.*"
     commands:
       - tapOn:
           point: "50%,69.6%"
       - waitForAnimationToEnd
+- swipe:
+    start: "50%,85%"
+    end: "50%,35%"
+    duration: 400
+- swipe:
+    start: "50%,85%"
+    end: "50%,35%"
+    duration: 400
+- waitForAnimationToEnd
 - scrollUntilVisible:
     element:
       text: "Сохранить"

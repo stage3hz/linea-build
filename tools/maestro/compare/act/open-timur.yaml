@@ -33,6 +33,21 @@ appId: com.linea.messenger.preview
 - extendedWaitUntil:
     visible:
       id: "chat-composer"
+    timeout: 20000
+    optional: true
+# Two touches that opened nothing (the reference's 78 of the run of 00dde8d5 stayed on its list): the app is started
+# afresh and the row touched on a list that has come to rest.
+- runFlow:
+    when:
+      notVisible:
+        id: "chat-composer"
+    commands:
+      - runFlow: ref-home.yaml
+      - tapOn:
+          text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
     timeout: 60000
 - extendedWaitUntil:
     visible: ".*Как тебе фото.*"

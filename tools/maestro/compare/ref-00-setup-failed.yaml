@@ -7,9 +7,33 @@ appId: com.linea.messenger.preview
       text: "Вера.*"
     direction: DOWN
     timeout: 30000
+- swipe:
+    start: "50%,62%"
+    end: "50%,44%"
+    duration: 400
+- waitForAnimationToEnd
 - tapOn:
     text: "Вера.*"
+    index: 0
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 10000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: "chat-composer"
+    commands:
+      - tapOn:
+          text: "Вера.*"
+          index: 0
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
+    timeout: 30000
+    optional: true
 - tapOn:
     id: "chat-composer"
 - inputText: "Это сообщение не дойдёт"

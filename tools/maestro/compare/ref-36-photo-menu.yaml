@@ -14,6 +14,30 @@ appId: com.linea.messenger.preview
     direction: UP
     timeout: 40000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Это мы на даче.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Это мы на даче.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Это мы на даче.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - longPressOn:
     text: ".*Это мы на даче.*"

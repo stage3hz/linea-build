@@ -38,5 +38,29 @@ appId: com.linea.messenger.preview
     direction: DOWN
     timeout: 40000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Рамки и анимации.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: "Рамки и анимации.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "Рамки и анимации.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-61-editor-studio

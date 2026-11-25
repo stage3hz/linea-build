@@ -12,7 +12,31 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Собрал всё, что обещал.*"
     direction: UP
-    timeout: 120000
+    timeout: 45000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Собрал всё, что обещал.*"
+          direction: UP
+          timeout: 120000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Собрал всё, что обещал.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Собрал всё, что обещал.*"
+          direction: UP
+          timeout: 120000
+          centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-23-chat-top

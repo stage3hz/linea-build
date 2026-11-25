@@ -10,3 +10,21 @@ appId: com.linea.messenger.preview
     end: "50%,80%"
     duration: 700
 - waitForAnimationToEnd
+# A swipe taken for a hold on the message under the finger leaves that message's menu over the chat (the native
+# picture of the run of 00dde8d5): the menu is put away by a touch above it and the list is moved again.
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - swipe:
+          start: "50%,30%"
+          end: "50%,80%"
+          duration: 700
+      - swipe:
+          start: "50%,30%"
+          end: "50%,80%"
+          duration: 700
+      - waitForAnimationToEnd

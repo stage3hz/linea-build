@@ -12,7 +12,31 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Три кадра с прогулки.*"
     direction: UP
-    timeout: 90000
+    timeout: 45000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Три кадра с прогулки.*"
+          direction: UP
+          timeout: 90000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Три кадра с прогулки.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Три кадра с прогулки.*"
+          direction: UP
+          timeout: 90000
+          centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-25-chat-album

@@ -12,7 +12,31 @@ appId: com.linea.messenger.preview
     element:
       text: ".*Вот здесь, у озера.*"
     direction: UP
-    timeout: 90000
+    timeout: 45000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Вот здесь, у озера.*"
+          direction: UP
+          timeout: 90000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Вот здесь, у озера.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Вот здесь, у озера.*"
+          direction: UP
+          timeout: 90000
+          centerElement: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-24-chat-photo-reply

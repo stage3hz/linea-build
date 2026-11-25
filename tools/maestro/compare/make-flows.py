@@ -30,17 +30,26 @@ def tap_once(t, index=None):
     return s + '    retryTapIfNoChange: false\n- waitForAnimationToEnd\n'
 # A tap that is not followed by a wait for the screen to come to rest: what it opens keeps moving (a story's
 # progress line), and by the time Maestro stops waiting the story has played out and closed.
+# The tap's own wait for the screen to settle is cut short too (it lasted the whole story on its own: both apps were
+# back on the chat list, or on the next person's story, in the run of 00dde8d5).
 def tap_now(t, index=None):
     s = f'- tapOn:\n    text: {q(t)}\n'
     if index is not None: s += f'    index: {index}\n'
-    return s
+    return s + '    retryTapIfNoChange: false\n    waitToSettleTimeoutMs: 300\n'
 def tapid(i, optional=False):
     return f'- tapOn:\n    id: {q(i)}\n' + ('    optional: true\n' if optional else '')
 def hold(t):
     return f'- longPressOn:\n    text: {q(t)}\n- waitForAnimationToEnd\n'
+# A scroll to a message. One of its swipes can be taken for a hold on the message under the finger (the native 24 and
+# 25 of the run of 00dde8d5 stopped under a photo's menu, which then kept the list from moving): the first try is
+# given part of the time, a menu that came is put away by a touch above it, and the scroll is made again.
+MENU = 'Переслать'
 def center(t, direction='UP', timeout=40000):
-    return (f'- scrollUntilVisible:\n    element:\n      text: {q(t)}\n    direction: {direction}\n    timeout: {timeout}\n'
-            f'    centerElement: true\n- waitForAnimationToEnd\n')
+    one = (f'- scrollUntilVisible:\n    element:\n      text: {q(t)}\n    direction: {direction}\n    timeout: @T@\n'
+           f'    centerElement: true\n')
+    again = '- tapOn:\n    point: "50%,8%"\n- waitForAnimationToEnd\n' + one.replace('@T@', str(timeout))
+    return (one.replace('@T@', str(min(timeout, 45000))) + '    optional: true\n' + when(MENU, again)
+            + when(t, one.replace('@T@', str(timeout)), visible=False) + '- waitForAnimationToEnd\n')
 def reveal(t, direction='DOWN', timeout=30000):
     return f'- scrollUntilVisible:\n    element:\n      text: {q(t)}\n    direction: {direction}\n    timeout: {timeout}\n'
 def wait(t, timeout=30000, optional=True):
@@ -148,13 +157,20 @@ def pair(name, shard, args, wait_s, ref, nat=None, start='', phase='main', look=
 # (mobile/src/ChatFolders.tsx, FolderEditor; the third run tapped the bare names, found nothing, and «Сохранить»
 # stayed disabled and out of sight).
 pair('00-setup-folder', 1, '', 0, SETTINGS + setting('Папки с чатами') + tap('Создать папку') + tap('Название, например «Работа»') + typ('Работа')
-     + '- hideKeyboard\n'
-     # The run of d526af5f stopped here with nothing ticked: the row's label was not «name, name». Whatever joins the
-     # two names, the doubled name is the row; without it the rows are touched where that run's picture shows them.
-     + when('Максим Голубев[, ]+Максим Голубев.*', tap('Максим Голубев[, ]+Максим Голубев.*'))
-     + when('Максим Голубев[, ]+Максим Голубев.*', tap_point('50%,62.5%'), visible=False)
-     + when('Анна Лебедева[, ]+Анна Лебедева.*', tap('Анна Лебедева[, ]+Анна Лебедева.*'))
-     + when('Анна Лебедева[, ]+Анна Лебедева.*', tap_point('50%,69.6%'), visible=False)
+     # The keyboard is put away by its Return key. Maestro's hideKeyboard does it by a small swipe in the middle of the
+     # screen, which the sheet took for a touch on the row there (the run of 00dde8d5: Dimas ticked, the list moved a
+     # little, nothing else done); the sheet then comes down, and is waited for before its rows are looked for.
+     + '- pressKey: enter\n' + SETTLE + pause(1500)
+     # Nothing else on the screen carries these names (the page under the sheet is «Папки с чатами»), so whatever the
+     # row's label joins to the name, the name anywhere in it is the row; without it the rows are touched where the
+     # run's picture shows them.
+     + when('.*Максим Голубев.*', tap_once('.*Максим Голубев.*', index=0))
+     + when('.*Максим Голубев.*', tap_point('50%,62.5%'), visible=False)
+     + when('.*Анна Лебедева.*', tap_once('.*Анна Лебедева.*', index=0))
+     + when('.*Анна Лебедева.*', tap_point('50%,69.6%'), visible=False)
+     # «Сохранить» is under the rows: the sheet's list is moved by swipes that begin on its lower part (a swipe from
+     # the middle of the screen moved it by a few points only in that run).
+     + '- swipe:\n    start: "50%,85%"\n    end: "50%,35%"\n    duration: 400\n' * 2 + SETTLE
      + reveal('Сохранить') + tap('Сохранить'), phase='setup')
 # Лариса and Игорь are opened once, so their unread state is the same for both apps from here on.
 pair('00-setup-read', 1, '', 0, tap('Лариса Новикова.*') + wait('.*Сообщение номер 24.*', 60000) + flow('ref-home.yaml')
@@ -174,7 +190,14 @@ pair('00-setup-saved', 1, '', 0, OPEN_TIMUR + hold(THEIRS + 'Как тебе ф�
      + center('.*Встреча переносится на пятницу.*') + tap('.*Встреча переносится на пятницу.*', optional=True)
      + tap('В Избранное'), phase='setup')
 # A message to Вера, who blocked the account: refused by the server, it stays failed.
-pair('00-setup-failed', 1, '', 0, reveal('Вера.*') + tap('Вера.*') + tapid('chat-composer') + typ('Это сообщение не дойдёт') + tapid('chat-send') + pause(6000), phase='setup')
+# The reveal leaves Вера's row at the bottom edge, under the floating tab bar, where the touch is the bar's (the run
+# of 00dde8d5 stayed on the list): the list is moved a little further first, and a touch that did not open the chat
+# is made once more.
+VERA = (reveal('Вера.*') + '- swipe:\n    start: "50%,62%"\n    end: "50%,44%"\n    duration: 400\n' + SETTLE + tap('Вера.*', index=0)
+        + waitid('chat-composer', 10000)
+        + '- runFlow:\n    when:\n      notVisible:\n        id: "chat-composer"\n    commands:\n      - tapOn:\n          text: "Вера.*"\n          index: 0\n'
+        + waitid('chat-composer', 30000))
+pair('00-setup-failed', 1, '', 0, VERA + tapid('chat-composer') + typ('Это сообщение не дойдёт') + tapid('chat-send') + pause(6000), phase='setup')
 
 # Shard 1: the chat list, the chat, «Избранное», stories.
 pair('01-chatlist', 1, '', 25, '')
@@ -230,8 +253,8 @@ pair('41-chat-blocked', 1, '', 25, reveal('Игорь.*') + tap('Игорь.*') 
 pair('42-new-chat', 2, '', 25, tap('Новый чат'), 'same', start='home')
 # In the run of 34bf134d both apps were photographed back on the chat list: the story had been opened and had ended
 # while Maestro waited for the screen to stop moving.
-pair('43-story-viewer', 3, '', 25, '|' + tap_now('Анна Лебедева, (новых историй|истории просмотрены|запись).*', index=0) + pause(1500), 'same', start='home')
-pair('44-own-story', 3, '', 25, tap_now('Моя история', index=0) + pause(1500), 'same', start='home')
+pair('43-story-viewer', 3, '', 25, '|' + tap_now('Анна Лебедева, (новых историй|истории просмотрены|запись).*', index=0) + pause(700), 'same', start='home')
+pair('44-own-story', 3, '', 25, tap_now('Моя история', index=0) + pause(700), 'same', start='home')
 # The account has a story, so its circle reads «Моя история» and its «+» is inside it (not a control of its own to
 # Maestro); a hold on the circle adds a story on both apps (mobile/src/stories/StoriesStrip.tsx onLongPress,
 # native/ios/Sources/Stories/StoriesStrip.swift heldDown).

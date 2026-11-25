@@ -10,8 +10,10 @@ appId: com.linea.messenger.preview
 - tapOn:
     text: "Моя история"
     index: 0
+    retryTapIfNoChange: false
+    waitToSettleTimeoutMs: 300
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"
-    timeout: 1500
+    timeout: 700
     optional: true
 - takeScreenshot: ref-44-own-story

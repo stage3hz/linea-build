@@ -15,6 +15,30 @@ appId: com.linea.messenger.preview
     direction: UP
     timeout: 40000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Список покупок.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Список покупок.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Список покупок.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - longPressOn:
     text: ".*Список покупок.*"
@@ -34,6 +58,30 @@ appId: com.linea.messenger.preview
     direction: DOWN
     timeout: 40000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Буду через десять минут.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Буду через десять минут.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Буду через десять минут.*"
+          direction: DOWN
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - longPressOn:
     text: ".*Буду через десять минут.*"

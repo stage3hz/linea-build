@@ -28,6 +28,30 @@ appId: com.linea.messenger.preview
     direction: UP
     timeout: 40000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: "Тимур Богданов: circle-.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: "Тимур Богданов: circle-.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: "Тимур Богданов: circle-.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - tapOn:
     text: "Тимур Богданов: circle-.*"
@@ -39,6 +63,30 @@ appId: com.linea.messenger.preview
     direction: UP
     timeout: 40000
     centerElement: true
+    optional: true
+- runFlow:
+    when:
+      visible: "Переслать"
+    commands:
+      - tapOn:
+          point: "50%,8%"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            text: ".*Встреча переносится на пятницу.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
+- runFlow:
+    when:
+      notVisible: ".*Встреча переносится на пятницу.*"
+    commands:
+      - scrollUntilVisible:
+          element:
+            text: ".*Встреча переносится на пятницу.*"
+          direction: UP
+          timeout: 40000
+          centerElement: true
 - waitForAnimationToEnd
 - tapOn:
     text: ".*Встреча переносится на пятницу.*"
