@@ -208,10 +208,22 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
         avatarBox = face
         val time = line(row.time, ChannelFont.SMALL, ChannelLook.subtle, 60 * d)
         val ribbon = if (row.owner) 19 * d else 0f
-        val name = line(row.author, ChannelFont.NAME, row.authorColor?.let { argb(it) } ?: ChannelLook.text, maxOf(20 * d, inner - time.width - 8 * d - ribbon))
+        // ChannelChat.tsx:199: the Platina gem (`PlatinaGem size={10}`: a platinum round of 14 with the reference's own
+        // «diamond» glyph, 6.2, in it) after the name, 8 apart.
+        val gem = if (row.platina) 22 * d else 0f
+        // A name without a role's colour is `PlatinaName` (still, not animated) for an author with Platina — the
+        // metal's own tone (PlatinaMark.tsx NAME_METAL / NAME_METAL_LIGHT), not the text's.
+        val nameColor = row.authorColor?.let { argb(it) } ?: if (row.platina) argb(if (Theme.dark) 0xC9D0DC else 0x3B4352) else ChannelLook.text
+        val name = line(row.author, ChannelFont.NAME, nameColor, maxOf(20 * d, inner - time.width - 8 * d - ribbon - gem))
         val baseline = y + name.ascent
         text(name, left, baseline)
         var after = left + name.width + 8 * d
+        if (row.platina) {
+          val round = box(after, baseline - 12 * d, 14 * d, 14 * d)
+          pieces.add(ChannelPiece.Fill(round, 7 * d, argb(0xD9DEE8)))
+          pieces.add(ChannelPiece.Icon("platina.gem", box(after + 3.9f * d, baseline - 8.1f * d, 6.2f * d, 6.2f * d), argb(0x1A1F2A)))
+          after += gem
+        }
         if (row.owner) {
           pieces.add(ChannelPiece.Icon("rosette", box(after - 2 * d, baseline - 12 * d, 14 * d, 14 * d), ChannelLook.mark))
           after += ribbon
@@ -222,7 +234,9 @@ class ChannelRowLayout(val row: ChannelRow, /** The message the row was made fro
         y += name.height + 2 * d
       }
       y = content(left, inner, y, 0f)
-      if (row.header) y = maxOf(y, headTop + 40 * d)
+      // A run's first message is never lower than the name's line, 2, and one line of text of 21 (ChannelChat.tsx:
+      // fontSize 15.5, lineHeight 21), which is a little more than the avatar's 40.
+      if (row.header) y = maxOf(y, headTop + 42 * d)
       y += 2 * d
     }
     if (row.forMe) {

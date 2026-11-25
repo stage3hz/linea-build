@@ -9,13 +9,14 @@ import java.time.ZoneId
 // what stands around it (its author, the message before it, the message it answers) — off the main thread, by
 // ChannelEngine. Reference: mobile/src/communities/ChannelChat.tsx `render`.
 
-/** Who wrote a message, as the row shows them. `avatarColor`: 0xRRGGBB. */
-data class ChannelAuthor(val name: String, val username: String, val avatarId: String, val avatarColor: Int) {
+/** Who wrote a message, as the row shows them. `avatarColor`: 0xRRGGBB. `platina`: the author's Platina is active
+ *  (the person's `seal`) — the small gem stands after the name. */
+data class ChannelAuthor(val name: String, val username: String, val avatarId: String, val avatarColor: Int, val platina: Boolean = false) {
   companion object {
     fun from(raw: Any?): ChannelAuthor? {
       val fields = Core.map(raw as? Map<*, *>) ?: return null
       if (fields["id"] !is String) return null
-      return ChannelAuthor(fields["displayName"] as? String ?: "", fields["username"] as? String ?: "", fields["avatarId"] as? String ?: "", Messenger.color(fields["avatarColor"] as? String))
+      return ChannelAuthor(fields["displayName"] as? String ?: "", fields["username"] as? String ?: "", fields["avatarId"] as? String ?: "", Messenger.color(fields["avatarColor"] as? String), fields["seal"] as? String == "platina")
     }
   }
 }
@@ -65,6 +66,8 @@ data class ChannelRow(
   /** The colour of the author's highest role (0xRRGGBB); null: the usual colour of text. */
   val authorColor: Int? = null,
   val owner: Boolean = false,
+  /** The author's Platina is active: the gem after the name (ChannelChat.tsx:199 `PlatinaGem size={10}`). */
+  val platina: Boolean = false,
   val avatarId: String = "",
   val avatarColor: Int = 0x5E7BFF,
   val initials: String = "",
@@ -162,7 +165,7 @@ class ChannelRowMaker(
     return ChannelRow(
       id = message.id, blog = context.blog, day = day, header = !grouped, senderId = message.senderId,
       author = author?.name?.ifEmpty { "Участник" } ?: "Участник",
-      authorColor = context.roleColors[message.senderId], owner = message.senderId == context.ownerId,
+      authorColor = context.roleColors[message.senderId], owner = message.senderId == context.ownerId, platina = author?.platina ?: false,
       avatarId = author?.avatarId ?: "", avatarColor = author?.avatarColor ?: 0x5E7BFF, initials = author?.let { Messenger.initials(it.name) } ?: "",
       time = time, edited = message.edited, text = shown, links = links,
       hasReply = answers,

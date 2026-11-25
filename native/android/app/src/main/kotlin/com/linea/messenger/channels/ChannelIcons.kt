@@ -36,6 +36,8 @@ object ChannelIcons {
   fun draw(canvas: Canvas, name: String, cx: Float, cy: Float, size: Float, color: Int) {
     // "ion:<name>": the reference's own Ionicons glyph (design/IonIcon.kt).
     if (name.startsWith("ion:")) return com.linea.messenger.design.IonIcon.draw(canvas, name.substring(4), cx, cy, size, color)
+    // Platina's small gem (avatars/PlatinaMark.kt), as the list mark draws it in its round.
+    if (name == "platina.gem") { fill.color = color; return com.linea.messenger.avatars.drawGem(canvas, cx, cy, size * 0.913f, fill) }
     if (name in fromIcons) return Icons.draw(canvas, name, cx, cy, size, color)
     if (name in fromSymbols) return Symbols.draw(canvas, name, cx, cy, size, color)
     fromPeople[name]?.let { return PeopleIcons.draw(canvas, it, cx, cy, size, color) }
