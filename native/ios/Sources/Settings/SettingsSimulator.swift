@@ -19,7 +19,7 @@ import UIKit
 ///   -settings about           «О приложении» (also with -demo 1)
 ///   -settings appearance      «Оформление» (also with -demo 1)
 ///   -settings night           «Ночная тема», on top of «Оформление» (also with -demo 1)
-///   -settings accent          «Цвет интерфейса», on top of «Оформление» (also with -demo 1)
+///   -settings accent          «Цвет интерфейса», its sheet over «Оформление» (also with -demo 1)
 ///   -settings notifications   «Уведомления и звуки»
 ///   -settings data            «Данные и память»
 ///

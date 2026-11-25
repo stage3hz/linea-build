@@ -45,7 +45,7 @@ enum ChatLookDemo {
                 let preview = WallpaperPreviewController(draft: .preset("aurora"), forChat: true)
                 screen.present(preview, animated: true)
             case "bubblecolor":
-                screen.navigationController?.pushViewController(BubbleColorViewController(), animated: true)
+                ColourSheets.present(.bubble, over: screen)
             default:
                 break
             }

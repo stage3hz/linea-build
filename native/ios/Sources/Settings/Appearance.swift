@@ -176,7 +176,7 @@ final class AppearanceViewController: SettingsPage {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // Back from «Ночная тема» or «Цвет интерфейса»: what they changed is shown.
+        // Back from «Ночная тема»: what it changed is shown.
         if appeared { fill() }
         appeared = true
     }
@@ -190,9 +190,15 @@ final class AppearanceViewController: SettingsPage {
             guard active != ThemeStore.platina else { return }
             ThemeStore.platina = active
             guard let self else { return }
-            // The answer may come while «Ночная тема» or «Цвет интерфейса» is open over this page: it stays open.
+            // The answer may come while «Ночная тема» is open over this page: it stays open.
             if !ThemeStore.refresh(reopen: self.openPages()) { self.fill() }
         }
+    }
+
+    /// A colour's sheet over this page changed something the page shows (Settings/ColorSheets.swift).
+    func refill() {
+        guard isViewLoaded else { return }
+        fill()
     }
 
     /// Puts on what was just chosen. The app is redrawn when the look changed; otherwise only this page is.
@@ -207,8 +213,6 @@ final class AppearanceViewController: SettingsPage {
         for page in stack.dropFirst(at + 1) {
             if page is NightThemeViewController {
                 pages.append("night")
-            } else if page is AccentColorViewController {
-                pages.append("accent")
             } else {
                 break
             }
@@ -287,7 +291,8 @@ final class AppearanceViewController: SettingsPage {
         let accentRow = SettingsRow(label: "Цвет интерфейса", value: own == nil ? "Как в теме" : "Свой", swatch: Theme.accent)
         accentRow.onPress = { [weak self] in
             guard let self else { return }
-            self.open(AccentColorViewController())
+            // ColorSettings.tsx: a sheet over this page, not a page of its own.
+            ColourSheets.present(.accent, over: self)
         }
         // ChatLook: «Цвет своих сообщений» — seen in chats with bubbles (Sources/ChatLook/ChatLookSettings.swift).
         addGroup("Свои цвета", rows: [accentRow, ChatLookSettings.colourRow(page: self)])
@@ -506,179 +511,5 @@ final class ClockViewController: SettingsPage {
         let stack = navigationController
         stack?.popViewController(animated: true)
         done(words)
-    }
-}
-
-/// «Цвет интерфейса»: the person's own accent colour over whichever theme is on — a row of colours, «Свой цвет»
-/// with three sliders, and «Как в теме» to go back. The choice is put on at once: the app itself is the
-/// preview. (The previous app: `mobile/src/ColorSettings.tsx`; the rules are the core's `settingsTheme`.)
-final class AccentColorViewController: SettingsPage {
-    /// «Свой цвет» is open, and where its sliders stand (a grey has no hue of its own: the slider must not jump).
-    private static var custom = false
-    private static var sliders: (h: Double, s: Double, v: Double)?
-    private let hue = UISlider()
-    private let saturation = UISlider()
-    private let brightness = UISlider()
-    private let code = UILabel()
-
-    init() {
-        super.init(name: "Цвет интерфейса")
-    }
-
-    required init?(coder: NSCoder) { return nil }
-
-    override func build() {
-        fill()
-    }
-
-    private var choices: [String] { return ThemeStore.words("accentChoices") }
-    private var base: String { return DevicePreferences.word("accentColor") ?? choices.first ?? "#3568E7" }
-
-    private func set(_ color: String?) {
-        var value: Any = NSNull()
-        if let color { value = color }
-        DevicePreferences.set(["accentColor": value])
-        if !ThemeStore.refresh(reopen: ["appearance", "accent"]) { fill() }
-    }
-
-    private func fill() {
-        clear()
-        let current = DevicePreferences.word("accentColor")
-
-        // How it looks, in the colours that are on right now.
-        let link = SettingsLook.words("ссылка · 12:30", size: 13, color: Theme.accent)
-        let sampleButton = PaddedLabel()
-        sampleButton.text = "Кнопка"
-        sampleButton.font = .systemFont(ofSize: 14, weight: .bold)
-        sampleButton.textColor = Theme.onAccent
-        sampleButton.backgroundColor = Theme.accent
-        sampleButton.textAlignment = .center
-        sampleButton.layer.cornerRadius = 12
-        sampleButton.layer.masksToBounds = true
-        sampleButton.setContentHuggingPriority(.required, for: .horizontal)
-        let sample = UIStackView(arrangedSubviews: [SettingsLook.words("Нравится, оставляю", size: 15, color: Theme.text), link, sampleButton])
-        sample.axis = .vertical
-        sample.alignment = .leading
-        sample.spacing = 6
-        sample.isAccessibilityElement = false
-
-        // The colours offered before «Свой цвет»: two rows of round ones.
-        let rowsOfColours = UIStackView()
-        rowsOfColours.axis = .vertical
-        rowsOfColours.spacing = 10
-        var line = UIStackView()
-        for (index, color) in choices.enumerated() {
-            if index % 6 == 0 {
-                line = UIStackView()
-                line.axis = .horizontal
-                line.distribution = .equalSpacing
-                rowsOfColours.addArrangedSubview(line)
-            }
-            let on = current == color
-            let ball = UIButton(type: .custom)
-            ball.backgroundColor = ThemeLook.color(color) ?? UIColor.gray
-            ball.layer.cornerRadius = 22 // the reference's ColorSettings: 44 round, a 3 border on the chosen one
-            ball.layer.borderWidth = on ? 3 : 0
-            ball.layer.borderColor = Theme.text.cgColor
-            if on {
-                ball.setImage(SettingsLook.symbol("ion:checkmark", size: 20), for: .normal)
-                ball.tintColor = UIColor.white
-                ball.accessibilityTraits.insert(.selected)
-            }
-            ball.tag = index
-            ball.accessibilityLabel = "Цвет " + color
-            ball.translatesAutoresizingMaskIntoConstraints = false
-            ball.widthAnchor.constraint(equalToConstant: 44).isActive = true
-            ball.heightAnchor.constraint(equalToConstant: 44).isActive = true
-            ball.addTarget(self, action: #selector(picked(_:)), for: .touchUpInside)
-            line.addArrangedSubview(ball)
-        }
-
-        let asTheme = ColorChoiceButton(label: "Как в теме", on: current == nil)
-        asTheme.onPress = { [weak self] in
-            AccentColorViewController.custom = false
-            self?.set(nil)
-        }
-        let ownColour = ColorChoiceButton(label: "Свой цвет", on: AccentColorViewController.custom)
-        ownColour.onPress = { [weak self] in self?.toggleCustom() }
-        let buttons = UIStackView(arrangedSubviews: [asTheme, ownColour])
-        buttons.axis = .horizontal
-        buttons.distribution = .fillEqually
-        buttons.spacing = 8
-
-        let box = UIStackView(arrangedSubviews: [sample, rowsOfColours, buttons])
-        box.axis = .vertical
-        box.spacing = 16
-        if AccentColorViewController.custom {
-            let position = AccentColorViewController.sliders ?? hsv(of: base)
-            hue.minimumValue = 0
-            hue.maximumValue = 359.9
-            hue.value = Float(position.h)
-            saturation.minimumValue = 0
-            saturation.maximumValue = 1
-            saturation.value = Float(position.s)
-            brightness.minimumValue = 0.12
-            brightness.maximumValue = 1
-            brightness.value = Float(position.v)
-            let named: [(String, UISlider)] = [("Оттенок", hue), ("Насыщенность", saturation), ("Яркость", brightness)]
-            for (name, slider) in named {
-                slider.minimumTrackTintColor = Theme.accent
-                slider.accessibilityLabel = name
-                slider.removeTarget(self, action: nil, for: .allEvents)
-                slider.addTarget(self, action: #selector(moved), for: .valueChanged)
-                slider.addTarget(self, action: #selector(released), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-                let part = UIStackView(arrangedSubviews: [SettingsLook.words(name, size: 12, color: Theme.muted), slider])
-                part.axis = .vertical
-                part.spacing = 2
-                box.addArrangedSubview(part)
-            }
-            code.text = current ?? base
-            code.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-            code.textColor = Theme.muted
-            code.textAlignment = .center
-            box.addArrangedSubview(code)
-        }
-        addGroup(rows: [SettingsLook.inset(box, top: 16, side: 16, bottom: 16)])
-        add(SettingsLook.foot("Цвет действует поверх любой темы. Если он плохо читается на её фоне, приложение слегка сдвигает его, чтобы текст оставался разборчивым."), gap: 10)
-    }
-
-    private func hsv(of color: String) -> (h: Double, s: Double, v: Double) {
-        let read = Core.view("settingsColorHsv", [color]) as? [String: Any] ?? [:]
-        let part = { (name: String) -> Double in return (read[name] as? NSNumber)?.doubleValue ?? 0 }
-        return (part("h"), part("s"), part("v"))
-    }
-
-    private func colourOfSliders() -> String? {
-        let args: [Any] = [Double(hue.value), Double(saturation.value), Double(brightness.value)]
-        return Core.view("settingsHsvColor", args) as? String
-    }
-
-    @objc private func picked(_ sender: UIButton) {
-        let list = choices
-        guard sender.tag >= 0, sender.tag < list.count else { return }
-        AccentColorViewController.custom = false
-        set(list[sender.tag])
-    }
-
-    private func toggleCustom() {
-        AccentColorViewController.sliders = hsv(of: base)
-        AccentColorViewController.custom.toggle()
-        if AccentColorViewController.custom && DevicePreferences.word("accentColor") == nil {
-            set(base)
-        } else {
-            fill()
-        }
-    }
-
-    /// While a slider moves only the code of the colour follows; the colour is put on when the finger lets go.
-    @objc private func moved() {
-        AccentColorViewController.sliders = (Double(hue.value), Double(saturation.value), Double(brightness.value))
-        if let color = colourOfSliders() { code.text = color }
-    }
-
-    @objc private func released() {
-        AccentColorViewController.sliders = (Double(hue.value), Double(saturation.value), Double(brightness.value))
-        guard let color = colourOfSliders() else { return }
-        set(color)
     }
 }

@@ -173,7 +173,6 @@ final class SettingsViewController: SettingsPage {
         switch name {
         case "appearance": return AppearanceViewController(messenger: messenger)
         case "night": return NightThemeViewController()
-        case "accent": return AccentColorViewController()
         case "notifications":
             guard let messenger else { return nil }
             return NotificationsViewController(messenger: messenger)
@@ -209,8 +208,17 @@ final class SettingsViewController: SettingsPage {
     #if targetEnvironment(simulator)
     /// For the simulator check (`-settings <name>`): opens one page of the settings at once.
     func openDetail(_ name: String) {
-        // «Оформление» and its pages: «night» and «accent» stand on top of «Оформление», as they are reached.
-        if name == "night" || name == "accent" {
+        // «Цвет интерфейса» is a sheet over «Оформление», as it is reached.
+        if name == "accent" {
+            guard let under = page(named: "appearance") else { return }
+            navigationController?.pushViewController(under, animated: false)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                ColourSheets.present(.accent, over: under, animated: false)
+            }
+            return
+        }
+        // «Ночная тема» stands on top of «Оформление», as it is reached.
+        if name == "night" {
             if let under = page(named: "appearance") { navigationController?.pushViewController(under, animated: false) }
         }
         if let own = page(named: name) {
