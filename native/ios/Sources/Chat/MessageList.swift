@@ -231,6 +231,12 @@ final class MsgText {
     return manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).maxY
   }
 
+  /// The top of the line that holds a character (the room kept after the paragraph above ends there).
+  func lineTop(atCharacter index: Int) -> CGFloat {
+    let glyph = manager.glyphIndexForCharacter(at: index)
+    return manager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY
+  }
+
   func rect(_ range: NSRange) -> CGRect {
     manager.boundingRect(forGlyphRange: manager.glyphRange(forCharacterRange: range, actualCharacterRange: nil), in: container)
   }
@@ -273,16 +279,38 @@ private func msgBodyStyle(_ fontSize: CGFloat) -> NSParagraphStyle {
   return style
 }
 
-/// A paragraph style of a quote or a code block: the text stands in from the block's edge.
-private func msgBlockStyle(_ inset: CGFloat, fontSize: CGFloat) -> NSParagraphStyle {
+/// A paragraph style of a quote or a code block: the text stands in from the block's edges, on lines 1 lower than
+/// the message's own (FormattedText.tsx).
+private func msgBlockStyle(_ inset: CGFloat, tail: CGFloat, fontSize: CGFloat) -> NSParagraphStyle {
   let style = NSMutableParagraphStyle()
   style.lineBreakMode = .byWordWrapping
-  style.minimumLineHeight = msgLineHeight(fontSize)
-  style.maximumLineHeight = msgLineHeight(fontSize)
+  style.minimumLineHeight = msgLineHeight(fontSize) - 1
+  style.maximumLineHeight = msgLineHeight(fontSize) - 1
   style.firstLineHeadIndent = inset
   style.headIndent = inset
-  style.tailIndent = -8
+  style.tailIndent = -tail
   return style
+}
+
+/// FormattedText.tsx: a quote keeps 5 above and below its words inside its plate, a code block 7; either stands 6
+/// from the words before and after it (the blocks' gap of 4 and the plate's own 2).
+private func msgBlockPad(_ flags: Int) -> CGFloat { flags & 128 != 0 ? 5 : 7 }
+private let msgBlockGap: CGFloat = 6
+
+/// Where the words after a block begin — the line break that only parts them from the block is not counted
+/// (format/render.ts `toBlocks`); nil: the block ends the message.
+private func msgAfterBlock(_ text: NSString, _ end: Int) -> Int? {
+  var next = end
+  if next < text.length && text.character(at: next) == 10 { next += 1 }
+  return next < text.length ? next : nil
+}
+
+/// Adds room under the paragraph that holds a character.
+private func msgAddRoom(_ text: NSMutableAttributedString, _ string: NSString, at index: Int, _ room: CGFloat) {
+  let paragraph = string.paragraphRange(for: NSRange(location: index, length: 0))
+  guard paragraph.length > 0, let style = (text.attribute(.paragraphStyle, at: paragraph.location, effectiveRange: nil) as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle else { return }
+  style.paragraphSpacing += room
+  text.addAttribute(.paragraphStyle, value: style, range: paragraph)
 }
 
 /// The text of a bubble with its formatting. Flags: 1 bold, 2 italic, 4 underline, 8 strike, 16 monospace,
@@ -318,8 +346,9 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
     if flags & 8 != 0 { result.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range) }
     if mono && flags & 256 == 0 { result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.10), range: range) }
     // A quote and a code block are plates drawn under the text (MsgRowCanvas); here only their indents.
-    if flags & 128 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(11, fontSize: fontSize), range: range) }
-    if flags & 256 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(8, fontSize: fontSize), range: range) }
+    // FormattedText.tsx: a quote's words stand 7 + the 3-point bar + 8 in and 8 from the right, a code block's 10.
+    if flags & 128 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(18, tail: 8, fontSize: fontSize), range: range) }
+    if flags & 256 != 0 { result.addAttribute(.paragraphStyle, value: msgBlockStyle(10, tail: 10, fontSize: fontSize), range: range) }
     if flags & 64 != 0 { result.addAttribute(.foregroundColor, value: link, range: range) }
     if flags & 32 != 0 {
       if revealed {
@@ -329,6 +358,26 @@ func msgBody(_ row: MsgRow, fontSize: CGFloat, text: UIColor, link: UIColor, quo
         result.addAttribute(.backgroundColor, value: text.withAlphaComponent(0.28), range: range)
       }
     }
+  }
+  // The blocks' own room, once every run has its font: under a block that words follow, and under the paragraph
+  // that ends right before a block. A quote's words are a point smaller than the message's.
+  let string = row.text as NSString
+  i = 0
+  while i + 2 < row.fmt.count {
+    let flags = row.fmt[i], start = row.fmt[i + 1], length = row.fmt[i + 2]
+    i += 3
+    if flags & (128 | 256) == 0 || start < 0 || length <= 0 || start + length > total { continue }
+    let range = NSRange(location: start, length: length)
+    if flags & 128 != 0 {
+      var smaller: [(UIFont, NSRange)] = []
+      result.enumerateAttribute(.font, in: range, options: []) { (value: Any?, part: NSRange, _: UnsafeMutablePointer<ObjCBool>) -> Void in
+        if let font = value as? UIFont { smaller.append((font.withSize(font.pointSize - 1), part)) }
+      }
+      for (font, part) in smaller { result.addAttribute(.font, value: font, range: part) }
+    }
+    let room = msgBlockPad(flags) + msgBlockGap
+    if msgAfterBlock(string, start + length) != nil { msgAddRoom(result, string, at: start + length - 1, room) }
+    if start > 0 && string.character(at: start - 1) == 10 { msgAddRoom(result, string, at: start - 1, room) }
   }
   return result
 }
@@ -348,10 +397,22 @@ private func msgTrailing(_ row: MsgRow) -> NSAttributedString {
   }
   return out
 }
+/// format/render.ts `endsInBlock`: the words end in a quote or a code block (one earlier in the message does not
+/// count: the time then still follows the last word).
+private func msgEndsInBlock(_ row: MsgRow) -> Bool {
+  let string = row.text as NSString
+  var i = 0
+  while i + 2 < row.fmt.count {
+    let flags = row.fmt[i], start = row.fmt[i + 1], length = row.fmt[i + 2]
+    i += 3
+    if flags & (128 | 256) == 0 || start < 0 || length <= 0 || start + length > string.length { continue }
+    if msgAfterBlock(string, start + length) == nil { return true }
+  }
+  return false
+}
 /// MessageRow.tsx `inlineTime`: words that do not end in a quote or a code block, without reactions inside.
 private func msgInlineTime(_ row: MsgRow) -> Bool {
-  !row.text.isEmpty && row.bigEmoji == 0 && row.chips.isEmpty && row.reactions.isEmpty && row.linkCard == nil
-    && !stride(from: 0, to: row.fmt.count, by: 3).contains(where: { row.fmt[$0] & (128 | 256) != 0 })
+  !row.text.isEmpty && row.bigEmoji == 0 && row.chips.isEmpty && row.reactions.isEmpty && row.linkCard == nil && !msgEndsInBlock(row)
 }
 /// MessageRow.tsx `plainTime`: the open look, and no rare marks (silent).
 private func msgPlainTime(_ row: MsgRow) -> Bool { msgInlineTime(row) && msgOpenLook && row.media != "photo" && !msgFlush(row) && !row.silent }
@@ -968,13 +1029,29 @@ final class MsgRowCanvas: UIView {
           i += 3
           if flags & (128 | 256) == 0 || start < 0 || length <= 0 || start + length > total { continue }
           let lines = laid.rect(NSRange(location: start, length: length))
-          let plate = CGRect(x: x, y: y + lines.minY - 2, width: inner, height: lines.height + 4)
+          // FormattedText.tsx: the plate keeps 5 (a code block 7) around the block's words and stands 6 from the
+          // words before and after it (msgBody leaves that room); a block that opens or ends the message keeps 2
+          // there. The words end where the next line begins, less the room left under them.
+          let string = item.text as NSString
+          let pad = msgBlockPad(flags)
+          let leads = start > 0 && string.character(at: start - 1) == 10
+          let wordsTop = y + lines.minY
+          var wordsBottom = y + lines.maxY
+          var followed = false
+          if let next = msgAfterBlock(string, start + length) {
+            followed = true
+            wordsBottom = y + laid.lineTop(atCharacter: next) - pad - msgBlockGap
+          }
+          let plateTop = wordsTop - (leads ? pad : 2)
+          let plateBottom = wordsBottom + (followed ? pad : 2)
+          let plate = CGRect(x: x, y: plateTop, width: inner, height: max(0, plateBottom - plateTop))
           context.setFillColor((flags & 128 != 0 ? palette.quote : palette.text.withAlphaComponent(0.10)).cgColor)
-          context.addPath(UIBezierPath(roundedRect: plate, cornerRadius: 7).cgPath)
+          context.addPath(UIBezierPath(roundedRect: plate, cornerRadius: flags & 128 != 0 ? 8 : 10).cgPath)
           context.fillPath()
           if flags & 128 != 0 {
+            // The accent bar: 3 wide, 7 in from the plate's edge, as tall as the words.
             context.setFillColor(markColor.cgColor)
-            context.addPath(UIBezierPath(roundedRect: CGRect(x: plate.minX, y: plate.minY, width: 3, height: plate.height), cornerRadius: 1.5).cgPath)
+            context.addPath(UIBezierPath(roundedRect: CGRect(x: plate.minX + 7, y: wordsTop, width: 3, height: max(0, wordsBottom - wordsTop)), cornerRadius: 1.5).cgPath)
             context.fillPath()
           }
         }
