@@ -5,7 +5,7 @@ import com.linea.messenger.settings.BirthdayWords
 import com.linea.messenger.settings.SessionWords
 import com.linea.messenger.settings.SettingsLook
 import com.linea.messenger.settings.SettingsPrivacyModel
-import com.linea.messenger.settings.UsernameScreen
+import com.linea.messenger.settings.UsernameSheet
 import com.linea.messenger.settings.failureWords
 import com.linea.messenger.settings.refusalStatus
 import com.linea.messenger.settings.signOutNotice
@@ -115,11 +115,11 @@ class SettingsRulesTest {
   }
 
   @Test fun thePublicNameSaysHowOftenItCanBeChanged() {
-    assertEquals("Публичное имя можно менять раз в неделю, с Platina — раз в день.", UsernameScreen.changeWords(canChange = true, platina = false, later = ""))
-    assertEquals("С Platina публичное имя можно менять раз в день.", UsernameScreen.changeWords(canChange = true, platina = true, later = "5 марта, 14:05"))
-    assertEquals("Имя можно менять раз в неделю, с Platina — раз в день. Следующая смена — 5 марта, 14:05.", UsernameScreen.changeWords(canChange = false, platina = false, later = "5 марта, 14:05"))
-    assertEquals("С Platina имя можно менять раз в день.", UsernameScreen.changeWords(canChange = false, platina = true, later = ""))
+    assertEquals("Публичное имя можно менять раз в неделю, с Platina — раз в день.", UsernameSheet.changeWords(canChange = true, platina = false, later = ""))
+    assertEquals("С Platina публичное имя можно менять раз в день.", UsernameSheet.changeWords(canChange = true, platina = true, later = "5 марта, 14:05"))
+    assertEquals("Имя можно менять раз в неделю, с Platina — раз в день. Следующая смена — 5 марта, 14:05.", UsernameSheet.changeWords(canChange = false, platina = false, later = "5 марта, 14:05"))
+    assertEquals("С Platina имя можно менять раз в день.", UsernameSheet.changeWords(canChange = false, platina = true, later = ""))
     assertEquals("@maria → @masha\n\nЛогин для входа «native_tester», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.\n\nСледующая смена будет доступна через неделю, с Platina — через день.",
-      UsernameScreen.reviewWords("maria", "masha", "native_tester", platina = false))
+      UsernameSheet.reviewWords("maria", "masha", "native_tester", platina = false))
   }
 }

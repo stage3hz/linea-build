@@ -142,6 +142,30 @@ class SettingsPagesTest {
   private fun questionWords(): String = (question().parts.first() as android.widget.TextView).text.toString()
   private fun agree() { question().parts.last().performClick(); idle() }
 
+  /** The sheets of the profile editor: what a sheet says, and its parts found, pressed and typed in. */
+  private fun texts(sheet: com.linea.messenger.chatactions.ChoiceSheet): List<String> = sheet.parts.flatMap { texts(it) }
+  private fun find(sheet: com.linea.messenger.chatactions.ChoiceSheet, test: (View) -> Boolean): View? = sheet.parts.firstNotNullOfOrNull { find(it, test) }
+  private fun field(sheet: com.linea.messenger.chatactions.ChoiceSheet, name: String): EditText = find(sheet) { it is EditText && it.contentDescription == name } as EditText
+  private fun target(sheet: com.linea.messenger.chatactions.ChoiceSheet, words: String): View {
+    var target: View? = find(sheet) { it is TextView && it.text.toString() == words }
+    assertNotNull("No «$words» in ${texts(sheet)}", target)
+    while (target != null && !target.isClickable) target = target.parent as? View
+    return target!!
+  }
+  private fun press(sheet: com.linea.messenger.chatactions.ChoiceSheet, words: String) {
+    val target = target(sheet, words)
+    assertTrue(target.isEnabled)
+    assertTrue(target.performClick())
+    idle()
+  }
+  /** The header's round button of that name (an editor's «close» and its saving «checkmark»). */
+  private fun pressRound(name: String) {
+    val button = find(top) { it.contentDescription == name && it.isClickable }
+    assertNotNull("No «$name» on $topName", button)
+    assertTrue(button!!.performClick())
+    idle(); idle()
+  }
+
   private val privacy = mapOf<String, Any?>("lastSeen" to "contacts", "showLastSeen" to true, "allowNewChats" to true, "showAvatar" to true, "readReceipts" to true, "posts" to "friends", "calls" to "everyone", "hideReadTime" to false)
   private val sessions = listOf(
     mapOf<String, Any?>("id" to "s-old", "deviceModel" to "iPhone 16", "platform" to "ios", "osVersion" to "iOS 18.1", "appVersion" to "0.16.2", "ip" to "198.51.100.4",
@@ -182,7 +206,8 @@ class SettingsPagesTest {
   @Test fun everyLaunchPageOpens() {
     everythingAnswers()
     val pages = listOf(
-      Triple("profile", "ProfileEditScreen", "Мой профиль"), Triple("username", "UsernameScreen", "Имя пользователя"), Triple("birthday", "BirthdayScreen", "День рождения"),
+      // The @username is a sheet over the editor.
+      Triple("profile", "ProfileEditScreen", "Изменить"), Triple("username", "ProfileEditScreen", "Изменить"), Triple("birthday", "BirthdayScreen", "День рождения"),
       Triple("privacy", "PrivacyScreen", "Конфиденциальность"), Triple("lastseen", "LastSeenScreen", "Время захода"), Triple("security", "SecurityScreen", "Безопасность"),
       Triple("password", "SecretChangeScreen", "Изменить пароль"), Triple("confirmation", "SecretChangeScreen", "Слово подтверждения"), Triple("recovery", "SecretChangeScreen", "Слово восстановления"),
       Triple("sessions", "SessionsScreen", "Активные сеансы"), Triple("session", "SessionDetailScreen", "Это устройство"), Triple("blocked", "BlockedScreen", "Заблокированные"),
@@ -208,26 +233,44 @@ class SettingsPagesTest {
     assertEquals("OwnProfileScreen", topName)
     press("Изменить")
     assertEquals("ProfileEditScreen", topName)
-    has("Мой профиль", "Имя пользователя", "@maria", "День рождения", "2 мар 1999", "Пол", "Женский", "ПЕРСОНАЛЬНЫЙ ЦВЕТ", "Сохранить",
-      "Несколько слов о себе — например, чем занимаешься. Видно в профиле.", "Этим цветом тебя видят в чатах у других, пока нет фото.")
+    // The editor as the previous app has it: «Изменить» between «close» and a saving «checkmark», no button «Сохранить»;
+    // the colour and the pattern are rows that open sheets.
+    has("Изменить", "Имя пользователя", "@maria", "День рождения", "2 мар 1999", "Пол", "Женский", "Персональный цвет", "Узор фона", "Нет", "РАМКИ И АНИМАЦИИ",
+      "Несколько слов о себе — например, чем занимаешься. Видно в профиле.")
+    hasNot("Сохранить", "Мой профиль", "ПЕРСОНАЛЬНЫЙ ЦВЕТ", "Этим цветом тебя видят в чатах у других, пока нет фото.")
+    // «О себе» stands above the name.
+    val typing = ArrayList<String>()
+    fun collect(view: View) { if (view is EditText) typing.add(view.contentDescription.toString()); if (view is ViewGroup) for (index in 0 until view.childCount) collect(view.getChildAt(index)) }
+    collect(top)
+    assertEquals(listOf("О себе", "Имя"), typing)
     assertEquals("Мария Орлова", field("Имя").text.toString())
     assertEquals("Пишу код", field("О себе").text.toString())
     field("Имя").setText("   ")
-    press("Сохранить")
+    pressRound("Сохранить")
     has("Имя не может быть пустым.")
     assertEquals(0, account.count("profile"))
+    assertEquals("ProfileEditScreen", topName)
 
     field("Имя").setText("  Маша Орлова ")
     hasNot("Имя не может быть пустым.")
-    find(top) { it.contentDescription == "Цвет 7" }!!.performClick()
+    // «Персональный цвет»: a sheet with the words, the eight colours and «Готово»; a colour is taken as it is touched.
+    press("Персональный цвет")
+    val colors = question()
+    assertEquals("Персональный цвет", colors.heading)
+    assertTrue(texts(colors).toString(), texts(colors).containsAll(listOf("Этим цветом тебя видят в чатах у других, пока нет фото.", "Готово")))
+    find(colors) { it.contentDescription == "Цвет 7" }!!.performClick(); idle()
+    press(colors, "Готово")
+    assertEquals(0, account.count("profile"))
     account.answers["profile"] = { args -> @Suppress("UNCHECKED_CAST") Result.success(mapOf("user" to (account.profile + (args[0] as Map<String, Any?>)))) }
-    press("Сохранить")
+    pressRound("Сохранить")
     assertEquals(mapOf("displayName" to "Маша Орлова", "bio" to "Пишу код", "birthday" to "1999-03-02", "gender" to "female", "avatarColor" to "#3FA37C", "profilePattern" to null), account.last("profile")[0])
-    has("Профиль сохранён.")
+    // Saved: the editor closes.
+    assertEquals("OwnProfileScreen", topName)
     assertEquals("Маша Орлова", account.profile["displayName"])
 
     // The gender is chosen from three; the words say what it is for.
     // The reference's Sheet «Пол»: SheetActions with checkmark-circle on the chosen one.
+    press("Изменить")
     press("Пол")
     val choice = com.linea.messenger.chatactions.ChoiceSheet.last!!.get()!!
     assertEquals("Пол", choice.heading)
@@ -235,12 +278,61 @@ class SettingsPagesTest {
     assertEquals(listOf("Мужской", "Женский", "Не указан"), choice.choices.map { it.label })
     assertEquals(listOf("ion:ellipse-outline", "ion:checkmark-circle", "ion:ellipse-outline"), choice.choices.map { it.symbol })
     choice.choices[2].run(); idle()
-    has("Не указан"); hasNot("Профиль сохранён.")
+    has("Не указан")
     account.refuse("profile", "Слишком часто.")
-    press("Сохранить")
+    pressRound("Сохранить")
     assertNull((account.last("profile")[0] as Map<*, *>)["gender"])
     assertTrue((account.last("profile")[0] as Map<*, *>).containsKey("gender"))
+    // Not saved: the editor stays and says why.
     has("Слишком часто.")
+    assertEquals("ProfileEditScreen", topName)
+    // «close» drops the draft; a draft that changes nothing is closed by the checkmark without a word to the server.
+    pressRound("Отменить изменения")
+    assertEquals("OwnProfileScreen", topName)
+    assertEquals("female", account.profile["gender"])
+    val sent = account.count("profile")
+    press("Изменить")
+    pressRound("Сохранить")
+    assertEquals("OwnProfileScreen", topName)
+    assertEquals(sent, account.count("profile"))
+  }
+
+  @Test fun theEditorsBirthdayAndPatternAreSheets() {
+    launch()
+    press("Мой профиль")
+    press("Изменить")
+    press("День рождения")
+    val days = question()
+    assertEquals("День рождения", days.heading)
+    assertTrue(texts(days).toString(), texts(days).containsAll(listOf("Январь", "Март", "Декабрь", "2", "31", "ГОД (НЕОБЯЗАТЕЛЬНО)", "Видят только друзья: 2 мар 1999", "Готово", "Убрать день рождения")))
+    find(days) { it.contentDescription == "День 31" }!!.performClick(); idle()
+    assertTrue(texts(days).contains("Видят только друзья: 31 мар 1999"))
+    press(days, "Февраль")
+    // February has no 30th and 31st: the day becomes the month's last, the 28th of a year without a 29th.
+    assertFalse(texts(days).contains("30"))
+    assertTrue(texts(days).contains("Видят только друзья: 28 фев 1999"))
+    val year = field(days, "Год (необязательно)")
+    year.setText("18"); idle()
+    assertTrue(texts(days).contains("Год — от 1900 до ${java.time.LocalDate.now().year}"))
+    assertFalse(target(days, "Готово").isEnabled)
+    year.setText("2000"); idle()
+    assertTrue(texts(days).contains("Видят только друзья: 29 фев 2000"))
+    press(days, "Готово")
+    has("29 фев 2000")
+    press("День рождения")
+    press(question(), "Убрать день рождения")
+    has("Не указан"); hasNot("29 фев 2000")
+
+    press("Узор фона")
+    val patterns = question()
+    assertEquals("Узор фона", patterns.heading)
+    assertTrue(texts(patterns).containsAll(listOf("Значок, которым усыпан фон вокруг твоего фото в профиле.", "Готово")))
+    val first = com.linea.messenger.avatars.AvatarCatalog.patterns.first()
+    find(patterns) { it.contentDescription == first }!!.performClick(); idle()
+    press(patterns, "Готово")
+    has(first)
+    // Nothing is sent before the checkmark.
+    assertEquals(0, account.count("profile"))
   }
 
   @Test fun aBirthdayIsADayAMonthAndPerhapsAYear() {
@@ -278,15 +370,19 @@ class SettingsPagesTest {
     everythingAnswers()
     launch()
     settings.openDetail("username"); idle()
-    has("Имя пользователя", "Публичное имя можно менять раз в неделю, с Platina — раз в день.", "Изменить публичное имя")
-    val name = field("Публичное имя пользователя")
+    // The @username is a sheet over the editor: the field, the words about how often it can change, the button.
+    assertEquals("ProfileEditScreen", topName)
+    val sheet = question()
+    assertEquals("Имя пользователя", sheet.heading)
+    assertTrue(texts(sheet).toString(), texts(sheet).containsAll(listOf("Публичное имя можно менять раз в неделю, с Platina — раз в день.", "Изменить публичное имя")))
+    val name = field(sheet, "Публичное имя пользователя")
     assertEquals("maria", name.text.toString())
-    assertFalse(enabled("Изменить публичное имя"))
+    assertFalse(target(sheet, "Изменить публичное имя").isEnabled)
     name.setText("@M"); idle()
-    press("Изменить публичное имя")
-    has("Имя пользователя: от 3 до 24 символов a–z, 0–9 и подчёркивание.")
-    field("Публичное имя пользователя").setText("@Masha"); idle()
-    press("Изменить публичное имя")
+    press(sheet, "Изменить публичное имя")
+    assertTrue(texts(sheet).contains("Имя пользователя: от 3 до 24 символов a–z, 0–9 и подчёркивание."))
+    name.setText("@Masha"); idle()
+    press(sheet, "Изменить публичное имя")
     // The reference's sheet: the change, the words about the login, when the next change comes, the button.
     assertEquals("Изменить публичное имя?", question().heading)
     assertEquals(listOf("@maria → @masha", "Логин для входа «native_tester», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.",
@@ -297,10 +393,11 @@ class SettingsPagesTest {
       "status" to mapOf("accountId" to "u1", "username" to "masha", "loginName" to "native_tester", "canChangeUsername" to false, "nextUsernameChangeAt" to "2026-11-28T12:00:00.000Z", "platina" to mapOf("active" to false))))
     agree()
     assertEquals(listOf("masha"), account.last("changeUsername"))
-    has("Публичное имя изменено. Логин для входа остался прежним.")
-    assertTrue(texts().any { it.startsWith("Имя можно менять раз в неделю, с Platina — раз в день. Следующая смена — 28 ноября, ") })
+    // That the name was changed is said in the words' place; the editor's row follows.
+    assertTrue(texts(sheet).toString(), texts(sheet).contains("Публичное имя изменено. Логин для входа остался прежним."))
     assertEquals("masha", account.profile["username"])
-    assertFalse(field("Публичное имя пользователя").isEnabled)
+    assertFalse(name.isEnabled)
+    has("@masha")
   }
 
   @Test fun theSettingsOfAnotherAccountAreNotShown() {
@@ -308,9 +405,10 @@ class SettingsPagesTest {
     account.answer("usernameStatus", mapOf("accountId" to "someone-else", "username" to "other", "canChangeUsername" to true))
     launch()
     settings.openDetail("username"); idle()
-    has("Сервер вернул настройки другого аккаунта.", "Повторить")
-    assertEquals("maria", field("Публичное имя пользователя").text.toString())
-    assertFalse(enabled("Изменить публичное имя"))
+    val sheet = question()
+    assertTrue(texts(sheet).toString(), texts(sheet).contains("Сервер вернул настройки другого аккаунта."))
+    assertEquals("maria", field(sheet, "Публичное имя пользователя").text.toString())
+    assertFalse(target(sheet, "Изменить публичное имя").isEnabled)
   }
 
   @Test fun privacyMovesAtOnceAndComesBackWhenRefused() {

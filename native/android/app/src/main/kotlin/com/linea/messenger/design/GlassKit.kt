@@ -174,9 +174,11 @@ class GlassHeaderView(
     requestLayout()
   }
 
-  /** A round button on the right (glass; `filled`: the accent round of «Создать», 42). */
-  fun addTool(symbol: String, label: String, filled: Boolean = false, iconSize: Float = 19f, painter: IconPainter = Symbols::draw, action: () -> Unit): GlassRoundButton {
-    val button = GlassRoundButton(context, symbol, label, if (filled) 21f else iconSize, filled, if (filled) 42f else 44f, painter)
+  /** A round button on the right (glass; `filled`: the accent round of «Создать», 42 with a glyph of 21 unless
+   *  `filledSide` and `filledIcon` say otherwise). */
+  fun addTool(symbol: String, label: String, filled: Boolean = false, iconSize: Float = 19f, painter: IconPainter = Symbols::draw,
+              filledSide: Float = 42f, filledIcon: Float = 21f, action: () -> Unit): GlassRoundButton {
+    val button = GlassRoundButton(context, symbol, label, if (filled) filledIcon else iconSize, filled, if (filled) filledSide else 44f, painter)
     button.onPress = action
     button.source = glass.source
     addView(button)

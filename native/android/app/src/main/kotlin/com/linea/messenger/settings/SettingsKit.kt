@@ -168,7 +168,9 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   /** A page whose reference has its own header and column (SecurityScreen.tsx); null: the settings `Page` look. */
   class OwnLook(val side: Float, val padding: Float, val minHeight: Float, val clear: Boolean, val titleSize: Float, val titleWeight: Int,
                 val titleKern: Float, val mark: String, val markSize: Float, val markRoom: Float, val backLabel: String,
-                val columnSide: Float, val columnTop: Float, val columnBottom: Float)
+                val columnSide: Float, val columnTop: Float, val columnBottom: Float,
+                /** An editor (ProfileScreen.tsx editing): the left button is «close» and the name stands in the middle. */
+                val closes: Boolean = false)
   /** Read while the page is made: a computed getter only. */
   protected open val ownLook: OwnLook? get() = null
   /** The reference: the root's column is 16 from the sides, a page's (`Page`, `padding: 14`) 14. */
@@ -236,6 +238,10 @@ open class SettingsPage(context: Context, private val pageName: String, private 
         made.titleLabel.textSize = own.titleSize
         made.titleLabel.letterSpacing = own.titleKern / own.titleSize
         if (own.mark.isNotEmpty()) made.setMark(own.mark, own.markSize, own.markRoom)
+        if (own.closes) {
+          made.backButton?.symbol = "ion:close"
+          made.titleLabel.gravity = Gravity.CENTER
+        }
       }
       made.source = behind
       for (part in listOf<View>(made, headerEdge)) { part.outlineProvider = null; part.translationZ = if (part === made) 2f else 1f }
@@ -321,8 +327,9 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       return above as? Navigation
     }
 
-  /** Leaves the page, if it is the one on top. */
-  fun goBack(animated: Boolean = true) {
+  /** Leaves the page, if it is the one on top. The header's left button; an editor overrides it (it stays while it
+   *  is saving). */
+  open fun goBack(animated: Boolean = true) {
     val pages = stack ?: return
     if (pages.top === this) { endEditing(); pages.pop(animated) }
   }
@@ -337,6 +344,13 @@ open class SettingsPage(context: Context, private val pageName: String, private 
 
   fun setSideEnabled(enabled: Boolean) {
     sideButton?.isEnabled = enabled
+  }
+
+  /** The round accent button at the right of an editor's header (ProfileScreen.tsx: 44, «checkmark» 24 in `onAccent`). */
+  fun setConfirm(label: String, action: () -> Unit): GlassRoundButton? {
+    val made = header?.addTool("ion:checkmark", label, filled = true, filledSide = 44f, filledIcon = 24f, action = action)
+    requestLayout()
+    return made
   }
 
   /** Takes everything out of the column (before it is filled again). */
@@ -411,10 +425,12 @@ internal fun settingsBackdrop(view: View): GlassSource? {
 
 /** Rows on one card (the reference's `Group`, SettingsScreen.tsx). «Чёрная» (`black` themes): a flat card of the
  *  theme's `glassOpaque`, radius 12, a hairline `border` around it and between the rows from 57 in. Every other theme:
- *  a glass surface, radius 20, 2 above and below the rows, no lines between them. */
+ *  a glass surface, radius 20, 2 above and below the rows, no lines between them. `glassRadius`: the glass surface on
+ *  every theme, with this radius (the profile editor's groups are `GlassSurface radius={22}` whatever the theme). */
 @SuppressLint("ViewConstructor")
-class SettingsGroup(context: Context, rows: List<View>) : LinearLayout(context) {
-  private val flat = ThemeStore.look.black
+class SettingsGroup(context: Context, rows: List<View>, glassRadius: Float? = null) : LinearLayout(context) {
+  private val flat = ThemeStore.look.black && glassRadius == null
+  private val round = glassRadius ?: 20f
   private val glass = Glass(this)
   private val d = resources.displayMetrics.density
 
@@ -430,7 +446,7 @@ class SettingsGroup(context: Context, rows: List<View>) : LinearLayout(context) 
       setPadding(0, context.px(2f), 0, context.px(2f))
     }
     outlineProvider = object : android.view.ViewOutlineProvider() {
-      override fun getOutline(view: View, outline: android.graphics.Outline) { outline.setRoundRect(0, 0, view.width, view.height, (if (flat) 12f else 20f) * d) }
+      override fun getOutline(view: View, outline: android.graphics.Outline) { outline.setRoundRect(0, 0, view.width, view.height, (if (flat) 12f else round) * d) }
     }
     clipToOutline = true
     rows.forEachIndexed { index, row ->
@@ -449,7 +465,7 @@ class SettingsGroup(context: Context, rows: List<View>) : LinearLayout(context) 
   }
 
   override fun onDraw(canvas: Canvas) {
-    if (!flat) glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 20f * d)
+    if (!flat) glass.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), round * d)
     super.onDraw(canvas)
   }
 }
@@ -477,14 +493,16 @@ class GlassCard(context: Context, private val radius: Float, clear: Boolean) : L
 }
 
 /** One row of a group: an icon in a quiet circle, a name, a value, an arrow. Pressing it calls `onPress`.
- *  `symbol`: one of `Symbols`. `swatch`: a dot of that colour. `checked`: one of several — the chosen one has a mark. */
+ *  `symbol`: one of `Symbols`. `swatch`: a dot of that colour. `checked`: one of several — the chosen one has a mark.
+ *  `valueSize`: the value's size (13; 14 in a row of the profile editor, ProfileScreen.tsx `EditRow`). */
 @SuppressLint("ViewConstructor")
 class SettingsRow(context: Context, symbol: String = "", private val label: String, value: String = "", danger: Boolean = false, arrow: Boolean = true,
-                  swatch: Int? = null, checked: Boolean? = null) : LinearLayout(context) {
+                  swatch: Int? = null, checked: Boolean? = null, valueSize: Float = 13f) : LinearLayout(context) {
   var onPress: (() -> Unit)? = null
   private val nameLabel = context.words(label, 15f, if (danger) Theme.danger else Theme.text)
-  private val valueLabel = context.words(value, 13f, Theme.muted)
+  private val valueLabel = context.words(value, valueSize, Theme.muted)
   private var iconChip: View? = null
+  private var swatchDot: View? = null
 
   init {
     orientation = HORIZONTAL
@@ -512,6 +530,7 @@ class SettingsRow(context: Context, symbol: String = "", private val label: Stri
       val dot = View(context)
       dot.background = context.plate(swatch, 10f)
       addView(dot, LayoutParams(context.px(20f), context.px(20f)).apply { leftMargin = context.px(13f) })
+      swatchDot = dot
     }
     if (checked != null) {
       // One of several: the chosen one has a mark, the others an empty place of the same size.
@@ -530,6 +549,11 @@ class SettingsRow(context: Context, symbol: String = "", private val label: Stri
   }
 
   override fun getAccessibilityClassName(): CharSequence = "android.widget.Button"
+
+  /** The colour of the row's dot (a row made with a `swatch`). */
+  fun setSwatch(color: Int) {
+    swatchDot?.background = context.plate(color, 10f)
+  }
 
   fun setValue(value: String) {
     valueLabel.text = value
@@ -877,10 +901,13 @@ class SettingsField(context: Context, caption: String, placeholder: String, priv
   }
 }
 
-/** Several lines of typing (the words about oneself), with the quiet hint while it is empty. */
+/** Several lines of typing (the words about oneself), with the quiet hint while it is empty. `glass`: the reference's
+ *  multiline `Field` of the profile editor (ProfileScreen.tsx) — regular glass, radius 18, at least 48 tall, 17 in from
+ *  the sides and 14 above and below the words. */
 @SuppressLint("ViewConstructor")
-class SettingsTextArea(context: Context, placeholder: String) : FrameLayout(context) {
+class SettingsTextArea(context: Context, placeholder: String, private val glass: Boolean = false) : FrameLayout(context) {
   private val area = EditText(context)
+  private val plate = Glass(this)
   var limit = 0
   var onEdit: (() -> Unit)? = null
   private var setting = false
@@ -894,7 +921,7 @@ class SettingsTextArea(context: Context, placeholder: String) : FrameLayout(cont
     }
 
   init {
-    background = context.plate(SettingsLook.card, 14f, SettingsLook.line)
+    if (glass) setWillNotDraw(false) else background = context.plate(SettingsLook.card, 14f, SettingsLook.line)
     area.background = null
     area.textSize = 16f
     area.setTextColor(Theme.text)
@@ -902,8 +929,9 @@ class SettingsTextArea(context: Context, placeholder: String) : FrameLayout(cont
     area.hint = placeholder
     area.contentDescription = placeholder
     area.gravity = Gravity.TOP or Gravity.START
-    area.minHeight = context.px(50f)
-    area.setPadding(context.px(15f), context.px(13f), context.px(15f), context.px(13f))
+    area.minHeight = context.px(if (glass) 48f else 50f)
+    if (glass) area.setPadding(context.px(17f), context.px(14f), context.px(17f), context.px(14f))
+    else area.setPadding(context.px(15f), context.px(13f), context.px(15f), context.px(13f))
     area.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
     area.filters = arrayOf(InputFilter { _, start, end, dest, dstart, dend ->
       if (limit > 0 && dest.length - (dend - dstart) + (end - start) > limit) dest.subSequence(dstart, dend) else null
@@ -914,6 +942,16 @@ class SettingsTextArea(context: Context, placeholder: String) : FrameLayout(cont
       override fun afterTextChanged(s: Editable?) { if (!setting) onEdit?.invoke() }
     })
     addView(area, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+  }
+
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    if (glass) plate.source = settingsBackdrop(this)
+  }
+
+  override fun onDraw(canvas: Canvas) {
+    if (glass) plate.draw(canvas, 0f, 0f, width.toFloat(), height.toFloat(), 18f * resources.displayMetrics.density)
+    super.onDraw(canvas)
   }
 
   override fun setEnabled(enabled: Boolean) {

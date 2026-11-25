@@ -1,19 +1,15 @@
 package com.linea.messenger.settings
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.text.InputType
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.NumberPicker
-import android.widget.Space
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.auth.AuthRules
 import com.linea.messenger.core.Core
@@ -24,35 +20,51 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
 
-/** «Мой профиль»: the name, a few words about oneself, the public @username, the birthday, the colour.
- *  (The previous app: the editor of `mobile/src/ProfileScreen.tsx`.) Nothing is sent until «Сохранить». */
+/** «Изменить»: the editor of one's own profile — the banner and the photo, a few words about oneself, the name, the
+ *  public @username, the birthday, the gender, the colour, the background pattern, the decorations of Platina.
+ *  (The previous app: the editing state of `mobile/src/ProfileScreen.tsx`.) The header's «close» discards the draft,
+ *  its «checkmark» saves and closes; nothing is sent before that. */
 @SuppressLint("ViewConstructor")
-class ProfileEditScreen(context: Context, private val account: SettingsAccount) : SettingsPage(context, "Мой профиль") {
+class ProfileEditScreen(context: Context, private val account: SettingsAccount) : SettingsPage(context, "Изменить") {
   private var birthday: String? = account.ownProfile["birthday"] as? String
   private var gender: String? = account.ownProfile["gender"] as? String
-  private var color: String = account.ownProfile["avatarColor"] as? String ?: "#5E7BFF"
+  private var color: String = account.ownProfile["avatarColor"] as? String ?: PLAIN_COLOR
   private var busy = false
 
   // Profile: the banner and the decorated avatar at the top, tapped to change (photo, GIF, video up to 10 s), the
   // background pattern and «Рамки и анимации» (profile/, platina/).
   private val top = com.linea.messenger.profile.ProfileEditTop(context)
   private var pattern: String? = account.ownProfile["profilePattern"] as? String
-  private val patternRow = SettingsRow(context, symbol = "ion:sparkles", label = "Узор фона")
+  // ProfileScreen.tsx EditRow: the value is 14 (13 in a row of the settings).
+  private val patternRow = SettingsRow(context, symbol = "ion:sparkles", label = "Узор фона", valueSize = 14f)
   private val media: com.linea.messenger.profile.ProfilePhotoChange? = account.messenger?.let { com.linea.messenger.profile.ProfilePhotoChange(context, it) }
   private val noticeBox = LinearLayout(context)
   private val nameField = SettingsField(context, "", "Имя")
-  private val bioArea = SettingsTextArea(context, "О себе")
-  private val handleRow = SettingsRow(context, symbol = "ion:at", label = "Имя пользователя")
-  private val birthdayRow = SettingsRow(context, symbol = "ion:gift", label = "День рождения")
-  private val genderRow = SettingsRow(context, symbol = "ion:person", label = "Пол")
-  private val saveButton = SettingsButton(context, "Сохранить")
-  private val swatches = ArrayList<View>()
+  private val bioArea = SettingsTextArea(context, "О себе", glass = true)
+  private val handleRow = SettingsRow(context, symbol = "ion:at", label = "Имя пользователя", valueSize = 14f)
+  private val birthdayRow = SettingsRow(context, symbol = "ion:gift", label = "День рождения", valueSize = 14f)
+  private val genderRow = SettingsRow(context, symbol = "ion:person", label = "Пол", valueSize = 14f)
+  private val colorRow = SettingsRow(context, symbol = "ion:color-palette", label = "Персональный цвет", swatch = 0)
+  private var saveButton: com.linea.messenger.design.GlassRoundButton? = null
   private val profileChanged: () -> Unit = { showValues() }
+
+  // ProfileScreen.tsx, editing: the pill 14 from the sides, 10 inside, at least 68 tall; «Изменить» 20 Bold with letter
+  // spacing −0.5 in the middle, «close» at the left and the accent «checkmark» at the right. The column is 17 from the
+  // sides, 8 under the pill's 2 of margin (4 of them are the top part's own), 36 at the end.
+  override val ownLook: OwnLook? get() = OwnLook(side = 14f, padding = 10f, minHeight = 68f, clear = false, titleSize = 20f, titleWeight = 700, titleKern = -0.5f,
+    mark = "", markSize = 0f, markRoom = 0f, backLabel = "Отменить изменения", columnSide = 17f, columnTop = 4f, columnBottom = 36f, closes = true)
+
+  /** «Отменить изменения»: the draft is dropped. Not while it is being saved. */
+  override fun goBack(animated: Boolean) {
+    if (busy) return
+    super.goBack(animated)
+  }
 
   override fun build() {
     val own = account.ownProfile
-    // The @username was changed on its own page: the row follows.
+    // The @username was changed in its sheet: the row follows.
     OwnProfile.watch(profileChanged)
+    saveButton = setConfirm("Сохранить") { finishEdit() }
 
     add(top, 0f) // Profile
     top.banner.setOnClickListener { media?.ask("banner") }
@@ -62,59 +74,61 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     media?.onNotice = { words, error -> if (words.isNotEmpty()) showNotice(words, error) }
     com.linea.messenger.platina.PlatinaState.start(account.messenger)
 
+    // The parts stand 17 apart (the top part keeps 4 of its own under its last line). The place of a notice takes no
+    // room while there is none.
     noticeBox.orientation = LinearLayout.VERTICAL
-    add(noticeBox, 10f)
+    noticeBox.visibility = View.GONE
+    add(noticeBox, 13f)
 
+    // «О себе» first, with its words 6 under it (12 on lines of 17, 14 in from the sides).
+    bioArea.limit = 160
+    bioArea.value = own["bio"] as? String ?: ""
+    bioArea.onEdit = { clearNotice() }
+    add(bioArea, 17f)
+    add(SettingsLook.inset(SettingsLook.para(context, "Несколько слов о себе — например, чем занимаешься. Видно в профиле.", 12f, Theme.muted, line = 17f), side = 14f), 6f)
+
+    // The name, and the @username's row 6 under it.
     nameField.limit = 50
     nameField.input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
     nameField.value = own["displayName"] as? String ?: ""
     nameField.onEdit = { edited() }
-    add(nameField, 10f)
+    add(nameField, 17f)
 
-    bioArea.limit = 160
-    bioArea.value = own["bio"] as? String ?: ""
-    bioArea.onEdit = { clearNotice() }
-    add(bioArea, 10f)
-    add(SettingsLook.foot(context, "Несколько слов о себе — например, чем занимаешься. Видно в профиле."), 6f)
+    handleRow.onPress = {
+      // ProfileScreen.tsx: the @username is a sheet over the editor, not a page of its own.
+      if (!busy) { endEditing(); UsernameSheet.show(context, account) }
+    }
+    add(SettingsGroup(context, listOf(handleRow), glassRadius = 22f), 6f)
 
-    handleRow.onPress = { if (!busy) open(UsernameScreen(context, account)) }
-    addGroup(rows = listOf(handleRow))
-
+    // «День рождения», «Персональный цвет» and «Узор фона» are sheets over the editor (profile/ProfileEditSheets.kt).
     birthdayRow.onPress = {
-      if (!busy) open(BirthdayScreen(context, birthday) { chosen ->
+      if (!busy) com.linea.messenger.profile.ProfileEditSheets.birthday(context, birthday) { chosen ->
         birthday = chosen
         showValues()
         clearNotice()
-      })
+      }.show()
     }
     genderRow.onPress = { chooseGender() }
-    // Profile: «Узор фона» — the emoji around the photo in the profile (saved with «Сохранить»).
+    colorRow.onPress = {
+      if (!busy) com.linea.messenger.profile.ProfileEditSheets.color(context, color) { chosen ->
+        color = chosen
+        showValues()
+        clearNotice()
+      }.show()
+    }
+    // Profile: «Узор фона» — the emoji around the photo in the profile (saved with the rest).
     patternRow.onPress = {
-      if (!busy) com.linea.messenger.profile.PatternPicker(context, pattern) { chosen -> pattern = chosen; showValues(); clearNotice() }.show()
+      if (!busy) com.linea.messenger.profile.ProfileEditSheets.pattern(context, pattern) { chosen ->
+        pattern = chosen
+        showValues()
+        clearNotice()
+      }.show()
     }
-    addGroup(rows = listOf(birthdayRow, genderRow, patternRow))
+    add(SettingsGroup(context, listOf(birthdayRow, genderRow, colorRow, patternRow), glassRadius = 22f), 17f)
 
-    val row = LinearLayout(context)
-    row.orientation = LinearLayout.HORIZONTAL
-    row.gravity = Gravity.CENTER_VERTICAL
-    palette.forEachIndexed { index, _ ->
-      if (index > 0) row.addView(Space(context), LinearLayout.LayoutParams(0, 1, 1f))
-      val dot = View(context)
-      dot.contentDescription = "Цвет ${index + 1}"
-      dot.isClickable = true
-      dot.isFocusable = true
-      dot.setOnClickListener { colorPicked(index) }
-      row.addView(dot, LinearLayout.LayoutParams(dp(32f), dp(32f)))
-      swatches.add(dot)
-    }
-    addGroup("Персональный цвет", listOf(SettingsLook.inset(row, top = 12f, side = 14f, bottom = 12f)))
-    add(SettingsLook.foot(context, "Этим цветом тебя видят в чатах у других, пока нет фото."), 7f)
-
-    saveButton.onPress = { save() }
-    add(saveButton, 20f)
     // Profile: «Рамки и анимации» — the decorations of Platina, saved at once (platina/PlatinaStudio.kt).
-    add(SettingsLook.caption(context, "Рамки и анимации"), 24f)
-    add(com.linea.messenger.profile.ProfileEditTop.card(com.linea.messenger.platina.PlatinaStudioView(context, account.messenger, compact = true)), 7f)
+    add(SettingsLook.sectionLabel(context, "Рамки и анимации"), 17f)
+    add(com.linea.messenger.profile.ProfileEditTop.card(com.linea.messenger.platina.PlatinaStudioView(context, account.messenger, compact = true)), 8f)
     showValues()
   }
 
@@ -146,24 +160,9 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
     handleRow.setValue(if (handle.isEmpty()) "" else "@$handle")
     birthdayRow.setValue(BirthdayWords.format(birthday).ifEmpty { "Не указан" })
     genderRow.setValue(if (gender == "male") "Мужской" else if (gender == "female") "Женский" else "Не указан")
+    colorRow.setSwatch(0xFF000000.toInt() or Messenger.color(color))
     patternRow.setValue(pattern ?: "Нет") // Profile
-    swatches.forEachIndexed { index, dot ->
-      val on = palette[index].equals(color, ignoreCase = true)
-      dot.background = GradientDrawable().apply {
-        shape = GradientDrawable.OVAL
-        setColor(0xFF000000.toInt() or Messenger.color(palette[index]))
-        if (on) setStroke(dp(3f), Theme.text)
-      }
-      dot.isSelected = on
-    }
     showBall()
-  }
-
-  private fun colorPicked(index: Int) {
-    if (busy || index !in palette.indices) return
-    color = palette[index]
-    clearNotice()
-    showValues()
   }
 
   private fun chooseGender() {
@@ -183,19 +182,40 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
 
   private fun clearNotice() {
     noticeBox.removeAllViews()
+    noticeBox.visibility = View.GONE
   }
 
   private fun showNotice(words: String, error: Boolean) {
     clearNotice()
     noticeBox.addView(SettingsNotice(context, words, error = error))
+    noticeBox.visibility = View.VISIBLE
     scroll.smoothScrollTo(0, 0)
   }
 
   private fun setBusy(value: Boolean) {
     busy = value
-    saveButton.setBusy(value)
+    saveButton?.isEnabled = !value
     nameField.isEnabled = !value
     bioArea.isEnabled = !value
+  }
+
+  /** Whether anything of the draft differs from the profile as the server has it. */
+  private val changed: Boolean
+    get() {
+      val own = account.ownProfile
+      if (nameField.value.trim() != (own["displayName"] as? String ?: "")) return true
+      if (bioArea.value.trim() != (own["bio"] as? String ?: "")) return true
+      if (birthday != own["birthday"] as? String) return true
+      if (gender != own["gender"] as? String) return true
+      if (!color.equals(own["avatarColor"] as? String ?: PLAIN_COLOR, ignoreCase = true)) return true
+      return pattern != own["profilePattern"] as? String
+    }
+
+  /** The header's «Сохранить»: nothing changed — the editor just closes; otherwise it closes once the profile is saved. */
+  private fun finishEdit() {
+    if (busy) return
+    if (!changed) return super.goBack(true)
+    save()
   }
 
   private fun save() {
@@ -217,7 +237,8 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
           pattern = fresh["profilePattern"] as? String // Profile
           showValues()
         }
-        showNotice("Профиль сохранён.", error = false)
+        // Saved: the editor closes, as the previous app's does.
+        super.goBack(true)
       } else {
         showNotice(result.failureWords("Не удалось сохранить профиль."), error = true)
       }
@@ -225,8 +246,8 @@ class ProfileEditScreen(context: Context, private val account: SettingsAccount) 
   }
 
   companion object {
-    /** The colours a person can be seen in while there is no photo (the reference's eight). */
-    val palette = listOf("#596FE8", "#4088C7", "#9271C3", "#B78358", "#AD6C8C", "#667FA4", "#3FA37C", "#D0644E")
+    /** The colour of a profile that has none yet. */
+    private const val PLAIN_COLOR = "#5E7BFF"
   }
 }
 
@@ -366,9 +387,11 @@ class BirthdayScreen(context: Context, private val initial: String?, private val
   }
 }
 
-/** «Имя пользователя»: the public @username. It is not the login: changing it changes nothing about signing in. */
-@SuppressLint("ViewConstructor")
-class UsernameScreen(context: Context, private val account: SettingsAccount) : SettingsPage(context, "Имя пользователя") {
+/** «Имя пользователя»: the public @username, as a sheet over the editor (the reference's ProfileScreen.tsx: a Sheet
+ *  with the field, the words about how often the name can change — 12 on lines of 18 — and «Изменить публичное
+ *  имя», 14 apart). It is not the login: changing it changes nothing about signing in. What went wrong, or that the
+ *  name was changed, is said in the words' place. */
+class UsernameSheet private constructor(private val context: Context, private val account: SettingsAccount) {
   private var status: Map<String, Any?>? = null
   private var loading = true
   private var statusError = ""
@@ -377,9 +400,11 @@ class UsernameScreen(context: Context, private val account: SettingsAccount) : S
   private var busy = false
   private var request = 0
   private val field = SettingsField(context, "Публичное имя пользователя", "@username")
+  private val words = SettingsLook.para(context, "Загрузка…", 12f, Theme.muted, line = 18f)
   private val change = SettingsButton(context, "Изменить публичное имя", SettingsButton.Kind.SECONDARY, icon = "at-outline")
+  val sheet = com.linea.messenger.chatactions.ChoiceSheet(context, "Имя пользователя", "", emptyList(), listOf(field, words, change), 14f)
 
-  override fun build() {
+  init {
     field.limit = 25
     field.value = account.ownProfile["username"] as? String ?: ""
     field.onEdit = { showButton() }
@@ -395,17 +420,15 @@ class UsernameScreen(context: Context, private val account: SettingsAccount) : S
   private val currentName: String get() = status?.get("username") as? String ?: ""
 
   private fun fill() {
-    clear()
-    if (statusError.isNotEmpty()) add(SettingsNotice(context, statusError, error = true, onRetry = { loadStatus(resetDraft = false) }))
-    if (failure.isNotEmpty()) add(SettingsNotice(context, failure, error = true))
-    if (notice.isNotEmpty()) add(SettingsNotice(context, notice))
-    add(field, 12f)
-    if (loading && status == null) {
-      add(SettingsLook.foot(context, "Загрузка…"), 8f)
-    } else if (status != null) {
-      add(SettingsLook.foot(context, changeWords(canChange, platina, SettingsLook.longMomentWords(status?.get("nextUsernameChangeAt") as? String))), 8f)
-    }
-    add(change, 16f)
+    var text = ""
+    var wrong = false
+    if (statusError.isNotEmpty()) { text = statusError; wrong = true }
+    else if (failure.isNotEmpty()) { text = failure; wrong = true }
+    else if (notice.isNotEmpty()) text = notice
+    else if (loading && status == null) text = "Загрузка…"
+    else if (status != null) text = changeWords(canChange, platina, SettingsLook.longMomentWords(status?.get("nextUsernameChangeAt") as? String))
+    words.text = text.ifEmpty { " " }
+    words.setTextColor(if (wrong) Theme.danger else Theme.muted)
     field.isEnabled = !busy && ready && canChange
     showButton()
   }
@@ -448,20 +471,20 @@ class UsernameScreen(context: Context, private val account: SettingsAccount) : S
     if (busy || !ready || !canChange || wanted == currentName) return
     val previous = currentName
     val login = status?.get("loginName") as? String ?: ""
-    endEditing()
+    field.input.clearFocus()
     // ProfileScreen.tsx: the Sheet «Изменить публичное имя?» — «@old → @new» (19 SemiBold), the words about the login (14,
     // line 21, `muted`), when the next change comes (13, line 20, `muted`), the main «Подтвердить смену имени»; 18 apart.
-    if (!isAttachedToWindow) return
+    if (!sheet.isShowing) return
     val parts = reviewWords(previous, wanted, login, platina).split("\n\n")
     val confirmButton = SettingsButton(context, "Подтвердить смену имени")
-    val sheet = com.linea.messenger.chatactions.ChoiceSheet(context, "Изменить публичное имя?", "", emptyList(), listOf(
+    val question = com.linea.messenger.chatactions.ChoiceSheet(context, "Изменить публичное имя?", "", emptyList(), listOf(
       context.words(parts[0], 19f, Theme.text, 600),
       SettingsLook.para(context, parts[1], 14f, Theme.muted, line = 21f),
       SettingsLook.para(context, parts[2], 13f, Theme.muted, line = 20f),
       confirmButton,
     ), 18f)
-    confirmButton.onPress = { sheet.dismiss(); applyChange(previous, wanted) }
-    sheet.show()
+    confirmButton.onPress = { question.dismiss(); applyChange(previous, wanted) }
+    question.show()
   }
 
   private fun applyChange(previous: String, wanted: String) {
@@ -501,6 +524,9 @@ class UsernameScreen(context: Context, private val account: SettingsAccount) : S
   }
 
   companion object {
+    /** Opens the sheet over the page on the screen. */
+    fun show(context: Context, account: SettingsAccount): UsernameSheet = UsernameSheet(context, account).also { it.sheet.show() }
+
     /** The words under the field: how often the name can be changed, and when next. `later`: the next time, in words (empty: not known). */
     fun changeWords(canChange: Boolean, platina: Boolean, later: String): String {
       if (canChange) return if (platina) "С Platina публичное имя можно менять раз в день." else "Публичное имя можно менять раз в неделю, с Platina — раз в день."

@@ -180,7 +180,7 @@ object ProfileSimulator {
       }
       "cropper" -> later { AvatarCropper(context, ProfileSamples.picture(1, 1200, 900)).show() }
       "banner" -> later { BannerPreview(context, null, ProfileSamples.picture(3, 1200, 800), sample = ProfileSamples.me).show() }
-      "pattern" -> later { PatternPicker(context, "🦋") {}.show() }
+      "pattern" -> later { ProfileEditSheets.pattern(context, "🦋") {}.show() }
       "status" -> {
         val own = OwnProfileScreen(context, null)
         stack.push(own, animated = false)

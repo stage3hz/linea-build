@@ -513,6 +513,11 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
    *  `border`, 22 inside (25 at the bottom), a shadow; the handle (36 × 4, `subtle` at 0.45, 17 under it), the title
    *  (Unbounded 19, line 25, −0.2) and the round close button 12 apart, 13 above the content. A pull down closes it. */
   private val card = LinearLayout(context)
+  /** How much of the screen's bottom the keyboard covers, px (a sheet with a field in it stands above the keyboard, as
+   *  the reference's `Sheet` does in its KeyboardAvoidingView), and the room the card keeps under it and above it. */
+  private var keyboard = 0
+  private var roomBelow = 0
+  private var roomAbove = 0
 
   init {
     requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -520,7 +525,10 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     val root = object : android.widget.FrameLayout(context) {
       override fun onApplyWindowInsets(insets: android.view.WindowInsets): android.view.WindowInsets {
         val bottom = if (android.os.Build.VERSION.SDK_INT >= 30) insets.getInsets(android.view.WindowInsets.Type.systemBars()).bottom else @Suppress("DEPRECATION") insets.systemWindowInsetBottom
-        (card.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { it.bottomMargin = maxOf(dp(12f), bottom); card.layoutParams = it }
+        keyboard = if (android.os.Build.VERSION.SDK_INT >= 30) insets.getInsets(android.view.WindowInsets.Type.ime()).bottom else 0
+        roomAbove = if (android.os.Build.VERSION.SDK_INT >= 30) insets.getInsets(android.view.WindowInsets.Type.systemBars()).top else @Suppress("DEPRECATION") insets.systemWindowInsetTop
+        roomBelow = if (keyboard > 0) keyboard + dp(12f) else maxOf(dp(12f), bottom)
+        (card.layoutParams as? android.widget.FrameLayout.LayoutParams)?.let { if (it.bottomMargin != roomBelow) { it.bottomMargin = roomBelow; card.layoutParams = it } }
         return insets
       }
     }
@@ -529,7 +537,13 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     val dim = View(context).apply {
       setBackgroundColor(if (com.linea.messenger.settings.ThemeStore.look.black) 0x8C000000.toInt() else if (Theme.dark) 0x80000513.toInt() else 0x4714203C)
       contentDescription = "Закрыть"
-      setOnClickListener { dismiss() }
+      // A touch beside the card closes the sheet; while the keyboard is up it puts the keyboard away first.
+      setOnClickListener {
+        if (keyboard > 0) {
+          currentFocus?.clearFocus()
+          (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)?.hideSoftInputFromWindow(windowToken, 0)
+        } else dismiss()
+      }
     }
     root.addView(dim, android.widget.FrameLayout.LayoutParams(wide, wide))
     card.orientation = LinearLayout.VERTICAL
@@ -568,7 +582,10 @@ class ChoiceSheet(context: Context, val heading: String, val note: String = "", 
     }
     val scroll = object : ScrollView(context) {
       override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val most = (context.resources.displayMetrics.heightPixels * 0.88f).toInt() - dp(22f + 4f + 17f + 44f + 13f + 25f)
+        // At most 88% of the screen, and never more than the room between the status bar and the keyboard.
+        val screen = context.resources.displayMetrics.heightPixels
+        val room = if (keyboard > 0) minOf((screen * 0.88f).toInt(), screen - roomBelow - roomAbove - dp(8f)) else (screen * 0.88f).toInt()
+        val most = room - dp(22f + 4f + 17f + 44f + 13f + 25f)
         super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxOf(0, most), MeasureSpec.AT_MOST))
       }
     }

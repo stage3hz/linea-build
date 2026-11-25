@@ -202,7 +202,12 @@ class SettingsScreen internal constructor(context: Context, private val account:
     }
     val page: View? = when (name) {
       "profile" -> ProfileEditScreen(context, account)
-      "username" -> UsernameScreen(context, account)
+      "username" -> {
+        // The @username's sheet over the editor, as it is reached.
+        open(ProfileEditScreen(context, account), animated = false)
+        UsernameSheet.show(context, account)
+        return
+      }
       "birthday" -> BirthdayScreen(context, account.ownProfile["birthday"] as? String) { }
       "privacy" -> PrivacyScreen(context, account)
       "lastseen" -> LastSeenScreen(context, SettingsPrivacyModel(account).also { it.load() })

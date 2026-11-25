@@ -76,12 +76,8 @@ class ProfileEditTop(context: Context) : FrameLayout(context) {
   }
 
   companion object {
-    /** A card around a part of the editor (the reference's glass card, padding 16). */
-    fun card(inner: View): View = FrameLayout(inner.context).apply {
-      background = context.plate(Theme.surface2, 22f)
-      setPadding(context.px(16f), context.px(16f), context.px(16f), context.px(16f))
-      addView(inner, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
-    }
+    /** A card around a part of the editor (the reference's glass card, `GlassSurface radius={22}`, padding 16). */
+    fun card(inner: View): View = com.linea.messenger.settings.SettingsLook.glassCard(inner.context, listOf(inner), radius = 22f, padding = 16f)
   }
 }
 
@@ -109,48 +105,6 @@ abstract class ProfileSheet(context: Context) : Dialog(context) {
   protected fun heading(text: String): TextView = TextView(context).apply { this.text = text; setTextColor(Theme.text); titled(Theme.TypeSize.sheetTitle) }
 
   protected fun add(view: View, gap: Float) = column.addView(view, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (column.childCount > 0) topMargin = context.px(gap) })
-}
-
-/** «Узор фона» (ProfileScreen.tsx): the emoji the background around the photo is strewn with, or none. */
-class PatternPicker(context: Context, private var current: String?, private val done: (String?) -> Unit) : ProfileSheet(context) {
-  private val cells = ArrayList<Pair<String?, View>>()
-
-  init {
-    add(heading("Узор фона"), 0f)
-    add(context.words("Значок, которым усыпан фон вокруг твоего фото в профиле.", 13f, Theme.muted), 14f)
-    val options: List<String?> = listOf<String?>(null) + AvatarCatalog.patterns
-    val side = context.px(48f); val gap = context.px(8f)
-    val room = minOf(context.resources.displayMetrics.widthPixels, context.px(520f)) - context.px(40f)
-    val columns = maxOf(1, (room + gap) / (side + gap))
-    val grid = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
-    var row: LinearLayout? = null
-    options.forEachIndexed { index, option ->
-      // Every row as wide as a full one: a short last row starts at the left like the others (the iPhone's grid),
-      // not centred under them.
-      if (index % columns == 0) { row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }; grid.addView(row, LinearLayout.LayoutParams(columns * side + (columns - 1) * gap, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (index > 0) topMargin = gap }) }
-      val cell = FrameLayout(context)
-      if (option != null) cell.addView(context.words(option, 24f, Theme.text).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-      else cell.addView(ProfileIconView(context, "ion:close", 20f, Theme.muted), FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-      cell.contentDescription = option ?: "Без узора"
-      cell.isClickable = true
-      cell.setOnClickListener { current = option; showChosen() }
-      row?.addView(cell, LinearLayout.LayoutParams(side, side).apply { if (index % columns > 0) leftMargin = gap })
-      cells.add(option to cell)
-    }
-    add(grid, 14f)
-    val ready = SettingsButton(context, "Готово")
-    ready.onPress = { val chosen = current; dismiss(); done(chosen) }
-    add(ready, 14f)
-    showChosen()
-  }
-
-  private fun showChosen() {
-    for ((option, cell) in cells) {
-      val on = option == current
-      cell.background = GradientDrawable().apply { setColor(Theme.surface2); cornerRadius = 14f * d; setStroke(Math.round(2 * d), if (on) Theme.accent else Color.TRANSPARENT) }
-      cell.isSelected = on
-    }
-  }
 }
 
 /** «Так будет выглядеть профиль»: a banner photo on the profile's head before it is uploaded. */
