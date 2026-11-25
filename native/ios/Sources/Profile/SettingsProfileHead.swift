@@ -71,11 +71,11 @@ final class SettingsProfileChrome {
         name.show(person.displayName, platina: person.look.platina)
         let status = StatusEmojiView()
         status.show(person.look, size: 22, animated: true) // Avatars: animated as the reference
-        status.isUserInteractionEnabled = true
-        // SettingsScreen.tsx:191: the status beside the name is a button called by what it does.
-        status.accessibilityLabel = "Сменить статус рядом с именем"
-        status.accessibilityTraits = .button
-        status.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(statusPressed)))
+        // SettingsScreen.tsx:191: the status beside the name is a button called by what it does, taking the touch
+        // 10 around it too (`hitSlop={10}`). A control of its own: the status view names itself again whenever it
+        // is drawn anew, and a touch on it opened nothing.
+        let statusButton = StatusButton(status: status, label: "Сменить статус рядом с именем")
+        statusButton.addTarget(self, action: #selector(statusPressed), for: .touchUpInside)
         // The status stands right after the name (the reference's row hugs its content), not at the far edge.
         let rest = UIView()
         rest.setContentHuggingPriority(.defaultLow - 1, for: .horizontal)
@@ -83,7 +83,9 @@ final class SettingsProfileChrome {
         name.label.setContentHuggingPriority(.required, for: .horizontal)
         status.setContentHuggingPriority(.required, for: .horizontal)
         status.setContentCompressionResistancePriority(.required, for: .horizontal)
-        let nameRow = UIStackView(arrangedSubviews: [name, status, rest])
+        statusButton.setContentHuggingPriority(.required, for: .horizontal)
+        statusButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+        let nameRow = UIStackView(arrangedSubviews: [name, statusButton, rest])
         nameRow.axis = .horizontal
         nameRow.alignment = .center
         nameRow.spacing = 8
@@ -198,5 +200,32 @@ final class SettingsProfileChrome {
         let screen = OwnProfileViewController(messenger: messenger)
         screen.opensStatusPicker = true
         page?.navigationController?.pushViewController(screen, animated: true)
+    }
+}
+
+/// The emoji status as a button: the status fills it, the touch is taken 10 around it as well, and it is read by
+/// the name it is given.
+private final class StatusButton: UIControl {
+    init(status: StatusEmojiView, label: String) {
+        super.init(frame: .zero)
+        status.isUserInteractionEnabled = false
+        status.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(status)
+        NSLayoutConstraint.activate([
+            status.topAnchor.constraint(equalTo: topAnchor),
+            status.bottomAnchor.constraint(equalTo: bottomAnchor),
+            status.leadingAnchor.constraint(equalTo: leadingAnchor),
+            status.trailingAnchor.constraint(equalTo: trailingAnchor),
+        ])
+        isAccessibilityElement = true
+        accessibilityLabel = label
+        accessibilityTraits = .button
+        isHidden = !status.showsSomething
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        return bounds.insetBy(dx: -10, dy: -10).contains(point)
     }
 }
