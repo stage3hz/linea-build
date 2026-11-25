@@ -22,6 +22,12 @@ def tap(t, index=None, optional=False):
     if index is not None: s += f'    index: {index}\n'
     if optional: s += '    optional: true\n'
     return s + '- waitForAnimationToEnd\n'
+# A tap made once: Maestro may tap again when it sees no change on the screen, and on a control that opens a panel
+# drawn by the app itself (nothing new for Maestro to read) the second tap shuts what the first one opened.
+def tap_once(t, index=None):
+    s = f'- tapOn:\n    text: {q(t)}\n'
+    if index is not None: s += f'    index: {index}\n'
+    return s + '    retryTapIfNoChange: false\n- waitForAnimationToEnd\n'
 def tapid(i, optional=False):
     return f'- tapOn:\n    id: {q(i)}\n' + ('    optional: true\n' if optional else '')
 def hold(t):
@@ -144,7 +150,9 @@ pair('00-setup-failed', 1, '', 0, reveal('Вера.*') + tap('Вера.*') + tap
 
 # Shard 1: the chat list, the chat, «Избранное», stories.
 pair('01-chatlist', 1, '', 25, '')
-pair('02-chatlist-scrolled', 1, '', 25, flow('list-scroll.yaml'), 'same')
+# The native app's list is waited for first (as the reference's is by ref-home.yaml): in the run of 34bf134d the swipe
+# came while the list was still settling and was taken for a tap on the row under it (Максим's chat opened).
+pair('02-chatlist-scrolled', 1, '', 25, flow('list-scroll.yaml'), 'same', start='home')
 pair('03-chat-text', 1, '-openchat 1', 30, OPEN_TIMUR + flow('chat-top.yaml'), 'same', start='chat')
 pair('04-chat-media', 1, '-openchat 1', 35, OPEN_TIMUR)
 pair('05-message-menu', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Как тебе фото.*'), 'same', start='chat')
@@ -165,7 +173,11 @@ pair('27-chat-link-poll', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Куда 
 # Not «Встречаемся в 19:00» itself: the pinned bar at the top says it too, so the scroll would stop at once. The
 # declined video call (the last call row, both apps: «Отклонённый видеозвонок») is right above the edited message.
 pair('28-chat-calls-edited', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Отклонённый видеозвонок.*', timeout=90000), 'same', start='chat')
-pair('29-chat-long', 1, '', 25, tap('Лариса Новикова.*') + wait('.*Сообщение номер 24.*', 60000), 'same', start='home')
+# «Сообщение номер 24» is also the row's preview in the list, so it does not tell that the chat is open: the message
+# before it does. A tap that was lost (the native app stayed on its list in the run of 34bf134d) is made once more.
+pair('29-chat-long', 1, '', 25, tap('Лариса Новикова.*') + wait('.*Сообщение номер 23.*', 15000)
+     + '- runFlow:\n    when:\n      notVisible: ".*Сообщение номер 23.*"\n    commands:\n      - tapOn:\n          text: "Лариса Новикова.*"\n      - waitForAnimationToEnd\n'
+     + wait('.*Сообщение номер 23.*', 60000), 'same', start='home')
 pair('30-reply-bar', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Список покупок.*') + hold('.*Список покупок.*') + tap('Ответить'), 'same', start='chat')
 pair('31-edit-bar', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Буду через десять минут.*') + tap('Изменить'), 'same', start='chat')
 pair('32-selection', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Как тебе фото.*') + tap('Выбрать') + tap('.*Молоко уже купил.*', optional=True), 'same', start='chat')
@@ -192,8 +204,11 @@ pair('44-own-story', 3, '', 25, tap('Моя история', index=0) + pause(15
 pair('45-story-add', 3, '', 25, hold('Моя история') + pause(2500), 'same', start='home')
 pair('46-chatlist-light', 2, '', 25, '', look='light')
 pair('47-chat-light', 1, '-openchat 1', 35, OPEN_TIMUR, look='light')
-# Last of shard 1 (a draft stays in Тимур's chat): the same words the native `-chatlist draft` writes.
-pair('48-draft', 1, '-chatlist draft', 30, OPEN_TIMUR + tapid('chat-composer') + typ('Не забыть спросить про проектор') + tap('Назад к чатам.*') + pause(4000) + flow('ref-home.yaml'))
+# Last of shard 1: the same words the native `-chatlist draft` writes. After the shot the reference's draft is erased:
+# the native app takes the previous app's drafts over, and in the run of 34bf134d every native picture of Тимур's
+# chat had these words in its composer (a send button for the microphone, a taller field, no emoji panel).
+pair('48-draft', 1, '-chatlist draft', 30, OPEN_TIMUR + tapid('chat-composer') + typ('Не забыть спросить про проектор') + tap('Назад к чатам.*') + pause(4000) + flow('ref-home.yaml')
+     + '@SHOT@' + OPEN_TIMUR + tapid('chat-composer', optional=True) + '- eraseText: 40\n' + tap('Назад к чатам.*', optional=True) + pause(3000))
 
 # Shard 2: profiles, the profile editor and its sheets, Platina, settings pages, people.
 pair('07-profile', 2, '-profile chat', 40, OPEN_TIMUR + tap('Профиль Тимур Богданов.*') + PROFILE_UP)
@@ -248,7 +263,7 @@ pair('13-community', 3, '-channels community', 30, COMMUNITY)
 pair('14-channel-chat', 3, '-channels chat', 35, CHANNEL)
 pair('15-music', 3, '-tab music', 25, section('Музыка'))
 pair('16-ai', 3, '-tab ai', 25, section('AI'))
-pair('80-channel-mini-profile', 3, '-channels chat', 35, CHANNEL + '|' + tap_point('8%,73%') + pause(1500), nat=wait('.*глянь, пожалуйста.*', 60000) + tap('Профиль Dimas', index=0) + pause(1500))
+pair('80-channel-mini-profile', 3, '-channels chat', 35, CHANNEL + '|' + tap_point('8%,73%') + pause(1500), nat=wait('.*глянь, пожалуйста.*', 60000) + tap_once('Профиль Dimas', index=0) + pause(1500))
 pair('81-channel-message-menu', 3, '-channels chat', 35, CHANNEL + '|' + wait('.*глянь, пожалуйста.*', 60000) + hold('.*глянь, пожалуйста.*'), 'same')
 pair('82-blog', 3, '-tab channels', 25, section('Каналы') + '|' + reveal('.*Заметки.*') + tap('.*Заметки.*', index=0) + pause(3000), 'same')
 pair('83-room', 3, '-rooms room', 30, section('Каналы') + reveal('.*Вечерний созвон.*') + tap('.*Вечерний созвон.*', index=0) + pause(3000))

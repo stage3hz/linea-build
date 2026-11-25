@@ -8,6 +8,7 @@ appId: com.linea.messenger.preview
 - tapOn:
     text: "Профиль Dimas"
     index: 0
+    retryTapIfNoChange: false
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"

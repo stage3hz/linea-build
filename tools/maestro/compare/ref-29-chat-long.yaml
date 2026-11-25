@@ -6,7 +6,18 @@ appId: com.linea.messenger.preview
     text: "Лариса Новикова.*"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*Сообщение номер 24.*"
+    visible: ".*Сообщение номер 23.*"
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      notVisible: ".*Сообщение номер 23.*"
+    commands:
+      - tapOn:
+          text: "Лариса Новикова.*"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Сообщение номер 23.*"
     timeout: 60000
     optional: true
 - takeScreenshot: ref-29-chat-long

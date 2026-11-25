@@ -15,3 +15,16 @@ appId: com.linea.messenger.preview
     optional: true
 - runFlow: act/ref-home.yaml
 - takeScreenshot: ref-48-draft
+- runFlow: act/open-timur.yaml
+- tapOn:
+    id: "chat-composer"
+    optional: true
+- eraseText: 40
+- tapOn:
+    text: "Назад к чатам.*"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 3000
+    optional: true

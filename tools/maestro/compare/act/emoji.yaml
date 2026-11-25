@@ -1,6 +1,9 @@
 appId: com.linea.messenger.preview
 ---
 # The emoji button of the composer: the emoji / stickers panel.
+# Tapped once: the native panel is drawn by the app (nothing new for Maestro to read), and a second tap, made when
+# Maestro sees no change, would put the keyboard in its place.
 - tapOn:
     text: "Стикеры и эмодзи"
+    retryTapIfNoChange: false
 - waitForAnimationToEnd
