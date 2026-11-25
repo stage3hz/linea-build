@@ -44,6 +44,9 @@ enum SettingsLook {
         label.font = .systemFont(ofSize: size, weight: weight)
         label.textColor = color
         label.numberOfLines = 0
+        // Lines are filled as the previous app fills them: a last line of one short word is not avoided (the
+        // system's own way pulled a word down to keep it company, and the lines broke elsewhere).
+        label.lineBreakStrategy = []
         return label
     }
 
@@ -54,6 +57,8 @@ enum SettingsLook {
         let style = NSMutableParagraphStyle()
         if line > 0 { style.minimumLineHeight = line; style.maximumLineHeight = line }
         if centered { style.alignment = .center }
+        style.lineBreakStrategy = []
+        label.lineBreakStrategy = [] // as in `words`
         label.attributedText = NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color, .kern: kern, .paragraphStyle: style])
         return label
     }
