@@ -206,16 +206,12 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
         headerEdge.place(width: width, size: top)
     }
 
-    /// «Архив» goes behind the pull in «Все» (not while searching or choosing). True: it is there, the actions must
-    /// not add its row. `count`: the archived chats (0 takes it away).
+    /// «Архив» is a row of the list, right under «Избранное», as the previous app's iPhone list shows it
+    /// (ChatListScreen.tsx:250, the row `__archive`): nothing is kept behind the pull, and the actions add the row.
+    /// Always false. `count`: the archived chats.
     func archivePull(count: Int) -> Bool {
-        guard count > 0, filter == "all", !edit.selecting else {
-            list?.setPull(nil, height: 0)
-            return false
-        }
-        archivePullView.set(count: count)
-        list?.setPull(archivePullView, height: ArchivePullView.height)
-        return true
+        list?.setPull(nil, height: 0)
+        return false
     }
 
     @objc private func archivePulled() {
