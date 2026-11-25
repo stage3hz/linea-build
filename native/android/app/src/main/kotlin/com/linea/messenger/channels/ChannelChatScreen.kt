@@ -158,7 +158,8 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     addView(spinner)
 
     header.onBack = { endEditing(); pages()?.pop() }
-    header.showsAvatar = root
+    // CommunityScreen.tsx:146: a channel's header has the community's picture too, before «# name».
+    header.showsAvatar = true
     header.source = page // the pill shows the messages under it blurred where they reach it
     addView(header)
     notice.gravity = Gravity.CENTER
@@ -233,8 +234,8 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
 
   /** The words that depend on the community and on what the person may do in it. */
   private fun showWords() {
+    header.avatar.show(community.summary)
     if (root) {
-      header.avatar.show(community.summary)
       header.setWords(community.summary.name, community.summary.countWords)
     } else {
       header.setWords("# " + channel.name, channel.topic.ifEmpty { community.summary.name })
