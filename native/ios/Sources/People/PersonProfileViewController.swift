@@ -382,6 +382,9 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
                 tile.addAction(UIAction { [weak self] (_: UIAction) -> Void in
                     guard let self else { return }
                     CallEntry.call(messenger: self.messenger, chatId: self.chatId, peerId: self.userId, name: self.name, person: self.shownPerson, video: video)
+                    // The profile is left as the call starts, as the previous app does (UserProfile.tsx: onClose, then
+                    // calls.start): a call put away into its strip is over the chat, not over the profile.
+                    self.navigationController?.popViewController(animated: false)
                 }, for: .touchUpInside)
                 tiles.addArrangedSubview(tile)
             }

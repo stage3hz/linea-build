@@ -1134,6 +1134,9 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   private lazy var linkTap = UITapGestureRecognizer(target: self, action: #selector(linkTapped(_:)))
   var onMsgPress: ([String: Any]) -> Void = { _ in }
   var onMsgLongPress: ([String: Any]) -> Void = { _ in }
+  /// Where the finger of the hold in progress is now (the window's points), and whether the hold was taken away.
+  private var holdNow = CGPoint.zero
+  private var holdTaken = false
   var onNearTop: ([String: Any]) -> Void = { _ in }
   /// ChatActions: a tap on the quote of an answer (`key`: the row of the answer).
   var onQuotePress: ([String: Any]) -> Void = { _ in }
@@ -1193,6 +1196,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     addSubview(table)
     let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
     hold.minimumPressDuration = 0.4
+    hold.allowableMovement = 10
     table.addGestureRecognizer(hold)
     // A tap on a link or on a hidden spoiler is taken before the row gets it; any other tap goes to the row.
     linkTap.delegate = self
@@ -1569,9 +1573,35 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
   }
 
   @objc private func held(_ recognizer: UILongPressGestureRecognizer) {
-    if recognizer.state != .began { return }
+    switch recognizer.state {
+    case .changed, .ended:
+      holdNow = recognizer.location(in: nil)
+      return
+    case .cancelled, .failed:
+      holdTaken = true
+      return
+    case .began:
+      break
+    default:
+      return
+    }
+    // A list that is moving is being scrolled, not held.
+    if table.isDragging || table.isDecelerating { return }
     guard let path = table.indexPathForRow(at: recognizer.location(in: table)), path.row < rows.count, rows[path.row].kind == 0 else { return }
-    onMsgLongPress(["key": rows[path.row].key, "y": Double(recognizer.location(in: nil).y)])
+    let key = rows[path.row].key
+    let start = recognizer.location(in: nil)
+    holdNow = start
+    holdTaken = false
+    // The hold's time can run out while the finger's moves still wait to be read (the app was busy drawing): the
+    // recognizer then begins on a touch that has in fact left its place, and a scroll opened the message's menu.
+    // The menu is asked for a moment later, and only when the finger stayed where it was and the list has not
+    // gone with it.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+      guard let self, !self.holdTaken else { return }
+      if self.table.isDragging || self.table.isDecelerating { return }
+      if abs(self.holdNow.x - start.x) > 10 || abs(self.holdNow.y - start.y) > 10 { return }
+      self.onMsgLongPress(["key": key, "y": Double(start.y)])
+    }
   }
 }
 
