@@ -22,7 +22,8 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
     /// The panel wants to go (the chevron, a swipe down).
     var onClose: (() -> Void)?
 
-    private let surface = UIVisualEffectView(effect: nil)
+    /// The card: the previous app's flat menu surface, not glass (StickerPanel.tsx `menuSurface`).
+    private let surface = UIView()
     private let grabber = UIView()
     private var tabButtons: [UIButton] = []
     private let erase = UIButton(type: .system)
@@ -45,18 +46,20 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         surface.layer.cornerCurve = .continuous
         surface.clipsToBounds = true
         surface.layer.borderWidth = 1
-        surface.layer.borderColor = Theme.veil(0.08).cgColor
+        surface.layer.borderColor = ThemeStore.look.border.cgColor
+        // The page's colour a ninth of the way to white on the dark themes, white on the light one; hardly see-through.
+        surface.backgroundColor = Theme.dark ? Theme.solid(UIColor(white: 1, alpha: 0.11), over: Theme.bg).withAlphaComponent(0.97) : UIColor(white: 1, alpha: 0.97)
         addSubview(surface)
         grabber.backgroundColor = Theme.subtle.withAlphaComponent(0.45)
         grabber.layer.cornerRadius = 2
-        surface.contentView.addSubview(grabber)
+        surface.addSubview(grabber)
         let ids = ["recent"] + EmojiPanel.sets.map { $0.id }
         for (index, id) in ids.enumerated() {
             let button = UIButton(type: .custom)
             button.tag = index
             button.layer.cornerRadius = 12
             if id == "recent" {
-                button.setImage(chatSymbol("clock", 17), for: .normal)
+                button.setImage(chatSymbol("ion:time-outline", 19), for: .normal) // StickerPanel.tsx: «time-outline» 19
                 button.accessibilityLabel = "Недавние"
             } else {
                 button.setTitle(EmojiPanel.sets[index - 1].icon, for: .normal)
@@ -64,21 +67,21 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
             }
             button.accessibilityTraits = .button
             button.addTarget(self, action: #selector(tabChosen(_:)), for: .touchUpInside)
-            surface.contentView.addSubview(button)
+            surface.addSubview(button)
             tabButtons.append(button)
         }
-        erase.setImage(chatSymbol("delete.left", 19), for: .normal)
+        erase.setImage(chatSymbol("ion:backspace-outline", 21), for: .normal) // «backspace-outline» 21
         erase.tintColor = Theme.muted
         erase.accessibilityLabel = "Стереть символ"
         erase.addTarget(self, action: #selector(eraseOne), for: .touchUpInside)
         let eraseHold = UILongPressGestureRecognizer(target: self, action: #selector(eraseMany(_:)))
         erase.addGestureRecognizer(eraseHold)
-        surface.contentView.addSubview(erase)
-        hide.setImage(chatSymbol("chevron.down", 18), for: .normal)
+        surface.addSubview(erase)
+        hide.setImage(chatSymbol("ion:chevron-down", 20), for: .normal) // «chevron-down» 20
         hide.tintColor = Theme.muted
         hide.accessibilityLabel = "Скрыть эмодзи"
         hide.addTarget(self, action: #selector(closeNow), for: .touchUpInside)
-        surface.contentView.addSubview(hide)
+        surface.addSubview(hide)
         grid.backgroundColor = .clear
         grid.dataSource = self
         grid.delegate = self
@@ -86,12 +89,12 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         grid.showsVerticalScrollIndicator = false
         grid.contentInset = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
         grid.register(EmojiCell.self, forCellWithReuseIdentifier: "emoji")
-        surface.contentView.addSubview(grid)
+        surface.addSubview(grid)
         emptyLabel.text = "Здесь появятся недавние"
         emptyLabel.font = .systemFont(ofSize: 13)
         emptyLabel.textColor = Theme.muted
         emptyLabel.textAlignment = .center
-        surface.contentView.addSubview(emptyLabel)
+        surface.addSubview(emptyLabel)
         // A swipe down closes the panel: from the header at any time, from the grid when it is at its top.
         closePan.addTarget(self, action: #selector(dragged(_:)))
         closePan.delegate = self
@@ -107,7 +110,6 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
 
     /// Appears with a short lift (or at once when motion is reduced).
     func appear() {
-        surface.effect = TabGlass.effect(clear: false, interactive: false, dark: Theme.dark)
         if UIAccessibility.isReduceMotionEnabled { return }
         alpha = 0
         transform = CGAffineTransform(translationX: 0, y: 40)
@@ -165,7 +167,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         guard gestureRecognizer === closePan, let pan = gestureRecognizer as? UIPanGestureRecognizer else { return super.gestureRecognizerShouldBegin(gestureRecognizer) }
         let move = pan.translation(in: self), speed = pan.velocity(in: self)
         let down = (speed.y > 0 && abs(speed.y) > abs(speed.x) * 1.4) || (move.y > 8 && abs(move.y) > abs(move.x) * 1.4)
-        let inHeader = pan.location(in: self).y < 52
+        let inHeader = pan.location(in: self).y < 53
         let gridAtTop = grid.contentOffset.y <= -grid.contentInset.top + 2
         return down && (inHeader || gridAtTop)
     }
@@ -224,15 +226,17 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         super.layoutSubviews()
         surface.frame = bounds
         let width = bounds.width
-        grabber.frame = CGRect(x: (width - 36) / 2, y: 7, width: 36, height: 4)
+        // Measured on the previous app's panel: the grabber 8 under the card's edge, the row of sets 17 under it,
+        // «Скрыть эмодзи» centred 13 from the right edge and «Стереть символ» 40 before it, the grid from 53.
+        grabber.frame = CGRect(x: (width - 36) / 2, y: 8, width: 36, height: 4)
         var x: CGFloat = 8
         for button in tabButtons {
-            button.frame = CGRect(x: x, y: 14, width: 40, height: 36)
+            button.frame = CGRect(x: x, y: 17, width: 40, height: 36)
             x += 42
         }
-        hide.frame = CGRect(x: width - 8 - 36, y: 14, width: 36, height: 36)
-        erase.frame = CGRect(x: width - 8 - 36 - 40, y: 14, width: 40, height: 36)
-        let gridFrame = CGRect(x: 0, y: 52, width: width, height: max(0, bounds.height - 52))
+        hide.frame = CGRect(x: width - 31, y: 17, width: 36, height: 36)
+        erase.frame = CGRect(x: width - 73, y: 17, width: 40, height: 36)
+        let gridFrame = CGRect(x: 0, y: 53, width: width, height: max(0, bounds.height - 53))
         if grid.frame != gridFrame {
             grid.frame = gridFrame
             grid.collectionViewLayout.invalidateLayout()

@@ -31,7 +31,8 @@ final class ComposerExtras: NSObject {
     private var panel: EmojiPanel?
     /// When the panel was opened last (CACurrentMediaTime).
     private var panelOpened: CFTimeInterval = 0
-    private var keyboardHeight: CGFloat = 0
+    /// The keyboard's last height, the same for every chat (the previous app keeps one for the whole app).
+    private static var keyboardHeight: CGFloat = 0
     private var keyboardShown = false
     private let formatBar = FormatBar(frame: .zero)
     private let pill = ScheduledPill(frame: .zero)
@@ -124,30 +125,42 @@ final class ComposerExtras: NSObject {
             let size = pill.fitting()
             pill.frame = CGRect(x: view.bounds.width - 12 - size.width, y: top, width: size.width, height: size.height)
         }
-        if let panel {
-            let height = panelHeight(in: view)
-            panel.frame = CGRect(x: 12, y: view.bounds.height - height - 10, width: view.bounds.width - 24, height: height)
-        }
+        if let panel { panel.frame = panelFrame(in: view) }
         return next
     }
 
     /// The emoji panel's height: the keyboard's last height (at least 250), or 300 before any keyboard.
     private func panelHeight(in view: UIView) -> CGFloat {
         let safe = view.safeAreaInsets.bottom
-        return keyboardHeight > 0 ? max(250, keyboardHeight - safe) : 300
+        var known = ComposerExtras.keyboardHeight
+        #if targetEnvironment(simulator)
+        // `-keyboardheight N`: the keyboard was seen at this height (the comparison's previous app has typed before
+        // its emoji panel is photographed; this app, started for the picture, has not).
+        let told = CGFloat(UserDefaults.standard.double(forKey: "keyboardheight"))
+        if known <= 0 && told > 120 { known = told }
+        #endif
+        return known > 0 ? max(250, known - safe) : 300
+    }
+
+    /// The panel's card, as the previous app places it: its room stands above the home indicator's strip and the
+    /// card ends 10 above the room's end (measured: 7 above the strip), 12 from the sides.
+    private func panelFrame(in view: UIView) -> CGRect {
+        let height = panelHeight(in: view) - 10
+        let bottom = view.bounds.height - view.safeAreaInsets.bottom - 7
+        return CGRect(x: 12, y: bottom - height, width: view.bounds.width - 24, height: height)
     }
 
     /// Where the composer must stand above while the emoji panel is open (nil: no panel).
     func panelTop(in view: UIView) -> CGFloat? {
         guard panel != nil else { return nil }
-        return view.bounds.height - panelHeight(in: view) - 10
+        return panelFrame(in: view).minY
     }
 
     // MARK: The keyboard and the emoji panel
 
     @objc private func keyboardWillShow(_ note: Notification) {
         let frame = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue
-        if let frame, frame.height > 0 { keyboardHeight = frame.height }
+        if let frame, frame.height > 0 { ComposerExtras.keyboardHeight = frame.height }
         keyboardShown = true
         guard panel != nil else { return }
         // The keyboard came back: the panel gives way to it. Only a keyboard that is really coming counts — one that
