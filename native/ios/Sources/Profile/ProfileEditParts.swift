@@ -99,12 +99,22 @@ enum ProfileEditMedia {
         return badge
     }
 
-    /// A card around a part of the editor (the reference's glass card, padding 16).
+    /// A card around a part of the editor (the reference's glass card, `GlassSurface radius={22}`, padding 16).
     static func card(_ inner: UIView) -> UIView {
         let card = UIView()
-        card.backgroundColor = Theme.surface2
         card.layer.cornerRadius = 22
         card.layer.cornerCurve = .continuous
+        card.clipsToBounds = true
+        let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
+        glass.isUserInteractionEnabled = false
+        glass.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(glass)
+        NSLayoutConstraint.activate([
+            glass.topAnchor.constraint(equalTo: card.topAnchor),
+            glass.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            glass.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            glass.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+        ])
         inner.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(inner)
         NSLayoutConstraint.activate([

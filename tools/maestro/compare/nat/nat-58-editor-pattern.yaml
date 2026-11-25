@@ -41,4 +41,12 @@ appId: com.linea.messenger.preview
     text: "Узор фона.*"
     index: 0
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Без узора"
+    timeout: 8000
+    optional: true
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1200
+    optional: true
 - takeScreenshot: nat-58-editor-pattern

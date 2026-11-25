@@ -406,13 +406,15 @@ class SettingsPage: UIViewController {
 
 /// Rows on one card (the reference's `Group`, SettingsScreen.tsx). «Чёрная» (`black` themes): a flat card of the
 /// theme's `glassOpaque`, radius 12, a hairline `border` around it and between the rows from 57 in. Every other
-/// theme: a glass surface, radius 20, 2 above and below the rows, no lines between them.
+/// theme: a glass surface, radius 20, 2 above and below the rows, no lines between them. `glass`: the glass surface on
+/// every theme, with this radius (the profile editor's groups are `GlassSurface radius={22}` whatever the theme).
 final class SettingsGroup: UIView {
     private let stack = UIStackView()
 
-    init(rows: [UIView]) {
+    init(rows: [UIView], glass glassRadius: CGFloat? = nil) {
         super.init(frame: .zero)
-        let flat = ThemeStore.look.black
+        let flat = ThemeStore.look.black && glassRadius == nil
+        let round: CGFloat = glassRadius ?? 20
         let hairline = 1 / UIScreen.main.scale
         layer.cornerCurve = .continuous
         layer.masksToBounds = true
@@ -422,11 +424,11 @@ final class SettingsGroup: UIView {
             layer.borderWidth = hairline
             layer.borderColor = ThemeStore.look.border.cgColor
         } else {
-            layer.cornerRadius = 20
+            layer.cornerRadius = round
             let glass = UIVisualEffectView(effect: TabGlass.effect(clear: false, interactive: false, dark: Theme.dark))
             glass.isUserInteractionEnabled = false
             glass.translatesAutoresizingMaskIntoConstraints = false
-            glass.layer.cornerRadius = 20
+            glass.layer.cornerRadius = round
             glass.layer.cornerCurve = .continuous
             glass.clipsToBounds = true
             addSubview(glass)
@@ -479,7 +481,7 @@ final class SettingsRow: UIControl {
     private var iconChip: UIView?
     private var swatchDot: UIView?
 
-    init(symbol: String = "", label: String, value: String = "", danger: Bool = false, arrow: Bool = true, swatch: UIColor? = nil, checked: Bool? = nil) {
+    init(symbol: String = "", label: String, value: String = "", danger: Bool = false, arrow: Bool = true, swatch: UIColor? = nil, checked: Bool? = nil, valueSize: CGFloat = 13) {
         rowName = label
         super.init(frame: .zero)
         let content = UIStackView()
@@ -524,7 +526,7 @@ final class SettingsRow: UIControl {
         nameLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         content.addArrangedSubview(nameLabel)
         valueLabel.text = value
-        valueLabel.font = .systemFont(ofSize: 13)
+        valueLabel.font = .systemFont(ofSize: valueSize)
         valueLabel.textColor = Theme.muted
         valueLabel.textAlignment = .right
         valueLabel.lineBreakMode = .byTruncatingTail

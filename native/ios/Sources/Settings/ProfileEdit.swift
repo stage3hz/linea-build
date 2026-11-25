@@ -18,14 +18,15 @@ final class ProfileEditViewController: SettingsPage {
     private let bannerArt = ProfileBannerView()
     private let photoWords = UIButton(type: .system)
     private var pattern: String?
-    private let patternRow = SettingsRow(symbol: "ion:sparkles", label: "Узор фона")
+    private let patternRow = SettingsRow(symbol: "ion:sparkles", label: "Узор фона", valueSize: 14)
     private lazy var media = ProfilePhotoChange(messenger: messenger, host: self)
     private let noticeBox = UIStackView()
     private let nameField = SettingsField(caption: "", placeholder: "Имя")
     private let bioArea = SettingsTextArea(placeholder: "О себе", glass: true)
-    private let handleRow = SettingsRow(symbol: "ion:at", label: "Имя пользователя")
-    private let birthdayRow = SettingsRow(symbol: "ion:gift", label: "День рождения")
-    private let genderRow = SettingsRow(symbol: "ion:person", label: "Пол")
+    // ProfileScreen.tsx EditRow: the value is 14 (13 in a row of the settings).
+    private let handleRow = SettingsRow(symbol: "ion:at", label: "Имя пользователя", valueSize: 14)
+    private let birthdayRow = SettingsRow(symbol: "ion:gift", label: "День рождения", valueSize: 14)
+    private let genderRow = SettingsRow(symbol: "ion:person", label: "Пол", valueSize: 14)
     private let colorRow = SettingsRow(symbol: "ion:color-palette", label: "Персональный цвет", swatch: UIColor.clear)
     private var saveButton: GlassRoundButton?
 
@@ -101,9 +102,11 @@ final class ProfileEditViewController: SettingsPage {
 
         handleRow.onPress = { [weak self] in
             guard let self, !self.busy else { return }
-            self.open(UsernameViewController(messenger: self.messenger))
+            // ProfileScreen.tsx: the @username is a sheet over the editor, not a page of its own.
+            self.view.endEditing(true)
+            self.present(UsernameSheet.make(messenger: self.messenger), animated: true)
         }
-        add(SettingsGroup(rows: [handleRow]), gap: 6)
+        add(SettingsGroup(rows: [handleRow], glass: 22), gap: 6)
 
         // «День рождения» and «Персональный цвет» are sheets over the editor (ProfileEditSheets.swift).
         birthdayRow.onPress = { [weak self] in
@@ -135,7 +138,7 @@ final class ProfileEditViewController: SettingsPage {
             }
             self.present(sheet, animated: true)
         }
-        add(SettingsGroup(rows: [birthdayRow, genderRow, colorRow, patternRow]), gap: 17)
+        add(SettingsGroup(rows: [birthdayRow, genderRow, colorRow, patternRow], glass: 22), gap: 17)
 
         // Profile: «Рамки и анимации» — the decorations of Platina, saved at once (Sources/Platina/PlatinaStudio.swift).
         add(SettingsLook.sectionLabel("Рамки и анимации"), gap: 17)
@@ -147,7 +150,7 @@ final class ProfileEditViewController: SettingsPage {
     @objc private func avatarPressed() { media.ask(kind: "avatar") } // Profile
 
     @objc private func profileChanged() {
-        // The @username was changed on its own page: the row follows.
+        // The @username was changed in its sheet: the row follows.
         showValues()
     }
 
@@ -450,8 +453,11 @@ final class BirthdayViewController: SettingsPage, UIPickerViewDataSource, UIPick
     }
 }
 
-/// «Имя пользователя»: the public @username. It is not the login: changing it changes nothing about signing in.
-final class UsernameViewController: SettingsPage {
+/// «Имя пользователя»: the public @username, a sheet over the editor as in the previous app (ProfileScreen.tsx: the
+/// Sheet with the field, the words about how often the name can change — 12 on lines of 18 — and «Изменить
+/// публичное имя», 14 apart). It is not the login: changing it changes nothing about signing in. What went wrong, or
+/// that the name was changed, is said in the words' place. The sheet's own controls keep this object alive.
+final class UsernameSheet {
     private let messenger: Messenger
     private var status: [String: Any]?
     private var loading = true
@@ -460,24 +466,35 @@ final class UsernameViewController: SettingsPage {
     private var notice = ""
     private var busy = false
     private var request = 0
-    private let field = SettingsField(caption: "Публичное имя пользователя", placeholder: "@username")
-    private let change = SettingsButton(label: "Изменить публичное имя", kind: .secondary, icon: "at-outline")
+    private weak var sheet: ChoiceSheet?
+    private weak var field: SettingsField?
+    private weak var words: UILabel?
+    private weak var change: SettingsButton?
 
-    init(messenger: Messenger) {
+    private init(messenger: Messenger) {
         self.messenger = messenger
-        super.init(name: "Имя пользователя")
     }
 
-    required init?(coder: NSCoder) { return nil }
-
-    override func build() {
+    static func make(messenger: Messenger) -> ChoiceSheet {
+        let model = UsernameSheet(messenger: messenger)
+        let field = SettingsField(caption: "Публичное имя пользователя", placeholder: "@username")
+        let words = SettingsLook.para("Загрузка…", size: 12, color: Theme.muted, line: 18)
+        let change = SettingsButton(label: "Изменить публичное имя", kind: .secondary, icon: "at-outline")
+        let sheet = ChoiceSheet(heading: "Имя пользователя", parts: [field, words, change], gap: 14)
+        model.sheet = sheet
+        model.field = field
+        model.words = words
+        model.change = change
         field.limit = 25
+        field.input.autocapitalizationType = .none
+        field.input.autocorrectionType = .no
         field.value = messenger.ownProfile["username"] as? String ?? ""
-        field.onEdit = { [weak self] in self?.showButton() }
-        field.onReturn = { [weak self] in self?.review() }
-        change.onPress = { [weak self] in self?.review() }
-        fill()
-        loadStatus(resetDraft: true)
+        field.onEdit = { () -> Void in model.showButton() }
+        field.onReturn = { () -> Void in model.review() }
+        change.onPress = { () -> Void in model.review() }
+        model.fill()
+        model.loadStatus(resetDraft: true)
+        return sheet
     }
 
     private var ready: Bool { return status != nil && !loading && statusError.isEmpty }
@@ -486,31 +503,40 @@ final class UsernameViewController: SettingsPage {
     private var currentName: String { return status?["username"] as? String ?? "" }
 
     private func fill() {
-        clear()
-        if !statusError.isEmpty { add(SettingsNotice(statusError, error: true, onRetry: { [weak self] in self?.loadStatus(resetDraft: false) })) }
-        if !failure.isEmpty { add(SettingsNotice(failure, error: true)) }
-        if !notice.isEmpty { add(SettingsNotice(notice)) }
-        add(field, gap: 12)
-        if loading && status == nil {
-            add(SettingsLook.foot("Загрузка…"), gap: 8)
+        var text = ""
+        var wrong = false
+        if !statusError.isEmpty {
+            text = statusError
+            wrong = true
+        } else if !failure.isEmpty {
+            text = failure
+            wrong = true
+        } else if !notice.isEmpty {
+            text = notice
+        } else if loading && status == nil {
+            text = "Загрузка…"
         } else if status != nil {
-            var words = ""
             if canChange {
-                words = platina ? "С Platina публичное имя можно менять раз в день." : "Публичное имя можно менять раз в неделю, с Platina — раз в день."
+                text = platina ? "С Platina публичное имя можно менять раз в день." : "Публичное имя можно менять раз в неделю, с Platina — раз в день."
             } else {
-                words = platina ? "С Platina имя можно менять раз в день." : "Имя можно менять раз в неделю, с Platina — раз в день."
+                text = platina ? "С Platina имя можно менять раз в день." : "Имя можно менять раз в неделю, с Platina — раз в день."
                 let later = SettingsLook.longMomentWords(status?["nextUsernameChangeAt"] as? String)
-                if !later.isEmpty { words += " Следующая смена — \(later)." }
+                if !later.isEmpty { text += " Следующая смена — \(later)." }
             }
-            add(SettingsLook.foot(words), gap: 8)
         }
-        add(change, gap: 16)
-        field.setEnabled(!busy && ready && canChange)
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = 18
+        style.maximumLineHeight = 18
+        words?.attributedText = NSAttributedString(string: text.isEmpty ? " " : text, attributes: [
+            .font: UIFont.systemFont(ofSize: 12), .foregroundColor: wrong ? Theme.danger : Theme.muted, .paragraphStyle: style,
+        ])
+        field?.setEnabled(!busy && ready && canChange)
         showButton()
+        sheet?.viewIfLoaded?.setNeedsLayout()
     }
 
     private func showButton() {
-        change.isEnabled = !busy && ready && canChange && AuthRules.handle(field.value) != currentName
+        change?.isEnabled = !busy && ready && canChange && AuthRules.handle(field?.value ?? "") != currentName
     }
 
     private func loadStatus(resetDraft: Bool) {
@@ -528,7 +554,7 @@ final class UsernameViewController: SettingsPage {
                     self.statusError = "Сервер вернул настройки другого аккаунта."
                 } else {
                     self.status = body
-                    if resetDraft { self.field.value = body["username"] as? String ?? self.field.value }
+                    if resetDraft, let name = body["username"] as? String { self.field?.value = name }
                 }
             case .failure(let error):
                 self.statusError = error.words.isEmpty ? "Не удалось получить настройки имени и статуса." : error.words
@@ -538,7 +564,7 @@ final class UsernameViewController: SettingsPage {
     }
 
     private func review() {
-        let wanted = AuthRules.handle(field.value)
+        let wanted = AuthRules.handle(field?.value ?? "")
         failure = ""
         notice = ""
         guard AuthRules.validName(wanted) else {
@@ -551,18 +577,18 @@ final class UsernameViewController: SettingsPage {
         let previous = currentName
         let login = status?["loginName"] as? String ?? ""
         let later = platina ? "Следующая смена будет доступна через день." : "Следующая смена будет доступна через неделю, с Platina — через день."
-        view.endEditing(true)
+        sheet?.view.endEditing(true)
         // ProfileScreen.tsx: the Sheet «Изменить публичное имя?» — «@old → @new» (19 SemiBold), the words about the login
         // (14, line 21, `muted`), when the next change comes (13, line 20, `muted`), the main «Подтвердить смену имени»; 18 apart.
         let confirmButton = SettingsButton(label: "Подтвердить смену имени")
-        let sheet = ChoiceSheet(heading: "Изменить публичное имя?", parts: [
+        let confirm = ChoiceSheet(heading: "Изменить публичное имя?", parts: [
             SettingsLook.words("@\(previous) → @\(wanted)", size: 19, color: Theme.text, weight: .semibold),
             SettingsLook.para("Логин для входа «\(login)», ID аккаунта и ключи переписки останутся прежними. Старое публичное имя перестанет вести на твой профиль.", size: 14, color: Theme.muted, line: 21),
             SettingsLook.para(later, size: 13, color: Theme.muted, line: 20),
             confirmButton,
         ], gap: 18)
-        confirmButton.onPress = { [weak self, weak sheet] in sheet?.dismiss(animated: true) { self?.apply(previous: previous, wanted: wanted) } }
-        present(sheet, animated: true)
+        confirmButton.onPress = { [weak self, weak confirm] in confirm?.dismiss(animated: true) { self?.apply(previous: previous, wanted: wanted) } }
+        sheet?.present(confirm, animated: true)
     }
 
     private func apply(previous: String, wanted: String) {
@@ -574,12 +600,12 @@ final class UsernameViewController: SettingsPage {
         }
         busy = true
         request += 1
-        change.setBusy(true)
-        field.setEnabled(false)
+        change?.setBusy(true)
+        field?.setEnabled(false)
         messenger.accountCall("changeUsername", [wanted]) { [weak self] result in
             guard let self else { return }
             self.busy = false
-            self.change.setBusy(false)
+            self.change?.setBusy(false)
             switch result {
             case .success(let body):
                 let fresh = body["user"] as? [String: Any] ?? [:]
@@ -591,7 +617,7 @@ final class UsernameViewController: SettingsPage {
                     return
                 }
                 self.status = state
-                self.field.value = state["username"] as? String ?? wanted
+                self.field?.value = state["username"] as? String ?? wanted
                 self.messenger.keepOwnProfile(fresh)
                 self.notice = "Публичное имя изменено. Логин для входа остался прежним."
                 self.fill()

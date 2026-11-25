@@ -224,7 +224,14 @@ final class SettingsViewController: SettingsPage {
         var page: UIViewController? = nil
         switch name {
         case "profile": page = ProfileEditViewController(messenger: messenger)
-        case "username": page = UsernameViewController(messenger: messenger)
+        case "username":
+            // The @username's sheet over the editor, as it is reached.
+            let editor = ProfileEditViewController(messenger: messenger)
+            navigationController?.pushViewController(editor, animated: false)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                editor.present(UsernameSheet.make(messenger: messenger), animated: false)
+            }
+            return
         case "birthday": page = BirthdayViewController(value: messenger.ownProfile["birthday"] as? String, done: { _ in })
         case "privacy": page = PrivacyViewController(messenger: messenger)
         case "lastseen":

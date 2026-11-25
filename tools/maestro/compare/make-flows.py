@@ -289,7 +289,8 @@ pair('54-own-profile-scrolled', 2, '-settings root', 20, SETTINGS + '|' + OWN_PR
 pair('55-profile-editor', 2, '-settings profile', 25, SETTINGS + EDITOR)
 pair('56-editor-banner', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + tap('Изменить баннер|Установить баннер', index=0), 'same')
 pair('57-status-sheet', 2, '-settings root', 20, SETTINGS + '|' + tap('Сменить статус рядом с именем'), 'same')
-pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Узор фона.*', 'DOWN') + tap('Узор фона.*', index=0), 'same')
+# The sheet is waited for: in the run of 00dde8d5 both apps were photographed with the row pressed and no sheet yet.
+pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Узор фона.*', 'DOWN') + tap('Узор фона.*', index=0) + wait('Без узора', 8000) + pause(1200), 'same')
 pair('59-editor-color', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('Персональный цвет.*') + tap('Персональный цвет.*'), 'same')
 pair('60-editor-birthday', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('День рождения.*') + tap('День рождения.*'), 'same')
 pair('61-editor-studio', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Рамки и анимации.*', 'DOWN'), 'same')
