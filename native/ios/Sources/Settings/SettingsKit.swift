@@ -291,7 +291,10 @@ class SettingsPage: UIViewController {
         if let header {
             // The list starts 7 + 16 under the pill (`paddingTop: headerHeight + 16`, the header's margin 7 below).
             let below = header.frame.maxY + (ownLook == nil ? 7 : 2)
-            let wanted = below + (ownLook?.columnTop ?? 16) - 8
+            // The settings pages open with a group's name, which keeps 8 of its own above it; a page with its own look
+            // (SecurityScreen.tsx, the profile editor) opens with a card, so its distance is taken whole (its first
+            // card stood 8 higher than in the previous app).
+            let wanted = below + (ownLook?.columnTop ?? 16) - (ownLook == nil ? 8 : 0)
             if let columnTop, columnTop.constant != wanted { columnTop.constant = wanted }
             if scroll.verticalScrollIndicatorInsets.top != below { scroll.verticalScrollIndicatorInsets.top = below }
             let floor = view.safeAreaInsets.bottom
