@@ -334,7 +334,9 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
             top = searchBar.frame.maxY + 8
         }
         if !pinnedBar.isHidden {
-            pinnedBar.frame = CGRect(x: 12, y: headerBottom + 6, width: width - 24, height: PinnedBar.height) // marginTop 6
+            // ChatScreen.tsx: the header's column keeps a gap of 6 between its parts and the pinned pill has a marginTop of 6
+            // of its own: 12 under the header's pills (it stood 6 higher than in the previous app).
+            pinnedBar.frame = CGRect(x: 12, y: headerBottom + 12, width: width - 24, height: PinnedBar.height)
             top = pinnedBar.frame.maxY + 8
         }
         var noticeY = top
