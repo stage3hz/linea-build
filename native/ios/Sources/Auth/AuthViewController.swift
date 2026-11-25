@@ -49,8 +49,10 @@ final class AuthViewController: UIViewController {
     private var sample = false
     private var ticker: Timer?
 
-    // Nothing scrolls: the column stands still between the top and the keyboard (AuthFit, `arrange`).
+    // With the keyboard nothing scrolls: the column stands still between the top and the keyboard (AuthFit, `arrange`).
+    // Without it the page is the previous app's whole page, pulled up by the finger when it is taller than the screen.
     private let column = UIStackView()
+    private let pageScroll = UIScrollView()
     // L: the reference's sign-in (AuthScreen.tsx, App.tsx `ThemeAccess`): the steps live on a glass card (GlassSurface
     // «regular», radius 32, 22 inside), and a glass pill at the top right names the theme on screen and opens the choice.
     private let card = GlassPill(interactive: false)
@@ -339,10 +341,16 @@ final class AuthViewController: UIViewController {
         themePill.contentView.addSubview(themeButton)
         paintThemePill()
 
-        view.addSubview(column)
+        // The page's scroll starts at the safe area's top and does not cut what is pulled above it.
+        pageScroll.translatesAutoresizingMaskIntoConstraints = false
+        pageScroll.contentInsetAdjustmentBehavior = .never
+        pageScroll.showsVerticalScrollIndicator = false
+        pageScroll.clipsToBounds = false
+        view.addSubview(pageScroll)
+        pageScroll.addSubview(column)
         // Without the keyboard the page starts under the theme pill's row (58) with room above it (`arrange`); with
         // the keyboard the title stands at the top and the card reaches down to the keyboard.
-        let top = column.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AuthFit.pillRow + AuthFit.topGap)
+        let top = column.topAnchor.constraint(equalTo: pageScroll.contentLayoutGuide.topAnchor, constant: AuthFit.pillRow + AuthFit.topGap)
         let fill = card.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -AuthFit.compactEdge)
         // Below the parts' own resistance: on a screen too small for them the card would rather pass the keyboard.
         fill.priority = UILayoutPriority(740)
@@ -364,9 +372,15 @@ final class AuthViewController: UIViewController {
             themeButton.bottomAnchor.constraint(equalTo: themePill.contentView.bottomAnchor),
             themeButton.leadingAnchor.constraint(equalTo: themePill.contentView.leadingAnchor),
             themeButton.trailingAnchor.constraint(equalTo: themePill.contentView.trailingAnchor),
+            pageScroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            pageScroll.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            pageScroll.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            pageScroll.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             top,
-            column.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 22),
-            column.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -22),
+            column.leadingAnchor.constraint(equalTo: pageScroll.contentLayoutGuide.leadingAnchor, constant: 22),
+            column.trailingAnchor.constraint(equalTo: pageScroll.contentLayoutGuide.trailingAnchor, constant: -22),
+            column.widthAnchor.constraint(equalTo: pageScroll.frameLayoutGuide.widthAnchor, constant: -44),
+            column.bottomAnchor.constraint(equalTo: pageScroll.contentLayoutGuide.bottomAnchor, constant: -AuthFit.pageEnd),
         ])
         view.bringSubviewToFront(themePill)
     }
@@ -572,33 +586,28 @@ final class AuthViewController: UIViewController {
             }
             return made
         }
-        // The same parts take more in the full arrangement: its gaps are the previous app's 18, not the 12 kept
-        // while the keyboard is up.
         var core = height(proceed)
         var messageCost: CGFloat = 0
-        var fullCore = height(proceed)
-        var fullMessageCost: CGFloat = 0
         for part in cardColumn.arrangedSubviews {
             if part === spacer || part === proceed || !wants(part) || isIn(mayLeave, part) { continue }
             if isIn(messages, part) {
                 messageCost += cost(part, true)
-                fullMessageCost += cost(part, false)
             } else {
                 core += cost(part, true)
-                fullCore += cost(part, false)
             }
         }
-        let brandHeight = AuthViewController.measure(brand, columnWidth)
         let chipsTall = AuthViewController.measure(chips, columnWidth)
         let headingHeight = AuthViewController.measure(heading, columnWidth)
-        let hintHeight = AuthViewController.measure(hint, columnWidth)
 
-        // Without the keyboard: from under the theme pill's row to above the bottom edge.
+        // Without the keyboard: the previous app's whole page (the description under the title, every part of the
+        // card, the chips under it), 64 under the theme pill's row. What does not fit is reached by pulling the page up.
+        let plan = AuthFit.whole(helps: parts(helps, false), chrome: parts(chrome, false), extras: parts(extras, false))
         let small: CGFloat = keyboardOverlap > AuthFit.keyboard ? 0 : keyboardOverlap
-        let fullRoom = view.bounds.height - max(small, safe.bottom) - AuthFit.edge - (safe.top + AuthFit.pillRow)
-        let plan = AuthFit.full(room: fullRoom, brand: brandHeight, heading: headingHeight, hint: hintHeight,
-                                card: 2 * AuthFit.pad + fullCore + fullMessageCost, chips: chipsTall,
-                                helps: parts(helps, false), chrome: parts(chrome, false), extras: parts(extras, false))
+        let under = max(small, safe.bottom)
+        if pageScroll.contentInset.bottom != under { pageScroll.contentInset.bottom = under }
+        if pageScroll.isScrollEnabled == compact { pageScroll.isScrollEnabled = !compact }
+        // With the keyboard the card is tied to the screen, not to the page: the page stands at its start.
+        if compact && pageScroll.contentOffset.y != 0 { pageScroll.contentOffset = .zero }
         // With the keyboard: the card's inside from under the title to above the keyboard.
         let plateTop = safe.top + AuthFit.compactTop + headingHeight + AuthFit.compactHeadingGap
         let plateBottom = view.bounds.height - keyboardHeight - AuthFit.compactEdge

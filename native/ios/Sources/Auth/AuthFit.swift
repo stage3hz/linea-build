@@ -1,6 +1,7 @@
 import CoreGraphics
 
-/// How the sign-in screen fits on the screen without scrolling (the same rules as Android auth/AuthFit.kt).
+/// How the sign-in screen is arranged (the rules of Android auth/AuthFit.kt; on the iPhone the page without the
+/// keyboard is whole and can be pulled up, `whole`, as in the previous app).
 ///
 /// Two arrangements, and the screen moves between them once, together with the keyboard:
 /// - full (no keyboard): the wordmark, the step's title and description (in the middle), the glass card, the three
@@ -99,7 +100,18 @@ enum AuthFit {
         return kept
     }
 
-    /// No keyboard: what stays above the card and on it, and the room above the wordmark.
+    /// Under the page's last part when it is pulled up (AuthScreen.tsx:315 `paddingBottom: 28`).
+    static let pageEnd: CGFloat = 28
+
+    /// No keyboard, as the previous app has it (AuthScreen.tsx:315-362): nothing leaves and the room above the wordmark
+    /// is whole; a page taller than the screen is pulled up by the finger.
+    static func whole(helps: [Part], chrome: [Part], extras: [Part]) -> Plan {
+        var all = Set<Int>()
+        for part in chrome + helps + extras { all.insert(part.id) }
+        return Plan(brand: true, chips: true, hint: true, gap: topGap, kept: all)
+    }
+
+    /// No keyboard on a page that must not move: what stays above the card and on it, and the room above the wordmark.
     /// - `room`: from under the theme pill's row to above the bottom edge;
     /// - `brand`, `heading`, `hint`: the heights of the parts above the card; `chips`: the trust chips under it;
     /// - `card`: the card with its padding, the fields, the button and the messages (what always shows on it).
