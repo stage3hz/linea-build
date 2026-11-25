@@ -6,8 +6,8 @@ import UIKit
 // small clock and «заявка»; one shown for a post, «запись». The strip is not there at all while nobody has
 // anything. Who is in it is the server's decision; the order and the words are the core's.
 //
-// The strip stands in the chats' floating header, as in the previous app: the list scrolls under it. Its cells are reused; the pictures
-// of people come through the avatars' own loader, decoded off the main queue.
+// The strip stands in the chats' floating header, as in the previous app: the list scrolls under it. Its cells are
+// reused; the pictures of people come through the avatars' own loader, decoded off the main queue.
 
 final class StoryStripCell: UICollectionViewCell {
     static let size = CGSize(width: 80, height: 102)
@@ -103,8 +103,8 @@ final class StoryStripCell: UICollectionViewCell {
     }
 }
 
-/// The strip and what its taps do. Made by the chats' screen, which hands over the list in `install` and says
-/// in `place` whether the strip may be shown. Main queue only.
+/// The strip and what its taps do. Made by the chats' screen, which takes it in with `install` and says in `place`
+/// whether the strip may be shown and where it stands. Main queue only.
 final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionViewDelegate {
     /// The strip's height in the header: the ring, the name and 6 under it; a line more when somebody carries
     /// «запись» or «заявка» (StoriesStrip.tsx).
