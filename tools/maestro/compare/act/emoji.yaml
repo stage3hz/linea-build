@@ -7,3 +7,21 @@ appId: com.linea.messenger.preview
     text: "Стикеры и эмодзи"
     retryTapIfNoChange: false
 - waitForAnimationToEnd
+# The panel is there once its own «Скрыть эмодзи» is (both apps name the button so). When the touch did not leave it
+# open (the native picture of the run of d526af5f had no panel), the button is touched once more.
+- extendedWaitUntil:
+    visible: "Скрыть эмодзи"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Скрыть эмодзи"
+    commands:
+      - tapOn:
+          text: "Стикеры и эмодзи"
+          retryTapIfNoChange: false
+      - extendedWaitUntil:
+          visible: "Скрыть эмодзи"
+          timeout: 5000
+          optional: true
+- waitForAnimationToEnd
