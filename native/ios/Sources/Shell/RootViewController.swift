@@ -58,6 +58,8 @@ final class RootViewController: UIViewController {
         bar.onSelect = { [weak self] event in
             guard let self, let id = event["id"] as? String else { return }
             self.beforePreview = nil
+            // The bar touched over a pushed page (NavigationController lends it there): back to the sections first.
+            if let stack = self.navigationController, stack.viewControllers.count > 1 { stack.popToRootViewController(animated: false) }
             self.show(id)
         }
         bar.onPreview = { [weak self] event in
@@ -171,8 +173,44 @@ final class RootViewController: UIViewController {
         // The hint about the hold stands above the whole block (above the mini-player when it is there).
         if !miniHolder.isHidden { barHint.place(above: miniHolder.frame, width: width) }
         view.bringSubviewToFront(miniHolder)
-        view.bringSubviewToFront(bar)
+        if !barLent { view.bringSubviewToFront(bar) }
         view.bringSubviewToFront(barHint)
+    }
+
+    // MARK: Shell — the bar over a pushed page
+
+    /// The bar and its soft edge stand in the stack's view, over a pushed page that keeps the bar (NavigationController).
+    private var barLent = false
+
+    /// The bar and its edge move over the stack (the same place on the screen), for a pushed page that keeps them.
+    func lendBar(to host: UIView) {
+        guard isViewLoaded else { return }
+        if bar.superview !== host {
+            host.addSubview(barEdge)
+            host.addSubview(bar)
+        }
+        barLent = true
+        placeLentBar(in: host)
+    }
+
+    /// Places the lent bar where it stands in the sections (the stack lays it out while this screen is covered).
+    func placeLentBar(in host: UIView) {
+        guard barLent, bar.superview === host else { return }
+        let width = host.bounds.width, height = host.bounds.height
+        let gap = BarMetrics.bottomGap(safeBottom: host.safeAreaInsets.bottom)
+        bar.frame = CGRect(x: (width - BarMetrics.width) / 2, y: height - gap - BarMetrics.height, width: BarMetrics.width, height: BarMetrics.height)
+        barEdge.place(width: width, height: height, block: height - bar.frame.minY + 5, lift: gap)
+        host.bringSubviewToFront(barEdge)
+        host.bringSubviewToFront(bar)
+    }
+
+    /// The bar and its edge come back into this screen.
+    func takeBarBack() {
+        guard barLent else { return }
+        barLent = false
+        view.insertSubview(barEdge, aboveSubview: stage)
+        view.addSubview(bar)
+        view.setNeedsLayout()
     }
 
     /// The mini-player is shown while a track is chosen, everywhere but «Музыка» and while the bar is away; the

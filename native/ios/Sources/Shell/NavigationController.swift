@@ -11,6 +11,11 @@ protocol StackSwipeBlocking: AnyObject {
     var blocksSwipeBack: Bool { get }
 }
 
+/// A pushed screen that keeps the bar of the sections at its bottom, as the previous app does on the pages of a
+/// section (a page of the settings, a community, a channel, a room). A chat and the full-screen pages do not: the
+/// bar stands over a pushed screen only while every screen above the sections keeps it.
+protocol KeepsTabBar: AnyObject {}
+
 /// The stack of screens (the reference's stack.tsx): no system bar on top (every screen draws its own header).
 /// - A pushed screen slides in over the one below, which moves a little to the left and dims (220 ms in, 240 ms
 ///   out, the reference's curves); the slide waits for the screen's first content (at most 80 ms).
@@ -56,6 +61,7 @@ final class NavigationController: UINavigationController, UINavigationController
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        root?.placeLentBar(in: view) // the bar over a pushed page that keeps it
         view.bringSubviewToFront(homeWords)
         view.bringSubviewToFront(homeMark)
         let wordsSize = homeWords.fittingSize()
@@ -75,6 +81,45 @@ final class NavigationController: UINavigationController, UINavigationController
 
     func navigationController(_ navigationController: UINavigationController, interactionControllerFor animationController: UIViewControllerAnimatedTransitioning) -> UIViewControllerInteractiveTransitioning? {
         return interaction
+    }
+
+    // MARK: The bar over pushed pages
+
+    /// How many screens the stack had when it last came to rest.
+    private var shownCount = 1
+
+    /// Whether the bar of the sections stands over this pushed screen: it and every screen under it, down to the
+    /// sections, keep the bar.
+    func barKept(over page: UIViewController?) -> Bool {
+        guard let page, let at = viewControllers.firstIndex(of: page), at > 0 else { return false }
+        for index in 1...at where !(viewControllers[index] is KeepsTabBar) { return false }
+        return true
+    }
+
+    /// The room a pushed screen leaves at its bottom for the bar that stands over it (the bar, its gap to the
+    /// screen's edge and 9 above it); 0 when the bar is not there.
+    func barRoom(over page: UIViewController?) -> CGFloat {
+        guard barKept(over: page) else { return 0 }
+        return BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 9
+    }
+
+    /// The bar goes over the stack for a screen that keeps it, and back into the sections' own screen otherwise.
+    private func settleBar(for top: UIViewController) {
+        guard let root else { return }
+        if barKept(over: top) { root.lendBar(to: view) } else { root.takeBarBack() }
+    }
+
+    func navigationController(_ navigationController: UINavigationController, willShow viewController: UIViewController, animated: Bool) {
+        // A screen coming in slides under the bar it keeps (a screen that does not keep it covers the bar at once).
+        // On the way back the bar is settled when the slide is over: a screen dragged away and let go again must
+        // not be left with a bar it does not keep.
+        let pushing = viewControllers.count > shownCount
+        if pushing || !animated { settleBar(for: viewController) }
+    }
+
+    func navigationController(_ navigationController: UINavigationController, didShow viewController: UIViewController, animated: Bool) {
+        shownCount = viewControllers.count
+        settleBar(for: viewController)
     }
 
     // MARK: The swipe
