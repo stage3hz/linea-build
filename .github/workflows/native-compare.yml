@@ -308,9 +308,13 @@ jobs:
           start() { # seconds, launch arguments… — always pointed at the local test server
             # -effects 1: «Снег» and «Ледяное стекло» on, as they are by default in the reference (the native app keeps
             # them off on the simulator unless asked), so the rime on the glass shows on both sides.
+            # -linea.bar-glow.v1 off: the lights under the tab bar's glass are the native app's own addition with a switch
+            # in «Оформление» (Shell/TabBar.swift `BarGlow`, read from the preferences, which a launch argument
+            # overrides for this start only); off, the bar is plain glass as the reference's, so the pictures differ
+            # by what is meant to be the same.
             local wait="$1"; shift
             limit 60 xcrun simctl terminate "$UDID" com.linea.messenger.preview >/dev/null 2>&1 || true
-            limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview -server "$SERVER" -effects 1 "$@"
+            limit 120 xcrun simctl launch "$UDID" com.linea.messenger.preview -server "$SERVER" -effects 1 -linea.bar-glow.v1 off "$@"
             sleep "$wait"
           }
           # nat NAME seconds args…: a screen reached by launch arguments alone.
