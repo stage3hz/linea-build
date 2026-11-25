@@ -89,6 +89,11 @@ object InlineMedia {
   /** The row of `key` became an album's: its photo opens from the tile, straight in the viewer. */
   fun gone(key: String) { inRows.remove(key) }
 
+  /** A photo of an album was laid out in its tile: it is brought by itself as a row's photo is (an album sent
+   *  without small pictures showed empty tiles), and the tile draws it once it is here. The tile stays a tile: a
+   *  touch opens the viewer. */
+  fun shownInAlbum(key: String) = want(key)
+
   private fun want(key: String) {
     if (entries.containsKey(key) || key in tried || server?.get() == null) return
     val attachment = AttachmentStore.attachment(key) ?: return

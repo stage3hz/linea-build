@@ -135,7 +135,8 @@ class MsgAlbumLayout(val width: Float, val height: Float, val tiles: List<MsgAlb
       if (tile.index >= album.parts.size) continue
       val part = album.parts[tile.index]
       val box = RectF(x + (tile.x * d).toFloat(), y + (tile.y * d).toFloat(), x + ((tile.x + tile.width) * d).toFloat(), y + ((tile.y + tile.height) * d).toFloat())
-      val image = pictures[part.key]
+      // The photo itself once it has come (attachments/InlineMedia.kt), the small picture until then.
+      val image = InlineMedia.picture(part.key) ?: pictures[part.key]
       if (image != null && image.width > 0 && image.height > 0) {
         canvas.save()
         canvas.clipRect(box)

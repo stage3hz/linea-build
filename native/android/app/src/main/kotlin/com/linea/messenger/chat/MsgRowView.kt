@@ -203,6 +203,8 @@ class MsgRowView(context: Context) : View(context) {
 
   /** The key of the row this view shows. */
   val rowKey: String get() = row?.key ?: ""
+  /** Attachments: whether the row is an album that has the photo of `key` as one of its tiles. */
+  fun hasAlbumPart(key: String): Boolean = row?.album?.parts?.any { it.key == key } ?: false
   /** Whether the row is one's own. */
   val mine: Boolean get() = row?.mine ?: true
 
@@ -315,6 +317,8 @@ class MsgRowView(context: Context) : View(context) {
     // Attachments: a photo or a file card shown in its row; a photo up to 10 MB comes by itself (attachments/InlineMedia.kt).
     if (next.media == "photo" || next.media == "file") com.linea.messenger.attachments.InlineMedia.shown(next.key, next.media == "photo")
     else if (next.album != null) com.linea.messenger.attachments.InlineMedia.gone(next.key) // an album's first photo opens from its tile
+    // Attachments: the photos of an album come by themselves as well (a photo sent without a small picture showed an empty tile).
+    next.album?.parts?.forEach { part -> if (!part.video) com.linea.messenger.attachments.InlineMedia.shownInAlbum(part.key) }
     contentDescription = if (next.kind == 1 || next.kind == 2) next.text else listOf(if (next.media == "photo") "Фото" else "", MediaRowArt.spoken(next), next.label, next.text, next.poll?.spoken ?: "", next.linkCard?.spoken ?: "", if (next.silent) "без звука" else "", next.time).filter { it.isNotEmpty() }.joinToString(". ")
     if (relayout) requestLayout()
     invalidate()

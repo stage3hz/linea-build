@@ -130,7 +130,8 @@ class MsgListView(context: Context) : FrameLayout(context) {
   /** Attachments: a photo or a file of a row came, is coming or stopped — only that row is drawn again
    *  (attachments/InlineMedia.kt). */
   private val inlineMediaChanged: (String) -> Unit = { key ->
-    for (index in 0 until list.childCount) (list.getChildAt(index) as? MsgRowView)?.takeIf { it.rowKey == key }?.invalidate()
+    // The row itself, or the album that has this photo as one of its tiles.
+    for (index in 0 until list.childCount) (list.getChildAt(index) as? MsgRowView)?.takeIf { it.rowKey == key || it.hasAlbumPart(key) }?.invalidate()
   }
 
   /** Videonote: a row whose round video was brought, or whose player came or went, is drawn again. */
