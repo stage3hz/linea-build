@@ -20,6 +20,17 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "Открыть плеер.*"
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Открыть плеер.*"
+    commands:
+      - tapOn:
+          text: "Слушать микс"
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Открыть плеер.*"
     timeout: 30000
     optional: true
 - tapOn:

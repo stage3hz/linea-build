@@ -10,8 +10,11 @@ appId: com.linea.messenger.preview
     element:
       text: "Узор фона.*"
     direction: DOWN
-    timeout: 30000
+    timeout: 40000
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn:
     text: "Узор фона.*"
+    index: 0
 - waitForAnimationToEnd
 - takeScreenshot: nat-58-editor-pattern

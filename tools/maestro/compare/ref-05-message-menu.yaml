@@ -9,6 +9,6 @@ appId: com.linea.messenger.preview
 - runFlow: act/ref-home.yaml
 - runFlow: act/open-timur.yaml
 - longPressOn:
-    text: ".*Как тебе фото.*"
+    text: "Тимур Богданов: Как тебе фото.*"
 - waitForAnimationToEnd
 - takeScreenshot: ref-05-message-menu

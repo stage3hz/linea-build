@@ -36,12 +36,34 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - inputText: "Работа"
 - hideKeyboard
-- tapOn:
-    text: "Максим Голубев(, Максим Голубев)?"
-- waitForAnimationToEnd
-- tapOn:
-    text: "Анна Лебедева(, Анна Лебедева)?"
-- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Максим Голубев[, ]+Максим Голубев.*"
+    commands:
+      - tapOn:
+          text: "Максим Голубев[, ]+Максим Голубев.*"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      notVisible: "Максим Голубев[, ]+Максим Голубев.*"
+    commands:
+      - tapOn:
+          point: "50%,62.5%"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible: "Анна Лебедева[, ]+Анна Лебедева.*"
+    commands:
+      - tapOn:
+          text: "Анна Лебедева[, ]+Анна Лебедева.*"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      notVisible: "Анна Лебедева[, ]+Анна Лебедева.*"
+    commands:
+      - tapOn:
+          point: "50%,69.6%"
+      - waitForAnimationToEnd
 - scrollUntilVisible:
     element:
       text: "Сохранить"

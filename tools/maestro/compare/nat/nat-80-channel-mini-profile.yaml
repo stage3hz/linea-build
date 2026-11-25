@@ -12,9 +12,20 @@ appId: com.linea.messenger.preview
     optional: true
 - tapOn:
     text: "Профиль Dimas"
-    index: 0
+    above: ".*глянь, пожалуйста.*"
     retryTapIfNoChange: false
-- waitForAnimationToEnd
+    optional: true
+- extendedWaitUntil:
+    visible: "Написать"
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Написать"
+    commands:
+      - tapOn:
+          point: "8%,81%"
+      - waitForAnimationToEnd
 - extendedWaitUntil:
     visible: "a text that never shows 7f3k"
     timeout: 1500

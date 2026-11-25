@@ -9,6 +9,16 @@ appId: com.linea.messenger.preview
 - runFlow: ../act/nat-home.yaml
 - tapOn:
     text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
+- extendedWaitUntil:
+    visible: "Профиль Тимур Богданов.*"
+    timeout: 10000
+    optional: true
+- runFlow:
+    when:
+      notVisible: "Профиль Тимур Богданов.*"
+    commands:
+      - tapOn:
+          text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
 - runFlow: ../act/wait-timur.yaml
 - tapOn:
     text: "Профиль Тимур Богданов.*"

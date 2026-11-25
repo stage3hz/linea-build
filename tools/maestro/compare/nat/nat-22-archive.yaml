@@ -7,6 +7,10 @@ appId: com.linea.messenger.preview
     commands:
       - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: ../act/nat-home.yaml
+- extendedWaitUntil:
+    visible: "Архив.*"
+    timeout: 30000
+    optional: true
 - scrollUntilVisible:
     element:
       text: "Архив.*"
@@ -15,5 +19,23 @@ appId: com.linea.messenger.preview
 - tapOn:
     text: "Архив.*"
     index: 0
+    retryTapIfNoChange: false
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Вернуться к чатам.*"
+    timeout: 8000
+    optional: true
+- runFlow:
+    when:
+      notVisible: ".*Вернуться к чатам.*"
+    commands:
+      - tapOn:
+          text: "Архив.*"
+          index: 0
+          retryTapIfNoChange: false
+      - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Вернуться к чатам.*"
+    timeout: 15000
+    optional: true
 - takeScreenshot: nat-22-archive

@@ -12,7 +12,12 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - tapOn:
     text: "Выбрать"
+    below: "Удалить"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Выбрано: .*"
+    timeout: 8000
+    optional: true
 - tapOn:
     text: ".*Молоко уже купил.*"
     optional: true

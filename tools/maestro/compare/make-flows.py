@@ -60,6 +60,20 @@ def script(name):
 def pause(ms):
     return f'- extendedWaitUntil:\n    visible: "a text that never shows 7f3k"\n    timeout: {ms}\n    optional: true\n'
 SETTLE = '- waitForAnimationToEnd\n'
+# A step made only while something is (not) on the screen.
+def when(t, steps, visible=True):
+    body = ''.join('      ' + line + '\n' for line in steps.rstrip('\n').split('\n'))
+    return f"- runFlow:\n    when:\n      {'visible' if visible else 'notVisible'}: {q(t)}\n    commands:\n" + body
+# A message of the open chat. The reference keeps its chat list under the chat, and the list's rows («Избранное»,
+# Тимур's own row) repeat the words of the newest messages: a hold on «.*Как тебе фото.*» landed on whatever stood
+# over such a row (the run of d526af5f held the photo). The reference's bubbles read «<author>: <text>»
+# (mobile/src/MessageRow.tsx), which no row of the list does; the native app has only the chat on screen.
+THEIRS = '@THEIRS@'
+OURS = '@OURS@'
+# «Выбрать» of a message's menu. The reference's chat list, still under the chat, has a «Выбрать» of its own in its
+# header and Maestro found that one first (the run of d526af5f: the menu shut and nothing was chosen): the menu's
+# is the one under «Удалить».
+PICK = '- tapOn:\n    text: "Выбрать"\n    below: "Удалить"\n- waitForAnimationToEnd\n'
 # The keyboard put away. The reference: Maestro's hideKeyboard. The native sign-in screen has no standard dismiss
 # action (hideKeyboard failed there in the third run) but puts the keyboard away on a touch beside its card
 # (native/ios/Sources/Auth/AuthViewController.swift, putKeyboardAway / gestureRecognizer(_:shouldReceive:)):
@@ -102,7 +116,9 @@ CHANNEL = COMMUNITY + tap('Текстовый канал общий.*') + wait('
 # native/ios/Sources/Music/MusicViewController.swift) starts the first track. The «Слушать: <track>» cards are in
 # shelves below the screen, not drawn yet in the reference's list (the third run never found them).
 MUSIC = section('Музыка') + wait('Слушать микс', 60000)
-PLAYER = tap('Слушать микс') + wait('Открыть плеер.*', 30000) + tap('Открыть плеер.*', index=0)
+# A start that did not take (the native 88 of the run of d526af5f stayed on «Главная» with nothing playing) is made again.
+PLAYER = (tap('Слушать микс') + wait('Открыть плеер.*', 15000) + when('Открыть плеер.*', tap('Слушать микс'), visible=False)
+          + wait('Открыть плеер.*', 30000) + tap('Открыть плеер.*', index=0))
 
 # --- the pairs -----------------------------------------------------------------------------------------------
 # (name, shard, phase, look, native wait s, native launch arguments, reference steps, native steps or None, native start)
@@ -132,7 +148,13 @@ def pair(name, shard, args, wait_s, ref, nat=None, start='', phase='main', look=
 # (mobile/src/ChatFolders.tsx, FolderEditor; the third run tapped the bare names, found nothing, and «Сохранить»
 # stayed disabled and out of sight).
 pair('00-setup-folder', 1, '', 0, SETTINGS + setting('Папки с чатами') + tap('Создать папку') + tap('Название, например «Работа»') + typ('Работа')
-     + '- hideKeyboard\n' + tap('Максим Голубев(, Максим Голубев)?') + tap('Анна Лебедева(, Анна Лебедева)?')
+     + '- hideKeyboard\n'
+     # The run of d526af5f stopped here with nothing ticked: the row's label was not «name, name». Whatever joins the
+     # two names, the doubled name is the row; without it the rows are touched where that run's picture shows them.
+     + when('Максим Голубев[, ]+Максим Голубев.*', tap('Максим Голубев[, ]+Максим Голубев.*'))
+     + when('Максим Голубев[, ]+Максим Голубев.*', tap_point('50%,62.5%'), visible=False)
+     + when('Анна Лебедева[, ]+Анна Лебедева.*', tap('Анна Лебедева[, ]+Анна Лебедева.*'))
+     + when('Анна Лебедева[, ]+Анна Лебедева.*', tap_point('50%,69.6%'), visible=False)
      + reveal('Сохранить') + tap('Сохранить'), phase='setup')
 # Лариса and Игорь are opened once, so their unread state is the same for both apps from here on.
 pair('00-setup-read', 1, '', 0, tap('Лариса Новикова.*') + wait('.*Сообщение номер 24.*', 60000) + flow('ref-home.yaml')
@@ -145,7 +167,7 @@ pair('00-setup-messages', 1, '', 0, OPEN_TIMUR + tapid('chat-composer') + typ('�
      + typ(' или пятнадцать') + tapid('chat-send') + SETTLE, phase='setup')
 # «Избранное»: a text, the photo, the file, the voice message, the round video and the forwarded message, chosen
 # together and saved (the encrypted storage's saved:v1, which the native app reads after the update).
-pair('00-setup-saved', 1, '', 0, OPEN_TIMUR + hold('.*Как тебе фото.*') + tap('Выбрать')
+pair('00-setup-saved', 1, '', 0, OPEN_TIMUR + hold(THEIRS + 'Как тебе фото.*') + PICK
      + tap('Тимур Богданов: photo.png', optional=True) + tap('Тимур Богданов: Посмотри договор', optional=True)
      + tap('Тимур Богданов: voice-.*', optional=True)
      + center('Тимур Богданов: circle-.*') + tap('Тимур Богданов: circle-.*', optional=True)
@@ -161,14 +183,17 @@ pair('01-chatlist', 1, '', 25, '')
 pair('02-chatlist-scrolled', 1, '', 25, flow('list-scroll.yaml'), 'same', start='home')
 pair('03-chat-text', 1, '-openchat 1', 30, OPEN_TIMUR + flow('chat-top.yaml'), 'same', start='chat')
 pair('04-chat-media', 1, '-openchat 1', 35, OPEN_TIMUR)
-pair('05-message-menu', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Как тебе фото.*'), 'same', start='chat')
+pair('05-message-menu', 1, '-openchat 1', 30, OPEN_TIMUR + hold(THEIRS + 'Как тебе фото.*'), 'same', start='chat')
 pair('06-chat-avatar-peek', 1, '-openchat 1', 30, OPEN_TIMUR + flow('avatar-peek.yaml'), 'same', start='chat')
 pair('17-attach-panel', 1, '-openchat 1', 30, OPEN_TIMUR + flow('paperclip.yaml'), 'same', start='chat')
 pair('18-emoji-panel', 1, '-openchat 1', 30, OPEN_TIMUR + flow('emoji.yaml'), 'same', start='chat')
 pair('19-chatlist-search', 3, '-chatsearch "Тим"', 30, flow('chat-search.yaml'))
 pair('20-sections', 3, '', 25, flow('sections.yaml'), 'same')
 pair('21-folder-tab', 1, '', 25, tap('Работа.*', index=0), 'same', start='home')
-pair('22-archive', 3, '', 25, reveal('Архив.*') + tap('Архив.*', index=0), 'same', start='home')
+# The row is waited for and touched once; the archive is there when its first row («‹ Архив», «Вернуться к чатам») is,
+# and a touch that was lost (the native app stayed on «Чаты» in the run of d526af5f) is made once more.
+pair('22-archive', 3, '', 25, wait('Архив.*', 30000) + reveal('Архив.*') + tap_once('Архив.*', index=0) + wait('.*Вернуться к чатам.*', 8000)
+     + when('.*Вернуться к чатам.*', tap_once('Архив.*', index=0), visible=False) + wait('.*Вернуться к чатам.*', 15000), 'same', start='home')
 pair('23-chat-top', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Собрал всё, что обещал.*', timeout=120000), 'same', start='chat')
 pair('24-chat-photo-reply', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Вот здесь, у озера.*', timeout=90000), 'same', start='chat')
 pair('25-chat-album', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Три кадра с прогулки.*', timeout=90000), 'same', start='chat')
@@ -186,7 +211,8 @@ pair('29-chat-long', 1, '', 25, tap('Лариса Новикова.*') + wait('.
      + wait('.*Сообщение номер 23.*', 60000), 'same', start='home')
 pair('30-reply-bar', 1, '-openchat 1', 30, OPEN_TIMUR + center('.*Список покупок.*') + hold('.*Список покупок.*') + tap('Ответить'), 'same', start='chat')
 pair('31-edit-bar', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Буду через десять минут.*') + tap('Изменить'), 'same', start='chat')
-pair('32-selection', 1, '-openchat 1', 30, OPEN_TIMUR + hold('.*Как тебе фото.*') + tap('Выбрать') + tap('.*Молоко уже купил.*', optional=True), 'same', start='chat')
+pair('32-selection', 1, '-openchat 1', 30, OPEN_TIMUR + hold(THEIRS + 'Как тебе фото.*') + PICK + wait('Выбрано: .*', 8000)
+     + tap(OURS + 'Молоко уже купил.*', optional=True), 'same', start='chat')
 pair('33-chat-search', 1, '-openchat 1', 30, OPEN_TIMUR + flow('avatar-peek.yaml') + tap('Поиск') + typ('молоко') + '- pressKey: enter\n' + SETTLE, 'same', start='chat')
 # The chat's «Ещё»: on a phone the reference has it in the person's profile (the header's «Ещё» and «Позвонить»
 # belong to its wide desktop header, mobile/src/ChatScreen.tsx), the native app too (People/PersonProfileViewController.swift).
@@ -237,7 +263,7 @@ pair('54-own-profile-scrolled', 2, '-settings root', 20, SETTINGS + '|' + OWN_PR
 pair('55-profile-editor', 2, '-settings profile', 25, SETTINGS + EDITOR)
 pair('56-editor-banner', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + tap('Изменить баннер|Установить баннер', index=0), 'same')
 pair('57-status-sheet', 2, '-settings root', 20, SETTINGS + '|' + tap('Сменить статус рядом с именем'), 'same')
-pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('Узор фона.*') + tap('Узор фона.*'), 'same')
+pair('58-editor-pattern', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Узор фона.*', 'DOWN') + tap('Узор фона.*', index=0), 'same')
 pair('59-editor-color', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('Персональный цвет.*') + tap('Персональный цвет.*'), 'same')
 pair('60-editor-birthday', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + reveal('День рождения.*') + tap('День рождения.*'), 'same')
 pair('61-editor-studio', 2, '-settings profile', 25, SETTINGS + EDITOR + '|' + center('Рамки и анимации.*', 'DOWN'), 'same')
@@ -271,7 +297,12 @@ pair('13-community', 3, '-channels community', 30, COMMUNITY)
 pair('14-channel-chat', 3, '-channels chat', 35, CHANNEL)
 pair('15-music', 3, '-tab music', 25, section('Музыка'))
 pair('16-ai', 3, '-tab ai', 25, section('AI'))
-pair('80-channel-mini-profile', 3, '-channels chat', 35, CHANNEL + '|' + tap_point('8%,73%') + pause(1500), nat=wait('.*глянь, пожалуйста.*', 60000) + tap_once('Профиль Dimas', index=0) + pause(1500))
+pair('80-channel-mini-profile', 3, '-channels chat', 35, CHANNEL + '|' + tap_point('8%,73%') + pause(1500), nat=wait('.*глянь, пожалуйста.*', 60000)
+     # «Профиль Dimas» is on every first message of his, also on those passing under the header, and the first one
+     # found was not on the screen's open part (the run of d526af5f: nothing opened). The one right above the newest
+     # message is asked for; should the card still not be there, his avatar is touched where it stands.
+     + '- tapOn:\n    text: "Профиль Dimas"\n    above: ".*глянь, пожалуйста.*"\n    retryTapIfNoChange: false\n    optional: true\n'
+     + wait('Написать', 5000) + when('Написать', tap_point('8%,81%'), visible=False) + pause(1500))
 pair('81-channel-message-menu', 3, '-channels chat', 35, CHANNEL + '|' + wait('.*глянь, пожалуйста.*', 60000) + hold('.*глянь, пожалуйста.*'), 'same')
 pair('82-blog', 3, '-tab channels', 25, section('Каналы') + '|' + reveal('.*Заметки.*') + tap('.*Заметки.*', index=0) + pause(3000), 'same')
 pair('83-room', 3, '-rooms room', 30, section('Каналы') + reveal('.*Вечерний созвон.*') + tap('.*Вечерний созвон.*', index=0) + pause(3000))
@@ -290,7 +321,10 @@ pair('96-call-incoming', 3, '', 25, script('ring.js') + pause(7000) + '@SHOT@' +
 # The phone's call button is the profile's «Звонок» on both apps (no «Позвонить» in either phone header).
 # The native app reaches Тимур's profile by the same gestures here, not by `-profile chat`: that opens the first chat
 # the server lists, and after the ring of 96 that is Анна's (the run of 34bf134d photographed a call to her).
-NAT_TIMUR = '- tapOn:\n    text: "Тимур Богданов( [^.,]+)?(\\\\. .*|, непрочитанных.*|, помечен.*)?"\n' + flow('wait-timur.yaml') + tap('Профиль Тимур Богданов.*') + PROFILE_UP
+# A touch on the row that was lost (the native 98 of the run of d526af5f stayed on the list) is made once more.
+NAT_ROW = '- tapOn:\n    text: "Тимур Богданов( [^.,]+)?(\\\\. .*|, непрочитанных.*|, помечен.*)?"\n'
+NAT_TIMUR = (NAT_ROW + wait('Профиль Тимур Богданов.*', 10000) + when('Профиль Тимур Богданов.*', NAT_ROW, visible=False)
+             + flow('wait-timur.yaml') + tap('Профиль Тимур Богданов.*') + PROFILE_UP)
 CALL = wait('Звонок', 30000) + tap('Звонок') + tap('Allow|Разрешить|OK', optional=True)
 MINIMIZED = pause(3000) + tap('Свернуть звонок') + pause(1500) + '@SHOT@' + tap('Завершить звонок|Завершить', index=0, optional=True)
 pair('97-call-outgoing', 3, '', 25, PROFILE_TIMUR + CALL + pause(4000), nat=NAT_TIMUR + CALL + pause(4000), start='home')
@@ -322,6 +356,7 @@ ANSWER = f'- runFlow:\n    when:\n      visible: {ASKS}\n    commands:\n      - 
 def body(steps, act, shotname):
     steps = ANSWER + steps
     steps = steps.replace('@ACT@', act).replace(HIDEKB, HIDEKB_NAT if act == '../act' else HIDEKB_REF)
+    steps = steps.replace(THEIRS, '.*' if act == '../act' else 'Тимур Богданов: ').replace(OURS, '.*' if act == '../act' else 'Ты: ')
     shot = f'- takeScreenshot: {shotname}\n'
     return steps.replace('@SHOT@', shot) if '@SHOT@' in steps else steps + shot
 
@@ -347,7 +382,7 @@ for p in P:
     else:
         refsteps = '- launchApp\n' + refsteps
     if p['phase'] == 'setup':
-        text = APP + head + refsteps.replace('@ACT@', 'act').replace(HIDEKB, HIDEKB_REF)
+        text = APP + head + refsteps.replace('@ACT@', 'act').replace(HIDEKB, HIDEKB_REF).replace(THEIRS, 'Тимур Богданов: ').replace(OURS, 'Ты: ')
     else:
         text = APP + head + body(refsteps, 'act', f"ref-{p['name']}")
     open(os.path.join(ROOT, f"ref-{p['name']}.yaml"), 'w', encoding='utf-8').write(text)

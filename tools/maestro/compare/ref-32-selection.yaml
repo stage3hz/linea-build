@@ -9,13 +9,18 @@ appId: com.linea.messenger.preview
 - runFlow: act/ref-home.yaml
 - runFlow: act/open-timur.yaml
 - longPressOn:
-    text: ".*Как тебе фото.*"
+    text: "Тимур Богданов: Как тебе фото.*"
 - waitForAnimationToEnd
 - tapOn:
     text: "Выбрать"
+    below: "Удалить"
 - waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Выбрано: .*"
+    timeout: 8000
+    optional: true
 - tapOn:
-    text: ".*Молоко уже купил.*"
+    text: "Ты: Молоко уже купил.*"
     optional: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-32-selection

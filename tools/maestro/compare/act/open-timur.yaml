@@ -11,6 +11,28 @@ appId: com.linea.messenger.preview
 - extendedWaitUntil:
     visible:
       id: "chat-composer"
+    timeout: 15000
+    optional: true
+# A touch taken for a hold brings the row's preview with its menu instead of the chat (the run of d526af5f lost
+# 04-chat-media to it): the preview is put away by a touch beside it. Then, the chat still not open (that touch, or
+# one that was lost), the row is touched again.
+- runFlow:
+    when:
+      visible: "Удалить чат"
+    commands:
+      - tapOn:
+          point: "50%,6%"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      notVisible:
+        id: "chat-composer"
+    commands:
+      - tapOn:
+          text: "Тимур Богданов( [^.,]+)?(\\. .*|, непрочитанных.*|, помечен.*)?"
+- extendedWaitUntil:
+    visible:
+      id: "chat-composer"
     timeout: 60000
 - extendedWaitUntil:
     visible: ".*Как тебе фото.*"
