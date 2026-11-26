@@ -4,7 +4,10 @@ import UIKit
 /// `useBarHint`): shown on the first six starts of the app until the list of the other sections has been opened
 /// once (by the hold, the swipe up or accessibility), then never again.
 final class BarHintView: UIView {
-    private static let key = "linea.hint.bar-scrub.v1"
+    /// The reference keeps «linea.hint.bar-scrub.v1»; this app counts its own starts under «.v2»: the copy of the
+    /// old app's settings (Storage/OldAppSettings.swift) brought over «used» or six starts already counted there, so
+    /// on a phone that had the old app the words were never shown here (the owner's report: no hint about the hold).
+    private static let key = "linea.hint.bar-scrub.v2"
     private static let starts = 6
     private static var decided: Bool?
     private let words = UILabel()

@@ -43,6 +43,8 @@ final class ChatSearchScreen: UIViewController, UITableViewDataSource, UITableVi
     private var people: [Person]?
     private var peopleFor = ""
     private var peopleSoon: DispatchWorkItem?
+    /// The friends of this account, for the people listed with the chats (loaded once, when the search opens).
+    private var friendList: [Person] = []
     private var hits: [Hit] = []
     private var hitsFor = ""
     private var historyRun = 0
@@ -90,6 +92,13 @@ final class ChatSearchScreen: UIViewController, UITableViewDataSource, UITableVi
         super.viewDidLoad()
         view.backgroundColor = Theme.bg
         loadRecent()
+        messenger?.friends { [weak self] (result: Result<[Person], ServerError>) -> Void in
+            DispatchQueue.main.async {
+                guard let self, case .success(let list) = result else { return }
+                self.friendList = list
+                self.refresh()
+            }
+        }
 
         table.backgroundColor = .clear
         table.separatorStyle = .none
@@ -408,6 +417,29 @@ final class ChatSearchScreen: UIViewController, UITableViewDataSource, UITableVi
         return String(flat.prefix(90))
     }
 
+    /// Whether a person's name or @имя holds the words (a leading «@» asks for the @имя as typed).
+    static func matches(_ person: Person, _ wanted: String) -> Bool {
+        var words = wanted.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if words.hasPrefix("@") { words.removeFirst() }
+        guard !words.isEmpty else { return false }
+        return (person.displayName + " " + person.username).lowercased().contains(words)
+    }
+
+    /// The people listed after the chats (the owner's report: people were not found in the search of the chats):
+    /// first the friends whose name or @имя holds the words, then those the server's people search found (`/users`,
+    /// from 2 letters), each once, without those who already have a chat here (they are listed as chats above) and
+    /// without this account (the same rule as the Android app's ChatSearchScreen.morePeople).
+    static func morePeople(_ wanted: String, chatPeers: Set<String>, friends: [Person], found: [Person]?, me: String?) -> [Person] {
+        var made: [Person] = []
+        var seen = chatPeers
+        if let me { seen.insert(me) }
+        for person in friends where matches(person, wanted) && seen.insert(person.id).inserted { made.append(person) }
+        if wanted.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+            for person in found ?? [] where seen.insert(person.id).inserted { made.append(person) }
+        }
+        return made
+    }
+
     private func refresh() {
         let wanted = needle
         var made: [Row] = []
@@ -437,10 +469,17 @@ final class ChatSearchScreen: UIViewController, UITableViewDataSource, UITableVi
                 }
                 for chat in chats {
                     let peer = person(of: chat)
-                    if (peer.displayName + " " + peer.username).lowercased().contains(wanted) {
+                    if (peer.displayName + " " + peer.username).lowercased().contains(wanted) || ChatSearchScreen.matches(peer, wanted) {
                         made.append(Row(key: chat.id, title: peer.displayName, sub: peer.username.isEmpty ? "" : "@" + peer.username, person: peer, run: { [weak self] in self?.open(person: peer) }))
                     }
                 }
+                // People with no chat here yet: friends, then the server's people search (as the scope «Люди» finds them).
+                if wanted.count >= 2 && peopleFor != wanted { askPeople(wanted) }
+                let found = peopleFor == wanted ? people : nil
+                for person in ChatSearchScreen.morePeople(wanted, chatPeers: Set(chats.map { $0.peerId }), friends: friendList, found: found, me: messenger?.userId) {
+                    made.append(Row(key: "p:" + person.id, title: person.displayName, sub: person.username.isEmpty ? "" : "@" + person.username, person: person, run: { [weak self] in self?.open(person: person) }))
+                }
+                if wanted.count >= 2 && found == nil && messenger != nil { loading = true }
                 // Words in the last message of each chat and in the notes of «Избранное» (both already decrypted here).
                 if wanted.count >= 2 {
                     for chat in chats {
@@ -484,8 +523,16 @@ final class ChatSearchScreen: UIViewController, UITableViewDataSource, UITableVi
             case .people:
                 if wanted.count >= 2 {
                     if peopleFor != wanted { askPeople(wanted) }
+                    // The chat partners and friends whose name or @имя holds the words first (the server finds a name
+                    // only in full and an @имя from its first 4 letters), then the rest of what the server found, each once.
+                    var seen = Set<String>()
+                    if let me = messenger?.userId { seen.insert(me) }
+                    let local = chats.map { person(of: $0) } + friendList
+                    for found in local where ChatSearchScreen.matches(found, wanted) && seen.insert(found.id).inserted {
+                        made.append(Row(key: found.id, title: found.displayName, sub: "@" + found.username, person: found, run: { [weak self] in self?.open(person: found) }))
+                    }
                     if let people, peopleFor == wanted {
-                        for found in people where found.id != messenger?.userId {
+                        for found in people where seen.insert(found.id).inserted {
                             made.append(Row(key: found.id, title: found.displayName, sub: "@" + found.username, person: found, run: { [weak self] in self?.open(person: found) }))
                         }
                     } else {

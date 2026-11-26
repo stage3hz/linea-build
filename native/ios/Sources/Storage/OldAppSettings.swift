@@ -33,7 +33,6 @@ enum OldAppSettings {
         ("linea.recent-search.v1:", "linea.recent-search.v1:", .text),            // recent search, per account
         ("linea.platina.seen.", "linea.platina.seen.", .text),                    // Platina offer seen, per account
         ("linea.channel-outbox.v1:", "linea.channel-outbox.v1:", .text),          // channel messages not sent yet, per account
-        ("linea.hint.bar-scrub.v1", "linea.hint.bar-scrub.v1", .text),            // the tab bar hint shown
         ("linea.equalizer.v1", "linea.equalizer.v1", .text),                      // music: equalizer
         ("linea.music-source.v1", "linea.music-source.v1", .text),                // music: the chosen source
         ("linea.music.device-library.v1", "linea.music.device-library.v1", .text),// music: saved tracks and favourites

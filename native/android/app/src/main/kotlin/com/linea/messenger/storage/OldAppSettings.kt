@@ -31,7 +31,6 @@ object OldAppSettings {
     Entry("linea.stickers.recent.v1", "invizent.look", "invizent.emoji.recent.v1"),          // recent emoji
     Entry("linea.language.v1", "invizent.language", "linea.language.v1"),                    // «Язык»
     Entry("linea.folders.v1:", "chatsplus", "linea.folders.v1:"),                            // «Папки с чатами», per account
-    Entry("linea.hint.bar-scrub.v1", "chatsplus", "linea.hint.bar-scrub.v1"),                // the tab bar hint shown
     Entry("linea.hidden.v1:", "invizent.chat-local", "invizent.hidden.v1:"),                 // messages deleted for me
     Entry("linea.removed-chats.v1:", "invizent.chat-local", "invizent.removed-chats.v1:"),   // chats deleted for me
     Entry("linea.marked-unread.v1:", "invizent.chat-local", "invizent.marked-unread.v1:"),   // chats marked unread

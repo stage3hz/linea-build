@@ -45,6 +45,7 @@ import com.linea.messenger.people.PeopleIcons
 import com.linea.messenger.people.Person
 import com.linea.messenger.people.PersonAvatarView
 import com.linea.messenger.people.findPeople
+import com.linea.messenger.people.friends
 import com.linea.messenger.people.pages
 import com.linea.messenger.people.personAvatarAddress
 import com.linea.messenger.shell.Screen
@@ -111,6 +112,26 @@ class ChatSearchScreen(
       return (listOf(item) + recent.filter { recentId(it) != id }).take(RECENT_LIMIT)
     }
 
+    /** Whether a person's name or @имя holds the words (a leading «@» asks for the @имя as typed). */
+    fun matches(person: Person, wanted: String): Boolean {
+      val words = wanted.trim().lowercase(ru).removePrefix("@")
+      if (words.isEmpty()) return false
+      return (person.displayName + " " + person.username).lowercase(ru).contains(words)
+    }
+
+    /** The people listed after the chats (the owner's report: people were not found in the search of the chats):
+     *  first the friends whose name or @имя holds the words, then those the server's people search found
+     *  (`/users`, from 2 letters), each once, without those who already have a chat here (they are listed as
+     *  chats above) and without this account. */
+    fun morePeople(wanted: String, chatPeers: Set<String>, friends: List<Person>, found: List<Person>?, me: String?): List<Person> {
+      val made = ArrayList<Person>()
+      val seen = HashSet<String>(chatPeers)
+      me?.let { seen.add(it) }
+      for (person in friends) if (matches(person, wanted) && seen.add(person.id)) made.add(person)
+      if (wanted.trim().length >= 2) for (person in found.orEmpty()) if (seen.add(person.id)) made.add(person)
+      return made
+    }
+
     /** The words shown when there are no rows. */
     fun emptyWords(wanted: String, scope: Scope): String =
       if (wanted.isNotEmpty()) {
@@ -136,6 +157,8 @@ class ChatSearchScreen(
   private var people: List<Person>? = null
   private var peopleFor = ""
   private var peopleSoon: Runnable? = null
+  /** The friends of this account, for the people listed with the chats (loaded once, when the search opens). */
+  private var friendList: List<Person> = emptyList()
   private var hits: List<Hit> = emptyList()
   private var hitsFor = ""
   private var historyRun = 0
@@ -186,6 +209,7 @@ class ChatSearchScreen(
     setBackgroundColor(Theme.bg)
     addView(page)
     loadRecent()
+    messenger?.friends { result -> main.post { result.getOrNull()?.let { friendList = it; if (!closed) refresh() } } }
 
     list.divider = null; list.dividerHeight = 0
     list.selector = ColorDrawable(Theme.alpha(Theme.accent, 0.14f))
@@ -484,10 +508,17 @@ class ChatSearchScreen(
         if ("избранное".contains(wanted)) made.add(Row("saved", "Избранное", "Заметки и сохранённое", saved = true) { goSaved() })
         for (chat in chats) {
           val peer = person(chat)
-          if ((peer.displayName + " " + peer.username).lowercase(ru).contains(wanted)) {
+          if ((peer.displayName + " " + peer.username).lowercase(ru).contains(wanted) || matches(peer, wanted)) {
             made.add(Row(chat.id, peer.displayName, if (peer.username.isEmpty()) "" else "@" + peer.username, person = peer) { open(peer) })
           }
         }
+        // People with no chat here yet: friends, then the server's people search (as the scope «Люди» finds them).
+        if (wanted.length >= 2 && peopleFor != wanted) askPeople(wanted)
+        val found = if (peopleFor == wanted) people else null
+        for (person in morePeople(wanted, chats.map { it.peerId }.toSet(), friendList, found, messenger?.userId)) {
+          made.add(Row("p:" + person.id, person.displayName, if (person.username.isEmpty()) "" else "@" + person.username, person = person) { open(person) })
+        }
+        if (wanted.length >= 2 && found == null) loading = true
         // Words in the last message of each chat and in the notes of «Избранное» (both already decrypted here).
         if (wanted.length >= 2) {
           for (chat in chats) {
@@ -534,8 +565,14 @@ class ChatSearchScreen(
         if (wanted.length >= 2) {
           if (peopleFor != wanted) askPeople(wanted)
           val found = people
+          // The chat partners and friends whose name or @имя holds the words first (the server finds a name only
+          // in full and an @имя from its first 4 letters), then the rest of what the server found, each once.
+          val seen = HashSet<String>()
+          messenger?.userId?.let { seen.add(it) }
+          for (chat in chats) { val peer = person(chat); if (matches(peer, wanted) && seen.add(peer.id)) made.add(Row(peer.id, peer.displayName, "@" + peer.username, person = peer) { open(peer) }) }
+          for (person in friendList) if (matches(person, wanted) && seen.add(person.id)) made.add(Row(person.id, person.displayName, "@" + person.username, person = person) { open(person) })
           if (found != null && peopleFor == wanted) {
-            for (person in found) if (person.id != messenger?.userId) made.add(Row(person.id, person.displayName, "@" + person.username, person = person) { open(person) })
+            for (person in found) if (seen.add(person.id)) made.add(Row(person.id, person.displayName, "@" + person.username, person = person) { open(person) })
           } else loading = true
         }
       }

@@ -2,6 +2,8 @@ package com.linea.messenger
 
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.chatsearch.ChatSearchScreen
+import com.linea.messenger.chatsplus.BarHintView
+import com.linea.messenger.people.Person
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -40,6 +42,36 @@ class ChatSearchRulesTest {
     list = ChatSearchScreen.remembered(list, user("p10"))
     assertEquals(listOf("u:p10", "u:p20"), list.take(2).map { ChatSearchScreen.recentId(it) })
     assertEquals(15, list.size)
+  }
+
+  @Test fun peopleAreFoundWithTheChats() {
+    fun person(id: String, name: String, username: String) = Person(id, username, name, "", "", 0x4B73BB, "")
+    val anna = person("a", "Анна Петрова", "anna")
+    val boris = person("b", "Борис", "bor1s")
+    val me = person("me", "Анна Я", "anna_me")
+    // A leading «@» asks for the @имя; the name and the @имя are both looked in, in any case.
+    assertEquals(true, ChatSearchScreen.matches(anna, "анна"))
+    assertEquals(true, ChatSearchScreen.matches(anna, "@ANNA"))
+    assertEquals(true, ChatSearchScreen.matches(boris, "bor"))
+    assertEquals(false, ChatSearchScreen.matches(boris, "@"))
+    assertEquals(false, ChatSearchScreen.matches(boris, "анна"))
+    // Friends first, then what the server found; each once, not those with a chat here, not this account.
+    val server = listOf(person("c", "Анна", "annushka"), anna, me)
+    assertEquals(listOf("a", "c"), ChatSearchScreen.morePeople("анна", emptySet(), listOf(anna, boris, me), server, "me").map { it.id })
+    assertEquals(listOf("c"), ChatSearchScreen.morePeople("анна", setOf("a"), listOf(anna), server, "me").map { it.id })
+    // One letter: no server search (as the reference's «Люди»), friends still are.
+    assertEquals(listOf("a"), ChatSearchScreen.morePeople("а", emptySet(), listOf(anna), server, "me").map { it.id })
+    // The server's answer not here yet: the friends alone.
+    assertEquals(listOf("b"), ChatSearchScreen.morePeople("бор", emptySet(), listOf(anna, boris), null, "me").map { it.id })
+  }
+
+  @Test fun holdHintShowsOnSixStartsUntilUsed() {
+    assertEquals("linea.hint.bar-scrub.v2", BarHintView.KEY)
+    assertEquals(true to "1", BarHintView.decide(null))
+    assertEquals(true to "1", BarHintView.decide(""))
+    assertEquals(true to "6", BarHintView.decide("5"))
+    assertEquals(false to null, BarHintView.decide("6"))
+    assertEquals(false to null, BarHintView.decide("used"))
   }
 
   @Test fun initialsSplitOnAnyWhiteSpace() {

@@ -36,23 +36,33 @@ class BarHintView(context: Context) : TextView(context) {
   fun wide(): Int = (paint.measureText(text.toString()) + 26f * resources.displayMetrics.density).toInt()
 
   companion object {
-    private const val KEY = "linea.hint.bar-scrub.v1"
-    private const val STARTS = 6
+    /** The reference keeps «linea.hint.bar-scrub.v1»; this app counts its own starts under «.v2»: the copy of the
+     *  old app's settings (storage/OldAppSettings.kt) brought over «used» or six starts already counted there, so
+     *  on a phone that had the old app the words were never shown here (the owner's report: no hint about the hold). */
+    const val KEY = "linea.hint.bar-scrub.v2"
+    const val STARTS = 6
     private var decided: Boolean? = null
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences("chatsplus", Context.MODE_PRIVATE)
 
+    /** What was kept («used» or how many starts showed the words) → whether to show them now, and what to keep
+     *  then (null: nothing changes). */
+    fun decide(value: String?): Pair<Boolean, String?> {
+      val kept = value ?: ""
+      val seen = kept.toIntOrNull() ?: 0
+      return if (kept != "used" && seen < STARTS) true to (seen + 1).toString() else false to null
+    }
+
+    /** Only for the checks: the next view asks the preferences again. */
+    fun forget() { decided = null }
+
     /** Whether to show the words in this run of the app (counted once per start). */
     private fun wanted(context: Context): Boolean {
       decided?.let { return it }
-      var show = false
       val prefs = prefs(context)
-      val value = prefs.getString(KEY, "") ?: ""
-      val seen = value.toIntOrNull() ?: 0
-      if (value != "used" && seen < STARTS) {
-        show = true
-        prefs.edit().putString(KEY, (seen + 1).toString()).apply()
-      }
+      val (wantedNow, keep) = decide(prefs.getString(KEY, ""))
+      var show = wantedNow
+      if (keep != null) prefs.edit().putString(KEY, keep).apply()
       // The emulator check: the shots of the other checks stay as they were; the words only when asked for.
       ChatsPlusDemo.hint?.let { show = it }
       decided = show
