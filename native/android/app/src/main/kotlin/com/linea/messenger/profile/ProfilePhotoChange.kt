@@ -51,6 +51,8 @@ class ProfilePhotoChange(private val context: Context, private val messenger: Me
   companion object {
     const val AVATAR_EDGE = 1024
     const val PROFILE_LIMIT = 4 * 1024 * 1024
+    /** A GIF for the avatar: up to 20 MB (the owner's rule; the server's MAX_AVATAR_GIF_BYTES). */
+    const val GIF_LIMIT = 20 * 1024 * 1024
     const val VIDEO_LIMIT = 8 * 1024 * 1024
   }
 
@@ -183,9 +185,9 @@ class ProfilePhotoChange(private val context: Context, private val messenger: Me
       upload(data, "banner.gif", "image/gif", "Не удалось загрузить файл.") { attachment -> patch(mapOf("bannerId" to (attachment["id"] as? String ?: "")), "Баннер обновлён.", "Не удалось загрузить файл.") }
       return
     }
-    if (data.size > PROFILE_LIMIT) return say("GIF больше 4 МБ. Выбери покороче.", true)
+    if (data.size > GIF_LIMIT) return say("GIF больше 20 МБ. Выбери покороче.", true)
     upload(data, "avatar.gif", "image/gif", "Не удалось сохранить GIF.") { attachment ->
-      if (((attachment["size"] as? Number)?.toLong() ?: 0L) > PROFILE_LIMIT) return@upload fail("GIF больше 4 МБ. Выбери покороче.")
+      if (((attachment["size"] as? Number)?.toLong() ?: 0L) > GIF_LIMIT) return@upload fail("GIF больше 20 МБ. Выбери покороче.")
       patch(mapOf("avatarId" to (attachment["id"] as? String ?: "")), "Фото профиля обновлено.", "Не удалось сохранить GIF.")
     }
   }

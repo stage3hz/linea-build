@@ -22,6 +22,8 @@ final class ProfilePhotoChange: NSObject, PHPickerViewControllerDelegate, UIImag
 
     private static let avatarEdge = 1024
     private static let profileLimit = 4 * 1024 * 1024
+    /// A GIF for the avatar: up to 20 MB (the owner's rule; the server's MAX_AVATAR_GIF_BYTES).
+    private static let gifLimit = 20 * 1024 * 1024
     private static let videoLimit = 8 * 1024 * 1024
 
     init(messenger: Messenger, host: UIViewController) {
@@ -170,10 +172,10 @@ final class ProfilePhotoChange: NSObject, PHPickerViewControllerDelegate, UIImag
             }
             return
         }
-        if data.count > ProfilePhotoChange.profileLimit { return say("GIF больше 4 МБ. Выбери покороче.", error: true) }
+        if data.count > ProfilePhotoChange.gifLimit { return say("GIF больше 20 МБ. Выбери покороче.", error: true) }
         upload(data, name: "avatar.gif", mimeType: "image/gif", failure: "Не удалось сохранить GIF.") { [weak self] (attachment: [String: Any]) -> Void in
             guard let self else { return }
-            if ((attachment["size"] as? NSNumber)?.intValue ?? 0) > ProfilePhotoChange.profileLimit { return self.fail("GIF больше 4 МБ. Выбери покороче.") }
+            if ((attachment["size"] as? NSNumber)?.intValue ?? 0) > ProfilePhotoChange.gifLimit { return self.fail("GIF больше 20 МБ. Выбери покороче.") }
             self.patch(["avatarId": attachment["id"] as? String ?? ""], done: "Фото профиля обновлено.", failure: "Не удалось сохранить GIF.")
         }
     }
