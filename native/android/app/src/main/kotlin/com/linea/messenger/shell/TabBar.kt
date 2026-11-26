@@ -131,7 +131,7 @@ internal object TabFlow {
   const val LINE_SPREAD = 2.5f
   /** How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6). */
   const val LINE_WHITE = 0.3f
-  const val GRAIN = 0.08f
+  const val GRAIN = 0f // Owner's rule: the bar is clean, no grain over its lights (the sketch had 0.08).
 
   // The colours' drift: all three hues turn together at an uneven pace — one turn of the circle in about 3 minutes, the
   // pace swinging ±40 % by three slow sines of incommensurate periods (so it never repeats) — and each light wanders
@@ -536,7 +536,7 @@ private class TabListOverlay(context: Context, entries: List<TabEntry>, behind: 
  *  - The bar is a plate of glass (see Glass: the page behind it, blurred, on Android 12 and later): dark on a dark
  *    theme, light with dark icons on a light one.
  *  - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
- *    faint second capsule follows a little late and fades — the trail.
+ *    capsule stretches over to it and draws itself in there (no second capsule behind it: the owner's rule).
  *  - A light lives in the glass (look 9, the default, `TabFlow`; the sketch «2. Сияние»): violet at the left, pink
  *    under the chosen tab (the bar's middle in a section without an icon), cyan at the right, rising from the lower
  *    edge over the glass's fill and under its rim, and a white line on the top edge above the chosen tab glowing in
@@ -972,17 +972,16 @@ class TabBarView(context: Context) : ViewGroup(context) {
     if (flowWanted) drawLine(canvas)
 
     val top = 4f * d; val wide = cell - 8f * d; val tall = h - 8f * d; val round = tall / 2
-    if (trailAlpha > 0f) {
-      fill.color = Theme.alpha(ink, (if (Theme.dark) 0.16f else 0.08f) * trailAlpha)
-      canvas.drawRoundRect(trailX, top, trailX + wide, top + tall, round, round, fill)
-    }
     if (capsuleAlpha > 0f) {
-      canvas.save(); canvas.scale(liftScale, liftScale, capsuleX + wide / 2, h / 2)
+      // One capsule between its leading edge (`capsuleX`) and its late one (`trailX`): on the way to another tab it
+      // stretches toward it and then draws itself in (the owner's rule: no second, fading capsule behind it).
+      val left = min(capsuleX, trailX); val span = abs(capsuleX - trailX) + wide
+      canvas.save(); canvas.scale(liftScale, liftScale, left + span / 2, h / 2)
       fill.color = Theme.alpha(ink, (if (Theme.dark) 0.14f else 0.07f) * capsuleAlpha)
-      canvas.drawRoundRect(capsuleX, top, capsuleX + wide, top + tall, round, round, fill)
+      canvas.drawRoundRect(left, top, left + span, top + tall, round, round, fill)
       rim.color = Theme.alpha(WHITE, (if (Theme.dark) 0.22f else 0.8f) * capsuleAlpha)
       val half = rim.strokeWidth / 2
-      canvas.drawRoundRect(capsuleX + half, top + half, capsuleX + wide - half, top + tall - half, round - half, round - half, rim)
+      canvas.drawRoundRect(left + half, top + half, left + span - half, top + tall - half, round - half, round - half, rim)
       canvas.restore()
     }
   }
@@ -1051,19 +1050,17 @@ class TabBarView(context: Context) : ViewGroup(context) {
     val ease = DecelerateInterpolator()
     if (index < 0 || before < 0) {
       // Appearing or leaving: a fade, nothing travels.
-      if (index >= 0) { running[0]?.cancel(); capsuleX = target }
+      if (index >= 0) { running[0]?.cancel(); running[3]?.cancel(); capsuleX = target; trailX = target }
       run(1, capsuleAlpha, if (index < 0) 0f else 1f, 200, 0, ease) { capsuleAlpha = it }
       run(2, spotX, spotCentre(index), 200, 0, ease) { spotX = it }
       return
     }
-    // The trail starts where the capsule stands now, follows late and fades as it arrives.
-    trailX = capsuleX
-    trailAlpha = 0.6f
-    run(0, capsuleX, target, 420, 0, SpringCurve(0.82f, 0.4f * 0.42f)) { capsuleX = it }
+    // The capsule stretches: its leading edge goes at once, its other edge follows a little late and catches up.
+    trailAlpha = 0f
+    run(0, capsuleX, target, 300, 0, ease) { capsuleX = it }
     run(1, capsuleAlpha, 1f, 420, 0, ease) { capsuleAlpha = it }
     run(2, spotX, spotCentre(index), 420, 0, SpringCurve(0.82f, 0.4f * 0.42f)) { spotX = it }
-    run(3, trailX, target, 620, 50, SpringCurve(0.9f)) { trailX = it }
-    run(4, trailAlpha, 0f, 340, 260, ease) { trailAlpha = it }
+    run(3, trailX, target, 360, 110, SpringCurve(0.9f)) { trailX = it }
   }
 
   private fun lift(on: Boolean) {

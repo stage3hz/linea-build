@@ -6,7 +6,7 @@ import UIKit
 /// The phone's tab bar, drawn and driven by UIKit alone.
 /// - The bar is the system's own glass (iOS 26: UIGlassEffect, clear and interactive; before: a thin blur).
 /// - The chosen tab stands on a light capsule; choosing another tab sends the capsule there with a spring and a
-///   faint second capsule follows a little late and fades — the trail.
+///   capsule stretches over to it and draws itself in there (no second capsule behind it: the owner's rule).
 /// - A light lives under the glass (look 9, the default; the sketch «2. Сияние»): violet at the left, pink under the
 ///   chosen tab (the bar's middle in a section without an icon), cyan at the right, rising from the lower edge, and a
 ///   white line on the top edge above the chosen tab glowing in the centre's colour. The hues drift on slowly and
@@ -116,7 +116,7 @@ enum TabFlow {
   static let lineSpread: CGFloat = 2.5
   /// How much white is mixed into the line's glow (#ff5fb0 → about #ff8cc6).
   static let lineWhite: CGFloat = 0.3
-  static let grain: CGFloat = 0.08
+  static let grain: CGFloat = 0 // Owner's rule: the bar is clean, no grain over its lights (the sketch had 0.08).
 
   // The colours' drift: all three hues turn together at an uneven pace — one turn of the circle in about 3 minutes,
   // the pace swinging ±40 % by three slow sines of incommensurate periods (so it never repeats) — and each light
@@ -1213,23 +1213,43 @@ final class TabBarView: UIView, UIGestureRecognizerDelegate {
       }
       return
     }
-    // The trail starts where the capsule stands now, follows late and fades as it arrives.
+    // The capsule stretches: it first reaches over to the other tab, then draws itself in there (the owner's rule: no
+    // second, fading capsule behind it).
     trail.layer.removeAllAnimations()
-    trail.frame = capsule.layer.presentation()?.frame ?? capsule.frame
-    trail.alpha = 0.6
+    trail.alpha = 0
+    let standing = capsule.layer.presentation()?.frame ?? capsule.frame
+    let reach = standing.union(target)
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    capsule.frame = target
+    shapeCapsules()
+    CATransaction.commit()
+    // The capsule's rim and gloss are layers of their own, so all three are moved by the same explicit animation:
+    // from where the capsule stands, over both tabs, to the new one.
+    let stops: [CGRect] = [standing, reach, target]
+    let parts: [(layer: CALayer, inside: Bool)] = [(capsule.layer, false), (capsuleRim, true), (gloss, true)]
+    for part in parts {
+      let size = CAKeyframeAnimation(keyPath: "bounds.size")
+      size.values = stops.map { (rect: CGRect) -> NSValue in NSValue(cgSize: rect.size) }
+      let place = CAKeyframeAnimation(keyPath: "position")
+      place.values = stops.map { (rect: CGRect) -> NSValue in
+        NSValue(cgPoint: part.inside ? CGPoint(x: rect.width / 2, y: rect.height / 2) : CGPoint(x: rect.midX, y: rect.midY))
+      }
+      for move in [size, place] {
+        move.keyTimes = [0, 0.42, 1]
+        move.duration = 0.46
+        move.timingFunctions = [CAMediaTimingFunction(name: .easeOut), CAMediaTimingFunction(name: .easeInEaseOut)]
+      }
+      part.layer.add(size, forKey: "stretch.size")
+      part.layer.add(place, forKey: "stretch.place")
+    }
     UIView.animate(withDuration: 0.42, delay: 0, usingSpringWithDamping: 0.82, initialSpringVelocity: 0.4, options: [.beginFromCurrentState, .allowUserInteraction]) {
-      self.capsule.frame = target
       self.capsule.alpha = 1
       self.spotView.alpha = 1
       self.spotView.frame = self.spotFrame(index)
       self.flowLine.frame = self.lineFrame(index)
     }
-    UIView.animate(withDuration: 0.62, delay: 0.05, usingSpringWithDamping: 0.9, initialSpringVelocity: 0, options: [.allowUserInteraction]) {
-      self.trail.frame = target
-    }
-    UIView.animate(withDuration: 0.34, delay: 0.26, options: [.allowUserInteraction, .curveEaseOut]) {
-      self.trail.alpha = 0
-    }
+    trail.frame = target
   }
 
   private func lift(_ on: Bool) {
