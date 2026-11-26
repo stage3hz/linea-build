@@ -211,13 +211,14 @@ final class PrivacyViewController: SettingsPage {
         typing.onChange = { (value: Bool) -> Void in DevicePreferences.set(["sendTyping": value]) }
         addGroup("На этом устройстве", rows: [typing])
 
-        add(SettingsLook.foot("Содержимое сообщений, ответы, реакции, правки и закрепления шифруются на устройстве. Сервер видит только служебные данные: кто, кому и когда."), gap: 16)
+        // SettingsScreen.tsx: 12 on lines of 18, `muted`, 6 in from the sides.
+        add(SettingsLook.inset(SettingsLook.para("Содержимое сообщений, ответы, реакции, правки и закрепления шифруются на устройстве. Сервер видит только служебные данные: кто, кому и когда.", size: 12, color: Theme.muted, line: 18), top: 0, side: 6, bottom: 0), gap: 16)
     }
 
     /// A heading, one of several side by side, and the words about the chosen one.
     private func choice(heading: String, hint: String, hintFirst: Bool, labels: [String], chosen: Int, enabled: Bool, spoken: String, pick: @escaping (Int) -> Void) -> UIView {
         let name = SettingsLook.words(heading, size: 15, color: Theme.text, weight: .semibold)
-        let about = SettingsLook.words(hint, size: 12.5, color: Theme.muted)
+        let about = SettingsLook.para(hint, size: 12.5, color: Theme.muted, line: 18) // `fontSize: 12.5, lineHeight: 18`
         let segments = SettingsSegments(labels: labels, chosen: chosen, enabled: enabled, spoken: spoken)
         segments.onPick = pick
         let parts: [UIView] = hintFirst ? [name, about, segments] : [name, segments, about]
