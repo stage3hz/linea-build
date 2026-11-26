@@ -161,9 +161,14 @@ class ChatListView(context: Context) : FrameLayout(context) {
     return dragging || swallow
   }
 
+  /** A glide that is nearly over stops at a new touch, which then reaches the row's swipe, the folder's turn or the
+   *  stories strip as on a list at rest; a faster glide is only stopped by it (design/GlideCatch.kt). */
+  private val glide = com.linea.messenger.design.GlideCatch()
+
   private val list = object : ListView(context) {
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
       lastTouchY = event.rawY
+      if (event.actionMasked == MotionEvent.ACTION_DOWN) glide.down(this)
       if (swipeTouch(this, event)) return true
       return super.dispatchTouchEvent(event)
     }
@@ -185,9 +190,11 @@ class ChatListView(context: Context) : FrameLayout(context) {
     // ChatsPlus: «Архив» behind the pull settles open or shut when the list comes to rest.
     list.setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
       override fun onScrollStateChanged(view: android.widget.AbsListView?, state: Int) {
+        glide.state(state)
         if (state == android.widget.AbsListView.OnScrollListener.SCROLL_STATE_IDLE) snapPull()
       }
       override fun onScroll(view: android.widget.AbsListView?, first: Int, visible: Int, total: Int) {
+        glide.scrolled(list)
         val top = list.getChildAt(0)?.top ?: 0
         if (first == 0) { if (top > lastFirstTop) pullDirection = -1 else if (top < lastFirstTop) pullDirection = 1 }
         lastFirstTop = top

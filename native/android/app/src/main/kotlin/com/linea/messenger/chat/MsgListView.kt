@@ -84,11 +84,15 @@ class MsgListView(context: Context) : FrameLayout(context) {
     }
   }
 
+  /** A glide that is nearly over stops at a new touch, which then reaches the row as on a list at rest: the swipe to
+   *  answer and a tap on a link work at the end of a glide; a faster glide is only stopped (design/GlideCatch.kt). */
+  private val glide = com.linea.messenger.design.GlideCatch()
+
   private val list = object : ListView(context) {
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
       lastTouchY = event.rawY; upX = event.x; upY = event.y
       nowX = event.rawX; nowY = event.rawY
-      if (event.actionMasked == MotionEvent.ACTION_DOWN) { downX = nowX; downY = nowY; touchTaken = false }
+      if (event.actionMasked == MotionEvent.ACTION_DOWN) { downX = nowX; downY = nowY; touchTaken = false; glide.down(this) }
       if (event.actionMasked == MotionEvent.ACTION_CANCEL) touchTaken = true
       return super.dispatchTouchEvent(event)
     }
@@ -141,8 +145,9 @@ class MsgListView(context: Context) : FrameLayout(context) {
       true
     }
     setOnScrollListener(object : AbsListView.OnScrollListener {
-      override fun onScrollStateChanged(view: AbsListView?, state: Int) { moving = state != AbsListView.OnScrollListener.SCROLL_STATE_IDLE }
+      override fun onScrollStateChanged(view: AbsListView?, state: Int) { glide.state(state); moving = state != AbsListView.OnScrollListener.SCROLL_STATE_IDLE }
       override fun onScroll(view: AbsListView?, first: Int, visible: Int, total: Int) {
+        view?.let { glide.scrolled(it) }
         // Once per «oldest row»: asked again only after older rows have arrived.
         val oldest = rows.firstOrNull()?.key ?: return
         if (total > 0 && first <= 4 && askedAt != oldest) { askedAt = oldest; onNearTop(oldest) }
