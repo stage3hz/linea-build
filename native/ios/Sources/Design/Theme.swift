@@ -52,8 +52,12 @@ extension Theme {
 enum BarMetrics {
     static let height: CGFloat = 62
     static let width: CGFloat = 176
-    /// From the bar's lower edge to the screen's.
-    static func bottomGap(safeBottom: CGFloat) -> CGFloat { max(safeBottom - 8, 12) }
+    /// From the bar's lower edge to the screen's: the previous app's rule (chatLayout.ts `tabBarMarginBottom`) — 10
+    /// above the safe area, but no more than 30 from the screen's edge on a phone with a home indicator.
+    static func bottomGap(safeBottom: CGFloat) -> CGFloat {
+        guard safeBottom > 0 else { return 10 }
+        return safeBottom + min(10, 30 - safeBottom)
+    }
 }
 
 /// A person's colour as a lit ball: the lighter corner and the deeper one (0xAARRGGBB each).
