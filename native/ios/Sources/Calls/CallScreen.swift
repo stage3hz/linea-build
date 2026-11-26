@@ -329,7 +329,10 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         statusButton.accessibilityLabel = words + ". Диагностика звонка"
         clockLabel.text = status.clock
         clockLabel.isHidden = !(reconnecting && !showsVideo)
-        let lines = statsOpen && call.status == "active" ? Calls.shared.linkLines : []
+        // An ended call of the preview build: what it went through, in one grey line (CallReport.swift).
+        let report = call.isOver ? Calls.shared.endReport : nil
+        let lines = report.map { [$0] } ?? (statsOpen && call.status == "active" ? Calls.shared.linkLines : [])
+        statsLabel.textColor = UIColor(white: 1, alpha: report == nil ? 0.9 : 0.6)
         statsLabel.text = lines.joined(separator: "\n")
         let hidden = lines.isEmpty
         if statsBox.isHidden != hidden {
@@ -347,6 +350,7 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
         key += call.cameraOff ? "|off" : "|on"
         key += call.muted ? "|muted" : "|heard"
         key += call.speaker ? "|loud" : "|quiet"
+        if call.isOver && Calls.shared.endReport != nil { key += "|report" }
         if key == buttonsKey { return }
         buttonsKey = key
         for old in buttons.arrangedSubviews {
@@ -369,6 +373,11 @@ final class CallScreenView: UIView, UIGestureRecognizerDelegate {
                 let again = CallRoundButton(icon: callSymbol, words: "Повторить", color: green)
                 again.onPress = { Calls.shared.retry() }
                 made = [close, again]
+            } else if Calls.shared.endReport != nil {
+                // The preview build keeps a call that did not come up on the screen for a while (its grey line): it can be put away.
+                let close = CallRoundButton(icon: "close", words: "Закрыть")
+                close.onPress = { Calls.shared.close() }
+                made = [close]
             }
         } else {
             let cameraOn = call.video && !call.cameraOff

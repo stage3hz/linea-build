@@ -66,6 +66,14 @@ final class Calls {
     private var restarting = false
     private var linkSample: [String: Any]?
     private var calm = 0
+    /// What the call on screen went through (CallReport.swift), for the grey line of the preview build.
+    private var report: CallReport?
+    /// That line, once the call has ended (nil: none, or not this build).
+    private(set) var endReport: String?
+    /// Servers asked for this recently are used as they are (the relay's password lasts 6 hours).
+    private static let iceFresh: TimeInterval = 5 * 60
+    /// How long the preview build keeps a call that never came up on the screen, with its grey line.
+    private static let reportHold: TimeInterval = 15
     #if targetEnvironment(simulator)
     /// The simulator's samples (-calldemo): the screens without an account, a server or any media.
     private var demo = false
@@ -135,12 +143,17 @@ final class Calls {
 
     /// «Позвонить» / «Видеозвонок». With a call already on, that call comes back to the screen instead.
     func place(chatId: String, peer: Person, video: Bool) {
-        if call != nil { return restore() }
+        // A call that has ended and only shows its last words is no call: a new one takes its place.
+        if call?.isOver == false { return restore() }
         guard let messenger else { return }
         let id = UUID().uuidString.lowercased()
         seen.insert(id)
         MusicPlayer.shared.stop()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let made = CallReport(incoming: false)
+        made.network = network.kind
+        report = made
+        endReport = nil
         call = CallState(id: id, chatId: chatId, peer: peer, incoming: false, video: video, status: "requesting", speaker: video)
         began()
         // The header knows only the name: the picture and the colour come from the profile.
@@ -182,6 +195,7 @@ final class Calls {
             guard let self, let current = self.call, current.id == id, !current.isOver else { return }
             guard online else { return self.finish(CallRules.noConnectionText, notify: nil, retry: true) }
             self.send(current, ["type": "call", "call": id, "step": "offer", "video": video, "sdp": CallRules.words("callMarkRestart", [sdp]) ?? sdp])
+            self.report?.offerAt = Date()
             self.patch { (call: inout CallState) -> Void in call.status = "ringing" }
             // The first ringback: the call is on its way. The server then says how far it got (`call.reach`) and
             // the ringing one takes over. A server that says nothing gets the ringing tone after 3 s.
@@ -199,6 +213,7 @@ final class Calls {
             self.ringTimer = Timer.scheduledTimer(withTimeInterval: CallRules.ringTimeout, repeats: false) { [weak self] (_: Timer) -> Void in
                 guard let self, self.isCurrent(id), self.call?.status == "ringing" else { return }
                 let expiry = CallRules.fields("callRingExpiry", [self.signalNetwork])
+                self.report?.cause = "нет ответа за \(Int(CallRules.ringTimeout)) с"
                 self.finish(expiry["text"] as? String ?? "Нет ответа", notify: "missed", retry: expiry["retry"] as? Bool ?? false)
             }
         }
@@ -219,13 +234,21 @@ final class Calls {
 
     /// Asks for the call's servers and makes the connection with the microphone (and the camera).
     private func prepare(id: String, video: Bool, done: @escaping (CallMedia?) -> Void) {
-        iceServers(attempt: 0) { [weak self] (servers: [[String: Any]]) -> Void in
+        iceServers(attempt: 0) { [weak self] (servers: [[String: Any]], source: String) -> Void in
             guard let self, self.isCurrent(id) else { return }
             self.wantRelay = CallRules.flag("callHasRelay", [servers])
             self.relayFound = false
+            if let report = self.report {
+                report.servers = servers.count
+                report.source = source
+                report.wantRelay = self.wantRelay
+            }
             guard let made = CallMedia(iceServers: servers, video: video) else { return done(nil) }
             made.onCandidate = { [weak self] (line: String) -> Void in
-                if CallRules.flag("callIsRelayCandidate", [line]) { self?.relayFound = true }
+                if CallRules.flag("callIsRelayCandidate", [line]) {
+                    self?.relayFound = true
+                    self?.report?.relayFound = true
+                }
             }
             made.onGathering = { [weak self] in self?.checkGathering() }
             made.onState = { [weak self, weak made] (state: String) -> Void in
@@ -243,22 +266,37 @@ final class Calls {
     }
 
     /// Without the relay's address a call between two mobile networks cannot connect, so its request is not given
-    /// up at the first failure: one more try, then the servers of the last call (the relay's password lasts 6
-    /// hours), then the public address finder alone.
-    private func iceServers(attempt: Int, done: @escaping ([[String: Any]]) -> Void) {
-        guard let messenger else { return done([["urls": ["stun:stun.l.google.com:19302"]]]) }
+    /// up at the first failure: two more tries (after 0.4 and 1.5 s), then the servers of the last call (the
+    /// relay's password lasts 6 hours), then the public address finder alone. Servers asked for a few minutes ago
+    /// — while the call rang, see `prefetchIce` — are taken as they are. `done` also says where they came from.
+    private func iceServers(attempt: Int, done: @escaping ([[String: Any]], String) -> Void) {
+        if attempt == 0, let kept = lastIce, Date().timeIntervalSince(kept.at) < Calls.iceFresh { return done(kept.servers, "сервер, заранее") }
+        guard let messenger else { return done([["urls": ["stun:stun.l.google.com:19302"]]], "публичные") }
         messenger.callIceServers { [weak self] (servers: [[String: Any]]?) -> Void in
             guard let self else { return }
             if let servers {
                 self.lastIce = (Date(), servers)
-                return done(servers)
+                return done(servers, attempt == 0 ? "сервер" : "сервер, попытка \(attempt + 1)")
             }
-            if attempt == 0 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.iceServers(attempt: 1, done: done) }
+            if attempt < 2 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + (attempt == 0 ? 0.4 : 1.5)) { self.iceServers(attempt: attempt + 1, done: done) }
                 return
             }
-            if let kept = self.lastIce, Date().timeIntervalSince(kept.at) < CallRules.iceReuse { return done(kept.servers) }
-            done([["urls": ["stun:stun.l.google.com:19302"]]])
+            if let kept = self.lastIce, Date().timeIntervalSince(kept.at) < CallRules.iceReuse { return done(kept.servers, "прошлые") }
+            done([["urls": ["stun:stun.l.google.com:19302"]]], "публичные")
+        }
+    }
+
+    /// An incoming call rings: its servers are asked for now, while the person reaches for the phone, so that
+    /// «Ответить» does not wait for them — and a request that fails has the ringing to be tried again. Only the
+    /// servers are kept (in memory, like the last call's); nothing else is done with them.
+    private func prefetchIce(_ callId: String, attempt: Int = 0) {
+        guard let messenger else { return }
+        messenger.callIceServers { [weak self] (servers: [[String: Any]]?) -> Void in
+            guard let self else { return }
+            if let servers { self.lastIce = (Date(), servers); return }
+            guard attempt < 3, self.call?.id == callId, self.call?.status == "incoming" else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.prefetchIce(callId, attempt: attempt + 1) }
         }
     }
 
@@ -346,7 +384,13 @@ final class Calls {
             let complete = wait.fresh ? wait.moved && finished : finished
             if !CallRules.flag("callGatherDone", [complete, relayFound, wantRelay, elapsed]) { continue }
             wait.settled = true
-            wait.done(made.localSdp)
+            let sdp = made.localSdp
+            if let report {
+                report.gatherMs = elapsed
+                report.gatherComplete = complete
+                report.own = CallReport.counts(sdp)
+            }
+            wait.done(sdp)
         }
         gatherWaits.removeAll { (wait: GatherWait) -> Bool in wait.settled }
     }
@@ -385,7 +429,7 @@ final class Calls {
                     if allowed == false {
                         messenger.sendCallSignal(chatId: chatId, peerId: peer.id, action: CallRules.end(id: callId, video: video, incoming: true, startedAt: nil, reason: "declined"))
                     } else {
-                        self.rings(chatId: chatId, peer: peer, callId: callId, video: video, sdp: sdp)
+                        self.rings(chatId: chatId, peer: peer, callId: callId, video: video, sdp: sdp, created: created)
                     }
                 }
             }
@@ -452,30 +496,45 @@ final class Calls {
                 call.status = "connecting"
                 call.remoteSdp = sdp
             }
+            report?.answer = "получен"
+            report?.answerAt = Date()
             connecting(callId)
             guard let made = media else { return }
             made.setRemote("answer", sdp: CallRules.words("callStripRestart", [sdp]) ?? sdp) { [weak self] (fine: Bool) -> Void in
                 guard let self, self.isCurrent(callId), self.media === made else { return }
-                if fine { self.showKey(local: made.localSdp, remote: sdp) } else { self.finish("Не удалось соединиться", notify: "failed") }
+                if fine { return self.showKey(local: made.localSdp, remote: sdp) }
+                self.report?.answer = "не принят"
+                self.report?.cause = "ответ не принят"
+                self.finish("Не удалось соединиться", notify: "failed")
             }
             return
         }
-        if step == "end" { finish(CallRules.endedWords(reason: action["reason"] as? String), notify: nil) }
+        if step == "end" {
+            report?.cause = "собеседник: " + (action["reason"] as? String ?? "—")
+            finish(CallRules.endedWords(reason: action["reason"] as? String), notify: nil)
+        }
     }
 
     /// An offer that may ring: the incoming call comes up — or, with a call already on, the caller hears «busy».
-    private func rings(chatId: String, peer: Person, callId: String, video: Bool, sdp: String) {
+    private func rings(chatId: String, peer: Person, callId: String, video: Bool, sdp: String, created: String) {
         // Ended by the caller while it was being looked into: nothing rings, nobody is told «busy».
         if over.contains(callId) { return }
-        if call != nil {
+        // Busy only while a call is on: one that has ended and only shows its last words gives way.
+        if call?.isOver == false {
             // Busy: the same `end` as a hang-up, so the caller's chat says «Собеседник занят» and ours a missed call.
             messenger?.sendCallSignal(chatId: chatId, peerId: peer.id, action: CallRules.end(id: callId, video: video, incoming: true, startedAt: nil, reason: "busy"))
             return
         }
         var incoming = CallState(id: callId, chatId: chatId, peer: peer, incoming: true, video: video, status: "incoming", speaker: video)
         incoming.remoteSdp = sdp
+        let ringing = CallReport(incoming: true)
+        ringing.network = network.kind
+        ringing.offerAt = Messenger.date(created)
+        report = ringing
+        endReport = nil
         call = incoming
         began()
+        prefetchIce(callId)
         CallSounds.play("incoming")
         CallSounds.vibrate()
         ringTimer?.invalidate()
@@ -501,19 +560,33 @@ final class Calls {
         connecting(id)
         CallAudio.allow(video: current.video) { [weak self] (refusal: String?) -> Void in
             guard let self, self.isCurrent(id) else { return }
-            if let refusal { return self.finish(refusal, notify: "failed") }
+            if let refusal {
+                self.report?.cause = "микрофон"
+                return self.finish(refusal, notify: "failed")
+            }
             CallAudio.start(video: current.video)
             self.prepare(id: id, video: current.video) { [weak self] (made: CallMedia?) -> Void in
                 guard let self, self.isCurrent(id) else { return }
-                guard let made else { return self.finish("Не удалось ответить", notify: "failed") }
+                guard let made else {
+                    self.report?.cause = "нет соединения WebRTC"
+                    return self.finish("Не удалось ответить", notify: "failed")
+                }
                 self.answer(made, offer: CallRules.words("callStripRestart", [offer]) ?? offer, again: false) { [weak self] (own: String?) -> Void in
                     guard let self, let now = self.call, now.id == id, !now.isOver else { return }
-                    guard let own, let messenger = self.messenger else { return self.finish("Не удалось ответить", notify: "failed") }
+                    self.report?.answer = own == nil ? "не сделан" : "сделан"
+                    guard let own, let messenger = self.messenger else {
+                        self.report?.cause = "ответ не сделан"
+                        return self.finish("Не удалось ответить", notify: "failed")
+                    }
                     // The answer is the whole call: when it cannot leave this phone the caller rings on and nothing
                     // would ever connect here, so the call ends instead of saying «Соединение…» for ever.
                     let action: [String: Any] = ["type": "call", "call": id, "step": "answer", "sdp": CallRules.words("callMarkRestart", [own]) ?? own]
                     messenger.sendCallSignal(chatId: now.chatId, peerId: now.peer.id, action: action, done: { [weak self] (sent: Bool) -> Void in
-                        guard let self, !sent, self.isCurrent(id), self.call?.status == "connecting" else { return }
+                        guard let self, self.isCurrent(id) else { return }
+                        self.report?.answer = sent ? "отправлен" : "не отправлен"
+                        if sent { self.report?.answerAt = Date() }
+                        guard !sent, self.call?.status == "connecting" else { return }
+                        self.report?.cause = "ответ не ушёл"
                         self.finish("Не удалось соединиться", notify: "failed")
                     })
                     self.showKey(local: own, remote: offer)
@@ -527,9 +600,11 @@ final class Calls {
     /// side went away without a word that reached this phone — the call ends after as long as a call rings,
     /// instead of waiting for ever. The other side is told, like after any failed connection.
     private func connecting(_ id: String) {
+        report?.connectingAt = Date()
         connectTimer?.invalidate()
         connectTimer = Timer.scheduledTimer(withTimeInterval: CallRules.ringTimeout, repeats: false) { [weak self] (_: Timer) -> Void in
             guard let self, self.isCurrent(id), self.call?.status == "connecting" else { return }
+            self.report?.cause = "\(Int(CallRules.ringTimeout)) с без связи"
             self.finish("Не удалось соединиться", notify: "failed")
         }
     }
@@ -544,6 +619,7 @@ final class Calls {
 
     private func connectionMoved(_ state: String) {
         guard let current = call else { return }
+        report?.state = state
         if state == "connected" && current.status != "active" && current.status != "ended" {
             connectTimer?.invalidate()
             connectTimer = nil
@@ -557,7 +633,10 @@ final class Calls {
         }
         // Once the call is up, a drop is not the end: «Восстановление связи…», ICE restarts, «Связь потеряна» after 30 s.
         if current.status == "active" { return feedLink(["kind": "state", "state": state]) }
-        if state == "failed" { finish("Не удалось соединиться", notify: "failed") }
+        if state == "failed" {
+            report?.cause = "ICE failed"
+            finish("Не удалось соединиться", notify: "failed")
+        }
     }
 
     private func resetLink() {
@@ -588,7 +667,10 @@ final class Calls {
         let showing = step["showing"] as? Bool ?? false
         if current.reconnecting != showing { patch { (call: inout CallState) -> Void in call.reconnecting = showing } }
         if step["recovered"] as? Bool == true { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
-        if step["end"] as? Bool == true { return finish("Связь потеряна", notify: "failed") }
+        if step["end"] as? Bool == true {
+            report?.cause = "связь потеряна"
+            return finish("Связь потеряна", notify: "failed")
+        }
         if step["restart"] as? Bool == true { sendRestart() }
     }
 
@@ -648,6 +730,7 @@ final class Calls {
     func hangup() {
         guard let current = call, !current.isOver else { return }
         let outcome = CallRules.fields("callHangup", [current.status, current.incoming])
+        if let report, report.cause.isEmpty { report.cause = "кнопка" }
         finish(outcome["text"] as? String ?? "Звонок завершён", notify: outcome["reason"] as? String)
     }
 
@@ -785,6 +868,10 @@ final class Calls {
     /// chats show as the call's row); nil — nothing is sent. `retry`: «Нет соединения» stays with «Повторить».
     private func finish(_ words: String, notify: String?, retry: Bool = false) {
         guard let current = call, !current.isOver else { return }
+        // The grey line of the preview build: made before the connection is closed (its last state is in it).
+        let line = report?.line(theirs: current.remoteSdp)
+        report = nil
+        endReport = CallReport.shown ? line : nil
         if let notify { send(current, CallRules.end(current, reason: notify)) }
         cleanup()
         var ended = current
@@ -797,7 +884,9 @@ final class Calls {
         if retry { ended.minimized = false }
         call = ended
         if retry { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) { [weak self] in
+        // A call that never came up stays on the screen long enough for a picture of its line to be taken.
+        let troubled = endReport != nil && current.startedAt == nil && (current.status == "connecting" || notify == "failed" || notify == "missed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + (troubled ? Calls.reportHold : 1.6)) { [weak self] in
             guard let self, let ended = self.call, ended.id == current.id, ended.isOver else { return }
             self.call = nil
         }

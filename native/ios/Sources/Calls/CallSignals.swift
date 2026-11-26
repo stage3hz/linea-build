@@ -194,6 +194,9 @@ final class CallNetwork {
     private var key: String?
     /// nil until the system has said.
     private(set) var online: Bool?
+    /// The kind of the network the phone is on: "wifi", "cellular", "wired", "other", "offline", or "?" before the
+    /// system has said (the grey line of a call in the preview build).
+    var kind: String { key.map { String($0.split(separator: "|", omittingEmptySubsequences: false).first ?? "?") } ?? "?" }
     /// The phone lost its network, or has one again.
     var onOnline: (() -> Void)?
     /// The phone switched networks (not when it merely lost one).
