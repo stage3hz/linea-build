@@ -1492,8 +1492,20 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     let insets = padInsets
     if table.contentInset == insets { return }
     let atBottom = pinned
+    // The table is upside down: its top inset is the room under the newest message (the composer, the keyboard).
+    let rise = insets.top - table.contentInset.top
+    var offset = table.contentOffset
     table.contentInset = insets
-    if atBottom { table.contentOffset = CGPoint(x: 0, y: -insets.top) }
+    if atBottom {
+      table.contentOffset = CGPoint(x: 0, y: -insets.top)
+    } else if rise != 0 {
+      // The messages move with the composer wherever the list stands, as in the previous app (its list keeps its
+      // lower edge when the keyboard or a bar above the field comes): they stayed in place and were covered.
+      let lowest = -insets.top
+      let highest = max(lowest, table.contentSize.height - table.bounds.height + insets.bottom)
+      offset.y = min(highest, max(lowest, offset.y - rise))
+      table.contentOffset = offset
+    }
   }
 
   override func layoutSubviews() {
