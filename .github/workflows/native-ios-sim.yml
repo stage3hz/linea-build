@@ -343,6 +343,11 @@ jobs:
           shot 66-light-music -musicdemo 1 -settheme light
           shot 67-light-room -roomsdemo room -settheme light
           shot 68-reset -demo 1 -settheme black
+          # The app's own notes of a main thread that did not answer for over a quarter of a second
+          # (App/SimulatorWatch.swift). No driver touches the app in this walk — it is only started and photographed —
+          # so these are the app's own stalls, to set beside the comparison's, where a driver reads the screen.
+          limit 300 xcrun simctl spawn "$UDID" log show --last 120m --style compact --predicate 'eventMessage CONTAINS "main thread stalled"' 2>/dev/null | grep -a 'stalled [0-9]' > "$OUT/app-stalls.txt" || true
+          echo "main thread stalls in the walk: $(wc -l < "$OUT/app-stalls.txt" | tr -d ' ')"
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           echo "== done"
       - uses: actions/setup-node@v4
