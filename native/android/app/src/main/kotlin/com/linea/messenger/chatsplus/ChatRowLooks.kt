@@ -10,6 +10,32 @@ object ChatRowLooks {
   private val voiceName = Regex("^voice-[0-9]{1,16}\\.m4a$")
   private val noteName = Regex("^circle-[0-9]{1,16}\\.mp4$")
 
+  // The core words a call «📞 Звонок · 0:04», «📹 Пропущенный видеозвонок», «📞 Восстановление связи» (chat_view.rs
+  // `call_preview`, `action_fallback`), and the server's push «📞 Входящий звонок». The app draws a phone or a camera
+  // instead of the emoji (the owner's choice over the reference's messageMeta.ts): only before these words, so an
+  // emoji someone typed stays theirs.
+  private val callMark = Regex("(\uD83D\uDCDE|\uD83D\uDCF9) (?=Звонок|Видеозвонок|Пропущенный|Отклонённый|Восстановление связи|Входящий звонок)")
+
+  /** A line that starts with a call's emoji: the words without it and the icon to draw — "phone" or "video";
+   *  null for any other line. */
+  fun callLine(text: String): Pair<String, String>? {
+    val found = callMark.find(text) ?: return null
+    if (found.range.first != 0) return null
+    return text.substring(found.range.last + 1) to (if (found.groupValues[1] == "\uD83D\uDCF9") "video" else "phone")
+  }
+
+  /** Text that cannot carry an icon (a quote, a bar above the composer, a notification): the call's emoji dropped. */
+  fun withoutCallMark(text: String): String = if (text.isEmpty()) text else callMark.replace(text, "")
+
+  /** A chat row's line: a call's emoji at its start becomes the drawn icon (as the microphone of a voice message),
+   *  one inside the line (a pin «Вы закрепили «📞 Звонок»») is dropped. Rows that already draw an icon or a
+   *  picture are left as they are. */
+  fun callIcon(preview: String, icon: String, thumb: String): Pair<String, String> {
+    if (icon.isNotEmpty() || thumb.isNotEmpty()) return withoutCallMark(preview) to icon
+    val line = callLine(preview) ?: return withoutCallMark(preview) to icon
+    return withoutCallMark(line.first) to line.second
+  }
+
   /** voice.ts `isVoice`: `audio/mp4` named `voice-<digits>.m4a`. */
   fun isVoice(attachment: Map<String, Any?>): Boolean =
     attachment["mimeType"] == "audio/mp4" && voiceName.matches(attachment["name"] as? String ?: "")

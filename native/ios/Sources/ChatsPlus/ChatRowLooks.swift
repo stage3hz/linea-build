@@ -5,6 +5,38 @@ import UIKit
 /// or a round video before the preview, the microphone of a voice message, the person's status emoji after the
 /// name, the Platina metal of the name, and the server fields the avatar decorations are made from.
 enum ChatRowLooks {
+    // MARK: Calls
+
+    /// The core words a call «📞 Звонок · 0:04», «📹 Пропущенный видеозвонок», «📞 Восстановление связи» (chat_view.rs
+    /// `call_preview`, `action_fallback`), and the server's push «📞 Входящий звонок». The app draws a phone or a
+    /// camera instead of the emoji (the owner's choice over the reference's messageMeta.ts): only before these words,
+    /// so an emoji someone typed stays theirs.
+    private static let callMark = try! NSRegularExpression(pattern: "(\u{1F4DE}|\u{1F4F9}) (?=Звонок|Видеозвонок|Пропущенный|Отклонённый|Восстановление связи|Входящий звонок)")
+
+    /// A line that starts with a call's emoji: the words without it and the icon to draw — "phone" or "video"; nil
+    /// for any other line.
+    static func callLine(_ text: String) -> (text: String, icon: String)? {
+        let whole = text as NSString
+        guard let found = callMark.firstMatch(in: text, range: NSRange(location: 0, length: whole.length)), found.range.location == 0 else { return nil }
+        let mark = whole.substring(with: found.range(at: 1))
+        return (whole.substring(from: found.range.length), mark == "\u{1F4F9}" ? "video" : "phone")
+    }
+
+    /// Text that cannot carry an icon (a quote, a bar above the composer): the call's emoji dropped.
+    static func withoutCallMark(_ text: String) -> String {
+        if text.isEmpty { return text }
+        return callMark.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length), withTemplate: "")
+    }
+
+    /// A chat row's line: a call's emoji at its start becomes the drawn icon (as the microphone of a voice message),
+    /// one inside the line (a pin «Вы закрепили «📞 Звонок»») is dropped. Rows that already draw an icon or a
+    /// picture are left as they are.
+    static func callIcon(preview: String, icon: String, thumb: String) -> (preview: String, icon: String) {
+        if !icon.isEmpty || !thumb.isEmpty { return (withoutCallMark(preview), icon) }
+        guard let line = callLine(preview) else { return (withoutCallMark(preview), icon) }
+        return (withoutCallMark(line.text), line.icon)
+    }
+
     // MARK: Attachments
 
     /// voice.ts `isVoice`: `audio/mp4` named `voice-<digits>.m4a`.

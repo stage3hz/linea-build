@@ -394,7 +394,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     val pinned = shown.pinned
     if (pinned != null) {
       val line = Core.view("replyPreview", listOf(pinned)) as? String ?: ""
-      pinnedBar.show(line.ifEmpty { "Вложение" })
+      pinnedBar.show(com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(line).ifEmpty { "Вложение" })
     }
     val pinnedShown = pinned != null && searchBar?.visibility != View.VISIBLE // ChatActions: the search takes the pinned bar's place
     searchBar?.takeIf { it.visibility == View.VISIBLE }?.show(shown.found)
@@ -723,7 +723,7 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     val editing = editing; val replyTo = replyTo; val first = forwardItems.firstOrNull()
     barShown = true
     if (editing != null) {
-      composerBar.show("pencil", "Редактирование", Core.view("replyPreview", listOf(editing)) as? String ?: "", "Отменить редактирование")
+      composerBar.show("pencil", "Редактирование", com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(Core.view("replyPreview", listOf(editing)) as? String ?: ""), "Отменить редактирование")
     } else if (replyTo != null) {
       val own = replyTo["senderId"] as? String == history.userId
       composerBar.show("reply", "Ответ " + (if (own) "себе" else peerName), ChatHistory.quoteText(replyTo, ""), "Отменить ответ")
