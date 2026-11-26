@@ -278,12 +278,12 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
 
     /** The row of a chat with the account `user` (its raw profile, choices included) in someone else's list: the
      *  list's own `Messenger.summary`, so the avatar, the frame or art, the nameplate, the Platina name and the
-     *  status emoji are exactly the list's; the last message «Привет! 👋» is theirs, read (two ticks). */
+     *  status emoji are exactly the list's; the last message «Привет!» is theirs, read (two ticks). */
     fun previewRow(user: Map<String, Any?>, base: String, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): ChatRow? {
       val peer = LinkedHashMap(user)
       if ((peer["id"] as? String).isNullOrEmpty()) peer["id"] = "me"
       val chat = mapOf<String, Any?>("id" to "studio-preview", "peer" to peer, "peerLastReadMessageId" to 1)
-      val last = mapOf<String, Any?>("id" to 1, "senderId" to VIEWER, "text" to "Привет! 👋", "createdAt" to now.minusSeconds(120).toString())
+      val last = mapOf<String, Any?>("id" to 1, "senderId" to VIEWER, "text" to "Привет!", "createdAt" to now.minusSeconds(120).toString())
       val summary = Messenger.summary(chat, last, VIEWER, now, zone, base = base) ?: return null
       return ChatRow.parse(listOf(summary.row)).firstOrNull()
     }

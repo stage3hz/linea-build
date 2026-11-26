@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
 
 /** «Оформление профиля» → «Так тебя видят»: the studio shows the account's own row of the chat list (the real
  *  ChatRowView, made by the list's own Messenger.summary), with the chosen nameplate, frame and status, and the two
- *  ticks of a read «Привет! 👋». */
+ *  ticks of a read «Привет!». */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class PlatinaSeenByTest {
@@ -36,7 +36,7 @@ class PlatinaSeenByTest {
     val row = PlatinaStudioView.previewRow(me, "")
     assertNotNull(row); row!!
     assertEquals("Мира 💎", row.title)
-    assertEquals("Привет! 👋", row.preview)
+    assertEquals("Привет!", row.preview)
     assertEquals(2, row.ticks)
     assertEquals("night", row.plate)
     assertEquals("fx-orbit", row.deco)

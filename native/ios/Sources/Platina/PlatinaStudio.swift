@@ -308,7 +308,7 @@ final class PlatinaStudioView: UIView {
 
     /// The row of a chat with the account `user` (its raw profile, choices included) in someone else's list: the
     /// list's own `Messenger.summary` and `ChatRowLooks.applyPerson`, so the avatar, the frame or art, the nameplate,
-    /// the Platina name and the status emoji are exactly the list's; the last message «Привет! 👋» is the other
+    /// the Platina name and the status emoji are exactly the list's; the last message «Привет!» is the other
     /// person's, read (two ticks). Without an account (the simulator's sample) the same keys are filled here.
     static func previewRow(_ user: [String: Any], messenger: Messenger?) -> ChatRow? {
         var peer = user
@@ -316,7 +316,7 @@ final class PlatinaStudioView: UIView {
         // The list's ticks belong to the messages of the one whose list it is.
         let viewer = messenger?.userId ?? "studio-viewer"
         let sent = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-120))
-        let last: [String: Any] = ["id": 1, "senderId": viewer, "text": "Привет! 👋", "createdAt": sent]
+        let last: [String: Any] = ["id": 1, "senderId": viewer, "text": "Привет!", "createdAt": sent]
         let chat: [String: Any] = ["id": "studio-preview", "peer": peer, "peerLastReadMessageId": 1, "lastMessage": last]
         var row: [String: Any]
         if let messenger, let summary = messenger.summary(chat, shown: last, section: "") {
@@ -325,7 +325,7 @@ final class PlatinaStudioView: UIView {
             let name = peer["displayName"] as? String ?? ""
             let color = Messenger.color(peer["avatarColor"] as? String ?? "#4B73BB")
             let orb = orbPair(color)
-            row = ["id": "studio-preview", "section": "", "avatarUrl": "", "avatarKey": "", "title": name, "preview": "Привет! 👋",
+            row = ["id": "studio-preview", "section": "", "avatarUrl": "", "avatarKey": "", "title": name, "preview": "Привет!",
                    "time": Messenger.listTime(sent), "unread": 0, "ticks": 2, "avatarColor": Int(0xFF00_0000 | color),
                    "initials": Messenger.initials(name), "orbA": orb.light, "orbB": orb.deep]
         }
