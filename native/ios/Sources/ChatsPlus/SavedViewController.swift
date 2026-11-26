@@ -24,6 +24,8 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     private let searchField = UITextField()
     private var searchLens: UIImageView?
     private let table = UITableView(frame: .zero, style: .plain)
+    /// A hold on a note is believed only when the finger stayed where it was put (Design/SteadyHold.swift).
+    private let steady = SteadyHold()
     private let empty = EmptyStateView()
     private let notice = UILabel()
     private let composer = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
@@ -94,6 +96,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         table.register(SavedDayCell.self, forCellReuseIdentifier: "day")
         hold.addTarget(self, action: #selector(held(_:)))
         hold.minimumPressDuration = 0.4
+        steady.watch(hold)
         table.addGestureRecognizer(hold)
         view.addSubview(table)
         empty.isHidden = true
@@ -509,7 +512,16 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     /// its attachment as the preview: «Скопировать текст», «Изменить», «Выбрать», «Переслать в чат»,
     /// «Сохранить видео» / «Сохранить файл» (the share sheet, `shareEncryptedAttachment`), «Удалить из Избранного».
     @objc private func held(_ recognizer: UILongPressGestureRecognizer) {
-        guard recognizer.state == .began, selection == nil, let path = table.indexPathForRow(at: recognizer.location(in: table)),
+        guard recognizer.state == .began else { return }
+        let point = recognizer.location(in: table)
+        // Not for a scroll or a tap whose moves were read late.
+        steady.began(recognizer, in: table) { [weak self] (place: CGPoint) -> Void in
+            self?.heldNote(at: point, anchorY: place.y)
+        }
+    }
+
+    private func heldNote(at point: CGPoint, anchorY: CGFloat) {
+        guard selection == nil, let path = table.indexPathForRow(at: point),
               path.row < lines.count, case .note(let item) = lines[path.row], presentedViewController == nil else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         let text = item["text"] as? String ?? ""
@@ -542,7 +554,7 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
         }))
         let preview = text.isEmpty ? SavedMessages.line(item).text : text
         view.endEditing(true)
-        present(MessageMenuController(anchorY: recognizer.location(in: nil).y, mine: true, preview: preview, reactions: [], items: items), animated: true)
+        present(MessageMenuController(anchorY: anchorY, mine: true, preview: preview, reactions: [], items: items), animated: true)
     }
 
     /// «Переслать в чат»: the same picker as in chats; the chat opens with the forward waiting above its field.

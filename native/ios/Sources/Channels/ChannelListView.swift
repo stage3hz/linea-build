@@ -36,6 +36,8 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
     var onWidth: (CGFloat) -> Void = { _ in }
 
     private let table = UITableView(frame: .zero, style: .plain)
+    /// A hold on a message is believed only when the finger stayed where it was put (Design/SteadyHold.swift).
+    private let steady = SteadyHold()
     private let toEnd = UIButton(type: .system)
     /// Newest first (index 0 is at the bottom of the screen).
     private var items: [ChannelRowLayout] = []
@@ -76,6 +78,7 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
         table.addGestureRecognizer(tap)
         let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
         hold.minimumPressDuration = 0.35
+        steady.watch(hold)
         table.addGestureRecognizer(hold)
 
         toEnd.setImage(IonIcon.image("chevron-down", size: 20), for: .normal)
@@ -265,6 +268,10 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
 
     @objc private func held(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began, let hit = found(recognizer.location(in: table)) else { return }
-        onLongPress(hit.layout, recognizer.location(in: nil).y)
+        let layout = hit.layout
+        // Not for a scroll or a tap whose moves were read late.
+        steady.began(recognizer, in: table) { [weak self] (place: CGPoint) -> Void in
+            self?.onLongPress(layout, place.y)
+        }
     }
 }

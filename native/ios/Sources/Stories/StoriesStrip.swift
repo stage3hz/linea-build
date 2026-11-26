@@ -114,6 +114,8 @@ final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionView
     private weak var host: UIViewController?
     private let holder = UIView()
     private let collection: UICollectionView
+    /// A hold on «Моя история» is believed only when the finger stayed where it was put (Design/SteadyHold.swift).
+    private let steady = SteadyHold()
     private var publisher: StoryPublisher?
     private var allowed = true
     #if targetEnvironment(simulator)
@@ -152,6 +154,7 @@ final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionView
         // Holding «Моя история» adds one, as a tap on «+» does.
         let press = UILongPressGestureRecognizer(target: self, action: #selector(heldDown(_:)))
         press.minimumPressDuration = 0.35
+        steady.watch(press)
         collection.addGestureRecognizer(press)
         NotificationCenter.default.addObserver(self, selector: #selector(storeChanged), name: StoriesStore.changed, object: nil)
         if let messenger {
@@ -223,7 +226,10 @@ final class StoriesStrip: NSObject, UICollectionViewDataSource, UICollectionView
 
     @objc private func heldDown(_ recognizer: UILongPressGestureRecognizer) {
         guard recognizer.state == .began, let path = collection.indexPathForItem(at: recognizer.location(in: collection)), path.item == 0 else { return }
-        add()
+        // Not for a tap whose lift was read late (it would add a story where the circle was only touched).
+        steady.began(recognizer, in: collection) { [weak self] (_: CGPoint) -> Void in
+            self?.add()
+        }
     }
 
     // MARK: What the taps do
