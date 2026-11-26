@@ -111,7 +111,7 @@ class SettingsProfileChrome(private val context: Context) {
     val status = StatusEmojiView(context)
     status.show(person.look, 22f, animated = true)
     status.isClickable = true
-    status.contentDescription = "Сменить статус рядом с именем"
+    status.buttonLabel = "Сменить статус рядом с именем"
     status.setOnClickListener { onStatus?.invoke() }
     nameRow.addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
     head.addView(nameRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(12f); leftMargin = context.px(4f); rightMargin = context.px(4f) })

@@ -16,6 +16,8 @@ final class StatusEmojiView: UIView {
     private var animated = false
     private var moving: AnimatedEmojiView?
     private var timer: Timer?
+    /// Where it is pressed (the own profile): the touch is taken this far around it as well.
+    var touchSlop: CGFloat = 0
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -101,6 +103,10 @@ final class StatusEmojiView: UIView {
     }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize { return intrinsicContentSize }
+
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        return bounds.insetBy(dx: -touchSlop, dy: -touchSlop).contains(point)
+    }
 
     override func layoutSubviews() {
         super.layoutSubviews()

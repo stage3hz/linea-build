@@ -25,6 +25,9 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
     private var copyTurn = 0
     /// Opens the status picker as soon as the page shows (a tap on the status in Settings).
     var opensStatusPicker = false
+    /// A choice is on its way to the server; the one made meanwhile (the last of them) waits here for its turn.
+    private var statusSending = false
+    private var statusWaiting: [String?] = []
 
     init(messenger: Messenger?) {
         self.messenger = messenger
@@ -246,7 +249,14 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
 
     private func openStatusPicker(anchorY: CGFloat) {
         guard presentedViewController == nil else { return }
-        let status = PlatinaState.shared.status
+        // The server's word about Platina may not have come yet (asked once a minute, and lost without a connection):
+        // the profile itself says whether Platina is on, so the panel does not open locked for its owner. The server
+        // still decides when the choice is sent.
+        var status = PlatinaState.shared.status
+        if status.isEmpty {
+            PlatinaState.shared.refresh(force: true)
+            if me.look.platina { status = ["platina": ["active": true] as [String: Any], "canSetStatusEmoji": true] }
+        }
         let picker = StatusPickerViewController(anchorY: anchorY, status: status, current: me.look.visibleStatus())
         picker.onPick = { [weak self] (emoji: String?) -> Void in self?.applyStatus(emoji) }
         present(picker, animated: false, completion: nil)
@@ -257,7 +267,22 @@ final class OwnProfileViewController: UIViewController, UIScrollViewDelegate {
             say(emoji == nil ? "Статус убран." : "Статус обновлён.")
             return
         }
+        // One at a time, in the order chosen: two requests side by side could be answered the other way round and
+        // leave the first choice shown.
+        if statusSending {
+            statusWaiting = [emoji]
+            return
+        }
+        statusSending = true
         messenger.changeStatusEmoji(emoji) { [weak self] (result: Result<[String: Any], ServerError>) -> Void in
+            if let self {
+                self.statusSending = false
+                if let next = self.statusWaiting.first {
+                    self.statusWaiting = []
+                    self.applyStatus(next)
+                    return
+                }
+            }
             switch result {
             case .success: self?.say(emoji == nil ? "Статус убран." : "Статус обновлён.")
             case .failure(let error):

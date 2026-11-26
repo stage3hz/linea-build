@@ -38,6 +38,9 @@ class AnimatedEmojiView(context: Context) : FrameLayout(context) {
     picture.visibility = GONE
     addView(picture, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     setOnClickListener { if (tapToReplay) play() }
+    // Giving a view a listener makes it clickable, and a clickable emoji took the finger from whatever it stood in:
+    // a status that became an emoji could not be pressed any more. It takes touches only to play again.
+    isClickable = false
   }
 
   /** `size`: the box, dp (the glyph is 0.86 of it, as the reference). */

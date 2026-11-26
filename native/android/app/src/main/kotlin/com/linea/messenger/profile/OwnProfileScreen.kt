@@ -49,6 +49,10 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
   private var copyTurn = 0
   /** Opens the status picker as soon as the page shows (a tap on the status in Settings). */
   var opensStatusPicker = false
+  private var picker: StatusPicker? = null
+  /** A choice is on its way to the server; the one made meanwhile (the last of them) waits here for its turn. */
+  private var statusSending = false
+  private var statusWaiting: List<String?> = emptyList()
   private val profileChanged: () -> Unit = { refresh() }
   private val platinaChanged: (Unit) -> Unit = { refresh() }
 
@@ -81,7 +85,7 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
     val wide = LinearLayout.LayoutParams.MATCH_PARENT; val wrap = LinearLayout.LayoutParams.WRAP_CONTENT
     content.addView(hero, LinearLayout.LayoutParams(wide, wrap))
     hero.avatarHolder.setOnClickListener { avatarTapped() }
-    hero.status.contentDescription = "Сменить статус рядом с именем"
+    hero.status.buttonLabel = "Сменить статус рядом с именем"
     hero.onStatus = { y -> openStatusPicker(y) }
     card.onCopy = { copyUsername() }
     content.addView(card, LinearLayout.LayoutParams(wide, wrap).apply { topMargin = dp(31f) })
@@ -139,6 +143,8 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
   override fun onDetachedFromWindow() {
     OwnProfile.unwatch(profileChanged)
     PlatinaState.changed.unwatch(platinaChanged)
+    picker?.dismiss()
+    picker = null
     super.onDetachedFromWindow()
   }
 
@@ -243,16 +249,32 @@ class OwnProfileScreen(context: Context, private val messenger: Messenger?, priv
 
   /** Opens the status picker under the name (`anchorY`: where the name ends on the screen, px). */
   fun openStatusPicker(anchorY: Int) {
-    val picker = StatusPicker(context, anchorY, PlatinaState.status.ifEmpty { if (messenger == null) samplesStatus() else emptyMap() }, me.look.visibleStatus())
-    picker.onPick = { emoji -> applyStatus(emoji) }
-    picker.show()
+    // One panel at a time: a second touch while it stands opens nothing more.
+    if (picker?.isShowing == true) return
+    // The server's word about Platina may not have come yet (asked once a minute, and lost without a connection):
+    // the profile itself says whether Platina is on, so the panel does not open locked for its owner. The server
+    // still decides when the choice is sent.
+    val known = PlatinaState.status
+    if (known.isEmpty()) PlatinaState.refresh(force = true)
+    val status = known.ifEmpty { if (messenger == null || me.look.platina) samplesStatus() else emptyMap() }
+    val made = StatusPicker(context, anchorY, status, me.look.visibleStatus())
+    made.onPick = { emoji -> applyStatus(emoji) }
+    made.setOnDismissListener { if (picker === made) picker = null }
+    picker = made
+    made.show()
   }
 
   private fun samplesStatus(): Map<String, Any?> = mapOf("platina" to mapOf("active" to true), "canSetStatusEmoji" to true, "statusEmojiChoices" to com.linea.messenger.avatars.AvatarCatalog.statusEmoji)
 
   private fun applyStatus(emoji: String?) {
     val messenger = messenger ?: return say(if (emoji == null) "Статус убран." else "Статус обновлён.")
+    // One at a time, in the order chosen: two requests side by side could be answered the other way round and leave
+    // the first choice shown.
+    if (statusSending) { statusWaiting = listOf(emoji); return }
+    statusSending = true
     messenger.changeStatusEmoji(emoji) { result ->
+      statusSending = false
+      if (statusWaiting.isNotEmpty()) { val next = statusWaiting[0]; statusWaiting = emptyList(); return@changeStatusEmoji applyStatus(next) }
       if (result.isSuccess) say(if (emoji == null) "Статус убран." else "Статус обновлён.")
       else { say(com.linea.messenger.net.Server.error(result).words.ifEmpty { "Не удалось изменить статус." }); PlatinaState.refresh(force = true) }
     }

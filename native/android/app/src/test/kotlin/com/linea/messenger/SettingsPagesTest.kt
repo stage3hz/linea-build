@@ -5,12 +5,17 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
+import com.linea.messenger.avatars.AnimatedEmojiView
+import com.linea.messenger.avatars.AvatarMotion
+import com.linea.messenger.avatars.StatusEmojiView
 import com.linea.messenger.net.ServerError
+import com.linea.messenger.profile.StatusPicker
 import com.linea.messenger.settings.BirthdayScreen
 import com.linea.messenger.settings.OwnProfile
 import com.linea.messenger.settings.SettingsAccount
@@ -29,6 +34,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowAlertDialog
+import org.robolectric.shadows.ShadowDialog
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -254,6 +260,58 @@ class SettingsPagesTest {
     launch()
     settings.openDetail("nothing")
     assertEquals("SettingsScreen", topName)
+  }
+
+  /** A finger down and up in the middle of the view, as the screen gives it: what lies inside the view may take the
+   *  touch before the view does (`performClick` goes round that). */
+  private fun finger(view: View) {
+    assertTrue(view.width > 0 && view.height > 0)
+    val now = android.os.SystemClock.uptimeMillis()
+    val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, view.width / 2f, view.height / 2f, 0)
+    val up = MotionEvent.obtain(now, now + 20, MotionEvent.ACTION_UP, view.width / 2f, view.height / 2f, 0)
+    view.dispatchTouchEvent(down)
+    view.dispatchTouchEvent(up)
+    down.recycle(); up.recycle()
+    idle()
+  }
+
+  @Test fun theStatusBesideTheNameIsPressedAgainOnceItIsAnEmoji() {
+    // The owner's report: the status was chosen once and could not be chosen again. With Platina and nothing chosen
+    // the status is the gem; once an emoji is chosen it is the moving emoji, and that one took the finger for itself.
+    val motion = AvatarMotion.override
+    try {
+      account.profile = account.profile + mapOf("seal" to "platina")
+      launch()
+      AvatarMotion.override = { true }
+      fun status(): View = find(top) { it is StatusEmojiView && it.isShown }!!
+      finger(status())
+      assertEquals("OwnProfileScreen", topName)
+      val first = ShadowDialog.getLatestDialog() as StatusPicker
+      assertTrue(first.isShowing)
+      first.dismiss()
+      // The server's answer to the choice: the profile with the emoji.
+      account.keepOwnProfile(account.profile + mapOf("statusEmoji" to "🔥", "statusEmojiPermanent" to true, "statusEmojiExpiresAt" to null))
+      idle()
+      assertNotNull(find(status()) { it is AnimatedEmojiView && it.isShown })
+      assertEquals("Сменить статус рядом с именем", status().contentDescription)
+      // On the profile the emoji opens the panel again…
+      finger(status())
+      val second = ShadowDialog.getLatestDialog() as StatusPicker
+      assertTrue(second !== first && second.isShowing)
+      // …a touch more while it stands opens no other…
+      status().performClick(); idle()
+      assertTrue(ShadowDialog.getLatestDialog() === second)
+      second.dismiss()
+      // …and in the settings it opens the profile with the panel, as the gem did.
+      stack.pop(animated = false); idle()
+      assertEquals("SettingsScreen", topName)
+      assertNotNull(find(status()) { it is AnimatedEmojiView && it.isShown })
+      finger(status())
+      assertEquals("OwnProfileScreen", topName)
+      assertTrue((ShadowDialog.getLatestDialog() as StatusPicker).isShowing)
+    } finally {
+      AvatarMotion.override = motion
+    }
   }
 
   @Test fun theProfileIsSentOnlyWhenSaved() {

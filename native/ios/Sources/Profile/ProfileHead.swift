@@ -118,6 +118,7 @@ final class ProfileHeroView: UIView {
         nameRow.addArrangedSubview(name)
         nameRow.addArrangedSubview(status)
         status.isUserInteractionEnabled = true
+        status.touchSlop = 10 // ProfileScreen.tsx:305: `hitSlop={10}`
         status.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(statusTapped(_:))))
         column.addArrangedSubview(nameRow)
         presence.font = .systemFont(ofSize: 15)

@@ -21,6 +21,10 @@ class StatusEmojiView(context: Context) : FrameLayout(context) {
   private var gem = true
   private var animated = false
   private val expire = Runnable { refresh() }
+  /** What a press on it does, where it is a button («Сменить статус рядом с именем»): read out instead of what it
+   *  shows. The view names itself anew each time it is drawn again, so a name given from outside did not last. */
+  var buttonLabel: String? = null
+    set(value) { field = value; if (value != null && visibility == VISIBLE) contentDescription = value }
 
   init {
     glyph.gravity = Gravity.CENTER
@@ -54,7 +58,7 @@ class StatusEmojiView(context: Context) : FrameLayout(context) {
       }
       glyph.text = emoji
       glyph.textSize = size
-      contentDescription = "Статус $emoji"
+      contentDescription = buttonLabel ?: "Статус $emoji"
       look.statusEnds()?.let { ends ->
         val wait = (ends.toEpochMilli() - Instant.now().toEpochMilli() + 1000).coerceIn(1000, Int.MAX_VALUE.toLong())
         postDelayed(expire, wait)
@@ -66,7 +70,7 @@ class StatusEmojiView(context: Context) : FrameLayout(context) {
       val made = PlatinaGemView(context, Math.round(size * 0.8f).toFloat())
       addView(made, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
       gemView = made
-      contentDescription = "Platina"
+      contentDescription = buttonLabel ?: "Platina"
       visibility = VISIBLE
     } else {
       visibility = GONE
