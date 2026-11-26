@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class PlatinaSeenByTest {
   private val me = mapOf<String, Any?>("id" to "u-mira", "displayName" to "Мира", "username" to "mira", "avatarColor" to "#5E7BFF",
-    "seal" to "platina", "nameplate" to "night", "avatarFrame" to "fx-orbit", "statusEmoji" to "💎", "statusEmojiPermanent" to true)
+    "seal" to "platina", "nameplate" to "night", "avatarFrame" to "fx-orbit", "statusEmoji" to "💎", "statusEmojiPermanent" to true, "statusEmojiExpiresAt" to null)
 
   @After fun clear() { PlatinaSamples.me = null }
 
