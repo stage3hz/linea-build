@@ -324,23 +324,27 @@ final class AppearanceViewController: SettingsPage {
         // «Свечение панели»: the bottom bar's lights on or off, and their own colour (Settings/BarGlowSettings.swift).
         addBarGlowGroup(refresh: { [weak self] in self?.fill() })
 
-        // «Размер текста в чатах»: a sample message, then the sizes.
-        let chosenSize = DevicePreferences.word("textSize") ?? "medium"
-        let sample = PaddedSample(text: "Привет! Так будет выглядеть текст сообщений.", size: ThemeStore.textSize)
-        var sizeRows: [UIView] = [SettingsLook.inset(sample, top: 14, side: 14, bottom: 12)]
-        for item in ThemeStore.list("textSizes") {
-            guard let id = item["id"] as? String, let label = item["label"] as? String else { continue }
-            let row = SettingsRow(label: label, checked: id == chosenSize)
-            row.onPress = { [weak self] in
-                guard id != chosenSize else { return }
-                DevicePreferences.set(["textSize": id])
-                self?.fill()
-            }
-            sizeRows.append(row)
-        }
-        addGroup("Размер текста в чатах", rows: sizeRows)
         // ChatLook: «Обои чатов», «Пузыри сообщений», «Углы сообщений» (Sources/ChatLook/ChatLookSettings.swift).
         ChatLookSettings.addGroups(to: self, refill: { [weak self] in self?.fill() })
+        // «Размер текста в чатах» stands last, as in the previous app (SettingsScreen.tsx `Appearance`): a sample
+        // message at most 85 % wide, 12 under it the sizes as chips that take a second line when they must.
+        let chosenSize = DevicePreferences.word("textSize") ?? "medium"
+        let sample = PaddedSample(text: "Привет! Так будет выглядеть текст сообщений.", size: ThemeStore.textSize)
+        var sizes: [(id: String, label: String)] = []
+        for item in ThemeStore.list("textSizes") {
+            guard let id = item["id"] as? String, let label = item["label"] as? String else { continue }
+            sizes.append((id: id, label: label))
+        }
+        let chips = TextSizeChips(sizes: sizes, chosen: chosenSize)
+        chips.onPick = { [weak self] (id: String) -> Void in
+            guard id != chosenSize else { return }
+            DevicePreferences.set(["textSize": id])
+            self?.fill()
+        }
+        let sizeBox = UIStackView(arrangedSubviews: [sample, chips])
+        sizeBox.axis = .vertical
+        sizeBox.spacing = 12
+        addGroup("Размер текста в чатах", rows: [SettingsLook.inset(sizeBox, top: 14, side: 14, bottom: 14)])
         add(SettingsLook.foot("Тема, цвет и размер текста хранятся только на этом устройстве."), gap: 10)
     }
 
@@ -382,7 +386,7 @@ final class PaddedSample: UIView {
         super.init(frame: .zero)
         let plate = UIView()
         plate.backgroundColor = ThemeStore.look.incoming
-        plate.layer.cornerRadius = 18
+        plate.layer.cornerRadius = 20
         plate.layer.cornerCurve = .continuous
         plate.translatesAutoresizingMaskIntoConstraints = false
         addSubview(plate)
@@ -394,6 +398,7 @@ final class PaddedSample: UIView {
             plate.bottomAnchor.constraint(equalTo: bottomAnchor),
             plate.leadingAnchor.constraint(equalTo: leadingAnchor),
             plate.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            plate.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor, multiplier: 0.85),
             words.topAnchor.constraint(equalTo: plate.topAnchor, constant: 9),
             words.bottomAnchor.constraint(equalTo: plate.bottomAnchor, constant: -9),
             words.leadingAnchor.constraint(equalTo: plate.leadingAnchor, constant: 12),
@@ -403,6 +408,69 @@ final class PaddedSample: UIView {
     }
 
     required init?(coder: NSCoder) { return nil }
+}
+
+/// The sizes of the text as chips side by side (SettingsScreen.tsx: 13 and 9 around the name in 13 SemiBold, radius
+/// 15, 7 between them, the chosen one on the accent's soft ground with the accent's border); a chip that does not
+/// fit starts the next line.
+final class TextSizeChips: UIView {
+    var onPick: ((String) -> Void)?
+    private let ids: [String]
+    private var chips: [UIButton] = []
+    private var tall: NSLayoutConstraint?
+
+    init(sizes: [(id: String, label: String)], chosen: String) {
+        ids = sizes.map { $0.id }
+        super.init(frame: .zero)
+        for (index, size) in sizes.enumerated() {
+            let selected = size.id == chosen
+            let chip = UIButton(type: .custom)
+            chip.tag = index
+            chip.setTitle(size.label, for: .normal)
+            chip.setTitleColor(selected ? Theme.accent : Theme.text, for: .normal)
+            chip.titleLabel?.font = .systemFont(ofSize: 13, weight: .semibold)
+            chip.backgroundColor = selected ? ThemeStore.look.accentSoft : Theme.surface2
+            chip.layer.cornerRadius = 15
+            chip.layer.cornerCurve = .continuous
+            chip.layer.borderWidth = 1
+            chip.layer.borderColor = (selected ? Theme.accent : ThemeStore.look.border).cgColor
+            chip.accessibilityLabel = size.label
+            if selected { chip.accessibilityTraits.insert(.selected) }
+            chip.addTarget(self, action: #selector(picked(_:)), for: .touchUpInside)
+            addSubview(chip)
+            chips.append(chip)
+        }
+        let height = heightAnchor.constraint(equalToConstant: 35)
+        height.priority = UILayoutPriority(999)
+        height.isActive = true
+        tall = height
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    @objc private func picked(_ sender: UIButton) {
+        guard sender.tag < ids.count else { return }
+        onPick?(ids[sender.tag])
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let font = UIFont.systemFont(ofSize: 13, weight: .semibold)
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        for chip in chips {
+            let words = (chip.title(for: .normal) ?? "") as NSString
+            let width = ceil(words.size(withAttributes: [.font: font]).width) + 28
+            if x > 0 && x + width > bounds.width {
+                x = 0
+                y += 35 + 7
+            }
+            chip.frame = CGRect(x: x, y: y, width: min(width, bounds.width), height: 35)
+            x += width + 7
+        }
+        let needed = y + 35
+        if let tall, tall.constant != needed { tall.constant = needed }
+    }
 }
 
 /// «Ночная тема»: when the night theme turns on by itself (with the system, never, by the clock, by the
