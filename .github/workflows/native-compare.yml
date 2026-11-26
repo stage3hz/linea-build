@@ -435,9 +435,16 @@ jobs:
           OUT="$RUNNER_TEMP/out"; mkdir -p "$OUT"; cd "$OUT"
           [ -n "${UDID:-}" ] && perl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$UDID" log show --last 3h --style compact --predicate 'process == "Invizent" OR process == "INVIZENT"' > app.log 2>/dev/null || true
           # The app's own lines (Linea: …) before the long log is cut to its tail below.
-          [ -f app.log ] && { grep -a 'Linea:' app.log | tail -n 400 > app-linea.txt || true; }
+          # The simulator's notes for touches that seem lost (native/ios/Sources/App/SimulatorWatch.swift) are kept apart,
+          # so they do not push the other lines out: app-stalls.txt is every «Linea: main thread stalled N ms», and
+          # app-touches.txt the stalls, every touch (where, on which view, how late it was read) and the app's
+          # comings and goings in the order they happened — to set against the time a flow began (log.txt).
+          [ -f app.log ] && { grep -a 'Linea: main thread stalled' app.log > app-stalls.txt || true; }
+          [ -f app.log ] && { grep -aE 'Linea: (main thread stalled|touch |app (active|not active|in background))' app.log | tail -n 8000 > app-touches.txt || true; }
+          [ -f app.log ] && { grep -a 'Linea:' app.log | grep -avE 'Linea: (main thread stalled|touch |app (active|not active|in background))' | tail -n 400 > app-linea.txt || true; }
+          stalls=$(wc -l < app-stalls.txt 2>/dev/null | tr -d ' ' || true)
           verdict=$(cat VERDICT.txt 2>/dev/null || echo "shard $SHARD NOT FINISHED (stopped at: $(cat STAGE.txt 2>/dev/null || echo start))")
-          echo "$verdict ${{ steps.work.outcome }}" > VERDICT.txt
+          echo "$verdict ${{ steps.work.outcome }}; main thread stalls over 250 ms in the native app: ${stalls:-not read}" > VERDICT.txt
           # The comparison pictures stay full-size PNG (compare/); every other picture becomes a smaller JPEG.
           find . -path ./compare -prune -o -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;
           find . -name 'commands-*.json' -delete; find . -path ./compare -prune -o -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;

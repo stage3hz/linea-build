@@ -84,6 +84,7 @@ extension SceneDelegate {
         }
         #if targetEnvironment(simulator)
         simulatorParity()
+        SimulatorWatch.start(window) // the main thread's stalls and every touch, written to the log (App/SimulatorWatch.swift)
         #endif
     }
 }
