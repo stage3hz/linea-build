@@ -11,6 +11,9 @@ final class SettingsViewController: SettingsPage {
     private var mutedChats = 0
     // Profile: the banner, the effect, «Изменить» and the decorated head (Sources/Profile/SettingsProfileHead.swift).
     private let profileChrome = SettingsProfileChrome()
+    /// What the page was last built from: the same profile told again leaves the rows as they are.
+    private var builtPerson: NSDictionary?
+    private var builtRows = ""
 
     init(messenger: Messenger? = nil) {
         self.messenger = messenger
@@ -54,7 +57,19 @@ final class SettingsViewController: SettingsPage {
     }
 
     @objc private func profileChanged() {
+        // The server is asked for the profile every time the page comes back, and for Platina's state by its pages; each
+        // answer is told here even when it says nothing new. Built anew, every row was a new one — a row under a
+        // finger lost its touch (the page stayed where it was after «Мой профиль» was touched).
+        if let builtPerson, builtPerson.isEqual(NSDictionary(dictionary: person)), builtRows == rowsKey() { return }
         build()
+    }
+
+    /// What the rows show besides the profile: the theme's name, the number of folders, the language, the quiet
+    /// chats and Platina.
+    private func rowsKey() -> String {
+        let theme = ThemeStore.nightState()["shown"] as? String ?? "black"
+        let folders = messenger.map { (own: Messenger) -> Int in ChatFolderStore.of(own.userId).folders.count } ?? 0
+        return [theme, String(folders), Language.chosenName, String(mutedChats), PlatinaState.shared.active ? "platina" : ""].joined(separator: "|")
     }
 
     private var person: [String: Any] {
@@ -71,6 +86,8 @@ final class SettingsViewController: SettingsPage {
     override func build() {
         clear()
         let who = person
+        builtPerson = NSDictionary(dictionary: who)
+        builtRows = rowsKey()
         if !who.isEmpty {
             // Profile: the reference's head (banner under the status bar, decorated avatar, platinum name, seal).
             profileChrome.attach(self, messenger: messenger)
