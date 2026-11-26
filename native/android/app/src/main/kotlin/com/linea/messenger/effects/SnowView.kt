@@ -26,6 +26,7 @@ import android.view.Menu
 import android.view.MotionEvent
 import android.view.View
 import android.view.Window
+import com.linea.messenger.design.Glass
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -138,8 +139,9 @@ private class ThermalWatch(private val power: PowerManager, sink: (Int) -> Unit)
  *  the foreground, a mounted view is active and shown, and something is left to animate.
  *  Two kinds of views draw the one model: the 'front' view above the app (caps, knocked-off snow, drops) and
  *  any number of 'back' views inside the screens' backgrounds (the falling flakes only, behind the content).
- *  'rime' views belong to the frozen glass, not to the snow: each draws the rime of its own surface, whether the
- *  snow is on or not. The hub only tells them the theme and the heat (which takes the rime off). */
+ *  The rime of the frozen glass does not belong to the snow: each glass plate draws its own (effects/Rime.kt), whether
+ *  the snow is on or not. The hub only keeps its theme and its heat (which takes the rime off) and has the plates
+ *  drawn again when either changes. */
 internal object SnowHub {
   val model = SnowModel()
   var enabled = false
@@ -148,7 +150,7 @@ internal object SnowHub {
     set(value) { if (field == value) return; field = value; if (value) frame() else { park(); heat(true) } }
   /** Theme of the rime; works with the snow off too. */
   var dark = true
-    set(value) { if (field == value) return; field = value; for (k in rimes.indices) rimes[k].requestRime() }
+    set(value) { if (field == value) return; field = value; if (icy) Glass.redraw() }
   var density = 1f
     private set
   /** Time of the last frame, ms: the phase of the sparkles. */
@@ -170,10 +172,15 @@ internal object SnowHub {
 
   private val views = ArrayList<SnowView>() // front
   private val backs = ArrayList<SnowView>()
-  private val rimes = ArrayList<SnowView>()
-  /** The heat the rime views show (or animate to), and whether they were last set directly, past the model. */
+  /** «Ледяное стекло» is on: the plates draw their rime. */
+  private var icy = false
+  /** The heat the rime shows (or animates to), and whether it was last set directly, past the model. */
   private var rimeHeat = 0f
   private var direct = true
+  /** How much of the rime the heat leaves, 0…1: what the plates draw it with. */
+  var rimeAlpha = 1f
+    private set
+  private var melting: ValueAnimator? = null
   // What the front view showed last frame: it is redrawn only when something on it changed or moves.
   private var hadParticles = false
   private var hadSparkle = false
@@ -191,17 +198,30 @@ internal object SnowHub {
     try { tick(nanos) } catch (_: Throwable) { running = false /* decorative: a failed frame draws nothing */ }
   }
 
+  /** «Ледяное стекло» on or off. The rime melts with the device's heat even when the snow is off. */
+  fun ice(on: Boolean, context: Context?) {
+    if (icy == on) return
+    icy = on
+    if (on) { listen(context); heat(false); showHeat(rimeHeat, false) }
+    else { melting?.cancel(); melting = null; if (!enabled) unlisten() }
+  }
+
+  /** The heat takes the rime off: alpha = clamp(1 − heat·1.4). Animated (~0.6 s) when the frame loop is not the
+   *  one easing the heat; the system's animator scale 0 turns that into a plain set. */
+  private fun showHeat(value: Float, animate: Boolean) {
+    val target = (1 - value * 1.4f).coerceIn(0f, 1f)
+    melting?.cancel(); melting = null
+    if (rimeAlpha == target) return
+    if (!icy || !animate || !ValueAnimator.areAnimatorsEnabled()) { rimeAlpha = target; if (icy) Glass.redraw(); return }
+    melting = ValueAnimator.ofFloat(rimeAlpha, target).apply {
+      duration = 600
+      addUpdateListener { rimeAlpha = it.animatedValue as Float; Glass.redraw() }
+      start()
+    }
+  }
+
   /** An attached view joins the list of its layer (a view whose layer changes is removed and added again). */
   fun add(view: SnowView) {
-    if (view.role == SnowView.RIME) {
-      if (!rimes.contains(view)) rimes.add(view)
-      // The rime melts with the device's heat even when the snow is off.
-      listen(view.context)
-      heat(false)
-      view.heat(rimeHeat, false)
-      view.requestRime()
-      return
-    }
     val list = if (view.role == SnowView.BACK) backs else views
     if (!list.contains(view)) list.add(view)
     density = view.resources.displayMetrics.density
@@ -211,18 +231,17 @@ internal object SnowHub {
   }
 
   fun remove(view: SnowView) {
-    if (rimes.remove(view)) { if (rimes.isEmpty() && !enabled) unlisten(); return }
     views.remove(view); backs.remove(view)
     if (views.isEmpty() && backs.isEmpty()) park()
   }
 
   fun start(context: Context?) { enabled = true; listen(context); frame() }
 
-  /** Snow off: no loop, nothing remembered. The rime views stay as they are and keep following the heat. */
+  /** Snow off: no loop, nothing remembered. The rime stays as it is and keeps following the heat. */
   fun stop() {
     enabled = false
     park()
-    if (rimes.isEmpty()) unlisten()
+    if (!icy) unlisten()
     lead = -1
     model.clear()
     redraw()
@@ -234,15 +253,15 @@ internal object SnowHub {
   /** The frame loop is (or is about to be) in charge: the rime follows the model's eased heat. */
   private fun live() = enabled && foreground && !still && shown() != null
 
-  /** The heat may have changed. With the loop in charge a frame is enough; otherwise the rime views go to the
-   *  target themselves (a view alpha animation, no frames of ours). */
+  /** The heat may have changed. With the loop in charge a frame is enough; otherwise the rime goes to the target
+   *  itself (an animation of its alpha, no frames of the snow's). */
   private fun heat(animate: Boolean) {
     if (live()) { frame(); return }
     direct = true
     val value = target()
     if (value == rimeHeat) return
     rimeHeat = value
-    for (k in rimes.indices) rimes[k].heat(value, animate)
+    showHeat(value, animate)
   }
 
   fun setLedges(specs: List<LedgeSpec>) { model.setLedges(specs); frame() }
@@ -380,11 +399,11 @@ internal object SnowHub {
     val dt = if (lastNanos == 0L) 0f else ((nanos - lastNanos) / 1e9).toFloat()
     lastNanos = nanos
     model.heatTarget = target()
-    // The rime views went to the target without us meanwhile: start from there, not from a stale heat.
-    if (direct && rimes.isNotEmpty()) model.settleHeat()
+    // The rime went to the target without us meanwhile: start from there, not from a stale heat.
+    if (direct && icy) model.settleHeat()
     direct = false
     val awake = model.step(now, dt)
-    if (model.heat != rimeHeat) { rimeHeat = model.heat; for (k in rimes.indices) rimes[k].heat(rimeHeat, false) }
+    if (model.heat != rimeHeat) { rimeHeat = model.heat; showHeat(rimeHeat, false) }
     art()
     present()
     // Hot, melted and fallen: sleep until the heat drops (saves the battery exactly when the phone is hot).
@@ -436,106 +455,33 @@ internal object SnowHub {
  *  'back' (a view inside each screen's background) — the falling flakes only, so they pass behind the content.
  *  The model is in window dp, so drawing is offset by the view's own position in the window and clipped to the
  *  view. Paints, the path and the rectangles are reused — no allocation per frame.
- *  'rime' is the frozen glass («Ледяное стекло»): a child of a glass surface that draws only the rime for its own
- *  bounds and `radius`, so it scrolls and clips with the surface. It does not depend on the snow being on. */
+ *  (The frozen glass, «Ледяное стекло», is not a view: each glass plate draws its own rime, effects/Rime.kt.) */
 @SuppressLint("ViewConstructor")
 class SnowView(context: Context) : View(context) {
   /** false: the view stops drawing and (when no other view is shown) the frame loop sleeps. */
   var active = true
     set(value) { if (field != value) { field = value; invalidate(); if (value) SnowHub.frame() } }
 
-  /** 'back': the falling flakes only; 'rime': the rime of this view's own bounds; anything else (the default):
-   *  the front layer. The prop may arrive after the view is attached, so the view then changes lists in the hub. */
+  /** 'back': the falling flakes only; anything else (the default): the front layer. The prop may arrive after the
+   *  view is attached, so the view then changes lists in the hub. */
   var layer: String? = null
     set(value) {
       field = value
-      val next = when (value) { "back" -> BACK; "rime" -> RIME; else -> FRONT }
+      val next = if (value == "back") BACK else FRONT
       if (next == role) return
       val attached = isAttachedToWindow
       try { if (attached) SnowHub.remove(this) } catch (_: Throwable) { /* decorative */ }
       role = next
       animate().cancel()
       // Background snow is dimmed: at full brightness the flakes outshone the text they pass behind.
-      // (A rime view's alpha is the heat's; the hub sets it when the view is added.)
       alpha = if (next == BACK) .45f else 1f
-      if (next != RIME) forgetRime()
       try { if (attached) SnowHub.add(this) } catch (_: Throwable) { /* decorative */ }
       invalidate()
     }
   var role = FRONT
     private set
 
-  /** 'rime' only: corner radius of the glass surface, dp. */
-  var radius = 0f
-    set(value) { val next = if (value.isNaN() || value < 0f) 0f else value; if (field != next) { field = next; requestRime() } }
-
-  // ---- 'rime' ----
-  // Chosen once per view, so equal buttons do not carry the identical pattern.
-  private val seed = 1 + Random.nextInt(996)
-  private var frost: Bitmap? = null
-  // What the last request was made for (px, dp, theme), and its number: a result for an older request is dropped.
-  private var askedW = 0; private var askedH = 0; private var askedR = -1f; private var askedDark = false
-  @Volatile private var ticket = 0
-  private var appearing = 1f
-  private var fader: ValueAnimator? = null
-
-  /** Renders the rime for the current size, radius and theme — on the worker, never in onDraw. Until it is ready
-   *  the previous bitmap (if any) is shown stretched; the first one fades in. */
-  fun requestRime() {
-    if (role != RIME || !isAttachedToWindow) return
-    val w = width; val h = height
-    if (w <= 0 || h <= 0) return
-    val dark = SnowHub.dark; val r = radius
-    if (askedW == w && askedH == h && askedR == r && askedDark == dark) return
-    askedW = w; askedH = h; askedR = r; askedDark = dark
-    val mine = ++ticket
-    val density = resources.displayMetrics.density
-    val pattern = seed
-    Frost.submit {
-      if (mine != ticket) return@submit // superseded while it waited (a surface that is still resizing)
-      val bitmap = try { Frost.render(w / density, h / density, r, pattern, dark, density) } catch (_: Throwable) { null }
-      Frost.main.post { try { accept(mine, bitmap) } catch (_: Throwable) { /* decorative */ } }
-    }
-  }
-
-  private fun accept(mine: Int, bitmap: Bitmap?) {
-    // A stale result was never drawn: it is safe to recycle at once.
-    if (mine != ticket || role != RIME) { bitmap?.recycle(); return }
-    val first = frost == null
-    // The replaced bitmap may still be referenced by the last recorded frame: it is left to the GC, not recycled.
-    frost = bitmap
-    if (first && bitmap != null) appear()
-    invalidate()
-  }
-
-  /** The first rime of a surface fades in (~0.3 s); with «Remove animations» it is simply there. */
-  private fun appear() {
-    fader?.cancel()
-    appearing = 1f
-    if (!ValueAnimator.areAnimatorsEnabled()) return
-    appearing = 0f
-    fader = ValueAnimator.ofFloat(0f, 1f).apply {
-      duration = 300
-      addUpdateListener { appearing = it.animatedValue as Float; invalidate() }
-      start()
-    }
-  }
-
-  private fun forgetRime() {
-    ticket++
-    fader?.cancel(); fader = null; appearing = 1f
-    frost = null; askedW = 0; askedH = 0; askedR = -1f
-  }
-
-  /** The heat takes the rime off: alpha = clamp(1 − heat·1.4). Animated (~0.6 s) when the frame loop is not the
-   *  one easing the heat; the system's animator scale 0 turns that into a plain set. */
-  fun heat(value: Float, animate: Boolean) {
-    val target = (1 - value * 1.4f).coerceIn(0f, 1f)
-    animate().cancel()
-    if (animate && isShown && alpha != target) animate().alpha(target).setDuration(600).start() else alpha = target
-  }
-
-  // Flakes (and one rime bitmap) do not overlap in a way that matters: the view's alpha needs no offscreen buffer.
+  // Flakes do not overlap in a way that matters: the view's alpha needs no offscreen buffer.
   override fun hasOverlappingRendering(): Boolean = false
 
   private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -548,7 +494,6 @@ class SnowView(context: Context) : View(context) {
   private val grainPaint = Paint().apply { style = Paint.Style.FILL; isFilterBitmap = false; alpha = 128 }
   private val flakePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = Color.WHITE }
   private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG)
-  private val rimePaint = Paint(Paint.FILTER_BITMAP_FLAG)
   private val snowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = Color.WHITE }
   private val underPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xFFC9D4E6.toInt() }
   private val dropPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0x8CCDE4FF.toInt() }
@@ -577,7 +522,7 @@ class SnowView(context: Context) : View(context) {
 
   override fun onAttachedToWindow() { super.onAttachedToWindow(); try { SnowHub.add(this) } catch (_: Throwable) { /* decorative */ } }
   override fun onDetachedFromWindow() {
-    try { SnowHub.remove(this); fader?.cancel(); appearing = 1f } catch (_: Throwable) { /* decorative */ }
+    try { SnowHub.remove(this) } catch (_: Throwable) { /* decorative */ }
     super.onDetachedFromWindow()
   }
 
@@ -594,9 +539,7 @@ class SnowView(context: Context) : View(context) {
 
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     super.onSizeChanged(w, h, oldw, oldh)
-    try {
-      if (role == RIME) requestRime() else { SnowHub.readCutout(rootView); SnowHub.frame() }
-    } catch (_: Throwable) { /* decorative */ }
+    try { SnowHub.readCutout(rootView); SnowHub.frame() } catch (_: Throwable) { /* decorative */ }
   }
 
   override fun onDraw(canvas: Canvas) {
@@ -607,14 +550,6 @@ class SnowView(context: Context) : View(context) {
 
   private fun paint(canvas: Canvas) {
     if (!active) return
-    if (role == RIME) {
-      // The frozen glass is not the snow: it shows with the snow off and with «Remove animations» (static).
-      val bitmap = frost ?: return
-      rimePaint.alpha = (appearing * 255).roundToInt().coerceIn(0, 255)
-      rect.set(0f, 0f, width.toFloat(), height.toFloat())
-      canvas.drawBitmap(bitmap, null, rect, rimePaint)
-      return
-    }
     val hub = SnowHub
     val model = hub.model
     if (!hub.enabled || hub.still || model.width <= 0f) return
@@ -745,7 +680,6 @@ class SnowView(context: Context) : View(context) {
   companion object {
     const val FRONT = 0
     const val BACK = 1
-    const val RIME = 2
     const val SPRITE = 12f  // side of a flake sprite, dp
     const val TILE = 96     // side of the grain tile, texels (= dp)
     private const val DEGREES = 57.29578f

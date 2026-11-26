@@ -19,7 +19,7 @@ import com.linea.messenger.chatlook.Bouncy
 
 /** Glass parts of the reference's pages (mobile/src/components.tsx `IconButton`, the headers of SettingsScreen.tsx
  *  `Page`, PeopleScreen.tsx and communities/CommunitiesScreen.tsx; iOS Design/GlassKit.swift). Every surface here is
- *  drawn by `Glass`, so «Ледяное стекло» puts its rime on it (effects/EffectsHost.kt reads `Glass.plates`). */
+ *  drawn by `Glass`, so «Ледяное стекло» rimes it (`Glass.draw` draws the plate's own rime, effects/Rime.kt). */
 
 /** How a picture is drawn: (canvas, name, cx, cy, size px, colour) — `Symbols.draw` and its kin. */
 typealias IconPainter = (Canvas, String, Float, Float, Float, Int) -> Unit

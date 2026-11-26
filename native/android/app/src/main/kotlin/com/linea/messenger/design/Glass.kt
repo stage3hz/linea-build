@@ -11,6 +11,8 @@ import android.graphics.Shader
 import android.os.Build
 import android.view.View
 import android.widget.FrameLayout
+import com.linea.messenger.effects.EffectsHost
+import com.linea.messenger.effects.Rime
 
 /** What stands behind glass: a layout that keeps the drawing of its children in one node, so that a plate of
  *  glass above it can draw the same picture again, blurred. On Android 12 and later only; before that it is a
@@ -67,6 +69,15 @@ class Glass(private val owner: View) {
     const val LIGHT_RIM = 0x0A000000
     /** Effects: every plate that has been drawn (weakly held; effects/EffectsHost.kt reads it). */
     val plates = java.util.WeakHashMap<Glass, Unit>()
+
+    /** Effects: every plate is drawn again — «Ледяное стекло» was switched, or its theme or heat changed. `forget`:
+     *  the plates let their rime go first (the setting is off). */
+    fun redraw(forget: Boolean = false) {
+      for (glass in plates.keys.toList()) {
+        if (forget) glass.forgetRime()
+        glass.owner.invalidate()
+      }
+    }
   }
 
   private val d = owner.resources.displayMetrics.density
@@ -76,12 +87,19 @@ class Glass(private val owner: View) {
   private val here = IntArray(2)
   private val there = IntArray(2)
 
-  /** Effects: where this plate was last drawn (owner's coordinates) and its corners — the snow lies on it and «Ледяное
-   *  стекло» rimes it (effects/EffectsHost.kt). */
+  /** Effects: where this plate was last drawn (owner's coordinates) and its corners — the snow lies on it
+   *  (effects/EffectsHost.kt). */
   val owned: View get() = owner
   val drawn = android.graphics.RectF()
   var drawnRadius = 0f
     private set
+
+  /** «Ледяное стекло»: the plate's own rime, drawn with the plate (effects/Rime.kt); made when first wanted. */
+  private var rime: Rime? = null
+  /** Whether this plate asked for its rime (for the tests). */
+  internal val rimed: Boolean get() = rime?.asked == true
+  /** The rime's picture is let go; it is made again if the plate is drawn with the setting on. */
+  internal fun forgetRime() { rime?.forget() }
 
   /** Draws the plate into the rectangle (owner's coordinates) with corners of `radius`. */
   /** `inside`: drawn in the glass, over its fill and under its rim (the tab bar's lights). */
@@ -100,6 +118,8 @@ class Glass(private val owner: View) {
     val half = maxOf(1f, d) / 2
     line.strokeWidth = half * 2; line.color = rim
     canvas.drawRoundRect(left + half, top + half, right - half, bottom - half, radius - half, radius - half, line)
+    // «Ледяное стекло»: the rime is part of the plate, over its fill and rim, so it goes wherever the plate goes.
+    if (EffectsHost.iced) try { (rime ?: Rime(owner).also { rime = it }).draw(canvas, left, top, right, bottom, radius) } catch (_: Throwable) { /* decorative: no rime */ }
   }
 }
 

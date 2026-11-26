@@ -15,7 +15,6 @@ import android.view.Menu
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.view.Window
 import android.widget.FrameLayout
 import com.linea.messenger.design.Glass
@@ -37,7 +36,8 @@ import kotlin.math.min
  *   - «Снег» (`snow`): one front surface above everything in the window (caps, what is knocked off, meltwater); the
  *     falling snow is drawn by a layer at the back of each screen, behind its content; the ledges it lies on are the
  *     camera cutout, the bar at the bottom, the glass plates and the round buttons of the screen's header.
- *   - «Ледяное стекло» (`ice`): rime along the rim of every glass plate. Independent of the snow and of the
+ *   - «Ледяное стекло» (`ice`): rime along the rim of every glass plate, drawn by the plate itself (design/Glass.kt,
+ *     effects/Rime.kt), so it stays on its glass whatever the glass does. Independent of the snow and of the
  *     animations, as in the reference.
  *   - «Пиксельный след» (`pixelTrail`): a layer at the back of each screen, behind its content.
  *  Snow and the trail run only while animations are allowed (effects/Motion.kt). Nothing here ever takes a touch: the
@@ -51,14 +51,6 @@ object EffectsHost {
   private const val SNOW_LIES = false
   private var window = WeakReference<Activity>(null)
   private var overlay: EffectsOverlay? = null
-  /** The window whose every frame the rime follows (`follow`). */
-  private var followed = WeakReference<View>(null)
-  /** «Ледяное стекло» keeps to its glass: before each frame of the window the rime is put where the plates are now.
-   *  (Looked at only a few times a second, it stayed behind a list that was being scrolled.) */
-  private val follow = ViewTreeObserver.OnPreDrawListener {
-    if (iceOn) (window.get()?.window?.peekDecorView() as? ViewGroup)?.let { placeRime(it) }
-    true
-  }
   private val main = Handler(Looper.getMainLooper())
   private val backs = java.util.WeakHashMap<EffectsBackLayer, Unit>()
   private var seen = HashMap<String, LedgeSpec>()
@@ -90,6 +82,8 @@ object EffectsHost {
   val wantsSnow: Boolean get() = allowed && (DevicePreferences.flag("snow") ?: true) && Motion.enabled
   val wantsTrail: Boolean get() = allowed && (DevicePreferences.flag("pixelTrail") ?: true) && Motion.enabled
   val wantsIce: Boolean get() = allowed && (DevicePreferences.flag("ice") ?: true)
+  /** `wantsIce` as `update` last found it: what a glass plate asks each time it is drawn (design/Glass.kt). */
+  val iced: Boolean get() = iceOn
   private val wanted: Boolean get() = snowOn || trailOn || iceOn || backdropOn
 
   /** Called once with the app's window (MainActivity). */
@@ -131,7 +125,12 @@ object EffectsHost {
       } else SnowHub.stop()
     }
     if (trail != trailOn) { trailOn = trail; TrailHub.enabled = trail }
-    iceOn = ice
+    if (ice != iceOn) {
+      // The plates draw their own rime: they are drawn again with it or without, and let its pictures go when off.
+      iceOn = ice
+      SnowHub.ice(ice, activity)
+      Glass.redraw(forget = !ice)
+    }
     val backdrop = PaletteBackdropView.wanted
     val source = com.linea.messenger.settings.ThemeStore.look.source
     if (backdrop != backdropOn || source != backdropSource) {
@@ -149,31 +148,21 @@ object EffectsHost {
     val decor = activity.window?.peekDecorView() as? ViewGroup ?: return
     placeOverlay(decor)
     placeBacks(decor)
-    placeRime(decor)
-    val had = followed.get()
-    if (iceOn && had !== decor) {
-      had?.viewTreeObserver?.let { if (it.isAlive) it.removeOnPreDrawListener(follow) }
-      decor.viewTreeObserver.addOnPreDrawListener(follow)
-      followed = WeakReference(decor)
-    } else if (!iceOn && had != null) {
-      had.viewTreeObserver.let { if (it.isAlive) it.removeOnPreDrawListener(follow) }
-      followed = WeakReference(null)
-    }
+    if (iceOn) keepRime()
     if (snowOn) reportLedges(decor)
   }
 
-  /** The front surface (and the rime): the window's last child, above every page. */
+  /** The front surface of the snow: the window's last child, above every page. Only while «Снег» is on. */
   private fun placeOverlay(decor: ViewGroup) {
-    val need = snowOn || iceOn
     var layer = overlay
-    if (!need) {
+    if (!snowOn) {
       layer?.let { (it.parent as? ViewGroup)?.removeView(it) }
+      overlay = null
       return
     }
     if (layer == null || layer.context !== decor.context) { layer?.let { (it.parent as? ViewGroup)?.removeView(it) }; layer = EffectsOverlay(decor.context); overlay = layer }
     if (layer.parent !== decor) { (layer.parent as? ViewGroup)?.removeView(layer); decor.addView(layer, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)) }
     else if (decor.getChildAt(decor.childCount - 1) !== layer) layer.bringToFront()
-    layer.front.visibility = if (snowOn) View.VISIBLE else View.GONE
   }
 
   /** The pages on the screen right now: the top page of the stack, or the section the shell shows. */
@@ -221,20 +210,13 @@ object EffectsHost {
     return made
   }
 
-  /** «Ледяное стекло»: rime over the rim of every glass plate on the screen. */
-  private fun placeRime(decor: ViewGroup) {
-    val layer = overlay ?: return
-    if (!iceOn) { layer.rime(emptyList()); return }
-    val plates = ArrayList<Plate>()
-    val size = decor.width
+  /** «Ледяное стекло»: a plate that is no longer on the screen (its page was closed or is covered) lets the picture
+   *  of its rime go; it is made again when the plate is next drawn. */
+  private fun keepRime() {
     for (glass in Glass.plates.keys.toList()) {
-      val plate = plate(glass) ?: continue
-      // A backdrop over the whole screen (a menu's dimming) is not a glass surface.
-      if (plate.width > size * 0.98f && plate.height > decor.height * 0.5f) continue
-      if (plate.radius <= 0 || plate.width < 24 * density(decor) || plate.height < 24 * density(decor)) continue
-      plates.add(plate)
+      val owner = glass.owned
+      if (!owner.isAttachedToWindow || !owner.isShown) glass.forgetRime()
     }
-    layer.rime(plates)
   }
 
   /** A plate of glass where it is now, in window px; null when its owner is off the screen. */
@@ -312,47 +294,15 @@ object EffectsHost {
     if (view is ViewGroup) for (index in 0 until view.childCount) gatherButtons(view.getChildAt(index), depth + 1, decor, d, into)
   }
 
-  /** Above everything: the front snow, and the rime of each plate at the plate's place. Never takes a touch. */
+  /** Above everything: the front snow. Never takes a touch. */
   @SuppressLint("ViewConstructor")
   private class EffectsOverlay(context: Context) : ViewGroup(context) {
     val front = SnowView(context)
-    private val rimes = HashMap<String, Pair<SnowView, Plate>>()
-    private val corner = IntArray(2)
 
     init {
       importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
       isClickable = false; isFocusable = false
       addView(front)
-    }
-
-    fun rime(plates: List<Plate>) {
-      // Called before every frame while «Ледяное стекло» is on: a layout is asked for only when a plate came or went;
-      // otherwise the rime views are only moved to where their plates stand now.
-      var changed = false
-      if (rimes.size != plates.size || plates.any { it.key !in rimes }) {
-        val keep = plates.map { it.key }.toSet()
-        for (key in rimes.keys.toList()) if (key !in keep) { removeView(rimes.getValue(key).first); rimes.remove(key); changed = true }
-      }
-      for (plate in plates) {
-        val had = rimes[plate.key]?.first
-        val view = had ?: SnowView(context).also { it.layer = "rime"; addView(it); changed = true }
-        view.radius = plate.radius / resources.displayMetrics.density
-        rimes[plate.key] = Pair(view, plate)
-      }
-      if (changed) requestLayout()
-      layoutRimes()
-    }
-
-    private fun layoutRimes() {
-      getLocationInWindow(corner)
-      for ((view, plate) in rimes.values) {
-        val left = (plate.left - corner[0]).toInt(); val top = (plate.top - corner[1]).toInt()
-        val w = plate.width.toInt(); val h = plate.height.toInt()
-        if (view.left != left || view.top != top || view.width != w || view.height != h) {
-          view.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY))
-          view.layout(left, top, left + w, top + h)
-        }
-      }
     }
 
     override fun onMeasure(widthSpec: Int, heightSpec: Int) {
@@ -362,7 +312,6 @@ object EffectsHost {
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
       front.layout(0, 0, r - l, b - t)
-      layoutRimes()
     }
 
     @SuppressLint("ClickableViewAccessibility")
