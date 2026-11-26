@@ -93,7 +93,8 @@ class ChatSearchScreen(
 
     /** The words around the first place the needle stands (at most 90 letters; «…» when the start is cut). */
     fun snippet(text: String, needle: String): String {
-      val flat = text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+      // A call's line reads without its emoji (chatsplus/ChatRowLooks.kt `withoutCallMark`).
+      val flat = com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" "))
       val at = flat.lowercase(ru).indexOf(needle)
       if (at < 0) return flat.take(90)
       if (at > 24) return "…" + flat.drop(at - 20).take(90)

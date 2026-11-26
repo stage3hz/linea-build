@@ -410,7 +410,8 @@ final class ChatSearchScreen: UIViewController, UITableViewDataSource, UITableVi
     private var needle: String { query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 
     private static func snippet(_ text: String, _ needle: String) -> String {
-        let flat = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+        // A call's line reads without its emoji (ChatsPlus/ChatRowLooks.swift `withoutCallMark`).
+        let flat = ChatRowLooks.withoutCallMark(text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " "))
         guard let found = flat.lowercased().range(of: needle) else { return String(flat.prefix(90)) }
         let at = flat.lowercased().distance(from: flat.lowercased().startIndex, to: found.lowerBound)
         if at > 24 { return "…" + String(flat.dropFirst(at - 20).prefix(90)) }
