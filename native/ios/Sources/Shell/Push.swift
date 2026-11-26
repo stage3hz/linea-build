@@ -31,6 +31,8 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         didSet { if status != oldValue { NotificationCenter.default.post(name: Push.changed, object: nil) } }
     }
     private weak var messenger: Messenger?
+    /// Apple was asked for a token only to learn whether this build can have one (the simulator check, `start`).
+    private var probing = false
     /// A tapped notification that came before the account (or behind the code lock).
     private var waiting: [AnyHashable: Any]?
 
@@ -55,8 +57,12 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
         self.messenger = messenger
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.deliver() }
         #if targetEnvironment(simulator)
-        // The simulator check takes pictures: the system question would cover them (`-asknotify 1` shows it).
-        guard UserDefaults.standard.bool(forKey: "asknotify") else { return }
+        // The simulator check takes pictures: the system question would cover them (`-asknotify 1` shows it). Without
+        // the question Apple is still asked for a token — that needs no permission and shows nothing — so that a
+        // build without the Push entitlement says so on «Уведомления и звуки», as the previous app does there.
+        let mayAsk = UserDefaults.standard.bool(forKey: "asknotify")
+        #else
+        let mayAsk = true
         #endif
         let centre = UNUserNotificationCenter.current()
         centre.getNotificationSettings { [weak self] (settings: UNNotificationSettings) -> Void in
@@ -69,7 +75,15 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
             }
             switch settings.authorizationStatus {
             case .notDetermined:
-                centre.requestAuthorization(options: [.alert, .badge, .sound]) { (granted: Bool, _: Error?) -> Void in go(granted) }
+                if mayAsk {
+                    centre.requestAuthorization(options: [.alert, .badge, .sound]) { (granted: Bool, _: Error?) -> Void in go(granted) }
+                } else {
+                    DispatchQueue.main.async {
+                        guard let self, self.messenger != nil else { return }
+                        self.probing = true
+                        UIApplication.shared.registerForRemoteNotifications()
+                    }
+                }
             case .authorized, .provisional, .ephemeral:
                 go(true)
             default:
@@ -80,6 +94,12 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
 
     /// AppDelegate: Apple gave the token (raw bytes) — registered as lowercase hex for this session.
     func registered(_ deviceToken: Data) {
+        // A token that came without the permission having been asked is not registered: it only showed that this
+        // build can have one.
+        if probing {
+            probing = false
+            return
+        }
         let hex = deviceToken.map { String(format: "%02x", $0) }.joined()
         guard let messenger, !hex.isEmpty else { return }
         messenger.server.op("registerPush", [hex, "ios"]) { [weak self] (result: Result<Any, ServerError>) -> Void in
@@ -91,7 +111,10 @@ final class Push: NSObject, UNUserNotificationCenterDelegate {
 
     /// AppDelegate: no token — no «aps-environment» entitlement (a sideloaded build) or no way to Apple.
     func failed(_ error: Error) {
-        DispatchQueue.main.async { self.status = .unavailable }
+        DispatchQueue.main.async {
+            self.probing = false
+            self.status = .unavailable
+        }
     }
 
     /// Before signing out, so this device stops receiving pushes (`stopPush`); `done` on the main queue either way.
