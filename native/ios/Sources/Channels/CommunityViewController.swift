@@ -260,7 +260,7 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
         let tall = ceil(about.sizeThatFits(CGSize(width: width - 40, height: 2000)).height)
         if let box = table.tableHeaderView, box.bounds.width == width, box.bounds.height == tall + 14, about.superview === box { return }
         let box = UIView(frame: CGRect(x: 0, y: 0, width: width, height: tall + 14))
-        about.frame = CGRect(x: 20, y: 8, width: width - 40, height: tall)
+        about.frame = CGRect(x: 20, y: 13, width: width - 40, height: tall) // 12 under the header, on a line of 20
         box.addSubview(about)
         table.tableHeaderView = box
     }
@@ -501,8 +501,15 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { return groups[section].rows.count }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        if case .member = groups[indexPath.section].rows[indexPath.row] { return 32 }
-        return 44
+        // CommunityScreen.tsx: a channel's row is 44 with 4 to the next channel; the people of a voice channel stand
+        // right under its row, each 28 tall with 4 under it, and 4 more before the next channel. A group's last row
+        // has nothing under it (the next group's name brings its own room).
+        let rows = groups[indexPath.section].rows
+        var nextIsMember = false
+        let hasNext = indexPath.row + 1 < rows.count
+        if hasNext, case .member = rows[indexPath.row + 1] { nextIsMember = true }
+        if case .member = rows[indexPath.row] { return hasNext && !nextIsMember ? 36 : 32 }
+        return hasNext && !nextIsMember ? 48 : 44
     }
 
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat { return 36 }
@@ -514,7 +521,7 @@ final class CommunityViewController: UIViewController, UITableViewDataSource, UI
     func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         let box = UIView()
         box.backgroundColor = .clear // it scrolls with its rows now: nothing passes under it to hide
-        let label = UILabel(frame: CGRect(x: 20, y: 14, width: tableView.bounds.width - 40, height: 16))
+        let label = UILabel(frame: CGRect(x: 20, y: 15, width: tableView.bounds.width - 40, height: 16))
         label.attributedText = NSAttributedString(string: groups[section].name.uppercased(), attributes: [.kern: 1.0, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         label.accessibilityTraits = .header
         box.addSubview(label)
@@ -581,7 +588,7 @@ final class ChannelCell: UITableViewCell {
         wash.layer.cornerRadius = 12
         wash.layer.cornerCurve = .continuous
         wash.frame = CGRect(x: 12, y: 0, width: 100, height: 44)
-        wash.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        wash.autoresizingMask = [.flexibleWidth]
         pressed.addSubview(wash)
         selectedBackgroundView = pressed
         dot.backgroundColor = Theme.text
@@ -618,7 +625,8 @@ final class ChannelCell: UITableViewCell {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let width = contentView.bounds.width, height = contentView.bounds.height
+        // The row itself is 44 tall at the cell's top; what is left of the cell under it is the gap to the next row.
+        let width = contentView.bounds.width, height: CGFloat = 44
         // The row: 12 in from the list, paddingHorizontal 10, gap 10 — the icon (19), the name, the lock (13), the
         // counter; the unread dot 2 left of the row.
         if let wash = selectedBackgroundView?.subviews.first { wash.frame = CGRect(x: 12, y: 0, width: max(0, width - 24), height: height) }

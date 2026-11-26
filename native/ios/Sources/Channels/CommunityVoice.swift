@@ -134,7 +134,8 @@ final class VoiceMemberCell: UITableViewCell {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let width = contentView.bounds.width, height = contentView.bounds.height
+        // The person's row is 28 tall at the cell's top; what is left under it is the gap to the next row.
+        let width = contentView.bounds.width, height: CGFloat = 28
         // Indented under the channel's name (40 pt), as the reference's list.
         selectedBackgroundView?.frame = CGRect(x: 56, y: 1, width: max(0, width - 56 - 16), height: height - 2)
         avatar.frame = CGRect(x: 60, y: (height - 24) / 2, width: 24, height: 24)

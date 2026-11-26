@@ -90,16 +90,18 @@ final class ScreenSharePanel: UIView {
             column.leadingAnchor.constraint(equalTo: leadingAnchor), column.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
         heading.text = "Демонстрация экрана"
-        heading.font = .systemFont(ofSize: 15, weight: .bold)
+        heading.font = .systemFont(ofSize: 14, weight: .bold) // ScreenSharePanel.tsx: the plain size, Bold
         heading.textColor = Theme.text
         heading.accessibilityTraits = .header
         buttons.axis = .horizontal
         buttons.spacing = 8
-        buttons.distribution = .fillEqually
+        // ScreenSharePanel.tsx: each button is as wide as its words with 12 around them; they stand at the left.
+        buttons.distribution = .fill
         low.addAction(UIAction { [weak self] _ in self?.start(.p720) }, for: .touchUpInside)
         high.addAction(UIAction { [weak self] _ in self?.start(.p1080) }, for: .touchUpInside)
         stopButton.addAction(UIAction { _ in ScreenShare.shared.stop() }, for: .touchUpInside)
         for button in [low, high, stopButton] { buttons.addArrangedSubview(button) }
+        buttons.addArrangedSubview(UIView()) // takes the rest of the row
         note.font = .systemFont(ofSize: 12)
         note.textColor = Theme.muted
         note.numberOfLines = 0
@@ -220,8 +222,9 @@ final class ScreenShareButton: UIControl {
     override init(frame: CGRect) {
         super.init(frame: frame)
         layer.cornerRadius = 12
-        words.font = .systemFont(ofSize: 14, weight: .semibold)
+        words.font = .systemFont(ofSize: 14)
         words.textAlignment = .center
+        words.setContentHuggingPriority(.required, for: .horizontal)
         words.adjustsFontSizeToFitWidth = true
         words.minimumScaleFactor = 0.75
         words.isUserInteractionEnabled = false
@@ -229,7 +232,7 @@ final class ScreenShareButton: UIControl {
         addSubview(words)
         NSLayoutConstraint.activate([
             words.topAnchor.constraint(equalTo: topAnchor, constant: 12), words.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            words.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8), words.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            words.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12), words.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
         ])
         isAccessibilityElement = true
         accessibilityTraits = .button
