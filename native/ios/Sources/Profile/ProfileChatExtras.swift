@@ -227,40 +227,40 @@ enum ProfileChatExtras {
 
     /// The items of «Ещё» that belong to the chat, in the reference's order: «Автоудаление · …», «Запретить /
     /// Разрешить пересылку и копирование», «Обои», «Поиск»; and, apart, «Очистить историю».
-    static func menuItems(_ link: ProfileChatLink, profile: UIViewController, name: String, notice: @escaping (String) -> Void) -> (top: [UIMenuElement], clear: UIMenuElement) {
+    static func menuItems(_ link: ProfileChatLink, profile: UIViewController, name: String, notice: @escaping (String) -> Void) -> (top: [MessageMenuController.Item], clear: MessageMenuController.Item) {
         let ttl = link.ttl
         let noCopy = link.noCopy
-        var top: [UIMenuElement] = []
-        top.append(UIAction(title: "Автоудаление · " + autoDeleteLabel(ttl), image: IonIcon.image("timer-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
+        var top: [MessageMenuController.Item] = []
+        top.append(MessageMenuController.Item(symbol: "ion:timer-outline", label: "Автоудаление · " + autoDeleteLabel(ttl), run: { [weak profile, weak link] () -> Void in
             guard let profile, let link else { return }
             ProfileChatExtras.autoDeleteSheet(current: link.ttl, over: profile) { (next: Int) -> Void in
                 link.setRules(ttl: next, noCopy: link.noCopy)
                 notice(ProfileChatExtras.autoDeleteNotice(next))
             }
-        })
-        top.append(UIAction(title: noCopy ? "Разрешить пересылку и копирование" : "Запретить пересылку и копирование",
-                            image: IonIcon.image(noCopy ? "lock-closed" : "lock-open-outline", size: 20)) { [weak link] (_: UIAction) -> Void in
+        }))
+        top.append(MessageMenuController.Item(symbol: noCopy ? "ion:lock-closed" : "ion:lock-open-outline",
+                                              label: noCopy ? "Разрешить пересылку и копирование" : "Запретить пересылку и копирование", run: { [weak link] () -> Void in
             guard let link else { return }
             Haptic.light()
             let was = link.noCopy
             link.setRules(ttl: link.ttl, noCopy: !was)
             notice(ProfileChatExtras.noCopyNotice(wasNoCopy: was))
-        })
-        top.append(UIAction(title: "Обои", image: IonIcon.image("image-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
+        }))
+        top.append(MessageMenuController.Item(symbol: "ion:image-outline", label: "Обои", run: { [weak profile, weak link] () -> Void in
             guard let profile, let link else { return }
             link.openWallpaper(from: profile)
-        })
-        top.append(UIAction(title: "Поиск", image: IonIcon.image("search-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
+        }))
+        top.append(MessageMenuController.Item(symbol: "ion:search-outline", label: "Поиск", run: { [weak profile, weak link] () -> Void in
             guard let profile, let link else { return }
             link.openSearch(from: profile)
-        })
-        let clear = UIAction(title: "Очистить историю", image: IonIcon.image("trash-bin-outline", size: 20)) { [weak profile, weak link] (_: UIAction) -> Void in
+        }))
+        let clear = MessageMenuController.Item(symbol: "ion:trash-bin-outline", label: "Очистить историю", separated: true, run: { [weak profile, weak link] () -> Void in
             guard let profile, let link else { return }
             ProfileChatExtras.clearSheet(name: name, over: profile) {
                 link.clearForBoth()
                 notice("История очищена у обоих")
             }
-        }
+        })
         return (top, clear)
     }
 

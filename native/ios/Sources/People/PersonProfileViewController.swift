@@ -147,7 +147,7 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         more.setImage(IonIcon.image("ellipsis-horizontal", size: 23), for: .normal) // Ionicons «ellipsis-horizontal», 23
         more.tintColor = Theme.text
         more.accessibilityLabel = "Ещё"
-        more.showsMenuAsPrimaryAction = true
+        more.addTarget(self, action: #selector(openMore), for: .touchUpInside)
         more.translatesAutoresizingMaskIntoConstraints = false
         topBar.addSubview(more)
         GlassBacking.put(under: more) // C
@@ -323,7 +323,6 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         noticeLabel.isHidden = noticeWords.isEmpty
         problemLabel.text = problemWords
         problemLabel.isHidden = problemWords.isEmpty
-        more.menu = moreMenu()
         more.isEnabled = !busy
         rebuildTiles()
         rebuildCard(shown)
@@ -424,44 +423,47 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
             tiles.addArrangedSubview(search)
         }
         let other = makeTile(symbol: "ellipsis-horizontal", words: "Ещё", loading: false)
-        other.menu = moreMenu()
-        other.showsMenuAsPrimaryAction = true
+        other.addTarget(self, action: #selector(openMore), for: .touchUpInside)
         tiles.addArrangedSubview(other)
         fitTiles() // Profile: up to five tiles share the row, as the reference's flex 1, at most 120 wide
     }
 
-    private func moreMenu() -> UIMenu {
-        var actions: [UIMenuElement] = []
+    /// «Ещё»: the previous app's own menu (UserProfile.tsx ContextMenu, `y: 90`, `mine`) — the card of the message
+    /// menu at the right edge under the status bar, over the blurred and darkened profile.
+    @objc private func openMore() {
+        guard presentedViewController == nil else { return }
+        Haptic.light()
+        present(MessageMenuController(anchorY: 90, mine: true, preview: "", reactions: [], items: moreItems()), animated: true)
+    }
+
+    private func moreItems() -> [MessageMenuController.Item] {
+        var items: [MessageMenuController.Item] = []
         if fromChat, let friendNow = isFriend {
             let words = friendNow ? "Удалить из друзей" : request == "outgoing" ? "Отменить заявку" : request == "incoming" ? "Принять в друзья" : "Добавить в друзья"
-            let symbol = friendNow ? "person-remove-outline" : "person-add-outline"
-            actions.append(UIAction(title: words, image: IonIcon.image(symbol, size: 20)) { [weak self] _ in self?.friendTapped() })
+            let symbol = friendNow ? "ion:person-remove-outline" : "ion:person-add-outline"
+            items.append(MessageMenuController.Item(symbol: symbol, label: words, run: { [weak self] in self?.friendTapped() }))
         }
         // Profile: the chat's own items, then «Очистить историю» apart with «Заблокировать» and «Пожаловаться».
-        var tail: [UIMenuElement] = []
+        var clear: MessageMenuController.Item?
         if let link = chatLink {
-            let items = ProfileChatExtras.menuItems(link, profile: self, name: shownPerson.displayName.isEmpty ? name : shownPerson.displayName) { [weak self] (words: String) -> Void in
+            let chatItems = ProfileChatExtras.menuItems(link, profile: self, name: shownPerson.displayName.isEmpty ? name : shownPerson.displayName) { [weak self] (words: String) -> Void in
                 self?.say(notice: words)
                 // The rule is folded into the history a moment later: the items' words follow it then.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.refresh() }
             }
-            actions.append(contentsOf: items.top)
-            tail.append(items.clear)
+            items.append(contentsOf: chatItems.top)
+            clear = chatItems.clear
         }
+        if let clear { items.append(clear) }
+        // UserProfile.tsx: the band stands above «Очистить историю» when the chat has it, else above the block row.
+        let apart = clear == nil
         if blocked {
-            actions.append(UIAction(title: "Разблокировать", image: IonIcon.image("hand-left-outline", size: 20)) { [weak self] _ in self?.setBlocked(false) })
+            items.append(MessageMenuController.Item(symbol: "ion:hand-left-outline", label: "Разблокировать", separated: apart, run: { [weak self] in self?.setBlocked(false) }))
         } else {
-            actions.append(UIAction(title: "Заблокировать", image: IonIcon.image("remove-circle-outline", size: 20), attributes: .destructive) { [weak self] _ in self?.confirmBlock() })
+            items.append(MessageMenuController.Item(symbol: "ion:remove-circle-outline", label: "Заблокировать", danger: true, separated: apart, run: { [weak self] in self?.confirmBlock() }))
         }
-        actions.append(UIAction(title: "Пожаловаться", image: IonIcon.image("warning-outline", size: 20), attributes: .destructive) { [weak self] _ in self?.report() })
-        if chatLink != nil {
-            // Profile: «Очистить историю» stands apart (the reference's `separated`); block and report follow it.
-            let firstTail = actions.firstIndex { ($0 as? UIAction)?.title == "Разблокировать" || ($0 as? UIAction)?.title == "Заблокировать" } ?? actions.count
-            let head = Array(actions[..<firstTail])
-            tail.append(contentsOf: actions[firstTail...])
-            return UIMenu(title: "", children: [UIMenu(title: "", options: .displayInline, children: head), UIMenu(title: "", options: .displayInline, children: tail)])
-        }
-        return UIMenu(title: "", children: actions)
+        items.append(MessageMenuController.Item(symbol: "ion:warning-outline", label: "Пожаловаться", danger: true, run: { [weak self] in self?.report() }))
+        return items
     }
 
     // MARK: Profile: the row of tiles and the sound
@@ -521,19 +523,9 @@ final class PersonProfileViewController: UIViewController, UIScrollViewDelegate 
         scroll.setContentOffset(CGPoint(x: 0, y: target), animated: false)
     }
 
-    /// «Ещё» as a sheet of its items (a UIMenu cannot be opened by code): the same items, in order.
+    /// «Ещё» opened as a touch on it would.
     func simulatorOpenMore() {
-        let menu = moreMenu()
-        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-        func walk(_ elements: [UIMenuElement]) {
-            for element in elements {
-                if let group = element as? UIMenu { walk(group.children) }
-                if let action = element as? UIAction { sheet.addAction(UIAlertAction(title: action.title, style: action.attributes.contains(.destructive) ? .destructive : .default, handler: nil)) }
-            }
-        }
-        walk(menu.children)
-        sheet.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
-        present(sheet, animated: false)
+        openMore()
     }
     #endif
 

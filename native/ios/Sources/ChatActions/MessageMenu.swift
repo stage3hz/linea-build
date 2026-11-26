@@ -377,6 +377,8 @@ private final class MessageMenuRow: UIControl {
         nameLabel.text = label
         nameLabel.font = .systemFont(ofSize: 15.5)
         nameLabel.textColor = ink
+        // ContextMenu.tsx MenuItem: the words take a second line inside the row's 44 before they are made smaller.
+        nameLabel.numberOfLines = 2
         nameLabel.adjustsFontSizeToFitWidth = true
         nameLabel.minimumScaleFactor = 0.75
         addSubview(nameLabel)
