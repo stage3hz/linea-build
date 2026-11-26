@@ -61,7 +61,7 @@ final class MessageMenuController: UIViewController {
         shadow.layer.shadowPath = UIBezierPath(roundedRect: shadow.bounds, cornerRadius: radius).cgPath
     }
 
-    private let backdrop = UIVisualEffectView(effect: Theme.thinBlur)
+    private let backdrop = PartBlurView() // ContextMenu.tsx `BLUR = 30`
     private let dim = UIButton(type: .custom)
     private let pill = UIVisualEffectView(effect: nil)
     private let moreButton = UIButton(type: .system)

@@ -104,7 +104,7 @@ final class AvatarPeekController: UIViewController {
     private let status: String
     private let items: [Item]
     private let top: CGFloat
-    private let backdrop = UIVisualEffectView(effect: nil)
+    private let backdrop = PartBlurView() // ContextMenu.tsx `BLUR = 30`
     /// ContextMenu.tsx: the chat under the card is blurred and darkened — rgba(0,0,0,0.34) on dark, rgba(20,30,60,0.14)
     /// on light — as under a message's menu (the blur alone left it a light grey).
     private let dim = UIView()
@@ -204,7 +204,6 @@ final class AvatarPeekController: UIViewController {
         let spring = UISpringTimingParameters(mass: 1, stiffness: 320, damping: 24, initialVelocity: .zero)
         let animator = UIViewPropertyAnimator(duration: 0, timingParameters: spring)
         animator.addAnimations {
-            self.backdrop.effect = Theme.thinBlur
             self.dim.alpha = 1
             self.card.transform = .identity
             self.menu.transform = .identity

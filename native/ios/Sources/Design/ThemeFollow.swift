@@ -41,3 +41,43 @@ extension Theme {
         return UIBlurEffect(style: dark ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight)
     }
 }
+
+/// The blur behind a menu, at a share of the system blur's full strength — what the previous app's menus stand on
+/// (ContextMenu.tsx: a blur of 30 in 100, dark on a dark theme): the system's blur is taken part of the way by an
+/// animation that is never run to its end. The full thin material blurred the chat away and left it grey.
+final class PartBlurView: UIVisualEffectView {
+    private var animator: UIViewPropertyAnimator?
+    private let share: CGFloat
+
+    init(share: CGFloat = 0.3) {
+        self.share = share
+        super.init(effect: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(setBlur), name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        animator?.stopAnimation(true)
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { setBlur() }
+    }
+
+    /// The system ends a held animation when the app leaves the screen: the blur is set again on the way back.
+    @objc private func setBlur() {
+        animator?.stopAnimation(true)
+        animator = nil
+        effect = nil
+        let style: UIBlurEffect.Style = Theme.dark ? .dark : .light
+        let run = UIViewPropertyAnimator(duration: 1, curve: .linear) { [weak self] in
+            self?.effect = UIBlurEffect(style: style)
+        }
+        run.pausesOnCompletion = true
+        run.fractionComplete = share
+        animator = run
+    }
+}

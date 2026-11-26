@@ -17,7 +17,7 @@ final class ChatPeekMenu: UIViewController {
     private let choices: [ChoiceSheet.Choice]
     private var lines: [Line]
 
-    private let backdrop = UIVisualEffectView(effect: nil)
+    private let backdrop = PartBlurView() // ContextMenu.tsx `BLUR = 30`
     private let dim = UIButton(type: .custom)
     private let card = UIView()
     private let avatar = SmallAvatarView()
@@ -56,7 +56,6 @@ final class ChatPeekMenu: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
-        backdrop.effect = Theme.thinBlur
         view.addSubview(backdrop)
         dim.backgroundColor = Theme.dark ? UIColor(white: 0, alpha: 0.34) : UIColor(red: 20 / 255, green: 30 / 255, blue: 60 / 255, alpha: 0.14)
         dim.accessibilityLabel = "Закрыть меню"
