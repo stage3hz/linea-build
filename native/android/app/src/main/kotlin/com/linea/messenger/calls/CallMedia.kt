@@ -14,6 +14,7 @@ import livekit.org.webrtc.DefaultVideoDecoderFactory
 import livekit.org.webrtc.DefaultVideoEncoderFactory
 import livekit.org.webrtc.EglBase
 import livekit.org.webrtc.IceCandidate
+import livekit.org.webrtc.IceCandidateErrorEvent
 import livekit.org.webrtc.MediaConstraints
 import livekit.org.webrtc.MediaStream
 import livekit.org.webrtc.PeerConnection
@@ -62,6 +63,8 @@ class CallMedia private constructor(private val context: Context) {
   var onState: ((String) -> Unit)? = null
   /** The other side's picture appeared. */
   var onRemoteVideo: (() -> Unit)? = null
+  /** A server of the call refused or did not answer (see `CallReport.troubleWords`): «turn udp 401», «stun 701»… */
+  var onServerTrouble: ((String) -> Unit)? = null
 
   /** What the connection says, on WebRTC's own thread: each word is carried to the main one. */
   private val observer = object : PeerConnection.Observer {
@@ -73,6 +76,10 @@ class CallMedia private constructor(private val context: Context) {
     override fun onIceCandidate(candidate: IceCandidate?) {
       val line = candidate?.sdp ?: return
       main.post { onCandidate?.invoke(line); onGathering?.invoke() }
+    }
+    override fun onIceCandidateError(event: IceCandidateErrorEvent?) {
+      val words = CallReport.troubleWords(event?.url, event?.errorCode ?: 0) ?: return
+      main.post { onServerTrouble?.invoke(words) }
     }
     override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
     override fun onAddStream(stream: MediaStream?) {}
@@ -220,6 +227,10 @@ class CallMedia private constructor(private val context: Context) {
     } catch (_: Exception) { done(emptyList()) }
   }
 
+  /** The ICE part of the connection alone ("checking", "connected", "completed", "failed"…): the connection's own
+   *  state above also waits for the DTLS handshake, this one does not (the grey line of the preview build). */
+  val iceState: String get() = try { connection?.iceConnectionState()?.name?.lowercase() ?: "closed" } catch (_: Exception) { "closed" }
+
   /** Tells the state when it is not the one told last. Also asked once a second by the engine, so a change is
    *  never missed. */
   fun tellState() {
@@ -239,6 +250,7 @@ class CallMedia private constructor(private val context: Context) {
     onGathering = null
     onState = null
     onRemoteVideo = null
+    onServerTrouble = null
     try { capturer?.stopCapture() } catch (_: Exception) {}
     try { capturer?.dispose() } catch (_: Exception) {}
     capturer = null
@@ -265,12 +277,22 @@ class CallMedia private constructor(private val context: Context) {
     internal val egl: EglBase by lazy { EglBase.create() }
     private var made: PeerConnectionFactory? = null
 
+    /** The addresses are sent once, inside the offer or the answer (CallEngine.kt, non-trickle ICE), so the
+     *  gathering must not stop half-way. By default WebRTC stops gathering the moment one pair of addresses
+     *  answers both ways: on the answering phone, which already holds the caller's addresses, that is a few
+     *  dozen milliseconds after its answer is set on the same Wi-Fi — before the relay has given its address
+     *  and before the TCP ones are made. The answer then goes out without the relay (which is how the iPhone
+     *  came to count «чужие h1 s1 r0» while its own offer had «r2 tcp 1»), and a later switch of the path, or a network where
+     *  that first pair stops working, has nothing to fall back on but an ICE restart. With this the answering
+     *  phone gathers everything, as the calling one always does; the wait itself is unchanged (`callGatherDone`). */
+    private const val FIELD_TRIALS = "WebRTC-IceFieldTrials/stop_gather_on_strongly_connected:false/"
+
     /** One factory for the app's life: the phone's own echo cancellation and noise suppression, the default
      *  video codecs. Rooms (RoomMedia.kt) make their connections with the same one: the app has one audio module. */
     internal fun factory(context: Context): PeerConnectionFactory {
       made?.let { return it }
       val app = context.applicationContext
-      PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(app).createInitializationOptions())
+      PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(app).setFieldTrials(FIELD_TRIALS).createInitializationOptions())
       val sound = JavaAudioDeviceModule.builder(app).setUseHardwareAcousticEchoCanceler(true).setUseHardwareNoiseSuppressor(true).createAudioDeviceModule()
       val built = PeerConnectionFactory.builder()
         .setAudioDeviceModule(sound)

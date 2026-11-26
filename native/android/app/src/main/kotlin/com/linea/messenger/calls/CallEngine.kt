@@ -109,6 +109,8 @@ object Calls {
   private const val ICE_FRESH_MS = 5 * 60_000L
   /** How long the preview build keeps a call that never came up on the screen, with its grey line. */
   private const val REPORT_HOLD_MS = 15_000L
+  /** A call up for less than this is held on the screen with its grey line too. */
+  private const val BRIEF_CALL_MS = 15_000.0
 
   private fun after(ms: Long, work: () -> Unit): Runnable = Runnable { work() }.also { main.postDelayed(it, ms) }
   private fun cancel(timer: Runnable?) { if (timer != null) main.removeCallbacks(timer) }
@@ -288,6 +290,7 @@ object Calls {
       made.onGathering = { checkGathering() }
       made.onState = { state -> if (media === made) connectionMoved(state) }
       made.onRemoteVideo = { patch { it.copy(remoteVideo = true) } }
+      made.onServerTrouble = { words -> report?.serverTrouble?.let { if (it.size < 8) it.add(words) } }
       resetLink()
       media = made
       patch { it.copy(localVideo = made.hasCamera) }
@@ -639,21 +642,61 @@ object Calls {
 
   private fun connectionMoved(state: String) {
     val current = call ?: return
-    trace("media $state in ${current.status}")
-    report?.state = state
-    if (state == "connected" && current.status != "active" && current.status != "ended") {
-      cancel(connectTimer); connectTimer = null
-      resetLink()
-      tap()
-      patch { it.copy(status = "active", startedAt = CallRules.nowMs) }
-      return
-    }
+    val ice = media?.iceState
+    trace("media $state (ice $ice) in ${current.status}")
+    report?.let { it.state = state; if (ice != null) it.ice = ice }
+    if (state == "connected" && current.status != "active" && current.status != "ended") return cameUp("состояние")
     // Once the call is up, a drop is not the end: «Восстановление связи…», ICE restarts, «Связь потеряна» after 30 s.
     if (current.status == "active") return feedLink(mapOf("kind" to "state", "state" to state))
     if (state == "failed") {
       report?.cause = "ICE failed"
       finish("Не удалось соединиться", "failed")
     }
+  }
+
+  /** The call comes up: the clock starts. `how`: what said so, for the grey line (see `probe`). */
+  private fun cameUp(how: String) {
+    val current = call ?: return
+    if (current.status == "active" || current.isOver) return
+    cancel(connectTimer); connectTimer = null
+    report?.let { it.upBy = how; it.upAt = System.currentTimeMillis() }
+    trace("up by $how")
+    media?.let { noteHandshake(it) }
+    resetLink()
+    tap()
+    patch { it.copy(status = "active", startedAt = CallRules.nowMs) }
+  }
+
+  /** While the call says «Соединение…», once a second: how far the handshake of the keys got (the grey line), and
+   *  whether the other side's sound already arrives. Sound that arrives has been decrypted with this connection's
+   *  own keys (DTLS-SRTP, agreed after the other side's fingerprint was checked — nothing is decrypted before), so
+   *  the call is up whatever the connection's state said, or failed to say: the screen must not stay at
+   *  «Соединение…» while the two people already hear each other. */
+  private fun probe() {
+    val current = call ?: return
+    val made = media ?: return
+    if (current.status != "connecting") return
+    report?.ice = made.iceState
+    made.statistics { entries ->
+      if (!isCurrent(current.id) || media !== made) return@statistics
+      handshake(entries)?.let { report?.dtls = it }
+      val heard = entries.any { entry ->
+        entry["type"] == "inbound-rtp" && (entry["kind"] == "audio" || entry["mediaType"] == "audio") && ((entry["packetsReceived"] as? Number)?.toDouble() ?: 0.0) > 0.0
+      }
+      if (heard && call?.status == "connecting") cameUp("звук")
+    }
+  }
+
+  /** The DTLS state of the connection's transport, as its statistics say it ("new", "connecting", "connected",
+   *  "closed", "failed"); null when they do not say. */
+  private fun handshake(entries: List<Map<String, Any?>>): String? =
+    entries.firstOrNull { it["type"] == "transport" && it["dtlsState"] is String }?.get("dtlsState") as? String
+
+  /** The handshake's state into the grey line, read once more (the call has just come up). */
+  private fun noteHandshake(made: CallMedia) {
+    val id = call?.id ?: return
+    report?.ice = made.iceState
+    made.statistics { entries -> if (call?.id == id && media === made) handshake(entries)?.let { report?.dtls = it } }
   }
 
   private fun resetLink() {
@@ -853,6 +896,7 @@ object Calls {
     checkGathering()
     // The connection is asked for its state as well as heard, and for its statistics every three seconds.
     if (beats % 4 == 0) media?.tellState()
+    if (beats % 4 == 2) probe()
     if (beats % 12 == 0) readLink()
   }
 
@@ -886,6 +930,7 @@ object Calls {
     app?.let { com.linea.messenger.push.IncomingCall.dismiss(it) } // Push: the ringing notification goes with the call, whoever ended it
     trace("ended in ${current.status}" + (if (notify != null) ", told as $notify" else ""))
     // The grey line of the preview build: made before the connection is closed (its last state is in it).
+    media?.let { made -> report?.ice = made.iceState }
     val line = report?.line(current.remoteSdp)
     report = null
     if (line != null) trace("report: $line")
@@ -895,8 +940,10 @@ object Calls {
     call = current.copy(status = "ended", endedText = words, retry = retry, localVideo = false, remoteVideo = false, reconnecting = false,
       minimized = if (retry) false else current.minimized)
     if (retry) return
-    // A call that never came up stays on the screen long enough for a picture of its line to be taken.
-    val troubled = endReport != null && current.startedAt == null && (current.status == "connecting" || notify == "failed" || notify == "missed")
+    // A call that never came up stays on the screen long enough for a picture of its line to be taken; so does
+    // one that was up only for a few seconds (put down at once because something was wrong on one of the phones).
+    val brief = current.startedAt?.let { CallRules.nowMs - it < BRIEF_CALL_MS } ?: false
+    val troubled = endReport != null && (brief || current.startedAt == null && (current.status == "connecting" || notify == "failed" || notify == "missed"))
     after(if (troubled) REPORT_HOLD_MS else 1600) {
       val ended = call
       if (ended != null && ended.id == current.id && ended.isOver) call = null
