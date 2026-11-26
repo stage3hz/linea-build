@@ -364,7 +364,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         // ChatScreen.tsx: the composer's block has 4 of its own above its topmost part; the way down stands 10 above
         // the block (right 14) and the newest message ends 8 above it (chatLayout.ts COMPOSER_GAP) — each was 4 lower.
         downButton.frame = CGRect(x: width - 14 - DownButton.side, y: above - 4 - 10 - DownButton.side, width: DownButton.side, height: DownButton.side)
-        return (top, view.bounds.height - above + 4 + 8)
+        // chatLayout.ts HEADER_GAP: the oldest message starts 14 under the header's last part (it started 8 under it).
+        return (top + 6, view.bounds.height - above + 4 + 8)
     }
 
     private func relayout() {
