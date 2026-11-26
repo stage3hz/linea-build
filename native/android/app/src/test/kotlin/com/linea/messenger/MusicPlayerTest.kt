@@ -491,6 +491,87 @@ class MusicPlayerTest {
     assertTrue(spoken(page).containsAll(listOf("Убрать из любимого: Северное сияние", "В любимое: Полночь над рекой", "Слушать: Северное сияние, Лера Туман")))
   }
 
+  /** A finger down and up at the middle of the view where it is on the screen, handed to the window. */
+  private fun tap(activity: MainActivity, view: View) {
+    val at = IntArray(2)
+    view.getLocationInWindow(at)
+    val x = at[0] + view.width / 2f; val y = at[1] + view.height / 2f
+    val now = android.os.SystemClock.uptimeMillis()
+    for ((action, time) in listOf(android.view.MotionEvent.ACTION_DOWN to now, android.view.MotionEvent.ACTION_UP to now + 60)) {
+      val event = android.view.MotionEvent.obtain(now, time, action, x, y, 0)
+      activity.window.decorView.dispatchTouchEvent(event)
+      event.recycle()
+    }
+    shadowOf(activity.mainLooper).idleFor(100, TimeUnit.MILLISECONDS)
+  }
+
+  /** What the keyboard does with a word: it gives it to the field's input connection. */
+  private fun type(field: android.widget.EditText, words: String) {
+    val connection = field.onCreateInputConnection(android.view.inputmethod.EditorInfo())
+    assertNotNull(connection)
+    assertTrue(connection!!.commitText(words, 1))
+  }
+
+  // A short screen, so that the top of the list can scroll away entirely.
+  @Config(qualifiers = "w411dp-h560dp-port-420dpi")
+  @Test fun theMusicSearchKeepsItsFieldAndItsWordsWhileTheListMoves() {
+    // The owner's report: while typing in the search the page jumped, and after the keyboard was put away the next
+    // tap brought the keyboard back but what was typed did not appear. The field stood inside the list's top, which the
+    // list lays out again on every answer (taking the focus away for a moment) and drops off the window when it
+    // scrolls away.
+    val activity = launch("25-music-search", intent().putExtra("musicdemo", "1"))
+    val page = find(activity.window.decorView, "MusicScreen")!!
+    val list = find(page, "ListView") as android.widget.ListView
+    fun field(): android.widget.EditText {
+      fun look(view: View): View? {
+        if (view is android.widget.EditText && view.contentDescription == "Поиск музыки") return view
+        if (view is ViewGroup) for (index in 0 until view.childCount) look(view.getChildAt(index))?.let { return it }
+        return null
+      }
+      return look(page) as android.widget.EditText
+    }
+    val search = field()
+    var parent = search.parent
+    while (parent != null) { assertFalse("The search is a part of the list", parent === list); parent = parent.parent }
+    var lost = 0
+    var detached = 0
+    search.setOnFocusChangeListener { _, focused -> if (!focused) lost += 1 }
+    search.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+      override fun onViewAttachedToWindow(view: View) {}
+      override fun onViewDetachedFromWindow(view: View) { detached += 1 }
+    })
+
+    tap(activity, search)
+    assertTrue(search.isFocused)
+    type(search, "ночь")
+    // The search is made after 450 ms of quiet: the top becomes the short one and the rows are shown again.
+    shadowOf(activity.mainLooper).idleFor(700, TimeUnit.MILLISECONDS)
+    assertTrue(search === field() && search.isFocused && lost == 0)
+    assertEquals("ночь", search.text.toString())
+    // The field moves with the list, in the same frame.
+    val before = IntArray(2).also { search.getLocationInWindow(it) }
+    list.scrollListBy(Math.round(20 * activity.resources.displayMetrics.density))
+    val after = IntArray(2).also { search.getLocationInWindow(it) }
+    assertEquals(before[1] - Math.round(20 * activity.resources.displayMetrics.density), after[1])
+    list.scrollListBy(-Math.round(20 * activity.resources.displayMetrics.density))
+
+    // The keyboard is put away and the list is scrolled until its top has left the screen, then back.
+    (activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(search.windowToken, 0)
+    list.setSelection(list.headerViewsCount + 1)
+    shadowOf(activity.mainLooper).idleFor(300, TimeUnit.MILLISECONDS)
+    list.setSelection(0)
+    shadowOf(activity.mainLooper).idleFor(300, TimeUnit.MILLISECONDS)
+    assertEquals(0, detached)
+    assertTrue(search === field() && search.isFocused && lost == 0)
+    // The next tap: the keyboard's words reach the field that is on the screen.
+    tap(activity, search)
+    assertTrue(search.isFocused)
+    type(search, " над рекой")
+    assertEquals("ночь над рекой", search.text.toString())
+    shadowOf(activity.mainLooper).idleFor(700, TimeUnit.MILLISECONDS)
+    assertTrue(search === field() && search.isFocused && search.isShown)
+  }
+
   @Test fun theFullPlayerOverTheSamples() {
     val activity = launch("24-music-player", intent().putExtra("musicdemo", "player"), wait = 2500)
     val page = find(activity.window.decorView, "PlayerScreen")

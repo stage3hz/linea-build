@@ -474,6 +474,49 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
   private val tabs = MusicTabs(context, listOf("Главная", "Любимое", "Мои файлы"))
   private val searchBox = FrameLayout(context)
   private val search = EditText(context)
+  /** Where the search stands in the list's top: an empty place of its size. The field itself is not a part of the
+   *  list — a list lays its top out again, takes the focus from it for a moment and lets it go off the window when it
+   *  scrolls away, and a field inside it was moved, lost its keyboard's connection and, after the keyboard was put
+   *  away, took the typing nowhere. It stands over the list instead, exactly on this place (`placeSearch`). */
+  private val searchSlot = View(context)
+  /** Holds the field over the list, in the list's own box (cut where the list is cut). A touch beside the field goes
+   *  to the list under it; a drag that starts on the field scrolls the list, as it did when the field was in it. */
+  private val searchLayer = object : ViewGroup(context) {
+    private val slop = android.view.ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var downAt = 0L
+    private var handed = false
+
+    override fun onMeasure(widthSpec: Int, heightSpec: Int) = setMeasuredDimension(MeasureSpec.getSize(widthSpec), MeasureSpec.getSize(heightSpec))
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) = placeSearch()
+
+    override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
+      when (event.actionMasked) {
+        MotionEvent.ACTION_DOWN -> { downX = event.x; downY = event.y; downAt = event.downTime; handed = false }
+        MotionEvent.ACTION_MOVE -> {
+          val dy = Math.abs(event.y - downY)
+          if (!handed && dy > slop && dy > Math.abs(event.x - downX)) {
+            // The list is told where the finger went down, then follows it (the layer lies exactly over the list).
+            val down = MotionEvent.obtain(downAt, downAt, MotionEvent.ACTION_DOWN, downX, downY, 0)
+            list.dispatchTouchEvent(down)
+            down.recycle()
+            handed = true
+            return true
+          }
+        }
+      }
+      return false
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+      if (!handed) return false
+      list.dispatchTouchEvent(event)
+      if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) handed = false
+      return true
+    }
+  }
   private val sources = MusicSourceSwitch(context, listOf("SoundCloud", "Audius"), "Источник музыки")
   private val headStack = LinearLayout(context)
   private lateinit var headBox: MusicHeadBox
@@ -727,7 +770,7 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     list.isVerticalScrollBarEnabled = false; list.clipToPadding = false
     list.setOnScrollListener(object : AbsListView.OnScrollListener {
       override fun onScrollStateChanged(view: AbsListView?, state: Int) { if (state == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL) hideKeyboard() }
-      override fun onScroll(view: AbsListView?, first: Int, visible: Int, total: Int) { placeAmbient() } // Music
+      override fun onScroll(view: AbsListView?, first: Int, visible: Int, total: Int) { placeAmbient(); placeSearch() } // Music
     })
 
     column.orientation = LinearLayout.VERTICAL
@@ -803,7 +846,9 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
       override fun afterTextChanged(text: Editable?) { main.removeCallbacks(typing); main.postDelayed(typing, 450) }
     })
     searchBox.addView(search, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(48f)).apply { leftMargin = dp(46f); rightMargin = dp(8f) })
-    column.addView(searchBox, LinearLayout.LayoutParams(wide, dp(48f)).apply { topMargin = dp(16f) })
+    searchSlot.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    column.addView(searchSlot, LinearLayout.LayoutParams(wide, dp(48f)).apply { topMargin = dp(16f) })
+    searchLayer.addView(searchBox)
     shelves.orientation = LinearLayout.VERTICAL // Music
     AIKit.add(column, shelves, 16f)
 
@@ -839,6 +884,10 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     addView(ambientStage)
     addButton.source = ambientStage
     addView(list)
+    // The search over the list, read right after the top of the page, where it stands.
+    addView(searchLayer)
+    headBox.id = View.generateViewId()
+    searchBox.accessibilityTraversalAfter = headBox.id
     mini.onOpen = { openPlayer() }
     addView(mini)
   }
@@ -853,6 +902,8 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val tall = dp(MusicInk.headHeight(section == "catalog", query.isNotEmpty(), height / d)) + edges.top
     headBox.wanted = maxOf(0, tall - edges.top - dp(8f))
     put(list, 0, edges.top, width, height - edges.top)
+    put(searchLayer, 0, edges.top, width, height - edges.top)
+    placeSearch()
     put(ambientStage, 0, 0, width, height)
     placeAmbient() // Music
     put(mini, dp(12f), height - clearance - dp(64f), width - dp(24f), dp(64f))
@@ -867,6 +918,22 @@ class MusicScreen(context: Context, private val messenger: Messenger?) : Screen(
     val scrolled = if (list.firstVisiblePosition == 0 && head != null && head.parent != null) -head.top else tall
     if (ambient.width != width || ambient.height != tall) put(ambient, 0, 0, width, tall)
     ambient.translationY = -scrolled.toFloat()
+  }
+
+  /** The search field over its place in the list's top, in the same frame as the list moves; above the list's box
+   *  (out of sight, still the same field with its words and its keyboard) while the top has scrolled away. */
+  private fun placeSearch() {
+    val head = listHead ?: return
+    val wide = searchSlot.width
+    if (wide <= 0) return
+    val tall = searchSlot.height
+    val left = head.left + column.left + searchSlot.left
+    if (searchBox.isLayoutRequested || searchBox.width != wide || searchBox.height != tall || searchBox.left != left) {
+      searchBox.measure(MeasureSpec.makeMeasureSpec(wide, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(tall, MeasureSpec.EXACTLY))
+      searchBox.layout(left, 0, left + wide, tall)
+    }
+    val shown = head.parent === list
+    searchBox.translationY = if (shown) (head.top + column.top + searchSlot.top).toFloat() else -2f * tall
   }
 
   /** Music: the shelves, built again only when what they show changed. */
