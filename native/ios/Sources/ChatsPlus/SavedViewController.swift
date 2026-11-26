@@ -933,8 +933,9 @@ final class SavedNoteCanvas: UIView {
     /// `circleOnly` (SavedScreen.tsx): a round video with no words and no origin, shown alone.
     private var circleOnly: Bool { kind == "note" && words.isEmpty && item["origin"] == nil }
 
-    /// SavedScreen.tsx: every note but a lone round video stands on its bordered plate, whatever the chats' look.
-    private var plated: Bool { !circleOnly }
+    /// A plate only when bubbles are chosen; the open look has none (the owner's rule — the previous app's
+    /// SavedScreen.tsx puts every note on a bordered plate, and the comparison shows that difference).
+    private var plated: Bool { !msgOpenLook && !circleOnly }
 
     func show(_ next: [String: Any], own: String, state: MsgMediaState?, maxSide: CGFloat, expanded: Bool) {
         self.expanded = expanded
