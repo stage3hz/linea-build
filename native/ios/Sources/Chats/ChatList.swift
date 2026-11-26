@@ -586,6 +586,15 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
 
   deinit { NotificationCenter.default.removeObserver(self) }
 
+  /// A glide that is nearly over stops at a new touch, which then reaches the row's swipe buttons, the turn of the
+  /// folder or the stories strip as on a list at rest; a faster glide is only stopped by it (Design/GlideCatch.swift).
+  private let glide = GlideCatch()
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    if table.frame.contains(point) { glide.touching(table, event: event) }
+    return super.hitTest(point, with: event)
+  }
+
   @objc private func avatarReady(_ note: Notification) {
     guard let key = note.object as? String else { return }
     for cell in table.visibleCells {
@@ -806,6 +815,7 @@ extension ChatListView {
   }
 
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    glide.scrolled(scrollView)
     guard pullView != nil else { return }
     // Scrolled down into the chats: the open block is put away (it is out of sight already, nothing jumps).
     if pullOpen && scrollView.contentOffset.y >= -padTop - 0.5 && (scrollView.isDragging || scrollView.isDecelerating) {

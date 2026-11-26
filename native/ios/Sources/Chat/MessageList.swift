@@ -1617,7 +1617,17 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     applyInsets()
   }
 
+  /// A glide that is nearly over stops at a new touch, which then reaches the row (the swipe to answer, a link) or the
+  /// swipe back as on a list at rest; a faster glide is only stopped by it (Design/GlideCatch.swift).
+  private let glide = GlideCatch()
+
+  override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+    if table.frame.contains(point) { glide.touching(table, event: event) }
+    return super.hitTest(point, with: event)
+  }
+
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    glide.scrolled(scrollView)
     if scrollView.isDragging || scrollView.isDecelerating { pinned = scrollView.contentOffset.y <= -scrollView.contentInset.top + 24 }
     onScrolled(["fromNewest": Double(scrollView.contentOffset.y + scrollView.contentInset.top)])
   }

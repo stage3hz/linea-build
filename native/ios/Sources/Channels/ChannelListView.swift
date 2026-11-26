@@ -223,7 +223,17 @@ final class ChannelListView: UIView, UITableViewDataSource, UITableViewDelegate,
 
     // MARK: The table
 
+    /// A glide that is nearly over stops at a new touch, which then reaches the row or the swipe back as on
+    /// a list at rest; a faster glide is only stopped by it (Design/GlideCatch.swift).
+    private let glide = GlideCatch()
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        if table.frame.contains(point) { glide.touching(table, event: event) }
+        return super.hitTest(point, with: event)
+    }
+
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        glide.scrolled(scrollView)
         guard scrollView.isDragging || scrollView.isDecelerating else { return }
         pinned = scrollView.contentOffset.y <= -scrollView.contentInset.top + 24
         showToEnd(scrollView.contentOffset.y > -scrollView.contentInset.top + 400)
