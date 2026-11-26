@@ -112,6 +112,15 @@ fn what_is_shown_crosses_the_boundary() {
         assert_eq!(ask("editWindowOpen", r#"["2026-01-01T00:00:00.000Z",1767398400000]"#).as_deref(), Some("false"));
         assert_eq!(ask("actionFallback", r#"[{"type":"pin","target":"0b0b0b0b-0000-4000-8000-000000000001"}," привет "]"#).as_deref(), Some(r#""Закреплено сообщение «привет»""#));
         assert_eq!(ask("actionFallback", r#"[{"type":"nothing"},""]"#).as_deref(), Some("null"));
+        // The owner's rule: the app's own lines carry no emoji, new or stored; a person's emoji stays.
+        assert_eq!(ask("actionFallback", r#"[{"type":"clear"},""]"#).as_deref(), Some(r#""История очищена""#));
+        assert_eq!(ask("actionFallback", r#"[{"type":"call","step":"offer","video":true},""]"#).as_deref(), Some(r#""Видеозвонок""#));
+        assert_eq!(ask("chatListText", r#"[{"text":"📞 Звонок · 0:04","meta":{"action":{"type":"call","step":"end","duration":4}}}]"#).as_deref(), Some(r#""Звонок · 0:04""#));
+        assert_eq!(ask("chatListText", r#"[{"text":"🧹 История очищена","meta":{"action":{"type":"clear"}}}]"#).as_deref(), Some(r#""История очищена""#));
+        assert_eq!(ask("chatListText", r#"[{"text":"📊 Куда?\n1. Кино","meta":{"poll":{"question":"Куда?","options":["Кино","Боулинг"],"multiple":false}}}]"#).as_deref(), Some(r#""Куда?\n1. Кино""#));
+        assert_eq!(ask("chatListText", r#"[{"text":"📞 Звонок маме"}]"#).as_deref(), Some(r#""📞 Звонок маме""#));
+        assert_eq!(ask("replyPreview", r#"[{"text":"","attachment":{"name":"a.jpg","mimeType":"image/jpeg"}}]"#).as_deref(), Some(r#""Фотография""#));
+        assert_eq!(ask("replyPreview", r#"[{"text":"","meta":{"poll":{"question":"Куда?","options":["Кино","Боулинг"],"multiple":false}}}]"#).as_deref(), Some(r#""Куда?""#));
         assert_eq!(ask("listPreviewMessage", r#"[[{"id":1,"senderId":"a","clientId":"c1","text":"раз","createdAt":"2026-01-01T00:00:00.000Z"},{"id":2,"senderId":"a","clientId":"c2","text":"🗑 Сообщение удалено","createdAt":"2026-01-01T00:00:01.000Z","meta":{"action":{"type":"delete","target":"c9"}}}]]"#).is_some_and(|line| line.contains("раз")), true);
         // Rooms (`rooms.rs`): every name that starts with `room` reaches its rules.
         assert_eq!(ask("roomInsideLine", "[3]").as_deref(), Some("\"трое внутри\""));

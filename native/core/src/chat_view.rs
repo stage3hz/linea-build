@@ -198,27 +198,51 @@ pub(crate) fn format_call_duration(seconds: f64) -> String {
 }
 
 /// Chat-list line (and fallback text) for a finished call; `action` is a `call` action. It names no direction:
-/// the same text is stored by the sender and shown on both phones.
+/// the same text is stored by the sender and shown on both phones. The owner's rule over messageMeta.ts: the
+/// app's lines carry no emoji (no «📞»/«📹» before the words), and no icon takes its place.
 pub fn call_preview(action: &Value) -> JsString {
     let video = truthy(action.get("video"));
-    let (icon, noun, lower) = if video { ("📹", "Видеозвонок", "видеозвонок") } else { ("📞", "Звонок", "звонок") };
+    let (noun, lower) = if video { ("Видеозвонок", "видеозвонок") } else { ("Звонок", "звонок") };
     let reason = action.get("reason");
-    let text = if is(reason, "missed") { format!("{icon} Пропущенный {lower}") }
-        else if is(reason, "declined") || is(reason, "busy") { format!("{icon} Отклонённый {lower}") }
-        else if is(reason, "failed") { format!("{icon} {noun} не удался") }
-        else { match action.get("duration") { None => format!("{icon} {noun}"), Some(duration) => format!("{icon} {noun} · {}", format_call_duration(number(Some(duration)))) } };
+    let text = if is(reason, "missed") { format!("Пропущенный {lower}") }
+        else if is(reason, "declined") || is(reason, "busy") { format!("Отклонённый {lower}") }
+        else if is(reason, "failed") { format!("{noun} не удался") }
+        else { match action.get("duration") { None => noun.to_string(), Some(duration) => format!("{noun} · {}", format_call_duration(number(Some(duration)))) } };
     JsString::from_str(&text)
 }
 
-/// Chat-list line for a message: plain text with spoilers hidden (▒), formatting dropped; a finished call reads
-/// as `call_preview`.
-pub fn chat_list_text(message: &Value) -> JsString {
-    let action = field(message.get("meta"), "action");
-    if is(field(action, "type"), "call") && is(field(action, "step"), "end") { return call_preview(action.expect("it has a type")) }
-    JsString(mask_spoilers(units(message.get("text")), field(message.get("meta"), "entities")))
+/// The marks the reference put before its own words (messageMeta.ts, voice.ts). Older messages still carry them in
+/// their stored text; the owner's rule is that the app's lines show no emoji.
+const APP_MARKS: [&str; 15] = ["📞 ", "📹 ", "🎤 ", "🖼\u{fe0f} ", "🖼 ", "🎬 ", "📎 ", "📊 ", "✏\u{fe0f} ", "✏ ", "🗑 ", "🗳 ", "⏱ ", "🚫 ", "🧹 "];
+
+/// The text without one of `APP_MARKS` at its start.
+fn without_app_mark(text: Vec<u16>) -> Vec<u16> {
+    for mark in APP_MARKS {
+        let mark = utf16(mark);
+        if text.starts_with(&mark) { return text[mark.len()..].to_vec() }
+    }
+    text
 }
 
-/// `attachmentLabel`: short human label for previews.
+/// Chat-list line for a message: plain text with spoilers hidden (▒), formatting dropped; a finished call reads
+/// as `call_preview`. The text of a poll or of an action (but a reaction, whose emoji is the person's) is the app's
+/// own fallback, so an older one loses its leading mark («🧹 История очищена» reads «История очищена»).
+pub fn chat_list_text(message: &Value) -> JsString {
+    let meta = message.get("meta");
+    let action = field(meta, "action");
+    if is(field(action, "type"), "call") && is(field(action, "step"), "end") { return call_preview(action.expect("it has a type")) }
+    let masked = mask_spoilers(units(message.get("text")), field(meta, "entities"));
+    JsString(if app_made(message) { without_app_mark(masked) } else { masked })
+}
+
+/// Whether the text of a message is the app's own fallback: a poll's, or an action's but a reaction's.
+fn app_made(message: &Value) -> bool {
+    let (meta, action) = (message.get("meta"), field(message.get("meta"), "action"));
+    truthy(field(meta, "poll")) || (truthy(action) && !is(field(action, "type"), "react"))
+}
+
+/// `attachmentLabel`: short human label for previews, without the reference's «🎤»/«🖼»/«🎬»/«📎» (the owner's rule:
+/// no emoji in the app's lines).
 fn attachment_label(attachment: &Value) -> Vec<u16> {
     let (name, mime) = (units(attachment.get("name")), units(attachment.get("mimeType")));
     // `^prefix-\d{1,16}\.ext$`
@@ -230,7 +254,7 @@ fn attachment_label(attachment: &Value) -> Vec<u16> {
     };
     if mime == utf16("audio/mp4") && named("voice-", ".m4a") {
         let ms = field(attachment.get("media"), "durationMs");
-        let mut label = "🎤 Голосовое сообщение".to_string();
+        let mut label = "Голосовое сообщение".to_string();
         if truthy(ms) {
             // `formatVoiceTime`
             let ms = number(ms);
@@ -240,21 +264,15 @@ fn attachment_label(attachment: &Value) -> Vec<u16> {
         return utf16(&label);
     }
     if mime == utf16("video/mp4") && named("circle-", ".mp4") { return utf16("Видеосообщение") }
-    if mime.starts_with(&utf16("image/")) { return utf16("🖼 Фотография") }
-    if mime.starts_with(&utf16("video/")) { return utf16("🎬 Видео") }
-    let mut label = utf16("📎 ");
-    label.extend_from_slice(name);
-    label
+    if mime.starts_with(&utf16("image/")) { return utf16("Фотография") }
+    if mime.starts_with(&utf16("video/")) { return utf16("Видео") }
+    name.to_vec()
 }
 
-/// Plain-text one-line quote for a reply (at most 200 code units).
+/// Plain-text one-line quote for a reply (at most 200 code units). A poll is its question, without «📊».
 pub fn reply_preview(message: &Value) -> JsString {
     let poll = field(message.get("meta"), "poll");
-    if truthy(poll) {
-        let mut line = utf16("📊 ");
-        line.extend_from_slice(units(field(poll, "question")));
-        return JsString(head(&line, 200).to_vec());
-    }
+    if truthy(poll) { return JsString(head(units(field(poll, "question")), 200).to_vec()) }
     // Formatting is dropped in a quote; a spoiler stays hidden. `.trim().replace(/\s+/g, ' ')`.
     let masked = mask_spoilers(units(message.get("text")), field(message.get("meta"), "entities"));
     let mut body: Vec<u16> = Vec::new();
@@ -262,13 +280,15 @@ pub fn reply_preview(message: &Value) -> JsString {
     for unit in trim(&masked).iter().copied() {
         if !js_space(unit) { body.push(unit); in_space = false } else if !in_space { body.push(0x20); in_space = true }
     }
+    // A call's or an action's stored line without the mark an older app put before it.
+    if app_made(message) { body = without_app_mark(body) }
     if !body.is_empty() { return JsString(head(&body, 200).to_vec()) }
     match message.get("attachment") { attachment if truthy(attachment) => JsString(head(&attachment_label(attachment.expect("truthy")), 200).to_vec()), _ => JsString::default() }
 }
-/// Fallback text stored with a poll so a chat preview or an older client shows something readable.
+/// Fallback text stored with a poll so a chat preview or an older client shows something readable: the question
+/// (without the reference's «📊»), then «1. option» lines.
 pub fn poll_fallback(poll: &Value) -> JsString {
-    let mut out = utf16("📊 ");
-    out.extend_from_slice(units(poll.get("question")));
+    let mut out = units(poll.get("question")).to_vec();
     for (index, option) in array(poll.get("options")).iter().enumerate() {
         out.extend(format!("\n{}. ", index + 1).encode_utf16());
         out.extend_from_slice(units(Some(option)));
@@ -280,7 +300,9 @@ pub fn poll_fallback(poll: &Value) -> JsString {
 fn auto_delete_label(ttl: f64) -> &'static str { if ttl == 86400.0 { "1 день" } else if ttl == 604800.0 { "1 неделя" } else if ttl == 2592000.0 { "1 месяц" } else { "Выкл." } }
 
 /// Readable text an older client (or a chat preview) shows for an action; `target_text` is the text of the message
-/// it acts on (may be empty). `None` — the reference's `undefined` — for an action of an unknown type.
+/// it acts on (may be empty). `None` — the reference's `undefined` — for an action of an unknown type. Without the
+/// reference's «✏️»/«🗑»/«🗳»/«⏱»/«🚫»/«🧹»/«📞»/«📹» (the owner's rule: no emoji in the app's lines); a reaction keeps
+/// the emoji the person chose. The reference reads `meta.action`, never this text, so nothing depends on the marks.
 pub fn action_fallback(action: &Value, target_text: &JsString) -> Option<JsString> {
     let target = trim(&target_text.0);
     let quoted = |start: &str| -> JsString {
@@ -290,11 +312,11 @@ pub fn action_fallback(action: &Value, target_text: &JsString) -> Option<JsStrin
     };
     let kind = action.get("type");
     if is(kind, "edit") {
-        let mut out = utf16("✏\u{fe0f} Изменено: ");
+        let mut out = utf16("Изменено: ");
         out.extend_from_slice(units(action.get("text")));
         return Some(JsString(head(&out, 8000).to_vec()));
     }
-    if is(kind, "delete") { return Some(JsString::from_str("🗑 Сообщение удалено")) }
+    if is(kind, "delete") { return Some(JsString::from_str("Сообщение удалено")) }
     if is(kind, "react") {
         if !truthy(action.get("emoji")) { return Some(quoted("Реакция убрана")) }
         let mut out = units(action.get("emoji")).to_vec();
@@ -302,17 +324,17 @@ pub fn action_fallback(action: &Value, target_text: &JsString) -> Option<JsStrin
         return Some(JsString(out));
     }
     if is(kind, "pin") { return Some(if truthy(action.get("target")) { quoted("Закреплено сообщение") } else { JsString::from_str("Сообщение откреплено") }) }
-    if is(kind, "vote") { return Some(if array(action.get("options")).is_empty() { quoted("Голос отменён") } else { quoted("🗳 Голос в опросе") }) }
+    if is(kind, "vote") { return Some(if array(action.get("options")).is_empty() { quoted("Голос отменён") } else { quoted("Голос в опросе") }) }
     if is(kind, "settings") {
-        return Some(JsString::from_str(&if truthy(action.get("ttl")) { format!("⏱ Автоудаление: {}", auto_delete_label(number(action.get("ttl")))) }
-            else if truthy(action.get("noCopy")) { "🚫 Копирование запрещено".to_string() } else { "⏱ Автоудаление выключено".to_string() }));
+        return Some(JsString::from_str(&if truthy(action.get("ttl")) { format!("Автоудаление: {}", auto_delete_label(number(action.get("ttl")))) }
+            else if truthy(action.get("noCopy")) { "Копирование запрещено".to_string() } else { "Автоудаление выключено".to_string() }));
     }
-    if is(kind, "clear") { return Some(JsString::from_str("🧹 История очищена")) }
+    if is(kind, "clear") { return Some(JsString::from_str("История очищена")) }
     if is(kind, "call") {
         let step = action.get("step");
-        return Some(if is(step, "offer") { JsString::from_str(if truthy(action.get("video")) { "📹 Видеозвонок" } else { "📞 Звонок" }) }
-            else if is(step, "answer") { JsString::from_str("📞 Звонок принят") }
-            else if is(step, "restart") || is(step, "restart-answer") { JsString::from_str("📞 Восстановление связи") }
+        return Some(if is(step, "offer") { JsString::from_str(if truthy(action.get("video")) { "Видеозвонок" } else { "Звонок" }) }
+            else if is(step, "answer") { JsString::from_str("Звонок принят") }
+            else if is(step, "restart") || is(step, "restart-answer") { JsString::from_str("Восстановление связи") }
             else { call_preview(action) });
     }
     None
