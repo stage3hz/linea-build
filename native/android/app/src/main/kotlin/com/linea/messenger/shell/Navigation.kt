@@ -27,11 +27,21 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import com.linea.messenger.chatsplus.PlusIconView
+import com.linea.messenger.design.BarMetrics
+import com.linea.messenger.design.GlassSource
 import com.linea.messenger.design.Theme
 import com.linea.messenger.design.words
 
 /** A pushed page whose own sideways drags must not be taken by the swipe back (a cropper, a drawing). */
 interface StackSwipeBlocking { val blocksSwipeBack: Boolean }
+
+/** A pushed page that keeps the bar of the sections at its bottom, as the previous app does on the pages of a section
+ *  (a page of the settings, a community, a channel, a room). A chat and the full-screen pages do not: the bar stands
+ *  over a pushed page only while every page above the sections keeps it. */
+interface KeepsTabBar {
+  /** What the bar's glass shows blurred while it stands over this page; null: the plain glass. */
+  val barBackdrop: GlassSource? get() = null
+}
 
 /** The stack of pages (the reference's stack.tsx, native/ios/Sources/Shell/NavigationController.swift): no bar on top
  *  (every page draws its own header).
@@ -62,10 +72,14 @@ class Navigation(context: Context) : FrameLayout(context) {
   private val homeWords = HomePill(context, words = true)
   private val homeMark = HomePill(context, words = false)
   private val main = Handler(Looper.getMainLooper())
+  /** Where the bar of the sections and its soft edge stand over a pushed page that keeps them: above every page,
+   *  under the marks of the swipe. Empty otherwise. */
+  private val barShelf = BarShelf(context)
 
   init {
     setBackgroundColor(Theme.bg)
     setWillNotDraw(false)
+    addView(barShelf, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     for (pill in listOf(homeWords, homeMark)) { pill.alpha = 0f; addView(pill, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)) }
   }
 
@@ -76,6 +90,7 @@ class Navigation(context: Context) : FrameLayout(context) {
 
   fun setRoot(page: View) {
     running?.cancel()
+    root?.takeBarBack() // the sections that go take their bar with them
     for (view in stack) removeView(view)
     stack.clear()
     addView(page, 0, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -89,8 +104,10 @@ class Navigation(context: Context) : FrameLayout(context) {
   fun push(page: View, animated: Boolean = true) {
     running?.cancel()
     settle()
-    addView(page, indexOfChild(homeWords), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    addView(page, indexOfChild(barShelf), LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     stack.add(page)
+    // A page coming in slides under the bar it keeps; a page that does not keep it covers the sections' bar at once.
+    settleBar()
     com.linea.messenger.effects.MotionBlur.attach(page) // MotionBlur: blurred along its slide on screens below 90 Hz
     onDepthChange(stack.size)
     if (!animated || width == 0 || motionOff) { progress = 0f; apply(); cover(); return }
@@ -118,9 +135,59 @@ class Navigation(context: Context) : FrameLayout(context) {
     while (stack.size > 1) { val page = stack.removeAt(stack.size - 1); removeView(page) }
     progress = 0f
     stack.firstOrNull()?.let { it.visibility = View.VISIBLE; it.translationX = 0f; it.alpha = 0.6f; it.animate().alpha(1f).setDuration(200).start() }
+    settleBar()
     onDepthChange(stack.size)
     root?.show("chats")
     invalidate()
+  }
+
+  /** The whole stack goes at once and the sections stand as they were (a touch on the bar over a pushed page).
+   *  Nothing happens when only the root is left. */
+  fun popToRoot() {
+    if (stack.size <= 1) return
+    running?.cancel()
+    keyboardAway()
+    while (stack.size > 1) { val page = stack.removeAt(stack.size - 1); removeView(page) }
+    progress = 0f
+    stack.firstOrNull()?.let { it.visibility = View.VISIBLE; it.translationX = 0f }
+    settleBar()
+    onDepthChange(stack.size)
+    invalidate()
+  }
+
+  // The bar over pushed pages
+
+  /** The page of the stack `view` is, or is a part of; null outside the stack. */
+  private fun pageOf(view: View): View? {
+    var at: View? = view
+    while (at != null && at.parent !== this) at = at.parent as? View
+    return at?.takeIf { stack.contains(it) }
+  }
+
+  /** Whether the bar of the sections stands over this pushed page (or the page `over` is a part of): it and every
+   *  page under it, down to the sections, keep the bar. */
+  fun barKept(over: View?): Boolean {
+    if (over == null || root == null) return false
+    val at = stack.indexOf(pageOf(over) ?: return false)
+    if (at < 1) return false
+    for (index in 1..at) if (stack[index] !is KeepsTabBar) return false
+    return true
+  }
+
+  /** The room a pushed page leaves at its bottom for the bar that stands over it, px: the bar, its gap to the
+   *  screen's edge and `above` dp over it; 0 when the bar is not there. `safeBottom`: the navigation bar's height, px. */
+  fun barRoom(over: View?, safeBottom: Int, above: Float = 9f): Int {
+    if (!barKept(over)) return 0
+    return Math.round((BarMetrics.bottomGap(safeBottom / d) + BarMetrics.height + above) * d)
+  }
+
+  /** The bar goes over the stack for a top page that keeps it, and back into the sections' own page otherwise. On
+   *  the way back this is done when the slide is over: a page dragged away and let go again must not be left with a
+   *  bar it does not keep. */
+  private fun settleBar() {
+    val root = root ?: return
+    val top = stack.lastOrNull()
+    if (barKept(top)) root.lendBar(barShelf, (top as? KeepsTabBar)?.barBackdrop) else root.takeBarBack()
   }
 
   private fun remove(page: View) {
@@ -128,6 +195,7 @@ class Navigation(context: Context) : FrameLayout(context) {
     removeView(page)
     progress = 0f
     stack.lastOrNull()?.let { it.visibility = View.VISIBLE; it.translationX = 0f }
+    settleBar()
     onDepthChange(stack.size)
     invalidate()
   }
@@ -187,6 +255,7 @@ class Navigation(context: Context) : FrameLayout(context) {
   override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
     super.onLayout(changed, left, top, right, bottom)
     val h = bottom - top
+    root?.placeLentBar(right - left, h) // the bar over a pushed page that keeps it
     homeWords.measure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), MeasureSpec.makeMeasureSpec((44 * d).toInt(), MeasureSpec.EXACTLY))
     val y = (h * 0.46f).toInt()
     homeWords.layout((14 * d).toInt(), y, (14 * d).toInt() + homeWords.measuredWidth, y + homeWords.measuredHeight)
@@ -401,6 +470,15 @@ class Navigation(context: Context) : FrameLayout(context) {
     private const val HOME_EDGE = 32f
     private const val LONG_HOLD_MS = 600L
   }
+}
+
+/** Holds the bar of the sections and its soft edge over a pushed page that keeps them. The stack has them placed
+ *  after its own layout (RootScreen.placeLentBar), as the sections place them in their own page. A touch beside the
+ *  bar goes through to the page. */
+private class BarShelf(context: Context) : ViewGroup(context) {
+  init { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {}
 }
 
 /** The mark of «to the chat list» (the reference's `HomePill`): a round chat icon on the text colour, with the words

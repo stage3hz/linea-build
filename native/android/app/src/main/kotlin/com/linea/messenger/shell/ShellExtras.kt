@@ -50,13 +50,22 @@ class ShellExtras(private val root: RootScreen, private val bar: View, messenger
     view.layout(left, top, left + width.coerceAtLeast(0), top + height.coerceAtLeast(0))
   }
 
-  /** `barTop`: where the bar's upper edge is, px; `lift`: the bar's lower edge above the screen's bottom, px. */
-  fun place(width: Int, height: Int, barTop: Int, lift: Int, safeTop: Int) {
+  /** The bar's soft edge: it goes over a pushed page together with the bar (RootScreen.lendBar). */
+  val edge: View get() = barEdge
+
+  /** The edge while it stands over a pushed page: behind the bar alone (no mini-player is shown there). */
+  fun placeLentEdge(width: Int, height: Int, barTop: Int, lift: Int) {
+    barEdge.place(width, height, height - barTop + Math.round(5 * d), lift)
+  }
+
+  /** `barTop`: where the bar's upper edge is, px; `lift`: the bar's lower edge above the screen's bottom, px;
+   *  `edgeHere`: false while the bar and its edge stand over a pushed page. */
+  fun place(width: Int, height: Int, barTop: Int, lift: Int, safeTop: Int, edgeHere: Boolean = true) {
     val miniTop = barTop - Math.round((ShellInsets.miniGap + ShellInsets.miniHeight) * d)
     put(mini, Math.round(12 * d), miniTop, width - Math.round(24 * d), Math.round(ShellInsets.miniHeight * d))
     // The tab block: the pill, its 5 dp margin above, the mini-player when it is shown.
     val block = height - barTop + Math.round(5 * d) + Math.round(ShellInsets.miniPlayer * d)
-    barEdge.place(width, height, block, lift)
+    if (edgeHere) barEdge.place(width, height, block, lift)
     statusStrip.place(width, safeTop)
     // The hint about the hold stands above the whole block (above the mini-player when it is there).
     val above = if (mini.visibility == View.VISIBLE && ShellInsets.miniPlayer > 0) miniTop else barTop

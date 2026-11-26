@@ -3,6 +3,7 @@ package com.linea.messenger.shell
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.linea.messenger.ai.AIScreen
@@ -62,6 +63,8 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     bar.behind = stage
     bar.onSelect = { id ->
       beforePreview = null
+      // The bar touched over a pushed page (Navigation holds it there): back to the sections first.
+      (parent as? Navigation)?.popToRoot()
       show(id)
     }
     bar.onPreview = { id ->
@@ -132,8 +135,55 @@ class RootScreen(context: Context, private val messenger: Messenger?, private va
     put(stage, 0, 0, width, height)
     val gap = dp(BarMetrics.bottomGap(edges.bottom / d))
     val wide = minOf(dp(BarMetrics.width), width); val tall = dp(BarMetrics.height)
+    // The bar and its edge are laid out by the stack while they stand over a pushed page (`placeLentBar`).
+    val here = barHost == null
+    if (here) put(bar, (width - wide) / 2, height - gap - tall, wide, tall)
+    extras?.place(width, height, height - gap - tall, gap, edges.top, here) // Shell
+  }
+
+  // Shell: the bar over a pushed page
+
+  /** Where the bar and its soft edge stand while a pushed page keeps them (Navigation's shelf); null: here. */
+  private var barHost: ViewGroup? = null
+
+  /** The bar and its edge move over the stack (the same place on the screen), for a pushed page that keeps them;
+   *  the bar's glass shows `backdrop`, that page's own picture, instead of the sections. */
+  fun lendBar(host: ViewGroup, backdrop: GlassSource?) {
+    val edge = extras?.edge ?: return
+    if (bar.parent !== host) {
+      removeView(edge)
+      removeView(bar)
+      host.addView(edge)
+      host.addView(bar)
+    }
+    barHost = host
+    bar.behind = backdrop
+    host.requestLayout()
+  }
+
+  /** Places the lent bar where it stands in the sections (the stack lays it out while this page is covered). */
+  fun placeLentBar(width: Int, height: Int) {
+    val host = barHost ?: return
+    if (bar.parent !== host) return
+    val gap = dp(BarMetrics.bottomGap(edges.bottom / d))
+    val wide = minOf(dp(BarMetrics.width), width); val tall = dp(BarMetrics.height)
+    extras?.placeLentEdge(width, height, height - gap - tall, gap)
     put(bar, (width - wide) / 2, height - gap - tall, wide, tall)
-    extras?.place(width, height, height - gap - tall, gap, edges.top) // Shell
+  }
+
+  /** The bar and its edge come back into this page, where they were: the edge right over the sections, the bar
+   *  under the words about the hold. */
+  fun takeBarBack() {
+    val host = barHost ?: return
+    barHost = null
+    extras?.edge?.let { edge ->
+      host.removeView(edge)
+      addView(edge, indexOfChild(stage) + 1)
+    }
+    host.removeView(bar)
+    addView(bar, extras?.hint?.let { indexOfChild(it) } ?: -1)
+    bar.behind = stage
+    requestLayout()
   }
 
   /** Opens a section. `quiet`: a look from the list — the bar's own choice stays where it is. */
