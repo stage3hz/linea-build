@@ -196,7 +196,9 @@ class Glass(private val owner: View) {
     val node = blur
     // A plate inside its own page would be drawn into the very picture it shows (and always from the frame before):
     // it keeps the plain fill instead.
-    val live = Build.VERSION.SDK_INT >= 31 && node is BlurNode && page != null && canvas.isHardwareAccelerated && page.isAttachedToWindow && !within(page)
+    // With «Ледяное стекло» the plate is frosted matte glass: its own fill and rime, no picture of the page behind it
+    // (the owner's rule — that picture could lag behind a moving page; a matte plate has nothing to lag).
+    val live = Build.VERSION.SDK_INT >= 31 && node is BlurNode && page != null && canvas.isHardwareAccelerated && page.isAttachedToWindow && !within(page) && !EffectsHost.iced
     if (live && node is BlurNode && page != null) {
       place(page, placed); placed.getValues(placedValues)
       blurred = try { node.draw(canvas, page.node(), left, top, right, bottom, radius, placed) } catch (_: RuntimeException) { false }
