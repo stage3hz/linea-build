@@ -23,6 +23,7 @@ import com.linea.messenger.net.Live
 import com.linea.messenger.net.Server
 import com.linea.messenger.people.pages
 import com.linea.messenger.rooms.RoomVoice
+import com.linea.messenger.shell.KeepsTabBar
 import com.linea.messenger.shell.Screen
 import java.util.Locale
 
@@ -159,7 +160,7 @@ class ChannelHeaderView(context: Context) : ViewGroup(context) {
  *  its posts at once. The header leads to inviting and to the settings.
  *  Reference: mobile/src/communities/CommunityScreen.tsx. */
 @SuppressLint("ViewConstructor")
-class CommunityScreen(context: Context, private val messenger: Messenger?, private val communityId: String, private var known: CommunitySummary?) : Screen(context) {
+class CommunityScreen(context: Context, private val messenger: Messenger?, private val communityId: String, private var known: CommunitySummary?) : Screen(context), KeepsTabBar {
   private sealed class Item {
     class About(val words: String) : Item()
     class Group(val name: String) : Item()
@@ -179,6 +180,8 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
   private var items: List<Item> = emptyList()
   private val header = ChannelHeaderView(context)
   private val list = ListView(context)
+  /** The list as a glass source: the bar of the sections, which stays over a community, shows it blurred. */
+  private val listBox = com.linea.messenger.design.GlassSource(context)
   private val spinner = ChannelSpinner(context)
   private val notice = context.words("", 13f, Theme.danger)
   /** A blog channel is its posts: the chat of its only channel stands in place of the list. */
@@ -237,7 +240,8 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     voiceBox.addView(voicePanel, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.WRAP_CONTENT))
     voiceBox.visibility = View.GONE
     list.addFooterView(voiceBox, null, false) // Channels: the panel of the voice channel this phone is in
-    addView(list)
+    listBox.addView(list, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    addView(listBox)
 
     header.onBack = { pages()?.pop() }
     header.showsAvatar = true
@@ -257,6 +261,9 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
       header.setWords("Загрузка…", "")
     }
   }
+
+  /** What the bar of the sections shows blurred: the list, or the posts of a blog channel. */
+  override val barBackdrop: com.linea.messenger.design.GlassSource? get() = chat?.barBackdrop ?: listBox
 
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
@@ -286,9 +293,11 @@ class CommunityScreen(context: Context, private val messenger: Messenger?, priva
     val headerBottom = top + dp(ChannelHeaderView.height)
     header.safeTop = top
     put(header, 0, 0, width, headerBottom + dp(ChannelHeaderView.tail))
-    val bottom = maxOf(edges.bottom, dp(12f)) + dp(18f)
+    // The bar of the sections stays over a community, as in the previous app: the list ends above it.
+    val barRoom = pages()?.barRoom(this, edges.bottom) ?: 0
+    val bottom = maxOf(edges.bottom, dp(12f), barRoom) + dp(18f)
     if (list.paddingTop != headerBottom || list.paddingBottom != bottom) list.setPadding(0, headerBottom, 0, bottom)
-    put(list, 0, 0, width, height)
+    put(listBox, 0, 0, width, height)
     put(spinner, width / 2 - dp(12f), headerBottom + dp(48f), dp(24f), dp(24f))
     put(notice, dp(20f), headerBottom + dp(12f), width - dp(40f), dp(60f))
     chat?.let { put(it, 0, 0, width, height) }

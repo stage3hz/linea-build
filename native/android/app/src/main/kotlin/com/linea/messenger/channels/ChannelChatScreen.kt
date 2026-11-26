@@ -51,6 +51,7 @@ import com.linea.messenger.people.pages
 import com.linea.messenger.people.openChat
 import com.linea.messenger.profile.MiniProfile
 import com.linea.messenger.chat.ChatScreen
+import com.linea.messenger.shell.KeepsTabBar
 import com.linea.messenger.shell.Screen
 import java.util.UUID
 import java.util.concurrent.Executors
@@ -64,13 +65,15 @@ import java.util.concurrent.Executors
  *
  *  `root`: the channel is the whole of a blog — the header shows the community itself. */
 @SuppressLint("ViewConstructor")
-class ChannelChatScreen(context: Context, private val messenger: Messenger?, private var community: Community, private val channel: CommunityChannel, private val root: Boolean) : Screen(context) {
+class ChannelChatScreen(context: Context, private val messenger: Messenger?, private var community: Community, private val channel: CommunityChannel, private val root: Boolean) : Screen(context), KeepsTabBar {
   private val engine = ChannelEngine(
     messenger?.let { account -> { name, args, done -> account.server.op(name, args, done) } },
     community.id, channel.id, community.blog, messenger?.userId ?: "", messenger?.user?.get("username") as? String ?: "", community.summary.ownerId,
     resources.displayMetrics.density,
   )
   private val page = GlassSource(context)
+  /** The bar of the sections stays over a channel, as in the previous app: its glass shows the messages under it. */
+  override val barBackdrop: GlassSource? get() = page
   private val list = ChannelListView(context)
   val header = ChannelHeaderView(context)
   private val spinner = ChannelSpinner(context)
@@ -343,6 +346,12 @@ class ChannelChatScreen(context: Context, private val messenger: Messenger?, pri
     put(notice, dp(12f), headerBottom + dp(6f), width - dp(24f), dp(40f))
     // Above the keyboard when it is up, above the system's bar otherwise.
     var floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - maxOf(edges.bottom, dp(12f))
+    // The bar of the sections stays over a channel, as in the previous app: without the keyboard the field stands
+    // above it (the posts of a blog channel inside its community's page as well).
+    if (edges.keyboard <= 0) {
+      val barRoom = pages()?.barRoom(this, edges.bottom) ?: 0
+      if (barRoom > 0) floor = height - barRoom
+    }
     if (canWrite) {
       val fieldLeft = if (editingMessage == null) dp(60f) else dp(10f)
       val textWidth = width - dp(60f) - fieldLeft - dp(28f)

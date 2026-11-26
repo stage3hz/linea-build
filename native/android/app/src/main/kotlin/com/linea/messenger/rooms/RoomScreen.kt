@@ -27,6 +27,7 @@ import com.linea.messenger.design.words
 import com.linea.messenger.people.Person
 import com.linea.messenger.people.PersonAvatarView
 import com.linea.messenger.people.pages
+import com.linea.messenger.shell.KeepsTabBar
 import com.linea.messenger.shell.Screen
 
 /** One person's place in a room: the round picture with its ring (green while they talk, the text's colour around
@@ -305,10 +306,12 @@ private class RoomStage(context: Context) : GlassSource(context) {
  *  inside) and either «Зайти» or the microphone, the sound's route and the way out.
  *  Pushed over «Каналы»: Back goes back (the voice goes on — see RoomOverlay.kt). */
 @SuppressLint("ViewConstructor")
-class RoomScreen(context: Context, val roomId: String) : Screen(context) {
+class RoomScreen(context: Context, val roomId: String) : Screen(context), KeepsTabBar {
   /** ScreenShare: the screens shared in this room, under its bar (screenshare/ScreenShareViews.kt). */
   private val screenStrip = com.linea.messenger.screenshare.ScreenShareStrip(context, roomId) { id -> Rooms.room(roomId)?.members?.firstOrNull { it.id == id }?.displayName?.takeIf { it.isNotEmpty() } ?: "Участник" }
   private val stage = RoomStage(context)
+  /** The bar of the sections stays over a room, as in the previous app: its glass shows the stage. */
+  override val barBackdrop: GlassSource? get() = stage
   private val bar = RoomBar(context)
   private val seatViews = HashMap<String, RoomSeatView>()
   private val goneLabel = context.words("", 15f, Theme.muted)
@@ -497,7 +500,8 @@ class RoomScreen(context: Context, val roomId: String) : Screen(context) {
     bar.status.setTextColor(if (inside.isEmpty()) Theme.muted else RoomRules.talk)
 
     // The controls, from the bottom up.
-    var bottom = height - dp(18f) - edges.bottom
+    // The bar of the sections stays over a room, as in the previous app: the controls stand above it.
+    var bottom = height - dp(18f) - edges.bottom - (pages()?.barRoom(this, edges.bottom) ?: 0)
     val inRoom = voice != null
     enterButton.visibility = if (inRoom) GONE else VISIBLE
     for (button in listOf(speakerButton, micButton, leaveButton)) button.visibility = if (inRoom) VISIBLE else GONE

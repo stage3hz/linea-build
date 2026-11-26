@@ -112,6 +112,10 @@ class PagesTest {
     val chat = find(activity.window.decorView, "ChatScreen")
     assertNotNull(chat)
     assertTrue(chat!!.width > 0)
+    // A chat does not keep the bar of the sections: the bar stays in the sections it covers.
+    val bar = find(activity.window.decorView, "TabBarView")!!
+    assertEquals("RootScreen", (bar.parent as View).javaClass.simpleName)
+    assertEquals(false, (find(activity.window.decorView, "Navigation") as com.linea.messenger.shell.Navigation).barKept(chat))
     // Back leaves the chat.
     @Suppress("DEPRECATION") activity.onBackPressed()
     shadowOf(activity.mainLooper).idleFor(600, TimeUnit.MILLISECONDS)

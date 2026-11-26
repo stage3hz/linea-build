@@ -157,6 +157,19 @@ class RoomsPagesTest {
     assertEquals("комната · трое внутри", room.shownStatus)
   }
 
+  @Test fun theRoomsControlsStandAboveTheBarOfTheSections() {
+    launch("room")
+    val screen = room
+    assertTrue(stack.barKept(screen))
+    // The bar stands over the stack, in the same coordinates as the room's own parts.
+    val bar = all(page).first { it.javaClass.simpleName == "TabBarView" }
+    assertEquals("BarShelf", (bar.parent as View).javaClass.simpleName)
+    assertTrue(bar.top > 0)
+    val controls = all(page).filterIsInstance<com.linea.messenger.rooms.RoomRoundButton>().filter { it.parent === screen }
+    assertTrue(controls.isNotEmpty())
+    assertTrue(controls.all { it.height > 0 && it.bottom <= bar.top })
+  }
+
   @Test fun musicForEveryone() {
     launch("music")
     snap("58-room-music")

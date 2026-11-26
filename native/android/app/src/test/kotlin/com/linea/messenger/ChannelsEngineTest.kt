@@ -311,6 +311,43 @@ class ChannelsEngineTest {
     assertTrue(said.containsAll(listOf("Пригласить", "Настройки", "Текстовый канал общий, непрочитанных: 12, упоминаний: 1", "Голосовой канал Игра")))
   }
 
+  /** The view's upper edge, from the top of the window. */
+  private fun topOf(view: View): Int {
+    var y = 0
+    var at: View? = view
+    while (at != null) { y += at.top; at = at.parent as? View }
+    return y
+  }
+
+  @Test fun aCommunityKeepsTheBarOfTheSectionsAndItsListEndsAboveIt() {
+    val activity = launch("channels-7-community-bar", "community")
+    val page = activity.window.decorView
+    val stack = find(page, "Navigation") as com.linea.messenger.shell.Navigation
+    val community = find(page, "CommunityScreen")!!
+    assertTrue(stack.barKept(community))
+    val bar = find(page, "TabBarView")!!
+    assertEquals("BarShelf", (bar.parent as View).javaClass.simpleName)
+    // The room of the bar: its gap of 10, the bar's 62 and 9 over it; the list keeps its own 18 besides.
+    val d = activity.resources.displayMetrics.density
+    val room = stack.barRoom(community, 0)
+    assertEquals(Math.round((10f + 62f + 9f) * d), room)
+    val list = find(community, "ListView")!!
+    assertTrue(list.paddingBottom >= room + Math.round(18f * d))
+  }
+
+  @Test fun aChannelsFieldStandsAboveTheBarOfTheSections() {
+    val activity = launch("channels-8-chat-bar", "chat") { page -> (find(page, "ChannelListView") as? ChannelListView)?.count == 200 }
+    val page = activity.window.decorView
+    val stack = find(page, "Navigation") as com.linea.messenger.shell.Navigation
+    val chat = find(page, "ChannelChatScreen")!!
+    assertTrue(stack.barKept(chat))
+    val bar = find(page, "TabBarView")!!
+    assertEquals("BarShelf", (bar.parent as View).javaClass.simpleName)
+    val field = find(chat, "EditText")!!
+    assertTrue(field.height > 0)
+    assertTrue(topOf(field) + field.height <= topOf(bar))
+  }
+
   @Test fun aChannelsChatShowsTwoHundredRowsAndStaysAtItsEnd() {
     val activity = launch("channels-3-chat", "chat") { page -> (find(page, "ChannelListView") as? ChannelListView)?.count == 200 }
     val page = activity.window.decorView

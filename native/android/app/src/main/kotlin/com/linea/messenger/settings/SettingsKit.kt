@@ -47,6 +47,7 @@ import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
+import com.linea.messenger.shell.KeepsTabBar
 import com.linea.messenger.shell.Navigation
 import com.linea.messenger.shell.Screen
 import java.time.ZoneId
@@ -159,7 +160,7 @@ object SettingsLook {
 /** A page of the settings. The root of the section has the large heading; every other page has a back button
  *  and its name. Subclasses fill `column` in `build()`, which is called once, when the page first comes to the
  *  window. */
-open class SettingsPage(context: Context, private val pageName: String, private val large: Boolean = false) : Screen(context) {
+open class SettingsPage(context: Context, private val pageName: String, private val large: Boolean = false) : Screen(context), KeepsTabBar {
   protected val scroll = ScrollView(context)
   protected val column = LinearLayout(context)
   protected val main = Handler(Looper.getMainLooper())
@@ -183,6 +184,9 @@ open class SettingsPage(context: Context, private val pageName: String, private 
   /** The page's own background as a glass source: the glass of the groups, notices, buttons and fields in the list
    *  blurs it (as the reference's GlassSurface blurs `PageBackdrop`), instead of drawing the dense plain fill. */
   val backdrop = GlassSource(context)
+  /** The bar of the sections stands over a pushed page of the settings, as in the previous app: its glass shows the
+   *  list that scrolls under it. */
+  override val barBackdrop: GlassSource? get() = if (large) null else behind
   private var header: GlassHeaderView? = null
   private var sideButton: GlassRoundButton? = null
   private val headerEdge = View(context)
@@ -299,12 +303,16 @@ open class SettingsPage(context: Context, private val pageName: String, private 
       // The page ends where the keyboard begins, so a field is never under it; without the keyboard it runs to the
       // screen's bottom, under the navigation bar (the reference's `useBleed`), and the column keeps the bar's room
       // below its last part (ending the page at the bar cut the list off with an empty strip below).
-      val floor = if (edges.keyboard > 0) 0 else edges.bottom
+      // The bar of the sections stands over a pushed page of the settings, as in the previous app: the list ends above
+      // it, with the room the sections themselves leave (12 over the bar).
+      val barRoom = stack?.barRoom(this, edges.bottom, 12f) ?: 0
+      val floor = if (edges.keyboard > 0) 0 else if (barRoom > 0) barRoom else edges.bottom
       if (column.paddingTop != first || column.paddingBottom != dp(bottomRoom) + floor) column.setPadding(dp(side), first, dp(side), dp(bottomRoom) + floor)
       put(headerEdge, 0, 0, width, below)
       put(behind, 0, 0, width, height - edges.keyboard)
       floorEdge.color = Theme.bg
-      floorEdge.place(width, if (edges.keyboard > 0) 0 else edges.bottom, height)
+      // Under the bar its own soft edge does this work.
+      floorEdge.place(width, if (edges.keyboard > 0 || barRoom > 0) 0 else edges.bottom, height)
     }
   }
 

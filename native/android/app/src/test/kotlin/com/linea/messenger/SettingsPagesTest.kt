@@ -203,6 +203,36 @@ class SettingsPagesTest {
     has("Маша"); hasNot("Мария Орлова")
   }
 
+  /** The column of the page on top: its bottom padding is the room it leaves under its last part. */
+  private fun topColumn(): View = find(top) { it is android.widget.LinearLayout && it.parent is android.widget.ScrollView }!!
+
+  @Test fun aPushedPageKeepsTheBarOfTheSectionsAndEndsAboveIt() {
+    launch()
+    settings.openDetail("about"); idle()
+    assertEquals("AboutScreen", topName)
+    assertTrue(stack.barKept(top))
+    // The bar stands over the stack, not in the covered sections.
+    val bar = find(page) { it.javaClass.simpleName == "TabBarView" }!!
+    assertEquals("BarShelf", (bar.parent as View).javaClass.simpleName)
+    assertTrue(bar.width > 0 && bar.visibility == View.VISIBLE)
+    // The list ends above it: the page's own 30 and the room of the bar (its gap of 10, the bar's 62, 12 over it).
+    val d = activity.resources.displayMetrics.density
+    val room = stack.barRoom(top, 0, 12f)
+    assertEquals(Math.round((10f + 62f + 12f) * d), room)
+    assertTrue(topColumn().paddingBottom >= Math.round(30f * d) + room)
+  }
+
+  @Test fun theProfilesEditorKeepsTheBarOfTheSectionsToo() {
+    launch()
+    settings.openDetail("profile"); idle()
+    assertEquals("ProfileEditScreen", topName)
+    assertTrue(stack.barKept(top))
+    val bar = find(page) { it.javaClass.simpleName == "TabBarView" }!!
+    assertEquals("BarShelf", (bar.parent as View).javaClass.simpleName)
+    val room = stack.barRoom(top, 0, 12f)
+    assertTrue(room > 0 && topColumn().paddingBottom >= room)
+  }
+
   @Test fun everyLaunchPageOpens() {
     everythingAnswers()
     val pages = listOf(
