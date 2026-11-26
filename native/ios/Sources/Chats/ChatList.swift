@@ -552,6 +552,12 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
   private var padTop: CGFloat = 0
   private var padBottom: CGFloat = 0
   private var dragFrom: CGFloat = 0
+  /// A hold on a row is believed only when the finger stayed where it was put (Design/SteadyHold.swift).
+  private let steady = SteadyHold()
+  /// The rows that wait until the finger is off the list (see `heldBack`).
+  private var waitingRows: [ChatRow]?
+  private var waitingSince: CFTimeInterval = 0
+  private var waitingAsked = false
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -571,6 +577,7 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
     addSubview(table)
     let hold = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
     hold.minimumPressDuration = 0.45
+    steady.watch(hold)
     table.addGestureRecognizer(hold)
     NotificationCenter.default.addObserver(self, selector: #selector(avatarReady(_:)), name: ChatAvatarStore.ready, object: nil)
   }
@@ -621,13 +628,16 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
   }
 
   func setRows(_ next: [ChatRow]) {
-    if next == rows { return }
-    // ChatsPlus: a chat that moves up (a new message, a pin) slides to its place instead of jumping.
-    if moveSmoothly(to: next) { return }
+    if next == rows { waitingRows = nil; return }
     let sameOrder = next.count == rows.count && zip(next, rows).allSatisfy { $0.id == $1.id }
     // A heading that appears or goes changes its row's height: redrawing the cell alone left the old height
     // (a heading squeezed into a row without room for it, or an empty band where one used to be).
     let sameHeights = sameOrder && zip(next, rows).allSatisfy { $0.section.isEmpty == $1.section.isEmpty }
+    // Rows that change places or are loaded anew wait for a finger that is on the list to leave it.
+    if !(sameOrder && sameHeights) && heldBack(next) { return }
+    waitingRows = nil
+    // ChatsPlus: a chat that moves up (a new message, a pin) slides to its place instead of jumping.
+    if moveSmoothly(to: next) { return }
     rows = next
     if !sameOrder || !sameHeights { table.reloadData(); return }
     // Same chats in the same order: only the rows on screen that changed are redrawn, the scroll stays where it is.
@@ -635,6 +645,27 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
       guard let rowCell = cell as? ChatRowCell, let path = table.indexPath(for: cell), path.row < rows.count else { continue }
       rowCell.show(rows[path.row], palette)
     }
+  }
+
+  /// True when `next` is kept for a moment later: a finger is down on the list and has not begun to scroll it.
+  /// Rows moved or loaded anew under it lose its touch — the tap opened nothing, or the chat that had come under
+  /// the finger meanwhile. A finger that stays (a row's menu is open under it) holds the list back for a second
+  /// at most.
+  private func heldBack(_ next: [ChatRow]) -> Bool {
+    guard table.isTracking, !table.isDragging, !table.isDecelerating else { return false }
+    let now = CACurrentMediaTime()
+    if waitingRows == nil { waitingSince = now }
+    guard now - waitingSince < 1 else { return false }
+    waitingRows = next
+    if !waitingAsked {
+      waitingAsked = true
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+        guard let self else { return }
+        self.waitingAsked = false
+        if let kept = self.waitingRows { self.setRows(kept) }
+      }
+    }
+    return true
   }
 
   func setPalette(_ next: ChatPalette) {
@@ -685,7 +716,11 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
     if recognizer.state != .began { return }
     let point = recognizer.location(in: table)
     guard let path = table.indexPathForRow(at: point), path.row < rows.count else { return }
-    onRowLongPress(["id": rows[path.row].id, "y": Double(recognizer.location(in: nil).y)])
+    let id = rows[path.row].id
+    // Not for a scroll or a tap whose moves were read late (a swipe over the list opened a chat's menu).
+    steady.began(recognizer, in: table) { [weak self] (place: CGPoint) -> Void in
+      self?.onRowLongPress(["id": id, "y": Double(place.y)])
+    }
   }
 }
 
