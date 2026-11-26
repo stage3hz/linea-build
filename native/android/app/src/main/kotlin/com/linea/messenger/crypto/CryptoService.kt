@@ -15,6 +15,26 @@ import java.util.concurrent.RejectedExecutionException
  *  `NetworkError`, `PartialSync`, `Error`) and the words for the person. */
 class CryptoFailure(val name: String, val words: String) : Exception(name)
 
+/** Work that does not wait behind the rest of the service's queue: a call's steps. An answer is worth something
+ *  for a few seconds only, and just after the app was started the queue holds everything a start brings (the
+ *  keys' publication, the chat list's closed lines opened one chat after another over the network). What is put
+ *  here runs, in the order it was given, before the next piece of ordinary work — and between the chats of a
+ *  long one (`CryptoService.yieldToFirst`). Any thread may add; one thread runs. */
+class FirstLane {
+  private val waiting = java.util.concurrent.ConcurrentLinkedQueue<() -> Unit>()
+  fun add(job: () -> Unit) { waiting.add(job) }
+  val isEmpty: Boolean get() = waiting.isEmpty()
+  /** Runs what waits, oldest first; says how many ran. */
+  fun drain(): Int {
+    var ran = 0
+    while (true) {
+      val job = waiting.poll() ?: return ran
+      job()
+      ran += 1
+    }
+  }
+}
+
 /** The signed-in person's end-to-end encryption on this device.
  *
  *  All the logic — keys, trust, what is sent to whom, what is remembered — is the shared core's; this class
@@ -23,6 +43,7 @@ class CryptoFailure(val name: String, val words: String) : Exception(name)
 class CryptoService(userId: String, private val vault: Vault, private val server: Server) : CryptoHost {
   private val queue: ExecutorService = Executors.newSingleThreadExecutor { work -> Thread(work, "invizent.crypto") }
   private val main = Handler(Looper.getMainLooper())
+  private val first = FirstLane()
   /** Read and written on the service's own thread only (but for the making, before that thread has any work). */
   private var handle: Long = if (Core.loaded) Core.cryptoNew(userId, true, this) else 0L
 
@@ -63,11 +84,27 @@ class CryptoService(userId: String, private val vault: Vault, private val server
   fun <T> run(work: (CryptoService) -> T, done: (T) -> Unit) {
     try {
       queue.execute {
+        first.drain()
         val result = work(this)
         main.post { done(result) }
       }
     } catch (_: RejectedExecutionException) {}
   }
+
+  /** The same for a call's steps (`FirstLane`): still one operation at a time on the service's own thread, but
+   *  ahead of the ordinary work that waits, so a call answered right after the app was started is not held up
+   *  by what the start itself queued. */
+  fun <T> runFirst(work: (CryptoService) -> T, done: (T) -> Unit) {
+    first.add {
+      val result = work(this)
+      main.post { done(result) }
+    }
+    try { queue.execute { first.drain() } } catch (_: RejectedExecutionException) {}
+  }
+
+  /** For long work on the service's thread (one chat after another): between two of its steps, whatever waits
+   *  in the first lane runs. On the service's own thread only, and never in the middle of an operation. */
+  fun yieldToFirst() { first.drain() }
 
   /** Offline: what the core's `loadCache` gives (the vault's copy of the chat list or of a chat's page), read at once
    *  on the caller's thread (never the main one) instead of waiting behind network work on the service's thread.

@@ -117,6 +117,8 @@ fun Messenger.catchUpList(list: List<Messenger.ChatSummary>, update: (String, Lo
     var deep = ListCatchUp.DEEP_CHATS
     val main = android.os.Handler(android.os.Looper.getMainLooper())
     for (chatId in targets) {
+      // Calls: a call's step that came meanwhile goes before the next chat (crypto/CryptoService.kt `FirstLane`).
+      crypto.yieldToFirst()
       val chat = list.firstOrNull { it.id == chatId } ?: continue
       val last = Core.map(chat.chat["lastMessage"]) ?: continue
       val id = ListCatchUp.number(last["id"])

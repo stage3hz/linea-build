@@ -25,20 +25,23 @@ private val main = Handler(Looper.getMainLooper())
  *
  *  A step that carries an SDP is worth nothing later: when it cannot be sent now it is forgotten, so it never
  *  goes out with the unsent messages (a late offer would ring for a call that is long over). The `end` is
- *  kept and goes out later like any message: it is the row the call leaves in both chats. */
-fun Messenger.sendCallSignal(chatId: String, peerId: String, action: Map<String, Any?>) {
+ *  kept and goes out later like any message: it is the row the call leaves in both chats.
+ *
+ *  A call's steps go ahead of the encryption's ordinary work (`runFirst`). `done`: whether the step went out. */
+fun Messenger.sendCallSignal(chatId: String, peerId: String, action: Map<String, Any?>, done: ((Boolean) -> Unit)? = null) {
   val clientId = UUID.randomUUID().toString().lowercase()
   val meta = mapOf<String, Any?>("action" to action)
   val fallback = Core.view("actionFallback", listOf(action, "")) as? String ?: ""
   val push = Core.view("callPushKind", listOf(meta)) as? String
   val isEnd = action["step"] as? String == "end"
-  crypto.run({ crypto: CryptoService ->
+  crypto.runFirst({ crypto: CryptoService ->
     val result = deliver(crypto, chatId, peerId, clientId, fallback, null, meta, push = push)
     if (result.isFailure && !isEnd) crypto.callNow("forget", listOf(chatId, clientId))
     result.isSuccess
   }, { sent ->
     // The chat on screen shows the call's row at once.
     if (sent && isEnd) noteChanged(chatId)
+    done?.invoke(sent)
   })
 }
 
@@ -111,7 +114,7 @@ class CallSignals(private val messenger: Messenger) {
     if (raw["senderId"] as? String == userId) return
     val chatId = raw["chatId"] as? String ?: return
     val me = userId
-    messenger.crypto.run({ crypto: CryptoService ->
+    messenger.crypto.runFirst({ crypto: CryptoService ->
       crypto.callNow("sync", listOf(chatId))
       Core.map(crypto.callNow("preview", listOf(raw)).getOrNull())?.takeIf { isSignal(it, me) }
     }, { opened -> if (opened != null && !closed) onSignal?.invoke(opened) })
@@ -131,7 +134,7 @@ class CallSignals(private val messenger: Messenger) {
    *  then a hang-up if there was one); the engine itself drops what is stale or already seen. */
   private fun look(chatId: String) {
     val me = userId
-    messenger.crypto.run({ crypto: CryptoService ->
+    messenger.crypto.runFirst({ crypto: CryptoService ->
       crypto.callNow("sync", listOf(chatId))
       val list = (Core.map(messenger.server.opAndWait("messages", listOf(chatId)).getOrNull())?.get("messages") as? List<*>).orEmpty().mapNotNull { Core.map(it) }
       val fresh = Instant.now().minusSeconds(120)
