@@ -158,7 +158,7 @@ final class ProfilePhotoChange: NSObject, PHPickerViewControllerDelegate, UIImag
             let size = (attachment["size"] as? NSNumber)?.intValue ?? 0
             if !type.hasPrefix("image/") { return self.fail("Для профиля нужна фотография.") }
             if size > ProfilePhotoChange.profileLimit { return self.fail("После обработки фото больше 4 МБ. Выбери изображение меньшего размера.") }
-            // Like Telegram: the new photo is applied at once (the name / bio draft stays a draft).
+            // The new photo is applied at once (the name / bio draft stays a draft).
             self.patch(["avatarId": attachment["id"] as? String ?? ""], done: "Фото профиля обновлено.", failure: "Не удалось сохранить фото.")
         }
     }

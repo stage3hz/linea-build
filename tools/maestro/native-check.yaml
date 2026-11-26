@@ -84,7 +84,7 @@ appId: com.linea.messenger.preview
 - waitForAnimationToEnd
 - takeScreenshot: ${THEME}-n10-chat-format
 
-# A pinned chat, as in Telegram: its row stands on a different ground and carries a pin under the time.
+# A pinned chat: its row stands on a different ground and carries a pin under the time.
 - launchApp
 - extendedWaitUntil:
     visible: "Dimas.*"

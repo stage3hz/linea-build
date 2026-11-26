@@ -284,7 +284,7 @@ final class ChatRowCanvas: UIView {
       // Everything below is the row itself, drawn under the heading.
       context.translateBy(x: 0, y: heading)
     }
-    // Telegram: pinned chats stand on a slightly different ground than the rest of the list.
+    // Pinned chats stand on a slightly different ground than the rest of the list.
     if item.pinned {
       context.setFillColor(palette.pinned.cgColor)
       context.fill(CGRect(x: 0, y: 0, width: w, height: h))
@@ -404,7 +404,7 @@ final class ChatRowCanvas: UIView {
     let badgeColor = item.muted ? palette.text : palette.onAccent
     let badge = NSAttributedString(string: badgeText, attributes: [.font: ChatRowCanvas.badgeFont, .foregroundColor: badgeColor])
     let badgeWidth = badgeText.isEmpty ? 0 : max(22, ceil(badge.size().width) + 12)
-    // Telegram: the ticks stand before the time; under the time is the unread badge or, without one, the pin.
+    // The ticks stand before the time; under the time is the unread badge or, without one, the pin.
     let tickWidth: CGFloat = item.ticks > 0 ? 22 : 0
     let markWidth: CGFloat = badgeText.isEmpty && item.pinned ? 20 : badgeWidth
 
@@ -448,7 +448,7 @@ final class ChatRowCanvas: UIView {
     let previewFont = ChatRowCanvas.previewFont
     let preview = NSMutableAttributedString(string: item.preview, attributes: [
       .font: previewFont, .foregroundColor: previewColor, .paragraphStyle: paragraph(.byWordWrapping)])
-    // Telegram: the word «Черновик:» of a draft is red.
+    // The word «Черновик:» of a draft is red.
     if item.previewRed > 0 {
       preview.addAttribute(.foregroundColor, value: palette.danger, range: NSRange(location: 0, length: min(item.previewRed, preview.length)))
     }
@@ -462,7 +462,7 @@ final class ChatRowCanvas: UIView {
       thumbRoom = 26
     } else if item.previewIcon == "mic", let mic = UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .regular))?
                 .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
-      // Telegram: a voice message is a grey microphone before its name.
+      // A voice message is a grey microphone before its name.
       mic.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - mic.size.height) / 2))
       thumbRoom = ceil(mic.size.width) + 7
     }
@@ -593,7 +593,7 @@ final class ChatListView: UIView, UITableViewDataSource, UITableViewDelegate {
     }
   }
 
-  /// Swipe buttons from "action:Label" strings; a full swipe performs the first one (as in Telegram).
+  /// Swipe buttons from "action:Label" strings; a full swipe performs the first one.
   private func swipe(_ specs: [String], _ id: String) -> UISwipeActionsConfiguration? {
     if specs.isEmpty { return UISwipeActionsConfiguration(actions: []) }
     var actions: [UIContextualAction] = []

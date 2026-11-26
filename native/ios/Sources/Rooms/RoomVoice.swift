@@ -8,7 +8,7 @@ struct RoomVoicePeer {
     let userId: String
     var muted: Bool
     var connected: Bool
-    /// Channels: a moderator turned this person's microphone off / their sound off (Discord's server mute / deafen).
+    /// Channels: a moderator turned this person's microphone off / their sound off, for everyone.
     var serverMuted = false
     var serverDeafened = false
 }
@@ -30,7 +30,7 @@ struct RoomVoiceState {
     /// the channel's id, `name` the channel's name.
     var communityId: String? = nil
     var communityName = ""
-    /// «Звук выключен»: nobody is heard (and, as in Discord, the microphone is off too).
+    /// «Звук выключен»: nobody is heard (and the microphone is off too).
     var deafened = false
     /// Set by a moderator for this account: cannot be lifted from here.
     var serverMuted = false

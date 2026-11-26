@@ -21,7 +21,7 @@ use crate::message_meta::REACTIONS;
 use crate::time::parse_iso_ms;
 use std::collections::{HashMap, HashSet};
 
-/// Telegram: a message can be edited for 48 hours after it was sent.
+/// A message can be edited for 48 hours after it was sent.
 pub const EDIT_WINDOW_MS: f64 = 48.0 * 3_600_000.0;
 /// Clocks of two phones differ: an edit up to this much past the window is still taken.
 pub const EDIT_CLOCK_SKEW_MS: f64 = 10.0 * 60_000.0;

@@ -1,6 +1,6 @@
 import UIKit
 
-/// The emoji status picker (the reference's StatusPicker.tsx, like Telegram Premium): a panel right under the name —
+/// The emoji status picker (the reference's StatusPicker.tsx): a panel right under the name —
 /// the default Platina gem first, then the emoji; a tap sets the status and closes it. Opaque from its first frame,
 /// it slides 8 pt into place in 0.16 s; a tap outside closes it. Without an active Platina the emoji are locked.
 final class StatusPickerViewController: UIViewController {

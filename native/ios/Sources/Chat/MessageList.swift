@@ -1477,7 +1477,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
       return
     }
     if found.hit.url.isEmpty {
-      // Telegram: one tap shows every spoiler of the message.
+      // One tap shows every spoiler of the message.
       revealed.insert(found.key)
       if let cell = table.cellForRow(at: found.path) as? MsgRowCell {
         cell.canvas.revealed = true
@@ -1575,7 +1575,7 @@ final class MsgListView: UIView, UITableViewDataSource, UITableViewDelegate, UIG
     if next == rows { return }
     let sameOrder = next.count == rows.count && zip(next, rows).allSatisfy { $0.key == $1.key }
     let sameHeights = sameOrder && zip(next, rows).allSatisfy { $0 == $1 || layout($0).height == layout($1).height }
-    // Telegram: a message of your own takes the list to its end, wherever it was scrolled to.
+    // A message of your own takes the list to its end, wherever it was scrolled to.
     let ownNew = !rows.isEmpty && (next.first.map { $0.mine && $0.key != rows.first?.key } ?? false)
     arrivals.take(next) // ChatLook: which rows are new and slide in
     rows = next
