@@ -18,7 +18,9 @@ extension Messenger {
     /// A step that carries an SDP is worth nothing later: when it cannot be sent now it is forgotten, so it never
     /// goes out with the unsent messages (a late offer would ring for a call that is long over). The `end` is
     /// kept and goes out later like any message: it is the row the call leaves in both chats.
-    func sendCallSignal(chatId: String, peerId: String, action: [String: Any]) {
+    ///
+    /// `done`: whether the step went out (main queue).
+    func sendCallSignal(chatId: String, peerId: String, action: [String: Any], done: ((Bool) -> Void)? = nil) {
         let clientId = UUID().uuidString.lowercased()
         let meta: [String: Any] = ["action": action]
         let fallback = Core.view("actionFallback", [action, ""]) as? String ?? ""
@@ -32,6 +34,7 @@ extension Messenger {
         }, done: { (sent: Bool) -> Void in
             // The chat on screen shows the call's row at once.
             if sent && isEnd { NotificationCenter.default.post(name: Messenger.changed, object: chatId) }
+            done?(sent)
         })
     }
 

@@ -36,7 +36,12 @@ final class Calls {
     private var networkRunning = false
     /// The ids of calls this phone has placed, rung for or refused.
     private var seen = Set<String>()
+    /// The calls the other side ended before they came up here (an `end` heard while the offer was still being
+    /// looked into): such a call never rings.
+    private var over = Set<String>()
     private var ringTimer: Timer?
+    /// Runs while a call is «Соединение…»: see `connecting`.
+    private var connectTimer: Timer?
     private var reachTimer: Timer?
     private var linkTimer: Timer?
     private var beat: Timer?
@@ -368,6 +373,7 @@ final class Calls {
         }
         if step == "offer" {
             guard let sdp, let senderId = message["senderId"] as? String, let created = message["createdAt"] as? String else { return }
+            if over.contains(callId) { return }
             guard CallRules.flag("callOfferFresh", [created, CallRules.nowMs, Array(seen), callId]) else { return }
             seen.insert(callId)
             guard let messenger else { return }
@@ -386,7 +392,12 @@ final class Calls {
             return
         }
 
-        guard let current = call, current.id == callId else { return }
+        guard let current = call, current.id == callId else {
+            // The caller gave up while this phone was still looking into the offer (who calls, whether they may):
+            // the call must not come up after its own end — it would ring, or be answered, for nobody.
+            if step == "end" { over.insert(callId) }
+            return
+        }
         // A call that has just ended here hears nothing more (its last words stay on the screen for a moment).
         if current.isOver { return }
         // ICE restart from the other side: numbered, so a late or repeated one is ignored; the DTLS fingerprints
@@ -432,6 +443,8 @@ final class Calls {
             return
         }
         if step == "answer", !current.incoming, let sdp {
+            // The answer of a call is taken once, while it rings: a second copy must not end a call that is connecting.
+            if current.status != "ringing" { return }
             ringTimer?.invalidate()
             reachTimer?.invalidate()
             CallSounds.stop()
@@ -439,6 +452,7 @@ final class Calls {
                 call.status = "connecting"
                 call.remoteSdp = sdp
             }
+            connecting(callId)
             guard let made = media else { return }
             made.setRemote("answer", sdp: CallRules.words("callStripRestart", [sdp]) ?? sdp) { [weak self] (fine: Bool) -> Void in
                 guard let self, self.isCurrent(callId), self.media === made else { return }
@@ -451,6 +465,8 @@ final class Calls {
 
     /// An offer that may ring: the incoming call comes up — or, with a call already on, the caller hears «busy».
     private func rings(chatId: String, peer: Person, callId: String, video: Bool, sdp: String) {
+        // Ended by the caller while it was being looked into: nothing rings, nobody is told «busy».
+        if over.contains(callId) { return }
         if call != nil {
             // Busy: the same `end` as a hang-up, so the caller's chat says «Собеседник занят» and ours a missed call.
             messenger?.sendCallSignal(chatId: chatId, peerId: peer.id, action: CallRules.end(id: callId, video: video, incoming: true, startedAt: nil, reason: "busy"))
@@ -482,6 +498,7 @@ final class Calls {
         MusicPlayer.shared.stop()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         patch { (call: inout CallState) -> Void in call.status = "connecting" }
+        connecting(id)
         CallAudio.allow(video: current.video) { [weak self] (refusal: String?) -> Void in
             guard let self, self.isCurrent(id) else { return }
             if let refusal { return self.finish(refusal, notify: "failed") }
@@ -491,11 +508,29 @@ final class Calls {
                 guard let made else { return self.finish("Не удалось ответить", notify: "failed") }
                 self.answer(made, offer: CallRules.words("callStripRestart", [offer]) ?? offer, again: false) { [weak self] (own: String?) -> Void in
                     guard let self, let now = self.call, now.id == id, !now.isOver else { return }
-                    guard let own else { return self.finish("Не удалось ответить", notify: "failed") }
-                    self.send(now, ["type": "call", "call": id, "step": "answer", "sdp": CallRules.words("callMarkRestart", [own]) ?? own])
+                    guard let own, let messenger = self.messenger else { return self.finish("Не удалось ответить", notify: "failed") }
+                    // The answer is the whole call: when it cannot leave this phone the caller rings on and nothing
+                    // would ever connect here, so the call ends instead of saying «Соединение…» for ever.
+                    let action: [String: Any] = ["type": "call", "call": id, "step": "answer", "sdp": CallRules.words("callMarkRestart", [own]) ?? own]
+                    messenger.sendCallSignal(chatId: now.chatId, peerId: now.peer.id, action: action, done: { [weak self] (sent: Bool) -> Void in
+                        guard let self, !sent, self.isCurrent(id), self.call?.status == "connecting" else { return }
+                        self.finish("Не удалось соединиться", notify: "failed")
+                    })
                     self.showKey(local: own, remote: offer)
                 }
             }
+        }
+    }
+
+    /// A call says «Соединение…» from here (answered on this phone, or the other side's answer arrived). The media
+    /// normally says by itself whether it came up; when nothing at all is heard — the answer never left, the other
+    /// side went away without a word that reached this phone — the call ends after as long as a call rings,
+    /// instead of waiting for ever. The other side is told, like after any failed connection.
+    private func connecting(_ id: String) {
+        connectTimer?.invalidate()
+        connectTimer = Timer.scheduledTimer(withTimeInterval: CallRules.ringTimeout, repeats: false) { [weak self] (_: Timer) -> Void in
+            guard let self, self.isCurrent(id), self.call?.status == "connecting" else { return }
+            self.finish("Не удалось соединиться", notify: "failed")
         }
     }
 
@@ -510,6 +545,8 @@ final class Calls {
     private func connectionMoved(_ state: String) {
         guard let current = call else { return }
         if state == "connected" && current.status != "active" && current.status != "ended" {
+            connectTimer?.invalidate()
+            connectTimer = nil
             resetLink()
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             patch { (call: inout CallState) -> Void in
@@ -721,6 +758,8 @@ final class Calls {
         resetLink()
         ringTimer?.invalidate()
         ringTimer = nil
+        connectTimer?.invalidate()
+        connectTimer = nil
         reachTimer?.invalidate()
         reachTimer = nil
         beat?.invalidate()
