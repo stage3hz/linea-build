@@ -12,9 +12,11 @@ import UIKit
 ///   -settings lastseen        «Время захода»
 ///   -settings security        «Безопасность»
 ///   -settings password | confirmation | recovery    the form of one secret
-///   -settings sessions        «Активные сеансы»
+///   -settings sessions        «Безопасность», brought to its «Сеансы и устройства»
+///   -settings sessionspage    «Активные сеансы», the page of its own
 ///   -settings session         the details of this device's session
-///   -settings blocked         «Заблокированные»
+///   -settings blocked         «Безопасность», brought to its «Заблокированные»
+///   -settings blockedpage     «Заблокированные», the page of its own
 ///   -settings delete          «Удалить аккаунт»
 ///   -settings about           «О приложении» (also with -demo 1)
 ///   -settings appearance      «Оформление» (also with -demo 1)

@@ -14,6 +14,14 @@ final class SecurityViewController: SettingsPage {
     private var busy = false
     private var blocked: [[String: Any]]?
     private var unblocking = ""
+    /// The first session's row and the name of the blocked people's card, as the page stands now.
+    private weak var firstSessionRow: UIView?
+    private weak var blockedLabel: UIView?
+    #if targetEnvironment(simulator)
+    /// -settings sessions | blocked: the page is brought to its sessions or to its blocked people once they are
+    /// loaded — both are sections of this page, as in the previous app (SecurityScreen.tsx, AccountZone.tsx).
+    var simulatorReveal = ""
+    #endif
 
     init(messenger: Messenger) {
         self.messenger = messenger
@@ -107,6 +115,8 @@ final class SecurityViewController: SettingsPage {
 
     private func fill() {
         clear()
+        firstSessionRow = nil
+        blockedLabel = nil
         add(SettingsLook.glassCard([
             SettingsLook.para("Твой доступ.\nТвои устройства.", size: 23, color: Theme.text, weight: .heavy, line: 28, kern: -0.7),
             SettingsLook.para("Вход по логину (тайному, не @имени), паролю и слову подтверждения. Для восстановления — другое слово. Почта и номер телефона не нужны.", size: 13, color: Theme.muted, line: 20),
@@ -128,7 +138,28 @@ final class SecurityViewController: SettingsPage {
         if let status { fillStatus(status) }
         // The closing words: 11, line 17, `subtle`, centred, 10 in from the sides.
         add(SettingsLook.inset(SettingsLook.para("Выбирай два разных непредсказуемых слова. Они должны отличаться друг от друга, логина и пароля. Все значения здесь вводятся вручную.", size: 11, color: Theme.subtle, line: 17, centered: true), top: 0, side: 10, bottom: 0), gap: 16)
+        #if targetEnvironment(simulator)
+        simulatorRevealNow()
+        DispatchQueue.main.async { [weak self] in self?.simulatorRevealNow() }
+        #endif
     }
+
+    #if targetEnvironment(simulator)
+    /// Scrolls the page so that the first session's row or the name of the blocked people's card rests where the
+    /// comparison's reference leaves it after its own scroll (473 and 506 from the screen's top), within the page's ends.
+    private func simulatorRevealNow() {
+        guard !simulatorReveal.isEmpty, status != nil else { return }
+        let toBlocked = simulatorReveal == "blocked"
+        if toBlocked && blocked == nil { return }
+        guard let anchor = toBlocked ? blockedLabel : firstSessionRow else { return }
+        view.layoutIfNeeded()
+        let middle = anchor.convert(CGPoint(x: 0, y: anchor.bounds.midY), to: scroll).y
+        let rest: CGFloat = toBlocked ? 506 : 473
+        let lowest = -scroll.adjustedContentInset.top
+        let highest = max(lowest, scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom)
+        scroll.setContentOffset(CGPoint(x: 0, y: min(highest, max(lowest, middle - rest))), animated: false)
+    }
+    #endif
 
     private func fillStatus(_ status: [String: Any]) {
         let confirmationConfigured = status["confirmationConfigured"] as? Bool ?? false
@@ -220,6 +251,7 @@ final class SecurityViewController: SettingsPage {
         let current = sessions.filter { SessionWords.isCurrent($0) }
         let others = sessions.filter { !SessionWords.isCurrent($0) }
         for session in current { parts.append(row(session, first: true)) }
+        if !current.isEmpty { firstSessionRow = parts.last }
         // «Завершить все другие сеансы» sits between this device and the other sessions.
         let endOthers = SettingsButton(label: "Завершить все другие сеансы", kind: .danger, icon: "log-out-outline")
         endOthers.isEnabled = !busy && !others.isEmpty
@@ -231,7 +263,11 @@ final class SecurityViewController: SettingsPage {
             otherLabel = made
             parts.append(made)
         }
-        for (index, session) in others.enumerated() { parts.append(row(session, first: index == 0)) }
+        for (index, session) in others.enumerated() {
+            let made = row(session, first: index == 0)
+            if firstSessionRow == nil { firstSessionRow = made }
+            parts.append(made)
+        }
         if sessions.isEmpty && !loading { parts.append(SettingsLook.words("Действующие сеансы не найдены.", size: 13, color: Theme.muted)) }
         if loading && status != nil {
             let spinner = UIActivityIndicatorView(style: .medium)
@@ -323,7 +359,9 @@ final class SecurityViewController: SettingsPage {
     // MARK: AccountZone.tsx — «Заблокированные» and «Удалить аккаунт»
 
     private func blockedCard() -> UIView {
-        var parts: [UIView] = [SettingsLook.sectionLabel("Заблокированные")]
+        let label = SettingsLook.sectionLabel("Заблокированные")
+        blockedLabel = label
+        var parts: [UIView] = [label]
         if let blocked {
             if blocked.isEmpty {
                 parts.append(SettingsLook.words("Никого нет. Заблокировать можно в профиле собеседника через «⋯».", size: 13, color: Theme.muted))

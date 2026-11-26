@@ -250,12 +250,17 @@ final class SettingsViewController: SettingsPage {
         case "password": page = SecretChangeViewController(messenger: messenger, form: .password, confirmationConfigured: true)
         case "confirmation": page = SecretChangeViewController(messenger: messenger, form: .confirmation, confirmationConfigured: true)
         case "recovery": page = SecretChangeViewController(messenger: messenger, form: .recovery, confirmationConfigured: true)
-        case "sessions": page = SessionsViewController(messenger: messenger)
+        case "sessions", "blocked":
+            // Both are sections of «Безопасность», as in the previous app: the page is opened and brought to them.
+            let security = SecurityViewController(messenger: messenger)
+            security.simulatorReveal = name
+            page = security
+        case "sessionspage": page = SessionsViewController(messenger: messenger)
         case "session":
             let list = SessionsViewController(messenger: messenger)
             list.opensFirstWhenLoaded = true
             page = list
-        case "blocked": page = BlockedViewController(messenger: messenger)
+        case "blockedpage": page = BlockedViewController(messenger: messenger)
         case "delete": page = DeleteAccountViewController(messenger: messenger)
         case "about": page = AboutViewController()
         default: page = nil
