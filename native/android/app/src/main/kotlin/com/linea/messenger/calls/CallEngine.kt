@@ -59,7 +59,12 @@ object Calls {
   private val seen = HashSet<String>()
   /** The steps already heard (a step is looked for again after every reconnection of the line, see CallSignals). */
   private val heardSteps = LinkedHashSet<String>()
+  /** The calls the other side ended before they came up here (an `end` heard while the offer was still being
+   *  looked into): such a call never rings. */
+  private val over = EndedCalls()
   private var ringTimer: Runnable? = null
+  /** Runs while a call is «Соединение…»: see `connecting`. */
+  private var connectTimer: Runnable? = null
   private var reachTimer: Runnable? = null
   private var linkTimer: Runnable? = null
   private var beat: Runnable? = null
@@ -97,6 +102,10 @@ object Calls {
 
   private fun after(ms: Long, work: () -> Unit): Runnable = Runnable { work() }.also { main.postDelayed(it, ms) }
   private fun cancel(timer: Runnable?) { if (timer != null) main.removeCallbacks(timer) }
+  /** One line for `adb logcat -s InvizentCall`: where a call is and what it heard. States and counts only —
+   *  never an SDP, an address, a key, a token or who the call is with. */
+  private fun trace(words: String) { try { android.util.Log.i("InvizentCall", words) } catch (_: Throwable) {} }
+
   private fun tap(strong: Boolean = false) {
     try { window.get()?.window?.decorView?.performHapticFeedback(if (strong) HapticFeedbackConstants.LONG_PRESS else HapticFeedbackConstants.KEYBOARD_TAP) } catch (_: Exception) {}
   }
@@ -256,7 +265,9 @@ object Calls {
       if (!isCurrent(id)) return@iceServers
       wantRelay = CallRules.flag("callHasRelay", listOf(servers))
       relayFound = false
-      val made = app?.let { CallMedia.create(it, servers, video) } ?: return@iceServers done(null)
+      val made = app?.let { CallMedia.create(it, servers, video) }
+      trace("servers ${servers.size} relay $wantRelay media ${made != null}")
+      if (made == null) return@iceServers done(null)
       made.onCandidate = { line -> if (CallRules.flag("callIsRelayCandidate", listOf(line))) relayFound = true }
       made.onGathering = { checkGathering() }
       made.onState = { state -> if (media === made) connectionMoved(state) }
@@ -359,6 +370,7 @@ object Calls {
       val complete = if (wait.fresh) wait.moved && finished else finished
       if (!CallRules.flag("callGatherDone", listOf(complete, relayFound, wantRelay, elapsed))) continue
       wait.settled = true
+      trace("gathered in ${elapsed.toLong()} ms complete $complete relay $relayFound")
       wait.done(made.localSdp)
     }
     gatherWaits.removeAll { it.settled }
@@ -382,6 +394,7 @@ object Calls {
       if (heardSteps.size > 400) heardSteps.remove(heardSteps.first())
     }
     val current = call
+    trace("heard $step" + (if (current == null) " with no call" else if (current.id == callId) " in ${current.status}" else " of another call"))
 
     if (step == "offer" && current != null && current.id == callId && current.status != "incoming" && sdp != null) {
       // Mid-call change (the other side turned the camera on): answer the new offer on the same connection.
@@ -397,6 +410,7 @@ object Calls {
       if (sdp == null) return
       val senderId = message["senderId"] as? String ?: return
       val created = message["createdAt"] as? String ?: return
+      if (callId in over) return
       if (!CallRules.flag("callOfferFresh", listOf(created, CallRules.nowMs, seen.toList(), callId))) return
       seen.add(callId)
       val messenger = messenger ?: return
@@ -412,7 +426,12 @@ object Calls {
       return
     }
 
-    if (current == null || current.id != callId) return
+    if (current == null || current.id != callId) {
+      // The caller gave up while this phone was still looking into the offer (who calls, whether they may): the
+      // call must not come up after its own end — it would ring, or be answered, for nobody.
+      if (step == "end") over.add(callId)
+      return
+    }
     // A call that has just ended here hears nothing more (its last words stay on the screen for a moment).
     if (current.isOver) return
     // ICE restart from the other side: numbered, so a late or repeated one is ignored; the DTLS fingerprints
@@ -455,10 +474,13 @@ object Calls {
       return
     }
     if (step == "answer" && !current.incoming && sdp != null) {
+      // The answer of a call is taken once, while it rings: a second copy must not end a call that is connecting.
+      if (current.status != "ringing") return
       cancel(ringTimer)
       cancel(reachTimer)
       CallSounds.stop()
       patch { it.copy(status = "connecting", remoteSdp = sdp) }
+      connecting(callId)
       val made = media ?: return
       made.setRemote("answer", stripped(sdp)) { fine ->
         if (!isCurrent(callId) || media !== made) return@setRemote
@@ -471,6 +493,8 @@ object Calls {
 
   /** An offer that may ring: the incoming call comes up — or, with a call already on, the caller hears «busy». */
   private fun rings(chatId: String, peer: Person, callId: String, video: Boolean, sdp: String) {
+    // Ended by the caller while it was being looked into: nothing rings, nobody is told «busy».
+    if (callId in over) return trace("the call ended before it rang")
     if (call != null) {
       // Busy: the same `end` as a hang-up, so the caller's chat says «Собеседник занят» and ours a missed call.
       messenger?.sendCallSignal(chatId, peer.id, CallRules.end(callId, video, incoming = true, startedAt = null, reason = "busy"))
@@ -478,6 +502,7 @@ object Calls {
     }
     samples = null
     call = CallState(callId, chatId, peer, incoming = true, video = video, status = "incoming", speaker = video, remoteSdp = sdp)
+    trace("rings")
     began()
     // Push: opened from the ringing notification of a closed app — it goes now, and «Ответить» pressed on it answers
     // here once the call is on screen (push/IncomingCall.kt, the reference's CallProvider).
@@ -502,8 +527,11 @@ object Calls {
     try { MusicPlayer.shared.stop() } catch (_: Exception) {}
     tap()
     patch { it.copy(status = "connecting") }
+    connecting(id)
+    trace("answering")
     CallAudio.allow(window.get(), current.video) asked@{ refusal ->
       if (!isCurrent(id)) return@asked
+      trace("microphone " + if (refusal == null) "allowed" else "refused")
       if (refusal != null) return@asked finish(refusal, "failed")
       app?.let { CallAudio.start(it, current.video) }
       prepare(id, current.video) prepared@{ made ->
@@ -512,10 +540,31 @@ object Calls {
         answer(made, stripped(offer), again = false) answered@{ own ->
           val now = call
           if (now == null || now.id != id || now.isOver) return@answered
+          trace("answer " + if (own == null) "not made" else "made")
           if (own == null) return@answered finish("Не удалось ответить", "failed")
-          send(now, mapOf("type" to "call", "call" to id, "step" to "answer", "sdp" to marked(own)))
+          val messenger = messenger ?: return@answered finish("Не удалось ответить", "failed")
+          // The answer is the whole call: when it cannot leave this phone the caller rings on and nothing
+          // would ever connect here, so the call ends instead of saying «Соединение…» for ever.
+          messenger.sendCallSignal(now.chatId, now.peer.id, mapOf("type" to "call", "call" to id, "step" to "answer", "sdp" to marked(own))) { sent ->
+            trace("answer " + if (sent) "sent" else "not sent")
+            if (!sent && isCurrent(id) && call?.status == "connecting") finish("Не удалось соединиться", "failed")
+          }
           showKey(own, offer)
         }
+      }
+    }
+  }
+
+  /** A call says «Соединение…» from here (answered on this phone, or the other side's answer arrived). The media
+   *  normally says by itself whether it came up; when nothing at all is heard — the answer never left, the other
+   *  side went away without a word that reached this phone — the call ends after as long as a call rings,
+   *  instead of waiting for ever. The other side is told, like after any failed connection. */
+  private fun connecting(id: String) {
+    cancel(connectTimer)
+    connectTimer = after(CallRules.ringTimeout) {
+      if (isCurrent(id) && call?.status == "connecting") {
+        trace("still connecting after ${CallRules.ringTimeout} ms")
+        finish("Не удалось соединиться", "failed")
       }
     }
   }
@@ -530,7 +579,9 @@ object Calls {
 
   private fun connectionMoved(state: String) {
     val current = call ?: return
+    trace("media $state in ${current.status}")
     if (state == "connected" && current.status != "active" && current.status != "ended") {
+      cancel(connectTimer); connectTimer = null
       resetLink()
       tap()
       patch { it.copy(status = "active", startedAt = CallRules.nowMs) }
@@ -743,6 +794,7 @@ object Calls {
   private fun cleanup() {
     resetLink()
     cancel(ringTimer); ringTimer = null
+    cancel(connectTimer); connectTimer = null
     cancel(reachTimer); reachTimer = null
     cancel(beat); beat = null
     ringTone = ""
@@ -767,6 +819,7 @@ object Calls {
     val current = call ?: return
     if (current.isOver) return
     app?.let { com.linea.messenger.push.IncomingCall.dismiss(it) } // Push: the ringing notification goes with the call, whoever ended it
+    trace("ended in ${current.status}" + (if (notify != null) ", told as $notify" else ""))
     if (notify != null) send(current, CallRules.end(current, notify))
     cleanup()
     call = current.copy(status = "ended", endedText = words, retry = retry, localVideo = false, remoteVideo = false, reconnecting = false,

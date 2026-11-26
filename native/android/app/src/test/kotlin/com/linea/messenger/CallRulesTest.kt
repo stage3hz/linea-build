@@ -7,6 +7,8 @@ import com.linea.messenger.calls.CallRules
 import com.linea.messenger.calls.CallScreenView
 import com.linea.messenger.calls.CallSignals
 import com.linea.messenger.calls.CallState
+import com.linea.messenger.calls.EndedCalls
+import com.linea.messenger.crypto.FirstLane
 import com.linea.messenger.calls.CallsDemo
 import com.linea.messenger.people.Person
 import org.junit.Assert.assertEquals
@@ -163,5 +165,44 @@ class CallRulesTest {
     assertTrue(CallsDemo.sample("retry", now)!!.retry)
     assertNull(CallsDemo.sample("nothing", now))
     assertEquals("Алиса Воронцова", active.peer.displayName)
+  }
+
+  @Test fun aCallEndedBeforeItCameUpIsRemembered() {
+    // The caller gave up while the offer was still being looked into: the call's id is kept, so it never rings.
+    val over = EndedCalls(limit = 3)
+    assertFalse("c1" in over)
+    over.add("c1")
+    assertTrue("c1" in over); assertFalse("c2" in over)
+    over.add("c1"); over.add("c2"); over.add("c3")
+    assertTrue("c1" in over && "c2" in over && "c3" in over)
+    // Past the limit the oldest is forgotten.
+    over.add("c4")
+    assertFalse("c1" in over); assertTrue("c2" in over && "c4" in over)
+  }
+
+  @Test fun aCallsStepGoesBeforeTheOrdinaryWorkThatWaits() {
+    // The encryption's one thread as CryptoService runs it: every piece of ordinary work first lets the first
+    // lane through, and a long one lets it through between its own steps.
+    val lane = FirstLane()
+    val order = ArrayList<String>()
+    val queue = ArrayList<() -> Unit>()
+    fun run(name: String, inside: () -> Unit = {}) { queue.add { lane.drain(); order.add(name); inside() } }
+    fun runFirst(name: String) { lane.add { order.add(name) }; queue.add { lane.drain() } }
+    assertTrue(lane.isEmpty)
+    // The app has just started: the keys, then the chat list's twenty chats, then more.
+    run("keys")
+    run("list") { order.add("chat 1"); runFirst("the end heard"); lane.drain(); order.add("chat 2") }
+    run("history")
+    // The call is answered while all of that still waits.
+    runFirst("answer")
+    assertFalse(lane.isEmpty)
+    var at = 0
+    while (at < queue.size) { queue[at](); at += 1 }
+    assertEquals(listOf("answer", "keys", "list", "chat 1", "the end heard", "chat 2", "history"), order)
+    assertTrue(lane.isEmpty)
+    // Nothing runs twice, and the steps keep the order they were given in.
+    lane.add { order.add("a") }; lane.add { order.add("b") }
+    assertEquals(2, lane.drain()); assertEquals(0, lane.drain())
+    assertEquals(listOf("a", "b"), order.takeLast(2))
   }
 }

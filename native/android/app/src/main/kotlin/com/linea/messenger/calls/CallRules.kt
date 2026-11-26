@@ -37,6 +37,16 @@ data class CallState(
   val isOver: Boolean get() = status == "ended"
 }
 
+/** The ids of calls the other side has already ended; the oldest are forgotten past `limit`. */
+class EndedCalls(private val limit: Int = 200) {
+  private val ids = LinkedHashSet<String>()
+  fun add(id: String) {
+    ids.add(id)
+    while (ids.size > limit) ids.remove(ids.first())
+  }
+  operator fun contains(id: String): Boolean = id in ids
+}
+
 /** The rules of calls, asked of the shared core (native/core/src/calls.rs — a port of the reference's
  *  callModel.ts, reconnect.ts, callStatus.ts and callLog.ts, the same on both phones). Nothing here decides
  *  anything by itself. */
