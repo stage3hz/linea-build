@@ -42,6 +42,9 @@ const READ_DATE_WINDOW_MS = 7 * 24 * 3600 * 1000;
 
 const MiB = 1024 * 1024;
 const MAX_AVATAR_BYTES = 4 * MiB;
+// A GIF as the profile photo may be larger: an animation does not shrink like a still (the owner's rule).
+const MAX_AVATAR_GIF_BYTES = 20 * MiB;
+const avatarLimit = upload => (upload.mime_type === 'image/gif' ? MAX_AVATAR_GIF_BYTES : MAX_AVATAR_BYTES);
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
 
 // React Native Android sends an endpoint Origin even for a native WebSocket.
@@ -628,7 +631,7 @@ export async function buildApp({
       if (typeof avatarId !== 'string') fail(400, 'Некорректное фото профиля.');
       const upload = db.prepare('SELECT * FROM uploads WHERE id=? AND owner_id=?').get(avatarId, current.id);
       if (!upload) fail(404, 'Фото профиля не найдено.');
-      if (!upload.is_image || upload.size > MAX_AVATAR_BYTES) fail(400, 'Фото профиля должно быть изображением PNG, JPEG, GIF или WebP до 4 МиБ.');
+      if (!upload.is_image || upload.size > avatarLimit(upload)) fail(400, 'Фото профиля должно быть изображением PNG, JPEG или WebP до 4 МиБ или GIF до 20 МиБ.');
     }
     // Platina decoration. Clearing (null) is always allowed; setting needs an active Platina.
     const platinaActive = platinaState(db, current.id, now()).active;
@@ -935,7 +938,7 @@ export async function buildApp({
         }
         if (video) {
           if (size > MAX_PROFILE_VIDEO_BYTES) fail(400, 'Видео для профиля — до 8 МиБ.');
-        } else if (!mime || size > MAX_AVATAR_BYTES) fail(400, 'Для профиля допустимо изображение PNG, JPEG, GIF или WebP до 4 МиБ или видео MP4/MOV до 8 МиБ. Отправка файлов в чат требует шифрования.');
+        } else if (!mime || size > (mime === 'image/gif' ? MAX_AVATAR_GIF_BYTES : MAX_AVATAR_BYTES)) fail(400, 'Для профиля допустимо изображение PNG, JPEG или WebP до 4 МиБ, GIF до 20 МиБ или видео MP4/MOV до 8 МиБ. Отправка файлов в чат требует шифрования.');
         attachment = { id, name: safeFilename(part.filename), mime_type: mime || video, size, is_image: mime ? 1 : 0, is_video: video ? 1 : 0 };
       }
       if (!attachment) fail(400, 'Выберите файл для загрузки.');

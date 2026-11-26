@@ -252,3 +252,15 @@ test('abandoned sessions are swept at startup with their .part files', async t =
   assert.equal(f.sql(db => db.prepare('SELECT COUNT(*) AS n FROM e2ee_upload_sessions').get().n), 0);
   assert.deepEqual((await readdir(join(f.dataDir, 'uploads'))).filter(name => name.endsWith('.part')), []);
 });
+
+test('B1b: a GIF as the profile photo may be up to 20 MiB; a still stays at 4 MiB', async t => {
+  const f = await fixture(t, { maxUploadBytes: 20 * MiB, fileLimits: { ...LIMITS, free: { ...LIMITS.free, total: 200 * MiB }, platina: { ...LIMITS.platina, total: 200 * MiB } } });
+  const alice = await register(f.app, 'harden_gif');
+  const gif = size => { const b = randomBytes(size); b.write('GIF89a', 0, 'latin1'); return b; };
+  const sendOne = async (bytes, name, type) => { const body = multipart(bytes, name, type); return call(f.app, 'POST', '/uploads', alice, body.payload, body.headers); };
+  const big = await sendOne(gif(12 * MiB), 'avatar.gif', 'image/gif');
+  assert.equal(big.statusCode, 201, big.body);
+  assert.equal((await call(f.app, 'PATCH', '/me', alice, { avatarId: big.json().id })).statusCode, 200);
+  const still = await sendOne(jpeg(5 * MiB), 'avatar.jpg', 'image/jpeg');
+  assert.equal(still.statusCode, 400); assert.match(still.json().error, /4 МиБ/);
+});
