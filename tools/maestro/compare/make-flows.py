@@ -117,6 +117,11 @@ def setting_low(row):
 def swipe_left_from(t):
     return f'- swipe:\n    from:\n      text: {q(t)}\n    direction: LEFT\n    duration: 600\n- waitForAnimationToEnd\n'
 OPEN_TIMUR = flow('open-timur.yaml')
+# The reference's list with its live line up: the title says «Чаты» again («Соединение…» and «Обновление…» before
+# that, act/ref-home.yaml goes on under either). Until then the stories strip is not there and the list is still
+# being filled: in the run of 0d627ba4 the reference of 20, 43 and 44 was photographed, or stopped, under
+# «Соединение…» with no stories. Waited for, not required: a list that never connects is photographed as it is.
+REF_LIVE = '- extendedWaitUntil:\n    visible: "Чаты"\n    timeout: 120000\n    optional: true\n' + SETTLE
 # Тимур's profile from his chat: the reference's header name pill «Профиль Тимур Богданов» (mobile/src/ChatScreen.tsx).
 PROFILE_TIMUR = OPEN_TIMUR + tap('Профиль Тимур Богданов.*') + PROFILE_UP
 OWN_PROFILE = tap('Мой профиль', index=0) + wait('Изменить.*', optional=True)
@@ -232,7 +237,7 @@ pair('18-emoji-panel', 1, '-openchat 1 -chataction emoji -keyboardheight 334', 3
      + '- tapOn:\n    text: "Стикеры и эмодзи"\n    retryTapIfNoChange: false\n    optional: true\n' + pause(2500)
      + '- takeScreenshot: nat-18b-emoji-tap\n', start='chat')
 pair('19-chatlist-search', 3, '-chatsearch "Тим"', 30, flow('chat-search.yaml'))
-pair('20-sections', 3, '', 25, flow('sections.yaml'), 'same')
+pair('20-sections', 3, '', 25, REF_LIVE + '|' + flow('sections.yaml'), 'same')
 # The folder's tab is found by the letters of its name in any order (see 00-setup-folder), should they be mixed again.
 pair('21-folder-tab', 1, '', 25, wait('[Рработ]{6}', 15000) + tap('[Рработ]{6}', index=0), 'same', start='home')
 # The row is waited for and touched once; the archive is there when its first row («‹ Архив», «Вернуться к чатам») is,
@@ -293,7 +298,7 @@ pair('42-new-chat', 2, '', 25, tap('Новый чат', index=0) + wait('Дру�
 HOLD_STILL = '- evalScript: ${var until = Date.now() + 1800; while (Date.now() < until);}\n'
 def story(circle):
     return tap_now(circle, index=0) + HOLD_STILL
-pair('43-story-viewer', 3, '', 25, '|' + story('Анна Лебедева, (новых историй|истории просмотрены|запись).*'), 'same', start='home')
+pair('43-story-viewer', 3, '', 25, REF_LIVE + '|' + story('Анна Лебедева, (новых историй|истории просмотрены|запись).*'), 'same', start='home')
 # The own story is one story of five seconds, and the picture Maestro takes after the touch came later than that on
 # both apps in the run of fd7a62c4 (the reference was back on its chat list, the native app at the end of the next
 # person's story): what Maestro does around a touch lasts longer than the story. So the picture is not Maestro's:
@@ -305,11 +310,11 @@ SHOOT_LATER = '- runScript:\n    file: @ACT@/shoot-later.js\n    env:\n      NAM
 OWN_STORY = (wait('Моя история', 20000) + SHOOT_LATER
              + '- tapOn:\n    point: "13%,19%"\n    retryTapIfNoChange: false\n    waitToSettleTimeoutMs: 300\n'
              + HOLD_STILL * 3 + '- takeScreenshot: @NAME@-late\n@NOSHOT@')
-pair('44-own-story', 3, '', 25, OWN_STORY, 'same', start='home')
+pair('44-own-story', 3, '', 25, REF_LIVE + '|' + OWN_STORY, 'same', start='home')
 # The account has a story, so its circle reads «Моя история» and its «+» is inside it (not a control of its own to
 # Maestro); a hold on the circle adds a story on both apps (mobile/src/stories/StoriesStrip.tsx onLongPress,
 # native/ios/Sources/Stories/StoriesStrip.swift heldDown).
-pair('45-story-add', 3, '', 25, hold('Моя история') + pause(2500), 'same', start='home')
+pair('45-story-add', 3, '', 25, REF_LIVE + '|' + hold('Моя история') + pause(2500), 'same', start='home')
 pair('46-chatlist-light', 2, '', 25, '', look='light')
 pair('47-chat-light', 1, '-openchat 1', 35, OPEN_TIMUR, look='light')
 # Last of shard 1: the same words the native `-chatlist draft` writes. After the shot the reference's draft is erased:
@@ -429,8 +434,10 @@ CALL = wait('Звонок', 30000) + tap('Звонок') + tap('Allow|Разре
 # so the two chats under the strip never were the same.
 MINIMIZED = (pause(3000) + tap('Свернуть звонок') + pause(1500) + tap('Назад к чатам.*', optional=True) + pause(1500) + '@SHOT@'
              + tap('Завершить звонок|Завершить', index=0, optional=True))
-pair('97-call-outgoing', 3, '', 25, PROFILE_TIMUR + CALL + pause(4000), nat=NAT_TIMUR + CALL + pause(4000), start='home')
-pair('98-call-minimized', 3, '', 25, PROFILE_TIMUR + CALL + MINIMIZED, nat=NAT_TIMUR + CALL + MINIMIZED, start='home')
+# The `|` in front: without a split of its own the first `|` of the steps is taken for one and removed, and that was
+# the one inside «Allow|Разрешить|OK» (the reference's flows asked for «AllowРазрешить|OK»).
+pair('97-call-outgoing', 3, '', 25, '|' + PROFILE_TIMUR + CALL + pause(4000), nat=NAT_TIMUR + CALL + pause(4000), start='home')
+pair('98-call-minimized', 3, '', 25, '|' + PROFILE_TIMUR + CALL + MINIMIZED, nat=NAT_TIMUR + CALL + MINIMIZED, start='home')
 pair('99-call-history', 3, '-tab people', 25, section('Люди') + '|' + tap('Звонки.*', index=0) + pause(2000), 'same')
 # Signed out (the workflow removes the app and the simulator's keychain, then installs it fresh).
 SIGNIN = waitid('field-Логин', 300000, optional=False)

@@ -6,8 +6,11 @@ appId: com.linea.messenger.preview
 # «Не забудь!», which is why the shared flow cannot be used here. Waits are generous: decrypting ~75 messages,
 # a few of them with files, takes a while on a busy runner.
 - launchApp
+# The title says «Соединение…» / «Ожидание сети…» / «Обновление…» instead of «Чаты» until the live line is up and
+# the new messages are read (act/ref-home.yaml): the list is there under any of them, and Анна's row is what is
+# waited for next.
 - extendedWaitUntil:
-    visible: "Чаты"
+    visible: "Чаты|Соединение.*|Ожидание сети.*|Обновление.*"
     timeout: 300000
 - tapOn:
     text: "Allow|Разрешить"
@@ -42,8 +45,11 @@ appId: com.linea.messenger.preview
     optional: true
 - waitForAnimationToEnd
 - takeScreenshot: ref-read-timur
+# Back on the list. Both chats have been opened by now, which is all this flow is for: a title that still says
+# «Обновление…» five minutes later does not make it a failure (every flow after this one starts the app afresh).
 - launchApp
 - extendedWaitUntil:
-    visible: "Чаты"
+    visible: "Чаты|Соединение.*|Ожидание сети.*|Обновление.*"
     timeout: 300000
+    optional: true
 - waitForAnimationToEnd

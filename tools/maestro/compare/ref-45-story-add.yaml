@@ -7,6 +7,11 @@ appId: com.linea.messenger.preview
     commands:
       - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: act/ref-home.yaml
+- extendedWaitUntil:
+    visible: "Чаты"
+    timeout: 120000
+    optional: true
+- waitForAnimationToEnd
 - longPressOn:
     text: "Моя история"
 - waitForAnimationToEnd
