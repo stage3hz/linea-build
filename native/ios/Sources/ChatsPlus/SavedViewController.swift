@@ -449,9 +449,18 @@ final class SavedViewController: UIViewController, UITableViewDataSource, UITabl
     /// The list at its newest note, once there are notes and the list has its place on the screen.
     private func showNewest() {
         guard !lines.isEmpty, table.bounds.height > 0 else { return }
-        startsAtNewest = false
         table.layoutIfNeeded()
         table.scrollToRow(at: IndexPath(row: lines.count - 1, section: 0), at: .bottom, animated: false)
+        // The rows are measured as they come to the screen: once the last ones are, the list is put at its very end
+        // (it stopped two notes short of it when their heights were still guessed).
+        table.layoutIfNeeded()
+        let end = table.contentSize.height - table.bounds.height + table.adjustedContentInset.bottom
+        if end > -table.adjustedContentInset.top { table.setContentOffset(CGPoint(x: 0, y: end), animated: false) }
+    }
+
+    /// The list keeps to its newest note while notes are still being read and laid out, until a finger moves it.
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        if scrollView === table { startsAtNewest = false }
     }
 
     @objc private func changed() { rebuild(scrollToNewest: false) }
@@ -735,8 +744,8 @@ final class SavedDayCell: UITableViewCell {
 
 /// One note at the right edge, drawn as the reference's SavedScreen.tsx row: where it came from, its attachment
 /// exactly as a chat draws it (VoiceBubble, VideoNoteBubble, AttachmentCard), its words and the time. A round video
-/// with no words and no origin stands alone with the time in a pill under it (`circleOnly`). The owner's open look:
-/// no plate unless bubbles are chosen in «Оформление» (then the reference's plate: radius 23, 8 at the lower right).
+/// with no words and no origin stands alone with the time in a pill under it (`circleOnly`); every other note
+/// stands on the reference's plate: the colour of one's own messages, radius 23 (8 at the lower right), a thin border.
 final class SavedNoteCell: UITableViewCell {
     /// The key a note's attachment is known by (AttachmentStore, the players).
     static func key(_ item: [String: Any]) -> String { "saved:" + (item["id"] as? String ?? "") }
@@ -924,8 +933,8 @@ final class SavedNoteCanvas: UIView {
     /// `circleOnly` (SavedScreen.tsx): a round video with no words and no origin, shown alone.
     private var circleOnly: Bool { kind == "note" && words.isEmpty && item["origin"] == nil }
 
-    /// A plate only when bubbles are chosen; the open look has none (the owner's rule).
-    private var plated: Bool { !msgOpenLook && !circleOnly }
+    /// SavedScreen.tsx: every note but a lone round video stands on its bordered plate, whatever the chats' look.
+    private var plated: Bool { !circleOnly }
 
     func show(_ next: [String: Any], own: String, state: MsgMediaState?, maxSide: CGFloat, expanded: Bool) {
         self.expanded = expanded
