@@ -1,0 +1,140 @@
+2026-11-26 07:22:32.949 Df Invizent[9979:8b86a] (Foundation) Linea: app active
+2026-11-26 07:22:57.005 Df Invizent[11245:8c593] (Foundation) Linea: app active
+2026-11-26 07:23:47.531 Df Invizent[14216:8e425] (Foundation) Linea: app active
+2026-11-26 07:24:43.280 Df Invizent[14216:8e425] (Foundation) Linea: main thread stalled 3358 ms
+2026-11-26 07:24:57.881 Df Invizent[14216:8e425] (Foundation) Linea: touch down 364,94 on UIButton (in UIView), read 900 ms late
+2026-11-26 07:24:57.888 Df Invizent[14216:8e425] (Foundation) Linea: touch up 364,94 after 117 ms, moved 0, read 791 ms late
+2026-11-26 07:25:23.449 Df Invizent[19731:91dbb] (Foundation) Linea: app active
+2026-11-26 07:25:53.796 Df Invizent[21431:92f53] (Foundation) Linea: app active
+2026-11-26 07:26:01.291 Df Invizent[21431:92f53] (Foundation) Linea: main thread stalled 415 ms
+2026-11-26 07:26:38.233 Df Invizent[23951:94903] (Foundation) Linea: app active
+2026-11-26 07:27:02.114 Df Invizent[25091:95509] (Foundation) Linea: app active
+2026-11-26 07:27:26.732 Df Invizent[26196:960b1] (Foundation) Linea: app active
+2026-11-26 07:27:49.902 Df Invizent[27665:96f79] (Foundation) Linea: app active
+2026-11-26 07:28:18.535 Df Invizent[28788:97b6a] (Foundation) Linea: app active
+2026-11-26 07:28:24.248 Df Invizent[28788:97b6a] (Foundation) Linea: main thread stalled 421 ms
+2026-11-26 07:29:45.390 Df Invizent[28788:97b6a] (Foundation) Linea: main thread stalled 3062 ms
+2026-11-26 07:29:56.796 Df Invizent[28788:97b6a] (Foundation) Linea: touch down 201,681 on ProfilePostsBlock (in UIStackView), read 56 ms late
+2026-11-26 07:29:57.551 Df Invizent[28788:97b6a] (Foundation) Linea: touch up 201,262 after 800 ms, moved 419, read 11 ms late
+2026-11-26 07:30:23.395 Df Invizent[34234:9b3c0] (Foundation) Linea: app active
+2026-11-26 07:30:28.608 Df Invizent[34234:9b3c0] (Foundation) Linea: main thread stalled 319 ms
+2026-11-26 07:31:33.280 Df Invizent[34234:9b3c0] (Foundation) Linea: main thread stalled 1191 ms
+2026-11-26 07:31:55.321 Df Invizent[34234:9b3c0] (Foundation) Linea: touch down 216,845 on UIButton (in UIStackView), read 92 ms late
+2026-11-26 07:31:55.464 Df Invizent[34234:9b3c0] (Foundation) Linea: touch cancelled 216,845 after 224 ms, moved 0, read 11 ms late
+2026-11-26 07:32:19.406 Df Invizent[38873:9e2b9] (Foundation) Linea: app active
+2026-11-26 07:33:40.963 Df Invizent[38873:9e2b9] (Foundation) Linea: main thread stalled 418 ms
+2026-11-26 07:33:57.129 Df Invizent[38873:9e2b9] (Foundation) Linea: touch down 316,845 on UIButton (in UIStackView), read 69 ms late
+2026-11-26 07:33:57.772 Df Invizent[38873:9e2b9] (Foundation) Linea: touch up 40,845 after 700 ms, moved 276, read 12 ms late
+2026-11-26 07:34:05.951 Df Invizent[38873:9e2b9] (Foundation) Linea: touch down 337,845 on UIButton (in UIStackView), read 11 ms late
+2026-11-26 07:34:06.084 Df Invizent[38873:9e2b9] (Foundation) Linea: touch up 337,845 after 117 ms, moved 0, read 27 ms late
+2026-11-26 07:34:21.662 Df Invizent[44722:a1d7f] (Foundation) Linea: app active
+2026-11-26 07:34:27.267 Df Invizent[44722:a1d7f] (Foundation) Linea: main thread stalled 495 ms
+2026-11-26 07:34:55.721 Df Invizent[46101:a2a4f] (Foundation) Linea: app active
+2026-11-26 07:35:40.031 Df Invizent[46101:a2a4f] (Foundation) Linea: main thread stalled 1214 ms
+2026-11-26 07:35:52.568 Df Invizent[46101:a2a4f] (Foundation) Linea: touch down 75,259 on UIControl (in UIView), read 67 ms late
+2026-11-26 07:35:52.634 Df Invizent[46101:a2a4f] (Foundation) Linea: touch up 75,259 after 117 ms, moved 0, read 17 ms late
+2026-11-26 07:35:53.234 Df Invizent[46101:a2a4f] (Foundation) Linea: main thread stalled 518 ms
+2026-11-26 07:35:53.576 Df Invizent[46101:a2a4f] (Foundation) Linea: main thread stalled 259 ms
+2026-11-26 07:36:17.138 Df Invizent[50320:a5583] (Foundation) Linea: app active
+2026-11-26 07:37:01.193 Df Invizent[50320:a5583] (Foundation) Linea: main thread stalled 1826 ms
+2026-11-26 07:37:13.956 Df Invizent[50320:a5583] (Foundation) Linea: touch down 75,259 on UIControl (in UIView), read 82 ms late
+2026-11-26 07:37:14.001 Df Invizent[50320:a5583] (Foundation) Linea: touch up 75,259 after 117 ms, moved 0, read 11 ms late
+2026-11-26 07:37:14.433 Df Invizent[50320:a5583] (Foundation) Linea: main thread stalled 370 ms
+2026-11-26 07:37:18.061 Df Invizent[50320:a5583] (Foundation) Linea: touch down 201,681 on UIScrollView (in UIView), read 4 ms late
+2026-11-26 07:37:18.867 Df Invizent[50320:a5583] (Foundation) Linea: touch up 201,262 after 800 ms, moved 419, read 9 ms late
+2026-11-26 07:37:36.023 Df Invizent[54561:a80cc] (Foundation) Linea: app active
+2026-11-26 07:38:04.221 Df Invizent[55456:a89d2] (Foundation) Linea: app active
+2026-11-26 07:38:04.966 Df Invizent[55456:a89d2] (Foundation) Linea: main thread stalled 295 ms
+2026-11-26 07:38:55.502 Df Invizent[55456:a89d2] (Foundation) Linea: main thread stalled 929 ms
+2026-11-26 07:39:10.122 Df Invizent[55456:a89d2] (Foundation) Linea: touch down 201,227 on UIControl (in UIView), read 66 ms late
+2026-11-26 07:39:10.184 Df Invizent[55456:a89d2] (Foundation) Linea: touch up 201,227 after 117 ms, moved 0, read 11 ms late
+2026-11-26 07:39:29.003 Df Invizent[59342:ab1db] (Foundation) Linea: app active
+2026-11-26 07:39:29.468 Df Invizent[59342:ab1db] (Foundation) Linea: main thread stalled 374 ms
+2026-11-26 07:40:16.655 Df Invizent[59342:ab1db] (Foundation) Linea: main thread stalled 1551 ms
+2026-11-26 07:40:29.670 Df Invizent[59342:ab1db] (Foundation) Linea: touch down 213,342 on StatusButton (in UIStackView), read 58 ms late
+2026-11-26 07:40:29.735 Df Invizent[59342:ab1db] (Foundation) Linea: touch up 213,342 after 116 ms, moved 0, read 7 ms late
+2026-11-26 07:40:30.154 Df Invizent[59342:ab1db] (Foundation) Linea: main thread stalled 360 ms
+2026-11-26 07:40:30.466 Df Invizent[59342:ab1db] (Foundation) Linea: main thread stalled 272 ms
+2026-11-26 07:40:58.083 Df Invizent[63348:adb03] (Foundation) Linea: app active
+2026-11-26 07:40:58.575 Df Invizent[63348:adb03] (Foundation) Linea: main thread stalled 483 ms
+2026-11-26 07:41:48.843 Df Invizent[63348:adb03] (Foundation) Linea: main thread stalled 1460 ms
+2026-11-26 07:42:00.644 Df Invizent[63348:adb03] (Foundation) Linea: touch down 393,629 on UIScrollView (in UIView), read 68 ms late
+2026-11-26 07:42:01.487 Df Invizent[63348:adb03] (Foundation) Linea: touch up 393,419 after 900 ms, moved 210, read 11 ms late
+2026-11-26 07:42:06.817 Df Invizent[63348:adb03] (Foundation) Linea: touch down 201,627 on SettingsRow (in UIStackView), read 9 ms late
+2026-11-26 07:42:06.935 Df Invizent[63348:adb03] (Foundation) Linea: touch up 201,627 after 117 ms, moved 0, read 10 ms late
+2026-11-26 07:42:07.474 Df Invizent[63348:adb03] (Foundation) Linea: main thread stalled 491 ms
+2026-11-26 07:42:35.384 Df Invizent[68318:b0d68] (Foundation) Linea: app active
+2026-11-26 07:42:36.018 Df Invizent[68318:b0d68] (Foundation) Linea: main thread stalled 538 ms
+2026-11-26 07:43:25.136 Df Invizent[68318:b0d68] (Foundation) Linea: main thread stalled 555 ms
+2026-11-26 07:43:40.719 Df Invizent[68318:b0d68] (Foundation) Linea: touch down 393,629 on UIScrollView (in UIView), read 73 ms late
+2026-11-26 07:43:41.553 Df Invizent[68318:b0d68] (Foundation) Linea: touch up 393,419 after 900 ms, moved 210, read 6 ms late
+2026-11-26 07:43:46.671 Df Invizent[68318:b0d68] (Foundation) Linea: touch down 201,579 on SettingsRow (in UIStackView), read 6 ms late
+2026-11-26 07:43:46.800 Df Invizent[68318:b0d68] (Foundation) Linea: touch up 201,579 after 117 ms, moved 0, read 18 ms late
+2026-11-26 07:44:17.209 Df Invizent[72265:b38a4] (Foundation) Linea: app active
+2026-11-26 07:44:17.737 Df Invizent[72265:b38a4] (Foundation) Linea: main thread stalled 457 ms
+2026-11-26 07:45:13.730 Df Invizent[72265:b38a4] (Foundation) Linea: main thread stalled 550 ms
+2026-11-26 07:45:26.109 Df Invizent[72265:b38a4] (Foundation) Linea: touch down 393,629 on UIScrollView (in UIView), read 71 ms late
+2026-11-26 07:45:26.951 Df Invizent[72265:b38a4] (Foundation) Linea: touch up 393,419 after 899 ms, moved 210, read 14 ms late
+2026-11-26 07:45:31.788 Df Invizent[72265:b38a4] (Foundation) Linea: touch down 201,483 on SettingsRow (in UIStackView), read 12 ms late
+2026-11-26 07:45:31.901 Df Invizent[72265:b38a4] (Foundation) Linea: touch up 201,483 after 117 ms, moved 0, read 9 ms late
+2026-11-26 07:45:58.358 Df Invizent[76497:b6446] (Foundation) Linea: app active
+2026-11-26 07:45:58.416 Df Invizent[76497:b6446] (Foundation) Linea: main thread stalled 508 ms
+2026-11-26 07:46:49.654 Df Invizent[76497:b6446] (Foundation) Linea: main thread stalled 546 ms
+2026-11-26 07:47:01.559 Df Invizent[76497:b6446] (Foundation) Linea: touch down 393,629 on UIScrollView (in UIView), read 90 ms late
+2026-11-26 07:47:02.385 Df Invizent[76497:b6446] (Foundation) Linea: touch up 393,419 after 900 ms, moved 210, read 17 ms late
+2026-11-26 07:47:04.096 Df Invizent[76497:b6446] (Foundation) Linea: touch down 393,629 on UIScrollView (in UIView), read 14 ms late
+2026-11-26 07:47:05.001 Df Invizent[76497:b6446] (Foundation) Linea: touch up 393,419 after 900 ms, moved 210, read 18 ms late
+2026-11-26 07:47:17.604 Df Invizent[76497:b6446] (Foundation) Linea: main thread stalled 396 ms
+2026-11-26 07:47:25.924 Df Invizent[80495:b8d89] (Foundation) Linea: app active
+2026-11-26 07:47:26.445 Df Invizent[80495:b8d89] (Foundation) Linea: main thread stalled 355 ms
+2026-11-26 07:47:52.969 Df Invizent[81734:b98a6] (Foundation) Linea: app active
+2026-11-26 07:48:44.840 Df Invizent[81734:b98a6] (Foundation) Linea: main thread stalled 1285 ms
+2026-11-26 07:48:57.654 Df Invizent[81734:b98a6] (Foundation) Linea: touch down 185,375 on PlatinaSealView (in UIStackView), read 79 ms late
+2026-11-26 07:48:57.701 Df Invizent[81734:b98a6] (Foundation) Linea: touch up 185,375 after 117 ms, moved 0, read 11 ms late
+2026-11-26 07:49:17.713 Df Invizent[85393:bbe72] (Foundation) Linea: app active
+2026-11-26 07:49:39.662 Df Invizent[86622:bc948] (Foundation) Linea: app active
+2026-11-26 07:50:20.370 Df Invizent[86622:bc948] (Foundation) Linea: main thread stalled 1156 ms
+2026-11-26 07:50:32.966 Df Invizent[86622:bc948] (Foundation) Linea: touch down 201,591 on SettingsRow (in UIStackView), read 69 ms late
+2026-11-26 07:50:33.018 Df Invizent[86622:bc948] (Foundation) Linea: touch up 201,591 after 116 ms, moved 0, read 5 ms late
+2026-11-26 07:50:47.208 Df Invizent[89663:be9dd] (Foundation) Linea: main thread stalled 305 ms
+2026-11-26 07:50:47.211 Df Invizent[89663:be9dd] (Foundation) Linea: app active
+2026-11-26 07:51:08.718 Df Invizent[91317:bf8f3] (Foundation) Linea: app active
+2026-11-26 07:51:31.876 Df Invizent[92391:c02bd] (Foundation) Linea: app active
+2026-11-26 07:51:54.190 Df Invizent[93198:c0a28] (Foundation) Linea: app active
+2026-11-26 07:53:44.033 Df Invizent[93198:c0a28] (Foundation) Linea: main thread stalled 629 ms
+2026-11-26 07:54:28.068 Df Invizent[93198:c0a28] (Foundation) Linea: touch down 201,437 on ThemeCard (in UIStackView), read 86 ms late
+2026-11-26 07:54:28.701 Df Invizent[93198:c0a28] (Foundation) Linea: touch up 201,87 after 700 ms, moved 350, read 19 ms late
+2026-11-26 07:54:44.332 Df Invizent[93198:c0a28] (Foundation) Linea: touch down 201,349 on SettingsRow (in UIStackView), read 11 ms late
+2026-11-26 07:54:44.451 Df Invizent[93198:c0a28] (Foundation) Linea: touch up 201,349 after 117 ms, moved 0, read 14 ms late
+2026-11-26 07:54:44.766 Df Invizent[93198:c0a28] (Foundation) Linea: main thread stalled 264 ms
+2026-11-26 07:55:08.815 Df Invizent[97985:c3b53] (Foundation) Linea: app active
+2026-11-26 07:55:09.233 Df Invizent[97985:c3b53] (Foundation) Linea: main thread stalled 315 ms
+2026-11-26 07:55:51.590 Df Invizent[97985:c3b53] (Foundation) Linea: main thread stalled 1471 ms
+2026-11-26 07:55:53.373 Df Invizent[97985:c3b53] (Foundation) Linea: main thread stalled 257 ms
+2026-11-26 07:56:06.589 Df Invizent[97985:c3b53] (Foundation) Linea: touch down 201,437 on ThemeCard (in UIStackView), read 63 ms late
+2026-11-26 07:56:07.234 Df Invizent[97985:c3b53] (Foundation) Linea: touch up 201,87 after 700 ms, moved 350, read 8 ms late
+2026-11-26 07:56:10.589 Df Invizent[97985:c3b53] (Foundation) Linea: touch down 201,437 on UIStackView (in UIStackView), read 3 ms late
+2026-11-26 07:56:11.300 Df Invizent[97985:c3b53] (Foundation) Linea: touch up 201,87 after 700 ms, moved 350, read 14 ms late
+2026-11-26 07:56:26.035 Df Invizent[97985:c3b53] (Foundation) Linea: touch down 201,341 on UIView (in UIStackView), read 12 ms late
+2026-11-26 07:56:26.150 Df Invizent[97985:c3b53] (Foundation) Linea: touch up 201,341 after 117 ms, moved 0, read 10 ms late
+2026-11-26 07:56:49.118 Df Invizent[2773:c68b5] (Foundation) Linea: app active
+2026-11-26 07:57:11.186 Df Invizent[3718:c717f] (Foundation) Linea: app active
+2026-11-26 07:57:33.495 Df Invizent[4893:c7bc1] (Foundation) Linea: app active
+2026-11-26 07:58:21.285 Df Invizent[4893:c7bc1] (Foundation) Linea: main thread stalled 476 ms
+2026-11-26 07:58:24.677 Df Invizent[4893:c7bc1] (Foundation) Linea: main thread stalled 370 ms
+2026-11-26 07:58:34.706 Df Invizent[4893:c7bc1] (Foundation) Linea: touch down 201,437 on UIStackView (in UIStackView), read 42 ms late
+2026-11-26 07:58:35.385 Df Invizent[4893:c7bc1] (Foundation) Linea: touch up 201,87 after 700 ms, moved 350, read 21 ms late
+2026-11-26 07:59:00.340 Df Invizent[8314:c9d9b] (Foundation) Linea: app active
+2026-11-26 07:59:23.568 Df Invizent[9996:caca8] (Foundation) Linea: app active
+2026-11-26 08:00:15.392 Df Invizent[9996:caca8] (Foundation) Linea: touch down 201,173 on SettingsRow (in UIStackView), read 31 ms late
+2026-11-26 08:00:15.484 Df Invizent[9996:caca8] (Foundation) Linea: touch up 201,173 after 117 ms, moved 0, read 6 ms late
+2026-11-26 08:00:30.048 Df Invizent[12577:cc8f7] (Foundation) Linea: app active
+2026-11-26 08:01:11.261 Df Invizent[12577:cc8f7] (Foundation) Linea: main thread stalled 302 ms
+2026-11-26 08:01:23.377 Df Invizent[12577:cc8f7] (Foundation) Linea: touch down 196,245 on UITextField (in GlassSearchField), read 47 ms late
+2026-11-26 08:01:23.646 Df Invizent[12577:cc8f7] (Foundation) Linea: touch up 196,245 after 116 ms, moved 0, read 199 ms late
+2026-11-26 08:01:24.391 Df Invizent[12577:cc8f7] (Foundation) Linea: main thread stalled 933 ms
+2026-11-26 08:01:24.818 Df Invizent[12577:cc8f7] (Foundation) Linea: main thread stalled 360 ms
+2026-11-26 08:01:55.851 Df Invizent[16251:ceedc] (Foundation) Linea: app active
+2026-11-26 08:01:55.943 Df Invizent[16251:ceedc] (Foundation) Linea: main thread stalled 259 ms
+2026-11-26 08:02:17.633 Df Invizent[17528:cfaf2] (Foundation) Linea: app active
+2026-11-26 08:03:00.204 Df Invizent[19843:d0f87] (Foundation) Linea: app active

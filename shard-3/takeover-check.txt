@@ -1,0 +1,24 @@
+takeover-check v1
+server=https://localhost:8443
+user=a978795f-47c1-4e2f-8985-f41cebc1b0a8
+token[linea.session.v1]=present (43 bytes)
+passcode[linea.passcode.v1]=missing
+recovery[linea.recovery.pending.v1]=missing
+devicekey=present (public feecffacc278)
+scope=457bc21f6ad69b972b6eb32b7cb5ad45adcc382f0354204c61ccc2e580bafa0d
+vaultkey[linea.e2ee.v1.<scope>]=present (64 bytes), 64 hex
+vaultfile[Documents/SQLite/linea-e2ee-<scope>.db]=present (135168 bytes, header encrypted)
+sqlite-folder=linea-e2ee-<scope>.db, linea-e2ee-<scope>.db-shm, linea-e2ee-<scope>.db-wal
+vaultopen=ok (SQLCipher 4.20.0 community)
+device=present (sha256 6ae2e75774db)
+protocol=present (27662 bytes)
+messages[message:*]=79 (decrypted with text: 73, could not be opened: 0)
+history[history:*]=26
+sessions[session:*]=12
+trust[trust:*]=12
+devices[devices:*]=13
+chats-cache[chats:v1]=12 chats
+pages-cache[page:v1:*]=2
+saved[saved:v1]=missing
+expect "Как тебе фото"=found in the decrypted messages
+VERDICT=PASS

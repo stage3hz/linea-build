@@ -1,0 +1,4 @@
+build: success, shards: success, fbe7b8ed5d437b3553919ac02c997f1a59ecba31, Thu Nov 26 08:39:32 UTC 2026
+shard 1 pictures: 61 of 60 success; main thread stalls over 250 ms in the native app: 113
+shard 2 pictures: 79 of 76 success; main thread stalls over 250 ms in the native app: 44
+shard 3 pictures: 75 of 70 success; main thread stalls over 250 ms in the native app: 70

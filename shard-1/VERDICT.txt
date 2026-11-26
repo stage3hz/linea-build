@@ -1,0 +1,1 @@
+shard 1 pictures: 61 of 60 success; main thread stalls over 250 ms in the native app: 113

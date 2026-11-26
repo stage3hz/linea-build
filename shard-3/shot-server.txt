@@ -1,0 +1,4 @@
+"GET /shot?name=ref-44-own-story&after=3500 HTTP/1.1" 200 -
+taken ref-44-own-story
+"GET /shot?name=nat-44-own-story&after=3500 HTTP/1.1" 200 -
+taken nat-44-own-story

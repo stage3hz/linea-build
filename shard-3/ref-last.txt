@@ -1,0 +1,10 @@
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-105-recover
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Launch app "com.linea.messenger.preview"... COMPLETED
+Assert that id: field-Логин is visible... COMPLETED
+Tap on "Забыл пароль?"... COMPLETED
+Wait for animation to end... COMPLETED
+Hide Keyboard... COMPLETED
+Take screenshot ref-105-recover... COMPLETED

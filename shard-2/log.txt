@@ -1,0 +1,1591 @@
+Xcode 26.6
+Build version 17F113
+arm64
+shard 2: 38 screens signed in, 0 signed out, 0 setup flows
+== 06:05:42 local test server
+curl: (7) Failed to connect to localhost port 8443 after 1 ms: Couldn't connect to server
+account nativetester id bdf68e15-220a-456d-b7f2-6d73a6d40c7e
+== 06:06:09 simulator
+Simulator: iPhone 17 Pro (26, 5)
+Monitoring boot status for iPhone 17 Pro (6478AFFB-AE17-412A-A1E5-51BCFFD300B6).
+[2026-11-26 06:07:08 +0000] Status=2, isTerminal=NO, Elapsed=00:50.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:43 seconds
+
+[2026-11-26 06:07:09 +0000] Status=2, isTerminal=NO, Elapsed=00:51.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:44 seconds
+
+[2026-11-26 06:07:10 +0000] Status=2, isTerminal=NO, Elapsed=00:52.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:45 seconds
+
+[2026-11-26 06:07:11 +0000] Status=2, isTerminal=NO, Elapsed=00:53.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:46 seconds
+
+[2026-11-26 06:07:12 +0000] Status=2, isTerminal=NO, Elapsed=00:54.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:47 seconds
+
+[2026-11-26 06:07:13 +0000] Status=2, isTerminal=NO, Elapsed=00:55.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:48 seconds
+
+[2026-11-26 06:07:18 +0000] Status=2, isTerminal=NO, Elapsed=01:00.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:50 seconds
+
+[2026-11-26 06:07:23 +0000] Status=2, isTerminal=NO, Elapsed=01:05.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:53 seconds
+
+[2026-11-26 06:07:28 +0000] Status=2, isTerminal=NO, Elapsed=01:10.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:59 seconds
+
+[2026-11-26 06:07:30 +0000] Status=2, isTerminal=NO, Elapsed=01:12.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.addressbook.migrator (AddressBookLegacy.migrator)
+		Migration Elapsed:01:04 seconds
+
+[2026-11-26 06:07:32 +0000] Status=2, isTerminal=NO, Elapsed=01:14.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:06 seconds
+
+[2026-11-26 06:07:33 +0000] Status=2, isTerminal=NO, Elapsed=01:15.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.cleanup.migrator (MCCleanup.migrator)
+		Migration Elapsed:01:08 seconds
+
+[2026-11-26 06:07:33 +0000] Status=4, isTerminal=NO, Elapsed=01:15.
+	Waiting on System App
+
+[2026-11-26 06:07:35 +0000] Status=4, isTerminal=NO, Elapsed=01:17.
+	Waiting on System App
+
+[2026-11-26 06:07:36 +0000] Status=4, isTerminal=NO, Elapsed=01:18.
+	Waiting on System App
+
+[2026-11-26 06:07:37 +0000] Status=4, isTerminal=NO, Elapsed=01:18.
+	Waiting on System App
+
+[2026-11-26 06:07:37 +0000] Status=4, isTerminal=NO, Elapsed=01:19.
+	Waiting on System App
+
+[2026-11-26 06:07:39 +0000] Status=4, isTerminal=NO, Elapsed=01:21.
+	Waiting on System App
+
+[2026-11-26 06:07:40 +0000] Status=4, isTerminal=NO, Elapsed=01:21.
+	Waiting on System App
+
+[2026-11-26 06:07:40 +0000] Status=4, isTerminal=NO, Elapsed=01:22.
+	Waiting on System App
+
+[2026-11-26 06:07:41 +0000] Status=4, isTerminal=NO, Elapsed=01:23.
+	Waiting on System App
+
+[2026-11-26 06:07:43 +0000] Status=4, isTerminal=NO, Elapsed=01:25.
+	Waiting on System App
+
+[2026-11-26 06:07:45 +0000] Status=4, isTerminal=NO, Elapsed=01:27.
+	Waiting on System App
+
+[2026-11-26 06:07:53 +0000] Status=4294967295, isTerminal=YES, Elapsed=01:35.
+	Finished
+
+== 06:08:31 the previous app signs in
+/Users/runner/work/_temp/8296bb47-2b58-4849-9d02-d4fa08b4f911.sh: line 4:  8267 Alarm clock: 14         perl -e 'alarm shift; exec @ARGV' "$s" "$@"
+* Create distribution directories...
+* Downloading...
+#=#=#                                                                          ##O#-#                                                                         ##O=#  #                                                                                                                                                  0.5%#                                                                          2.2%###                                                                        4.3%####                                                                       6.7%#####                                                                      7.5%######                                                                     9.7%########                                                                  11.7%#########                                                                 13.7%###########                                                               15.6%############                                                              17.4%#############                                                             19.1%###############                                                           21.7%################                                                          23.5%##################                                                        25.9%####################                                                      28.4%#####################                                                     29.9%#######################                                                   32.5%########################                                                  34.0%#########################                                                 35.7%###########################                                               37.9%############################                                              39.3%############################                                              39.8%#############################                                             40.5%##############################                                            42.5%###############################                                           44.2%#################################                                         46.8%###################################                                       48.9%####################################                                      50.9%######################################                                    52.8%#######################################                                   55.4%#########################################                                 58.2%############################################                              61.3%##############################################                            64.3%################################################                          67.6%##################################################                        70.0%###################################################                       71.3%#####################################################                     74.2%#######################################################                   76.8%########################################################                  78.9%#########################################################                 80.3%###########################################################               82.5%############################################################              83.9%#############################################################             85.2%##############################################################            87.3%###############################################################           88.8%#################################################################         90.7%##################################################################        92.8%###################################################################       93.1%###################################################################       94.2%#####################################################################     96.4%######################################################################    97.9%#######################################################################  100.0%######################################################################## 100.0%
+* Checking archive integrity...
+* Extracting archive...
+* Remove previous installation (if any)
+* Copying archive contents...
+* Cleaning up...
+
+
+Installation was successful!
+Please open a new terminal OR run the following in the existing one:
+
+    export PATH="$PATH":"$HOME/.maestro/bin"
+
+Then run the following command:
+
+    maestro
+
+Welcome to Maestro!
+Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS environment variable to any value before running Maestro.
+
+2.12.1
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow takeover-signin
+Launch app "com.linea.messenger.preview" with clear state... COMPLETED
+Assert that id: field-Логин is visible... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-00-auth... COMPLETED
+Retry 3 times...
+  Tap on id: field-Логин... COMPLETED
+  Erase 40 characters... COMPLETED
+  Input text ${LOGIN}... COMPLETED
+  Press Enter key... COMPLETED
+  Run flow when id: field-Пароль is not visible...
+  Run flow when id: field-Пароль is not visible... SKIPPED
+  Assert that id: field-Пароль is visible... COMPLETED
+Retry 3 times... COMPLETED
+Tap on (Optional) "Показать: пароль"... COMPLETED
+Tap on id: field-Пароль... COMPLETED
+Input text ${PASSWORD}... COMPLETED
+Press Enter key... COMPLETED
+Tap on (Optional) "Not Now|Не сейчас"... WARNED
+Run flow when id: field-Слово подтверждения is not visible...
+Run flow when id: field-Слово подтверждения is not visible... SKIPPED
+Assert that id: field-Слово подтверждения is visible... COMPLETED
+Tap on (Optional) "Показать: слово подтверждения"... COMPLETED
+Tap on id: field-Слово подтверждения... COMPLETED
+Input text ${WORD}... COMPLETED
+Take screenshot ref-01-word... COMPLETED
+Press Enter key... COMPLETED
+Assert that "Избранное.*|Чаты|Not Now|Не сейчас|Войти в Инвиз|Сервер не ответил.*|Нет связи.*" is visible... COMPLETED
+Tap on (Optional) "Not Now|Не сейчас"... WARNED
+Run flow when "Войти в Инвиз" is visible and "Чаты" is not visible...
+Run flow when "Войти в Инвиз" is visible and "Чаты" is not visible... SKIPPED
+Tap on (Optional) "Allow|Разрешить"... WARNED
+Assert that "Избранное.*|Чаты" is visible... COMPLETED
+Tap on (Optional) "Allow|Разрешить"... WARNED
+Wait for animation to end... COMPLETED
+Take screenshot ref-02-signed-in... COMPLETED
+== 06:18:41 people write to the account and set up its world; the previous app decrypts them
+grep: /Users/runner/work/_temp/out/seed.txt: No such file or directory
+rich seed: 24 messages in Тимур's chat
+friends seeded
+communities seeded
+rich seed: the account side seeded
+{"people":12,"messages":73,"to":"bdf68e15-220a-456d-b7f2-6d73a6d40c7e"}
+rich seed: serving on 127.0.0.1:3998
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow read
+Launch app "com.linea.messenger.preview"... COMPLETED
+Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+Tap on (Optional) "Allow|Разрешить"... WARNED
+Assert that "Анна Лебедева( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Анна Лебедева( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+Assert that (Optional) ".*Ок, жду.*|.*Пропущенный.*|.*Звонок.*" is visible... COMPLETED
+Wait for animation to end... COMPLETED
+Launch app "com.linea.messenger.preview"... COMPLETED
+Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+Assert that (Optional) id: chat-composer is visible... WARNED
+Assert that (Optional) ".*Как тебе фото.*" is visible... WARNED
+Wait for animation to end... COMPLETED
+Take screenshot ref-read-timur... COMPLETED
+Launch app "com.linea.messenger.preview"... COMPLETED
+Assert that (Optional) "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+Wait for animation to end... COMPLETED
+== 06:25:56 the previous app: setup flows, then screen by screen
+-- 06:25:56 ref-42-new-chat
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-42-new-chat
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Новый чат", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Друзья.*" is visible... COMPLETED
+Run flow when "Друзья.*" is not visible...
+Run flow when "Друзья.*" is not visible... SKIPPED
+Assert that (Optional) "Друзья.*" is visible... COMPLETED
+Take screenshot ref-42-new-chat... COMPLETED
+-- 06:27:20 ref-46-chatlist-light
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-46-chatlist-light
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Take screenshot ref-46-chatlist-light... COMPLETED
+-- 06:28:27 ref-07-profile
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-07-profile
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on "Профиль Тимур Богданов.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) ".*Как тебе фото.*" is not visible... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-07-profile... COMPLETED
+-- 06:29:48 ref-08-settings
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-08-settings
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Take screenshot ref-08-settings... COMPLETED
+-- 06:31:01 ref-09-appearance
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-09-appearance
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Оформление.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-09-appearance... COMPLETED
+-- 06:32:19 ref-10-privacy
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-10-privacy
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-10-privacy... COMPLETED
+-- 06:33:33 ref-11-people
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-11-people
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/sections.yaml...
+  Run ${output.held = false}... COMPLETED
+  Run flow when "Чаты, .*" is visible...
+    Long press on "Чаты, .*"... COMPLETED
+    Run ${output.held = true}... COMPLETED
+  Run flow when "Чаты, .*" is visible... COMPLETED
+  Run flow when ${!output.held} is true...
+  Run flow when false is true... SKIPPED
+  Assert that (Optional) "Музыка" is visible... COMPLETED
+  Run flow when "Музыка" is not visible...
+  Run flow when "Музыка" is not visible... SKIPPED
+  Assert that "Музыка" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/sections.yaml... COMPLETED
+Tap on "Люди.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-11-people... COMPLETED
+-- 06:34:58 ref-49-profile-scrolled
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-49-profile-scrolled
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on "Профиль Тимур Богданов.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) ".*Как тебе фото.*" is not visible... COMPLETED
+Wait for animation to end... COMPLETED
+Swipe from (50%,78%) to (50%,30%) in 700 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-49-profile-scrolled... COMPLETED
+-- 06:36:34 ref-50-profile-files
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-50-profile-files
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on "Профиль Тимур Богданов.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) ".*Как тебе фото.*" is not visible... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Файлы.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Файлы.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-50-profile-files... COMPLETED
+-- 06:38:07 ref-51-profile-links
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-51-profile-links
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on "Профиль Тимур Богданов.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) ".*Как тебе фото.*" is not visible... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Голосовые" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Swiping in LEFT direction on "Голосовые"... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Ссылки.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-51-profile-links... COMPLETED
+-- 06:40:12 ref-52-person-posts
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-52-person-posts
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/sections.yaml...
+  Run ${output.held = false}... COMPLETED
+  Run flow when "Чаты, .*" is visible...
+    Long press on "Чаты, .*"... COMPLETED
+    Run ${output.held = true}... COMPLETED
+  Run flow when "Чаты, .*" is visible... COMPLETED
+  Run flow when ${!output.held} is true...
+  Run flow when false is true... SKIPPED
+  Assert that (Optional) "Музыка" is visible... COMPLETED
+  Run flow when "Музыка" is not visible...
+  Run flow when "Музыка" is not visible... SKIPPED
+  Assert that "Музыка" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/sections.yaml... COMPLETED
+Tap on "Люди.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that ".*Анна Лебедева.*" is visible... COMPLETED
+Tap on point (74%,68%)... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Написать" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-52-person-posts... COMPLETED
+-- 06:42:37 ref-53-own-profile
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-53-own-profile
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Мой профиль", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Изменить.*" is visible... COMPLETED
+Take screenshot ref-53-own-profile... COMPLETED
+-- 06:44:11 ref-54-own-profile-scrolled
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-54-own-profile-scrolled
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Мой профиль", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Изменить.*" is visible... COMPLETED
+Swipe from (50%,78%) to (50%,30%) in 700 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-54-own-profile-scrolled... COMPLETED
+-- 06:45:54 ref-55-profile-editor
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-55-profile-editor
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Take screenshot ref-55-profile-editor... COMPLETED
+-- 06:47:19 ref-56-editor-banner
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-56-editor-banner
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Tap on "Изменить баннер|Установить баннер", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-56-editor-banner... COMPLETED
+-- 06:48:32 ref-57-status-sheet
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-57-status-sheet
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Сменить статус рядом с именем"... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-57-status-sheet... COMPLETED
+-- 06:49:38 ref-58-editor-pattern
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-58-editor-pattern
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Узор фона.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Run flow when "Готово" is not visible...
+Run flow when "Готово" is not visible... SKIPPED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-58-editor-pattern... COMPLETED
+-- 06:51:17 ref-59-editor-color
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-59-editor-color
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Персональный цвет.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Run flow when "Готово" is not visible...
+Run flow when "Готово" is not visible... SKIPPED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-59-editor-color... COMPLETED
+-- 06:53:02 ref-60-editor-birthday
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-60-editor-birthday
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "День рождения.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Run flow when "Готово" is not visible...
+Run flow when "Готово" is not visible... SKIPPED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-60-editor-birthday... COMPLETED
+-- 06:54:46 ref-61-editor-studio
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-61-editor-studio
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-61-editor-studio... COMPLETED
+-- 06:56:17 ref-62-editor-username
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-62-editor-username
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Изменить", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Имя пользователя.*" is visible... COMPLETED
+Tap on "Имя пользователя.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-62-editor-username... COMPLETED
+-- 06:57:44 ref-63-platina-showcase
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-63-platina-showcase
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Инвиз Platina", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-63-platina-showcase... COMPLETED
+-- 06:59:16 ref-64-notifications
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-64-notifications
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Уведомления и звуки.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Уведомления и звуки.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-64-notifications... COMPLETED
+-- 07:00:53 ref-65-folders-settings
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-65-folders-settings
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Папки с чатами.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Папки с чатами.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-65-folders-settings... COMPLETED
+-- 07:02:24 ref-66-power
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-66-power
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Энергосбережение и анимации.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Энергосбережение и анимации.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-66-power... COMPLETED
+-- 07:03:42 ref-67-language
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-67-language
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Язык.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Язык.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-67-language... COMPLETED
+-- 07:05:05 ref-68-night
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-68-night
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Оформление.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Ночная тема.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Ночная тема.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-68-night... COMPLETED
+-- 07:06:30 ref-69-colors
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-69-colors
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Оформление.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Цвет интерфейса.*" is visible with speed 40, visibility percentage 100%, timeout 40000 ms, with centering enabled... COMPLETED
+Run flow when "Переслать" is visible...
+Run flow when "Переслать" is visible... SKIPPED
+Run flow when "Цвет интерфейса.*" is not visible...
+Run flow when "Цвет интерфейса.*" is not visible... SKIPPED
+Wait for animation to end... COMPLETED
+Tap on "Цвет интерфейса.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-69-colors... COMPLETED
+-- 07:08:12 ref-70-wallpapers
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-70-wallpapers
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Tap on "Оформление.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Обои чатов.*" is visible with speed 40, visibility percentage 100%, timeout 40000 ms, with centering enabled... COMPLETED
+Run flow when "Переслать" is visible...
+Run flow when "Переслать" is visible... SKIPPED
+Run flow when "Обои чатов.*" is not visible...
+Run flow when "Обои чатов.*" is not visible... SKIPPED
+Wait for animation to end... COMPLETED
+Tap on "Обои чатов.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-70-wallpapers... COMPLETED
+-- 07:09:50 ref-71-lastseen
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-71-lastseen
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Время захода.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Время захода.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-71-lastseen... COMPLETED
+-- 07:11:09 ref-72-lastseen-allow
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-72-lastseen-allow
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Время захода.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Время захода.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Мои друзья.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Всегда показывать.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Всегда показывать.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-72-lastseen-allow... COMPLETED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Время захода.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Время захода.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on (Optional) "Все"... COMPLETED
+Wait for animation to end... COMPLETED
+-- 07:13:32 ref-73-call-privacy
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-73-call-privacy
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Scrolling DOWN until "Кто может звонить.*" is visible with speed 40, visibility percentage 100%, timeout 40000 ms, with centering enabled... COMPLETED
+Run flow when "Переслать" is visible...
+Run flow when "Переслать" is visible... SKIPPED
+Run flow when "Кто может звонить.*" is not visible...
+Run flow when "Кто может звонить.*" is not visible... SKIPPED
+Wait for animation to end... COMPLETED
+Take screenshot ref-73-call-privacy... COMPLETED
+-- 07:14:55 ref-74-passcode
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-74-passcode
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Код-пароль.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-74-passcode... COMPLETED
+-- 07:16:04 ref-75-passcode-entry
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-75-passcode-entry
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Scrolling DOWN until "Конфиденциальность.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Конфиденциальность.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Код-пароль.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Включить код-пароль"... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-75-passcode-entry... COMPLETED
+-- 07:17:16 ref-76-people-search
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-76-people-search
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/sections.yaml...
+  Run ${output.held = false}... COMPLETED
+  Run flow when "Чаты, .*" is visible...
+    Long press on "Чаты, .*"... COMPLETED
+    Run ${output.held = true}... COMPLETED
+  Run flow when "Чаты, .*" is visible... COMPLETED
+  Run flow when ${!output.held} is true...
+  Run flow when false is true... SKIPPED
+  Assert that (Optional) "Музыка" is visible... COMPLETED
+  Run flow when "Музыка" is not visible...
+  Run flow when "Музыка" is not visible... SKIPPED
+  Assert that "Музыка" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/sections.yaml... COMPLETED
+Tap on "Люди.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Ник или имя пользователя"... COMPLETED
+Wait for animation to end... COMPLETED
+Input text Лар... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot ref-76-people-search... COMPLETED
+-- 07:18:47 ref-77-settings-light
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-77-settings-light
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Tap on "Настройки"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that (Optional) "Оформление.*" is visible... COMPLETED
+Run flow when "Оформление.*" is not visible...
+Run flow when "Оформление.*" is not visible... SKIPPED
+Assert that "Оформление.*" is visible... COMPLETED
+Take screenshot ref-77-settings-light... COMPLETED
+-- 07:19:54 ref-78-profile-light
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-78-profile-light
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on "Профиль Тимур Богданов.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) ".*Как тебе фото.*" is not visible... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-78-profile-light... COMPLETED
+-- 07:21:11 ref-79-people-light
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-79-people-light
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/sections.yaml...
+  Run ${output.held = false}... COMPLETED
+  Run flow when "Чаты, .*" is visible...
+    Long press on "Чаты, .*"... COMPLETED
+    Run ${output.held = true}... COMPLETED
+  Run flow when "Чаты, .*" is visible... COMPLETED
+  Run flow when ${!output.held} is true...
+  Run flow when false is true... SKIPPED
+  Assert that (Optional) "Музыка" is visible... COMPLETED
+  Run flow when "Музыка" is not visible...
+  Run flow when "Музыка" is not visible... SKIPPED
+  Assert that "Музыка" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/sections.yaml... COMPLETED
+Tap on "Люди.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot ref-79-people-light... COMPLETED
+== 07:22:28 the native app is installed OVER the previous one
+== 07:22:31 what the native app finds of the previous one
+com.linea.messenger.preview: 9979
+takeover-check v1
+server=https://localhost:8443
+user=bdf68e15-220a-456d-b7f2-6d73a6d40c7e
+token[linea.session.v1]=present (43 bytes)
+passcode[linea.passcode.v1]=missing
+recovery[linea.recovery.pending.v1]=missing
+devicekey=present (public 6d555370a3b5)
+scope=23b0963c2f630167f8033a4a74f39687fd038ff86f3737fe48e3c42863208d5a
+vaultkey[linea.e2ee.v1.<scope>]=present (64 bytes), 64 hex
+vaultfile[Documents/SQLite/linea-e2ee-<scope>.db]=present (135168 bytes, header encrypted)
+sqlite-folder=linea-e2ee-<scope>.db, linea-e2ee-<scope>.db-shm, linea-e2ee-<scope>.db-wal
+vaultopen=ok (SQLCipher 4.20.0 community)
+device=present (sha256 95446dd1b942)
+protocol=present (21812 bytes)
+messages[message:*]=73 (decrypted with text: 67, could not be opened: 0)
+history[history:*]=26
+sessions[session:*]=12
+trust[trust:*]=12
+devices[devices:*]=13
+chats-cache[chats:v1]=12 chats
+pages-cache[page:v1:*]=2
+saved[saved:v1]=missing
+expect "Как тебе фото"=found in the decrypted messages
+VERDICT=PASS
+== 07:22:54 the native app, screen by screen
+com.linea.messenger.preview: 11245
+-- 07:23:43 nat-42-new-chat (launch arguments, then nat/nat-42-new-chat.yaml)
+com.linea.messenger.preview: 14216
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-42-new-chat
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run ../act/nat-home.yaml...
+  Assert that (Optional) "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run ../act/nat-home.yaml... COMPLETED
+Tap on "Новый чат", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Друзья.*" is visible... COMPLETED
+Run flow when "Друзья.*" is not visible...
+Run flow when "Друзья.*" is not visible... SKIPPED
+Assert that (Optional) "Друзья.*" is visible... COMPLETED
+Take screenshot nat-42-new-chat... COMPLETED
+-- 07:25:19 nat-46-chatlist-light
+com.linea.messenger.preview: 19731
+-- 07:25:50 nat-07-profile
+com.linea.messenger.preview: 21431
+-- 07:26:35 nat-08-settings
+com.linea.messenger.preview: 23951
+-- 07:26:58 nat-09-appearance
+com.linea.messenger.preview: 25091
+-- 07:27:23 nat-10-privacy
+com.linea.messenger.preview: 26196
+-- 07:27:47 nat-11-people
+com.linea.messenger.preview: 27665
+-- 07:28:15 nat-49-profile-scrolled (launch arguments, then nat/nat-49-profile-scrolled.yaml)
+com.linea.messenger.preview: 28788
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-49-profile-scrolled
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Swipe from (50%,78%) to (50%,30%) in 700 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-49-profile-scrolled... COMPLETED
+-- 07:30:17 nat-50-profile-files (launch arguments, then nat/nat-50-profile-files.yaml)
+com.linea.messenger.preview: 34234
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-50-profile-files
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Scrolling DOWN until "Файлы.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Файлы.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-50-profile-files... COMPLETED
+-- 07:32:13 nat-51-profile-links (launch arguments, then nat/nat-51-profile-links.yaml)
+com.linea.messenger.preview: 38873
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-51-profile-links
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Scrolling DOWN until "Голосовые" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Swiping in LEFT direction on "Голосовые"... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Ссылки.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-51-profile-links... COMPLETED
+-- 07:34:17 nat-52-person-posts
+com.linea.messenger.preview: 44722
+-- 07:34:52 nat-53-own-profile (launch arguments, then nat/nat-53-own-profile.yaml)
+com.linea.messenger.preview: 46101
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-53-own-profile
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Мой профиль", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Изменить.*" is visible... COMPLETED
+Take screenshot nat-53-own-profile... COMPLETED
+-- 07:36:12 nat-54-own-profile-scrolled (launch arguments, then nat/nat-54-own-profile-scrolled.yaml)
+com.linea.messenger.preview: 50320
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-54-own-profile-scrolled
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Мой профиль", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Изменить.*" is visible... COMPLETED
+Swipe from (50%,78%) to (50%,30%) in 700 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-54-own-profile-scrolled... COMPLETED
+-- 07:37:30 nat-55-profile-editor
+com.linea.messenger.preview: 54561
+-- 07:38:00 nat-56-editor-banner (launch arguments, then nat/nat-56-editor-banner.yaml)
+com.linea.messenger.preview: 55456
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-56-editor-banner
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Изменить баннер|Установить баннер", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-56-editor-banner... COMPLETED
+-- 07:39:22 nat-57-status-sheet (launch arguments, then nat/nat-57-status-sheet.yaml)
+com.linea.messenger.preview: 59342
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-57-status-sheet
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Сменить статус рядом с именем"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Значок Platina по умолчанию" is visible... COMPLETED
+Run flow when "Значок Platina по умолчанию" is not visible...
+Run flow when "Значок Platina по умолчанию" is not visible... SKIPPED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-57-status-sheet... COMPLETED
+-- 07:40:53 nat-58-editor-pattern (launch arguments, then nat/nat-58-editor-pattern.yaml)
+com.linea.messenger.preview: 63348
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-58-editor-pattern
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Узор фона.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Run flow when "Готово" is not visible...
+Run flow when "Готово" is not visible... SKIPPED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-58-editor-pattern... COMPLETED
+-- 07:42:29 nat-59-editor-color (launch arguments, then nat/nat-59-editor-color.yaml)
+com.linea.messenger.preview: 68318
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-59-editor-color
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "Персональный цвет.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Run flow when "Готово" is not visible...
+Run flow when "Готово" is not visible... SKIPPED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-59-editor-color... COMPLETED
+-- 07:44:12 nat-60-editor-birthday (launch arguments, then nat/nat-60-editor-birthday.yaml)
+com.linea.messenger.preview: 72265
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-60-editor-birthday
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Tap on "День рождения.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Run flow when "Готово" is not visible...
+Run flow when "Готово" is not visible... SKIPPED
+Assert that (Optional) "Готово" is visible... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-60-editor-birthday... COMPLETED
+-- 07:45:52 nat-61-editor-studio (launch arguments, then nat/nat-61-editor-studio.yaml)
+com.linea.messenger.preview: 76497
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-61-editor-studio
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Swipe from (98%,72%) to (98%,48%) in 800 ms... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-61-editor-studio... COMPLETED
+-- 07:47:21 nat-62-editor-username
+com.linea.messenger.preview: 80495
+-- 07:47:50 nat-63-platina-showcase (launch arguments, then nat/nat-63-platina-showcase.yaml)
+com.linea.messenger.preview: 81734
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-63-platina-showcase
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Инвиз Platina", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-63-platina-showcase... COMPLETED
+-- 07:49:13 nat-64-notifications
+com.linea.messenger.preview: 85393
+-- 07:49:35 nat-65-folders-settings (launch arguments, then nat/nat-65-folders-settings.yaml)
+com.linea.messenger.preview: 86622
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-65-folders-settings
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Scrolling DOWN until "Папки с чатами.*" is visible with speed 40, visibility percentage 100%, timeout 30000 ms, with centering disabled... COMPLETED
+Tap on "Папки с чатами.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-65-folders-settings... COMPLETED
+-- 07:50:42 nat-66-power
+com.linea.messenger.preview: 89663
+-- 07:51:05 nat-67-language
+com.linea.messenger.preview: 91317
+-- 07:51:28 nat-68-night
+com.linea.messenger.preview: 92391
+-- 07:51:51 nat-69-colors (launch arguments, then nat/nat-69-colors.yaml)
+com.linea.messenger.preview: 93198
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-69-colors
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Scrolling DOWN until "Цвет интерфейса.*" is visible with speed 40, visibility percentage 100%, timeout 40000 ms, with centering enabled... COMPLETED
+Run flow when "Переслать" is visible...
+Run flow when "Переслать" is visible... SKIPPED
+Run flow when "Цвет интерфейса.*" is not visible...
+Run flow when "Цвет интерфейса.*" is not visible... SKIPPED
+Wait for animation to end... COMPLETED
+Tap on "Цвет интерфейса.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-69-colors... COMPLETED
+-- 07:55:03 nat-70-wallpapers (launch arguments, then nat/nat-70-wallpapers.yaml)
+com.linea.messenger.preview: 97985
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-70-wallpapers
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Scrolling DOWN until "Обои чатов.*" is visible with speed 40, visibility percentage 100%, timeout 40000 ms, with centering enabled... COMPLETED
+Run flow when "Переслать" is visible...
+Run flow when "Переслать" is visible... SKIPPED
+Run flow when "Обои чатов.*" is not visible...
+Run flow when "Обои чатов.*" is not visible... SKIPPED
+Wait for animation to end... COMPLETED
+Tap on "Обои чатов.*", Index: 0... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-70-wallpapers... COMPLETED
+-- 07:56:44 nat-71-lastseen
+com.linea.messenger.preview: 2773
+-- 07:57:08 nat-72-lastseen-allow
+com.linea.messenger.preview: 3718
+-- 07:57:30 nat-73-call-privacy (launch arguments, then nat/nat-73-call-privacy.yaml)
+com.linea.messenger.preview: 4893
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-73-call-privacy
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Scrolling DOWN until "Кто может звонить.*" is visible with speed 40, visibility percentage 100%, timeout 40000 ms, with centering enabled... COMPLETED
+Run flow when "Переслать" is visible...
+Run flow when "Переслать" is visible... SKIPPED
+Run flow when "Кто может звонить.*" is not visible...
+Run flow when "Кто может звонить.*" is not visible... SKIPPED
+Wait for animation to end... COMPLETED
+Take screenshot nat-73-call-privacy... COMPLETED
+-- 07:58:56 nat-74-passcode
+com.linea.messenger.preview: 8314
+-- 07:59:20 nat-75-passcode-entry (launch arguments, then nat/nat-75-passcode-entry.yaml)
+com.linea.messenger.preview: 9996
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-75-passcode-entry
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Включить код-пароль"... COMPLETED
+Wait for animation to end... COMPLETED
+Take screenshot nat-75-passcode-entry... COMPLETED
+-- 08:00:26 nat-76-people-search (launch arguments, then nat/nat-76-people-search.yaml)
+com.linea.messenger.preview: 12577
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow nat-76-people-search
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Tap on "Ник или имя пользователя"... COMPLETED
+Wait for animation to end... COMPLETED
+Input text Лар... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Take screenshot nat-76-people-search... COMPLETED
+-- 08:01:51 nat-77-settings-light
+com.linea.messenger.preview: 16251
+-- 08:02:14 nat-78-profile-light
+com.linea.messenger.preview: 17528
+-- 08:02:57 nat-79-people-light
+com.linea.messenger.preview: 19843
+== 08:03:28 done
+shard 2 pictures: 79 of 76

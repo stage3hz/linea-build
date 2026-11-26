@@ -1,0 +1,57 @@
+Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ > Flow ref-48-draft
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible...
+Run flow when "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото" is visible... SKIPPED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on id: chat-composer... COMPLETED
+Input text Не забыть спросить про проектор... COMPLETED
+Tap on "Назад к чатам.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED
+Run act/ref-home.yaml...
+  Launch app "com.linea.messenger.preview"... COMPLETED
+  Assert that "Чаты|Соединение.*|Ожидание сети.*|Обновление.*" is visible... COMPLETED
+  Tap on (Optional) "Allow|Разрешить|Not Now|Не сейчас"... WARNED
+  Assert that "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/ref-home.yaml... COMPLETED
+Take screenshot ref-48-draft... COMPLETED
+Run act/open-timur.yaml...
+  Tap on "Тимур Богданов( [^.,]+)?(\. .*|, непрочитанных.*|, помечен.*)?"... COMPLETED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when "Удалить чат" is visible...
+  Run flow when "Удалить чат" is visible... SKIPPED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that (Optional) id: chat-composer is visible... COMPLETED
+  Run flow when id: chat-composer is not visible...
+  Run flow when id: chat-composer is not visible... SKIPPED
+  Assert that id: chat-composer is visible... COMPLETED
+  Assert that ".*Как тебе фото.*" is visible... COMPLETED
+  Wait for animation to end... COMPLETED
+Run act/open-timur.yaml... COMPLETED
+Tap on (Optional) id: chat-composer... COMPLETED
+Erase 40 characters... COMPLETED
+Tap on (Optional) "Назад к чатам.*"... COMPLETED
+Wait for animation to end... COMPLETED
+Assert that (Optional) "a text that never shows 7f3k" is visible... WARNED

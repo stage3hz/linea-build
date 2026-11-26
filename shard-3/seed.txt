@@ -1,0 +1,12 @@
+rich seed: 24 messages in Тимур's chat
+friends seeded
+communities seeded
+rich seed: the account side seeded
+{"people":12,"messages":73,"to":"a978795f-47c1-4e2f-8985-f41cebc1b0a8"}
+rich seed: serving on 127.0.0.1:3998
+rich seed: /health done
+rich seed: /health done
+rich seed: /ring done
+rich seed: /hangup done
+rich seed: /ring done
+rich seed: /hangup done
