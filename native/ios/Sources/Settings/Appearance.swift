@@ -5,59 +5,73 @@ import UIKit
 final class ThemeCard: UIControl {
     var onPress: (() -> Void)?
 
+    /// Which of the previous app's cards this is (ThemeSettings.tsx): `tile` — one of the four built-in themes
+    /// (at least 110 tall, 10 around a picture of 51 with three thin lines, 10 to the name); `palette` — a palette
+    /// (118 wide, 8 around a picture of 92 with three bars of 16 and a ball of 22, 8 to the name); `plain` — the
+    /// card of «Ночная тема».
+    enum Kind { case plain, tile, palette }
+
     /// `page`: the theme's background; `theirs` and `mine`: the two kinds of lines; `dot`: its accent (palettes).
-    init(label: String, spoken: String, chosen: Bool, locked: Bool, page: UIColor, theirs: UIColor, mine: UIColor, edge: UIColor, dot: UIColor?) {
+    init(label: String, spoken: String, chosen: Bool, locked: Bool, page: UIColor, theirs: UIColor, mine: UIColor, edge: UIColor, dot: UIColor?, kind: Kind = .plain) {
         super.init(frame: .zero)
         backgroundColor = chosen ? ThemeStore.look.accentSoft : .clear
-        layer.cornerRadius = 18
+        layer.cornerRadius = kind == .plain ? 18 : 20
         layer.cornerCurve = .continuous
-        layer.borderWidth = chosen ? 1.5 : 1
+        layer.borderWidth = kind == .palette ? 1.5 : kind == .tile ? 1 : (chosen ? 1.5 : 1)
         layer.borderColor = (chosen ? Theme.accent : Theme.veil(0.12)).cgColor
+        // The room around the picture counts the card's own border, as the previous app's padding stands inside it.
+        let around: CGFloat = kind == .tile ? 11 : kind == .palette ? 9.5 : 8
+        let pictureHeight: CGFloat = kind == .tile ? 51 : kind == .palette ? 92 : 58
 
         let preview = UIView()
         preview.backgroundColor = page
-        preview.layer.cornerRadius = 12
+        preview.layer.cornerRadius = kind == .palette ? 14 : 12
         preview.layer.cornerCurve = .continuous
-        preview.layer.borderWidth = 1
+        preview.layer.borderWidth = kind == .palette ? 0 : 1
         preview.layer.borderColor = edge.cgColor
         preview.layer.masksToBounds = true
         preview.isUserInteractionEnabled = false
         preview.translatesAutoresizingMaskIntoConstraints = false
         addSubview(preview)
         var rules: [NSLayoutConstraint] = [
-            preview.topAnchor.constraint(equalTo: topAnchor, constant: 8),
-            preview.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-            preview.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            preview.heightAnchor.constraint(equalToConstant: 58),
+            preview.topAnchor.constraint(equalTo: topAnchor, constant: around),
+            preview.leadingAnchor.constraint(equalTo: leadingAnchor, constant: around),
+            preview.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -around),
+            preview.heightAnchor.constraint(equalToConstant: pictureHeight),
         ]
-        // Three lines of a chat: theirs, mine, theirs.
-        let shares: [CGFloat] = [0.62, 0.66, 0.45]
+        // Three lines of a chat: theirs, mine, theirs. A built-in theme's are thin and its last one stands at the
+        // far side (68 %, 48 %, 52 % of the room inside the picture's 8 and its border); a palette's are bars of 16.
+        let shares: [CGFloat] = kind == .tile ? [0.68, 0.48, 0.52] : kind == .palette ? [0.62, 0.70, 0.45] : [0.62, 0.66, 0.45]
+        let lineHeight: CGFloat = kind == .tile ? 7 : kind == .palette ? 16 : 10
+        let lineStep: CGFloat = kind == .tile ? 12 : kind == .palette ? 22 : 15
+        let lineInset: CGFloat = kind == .tile ? 9 : 8
         for (index, share) in shares.enumerated() {
-            let own = index == 1
+            let own = kind == .tile ? index == 2 : index == 1
             let line = UIView()
             line.backgroundColor = own ? mine : theirs
-            line.layer.cornerRadius = 5
+            line.layer.cornerRadius = kind == .tile ? 4 : kind == .palette ? 8 : 5
             line.translatesAutoresizingMaskIntoConstraints = false
             preview.addSubview(line)
-            rules.append(line.topAnchor.constraint(equalTo: preview.topAnchor, constant: 8 + CGFloat(index) * 15))
-            rules.append(line.heightAnchor.constraint(equalToConstant: 10))
-            rules.append(line.widthAnchor.constraint(equalTo: preview.widthAnchor, multiplier: share, constant: -12))
+            rules.append(line.topAnchor.constraint(equalTo: preview.topAnchor, constant: lineInset + CGFloat(index) * lineStep))
+            rules.append(line.heightAnchor.constraint(equalToConstant: lineHeight))
+            rules.append(line.widthAnchor.constraint(equalTo: preview.widthAnchor, multiplier: share, constant: kind == .plain ? -12 : -2 * lineInset * share))
             if own {
-                rules.append(line.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: -8))
+                rules.append(line.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: -lineInset))
             } else {
-                rules.append(line.leadingAnchor.constraint(equalTo: preview.leadingAnchor, constant: 8))
+                rules.append(line.leadingAnchor.constraint(equalTo: preview.leadingAnchor, constant: lineInset))
             }
         }
         if let dot {
+            let ballSize: CGFloat = kind == .palette ? 22 : 14
             let ball = UIView()
             ball.backgroundColor = dot
-            ball.layer.cornerRadius = 7
+            ball.layer.cornerRadius = ballSize / 2
             ball.translatesAutoresizingMaskIntoConstraints = false
             preview.addSubview(ball)
-            rules.append(ball.widthAnchor.constraint(equalToConstant: 14))
-            rules.append(ball.heightAnchor.constraint(equalToConstant: 14))
-            rules.append(ball.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: -7))
-            rules.append(ball.bottomAnchor.constraint(equalTo: preview.bottomAnchor, constant: -6))
+            rules.append(ball.widthAnchor.constraint(equalToConstant: ballSize))
+            rules.append(ball.heightAnchor.constraint(equalToConstant: ballSize))
+            rules.append(ball.trailingAnchor.constraint(equalTo: preview.trailingAnchor, constant: kind == .palette ? -8 : -7))
+            rules.append(ball.bottomAnchor.constraint(equalTo: preview.bottomAnchor, constant: kind == .palette ? -8 : -6))
         }
         if locked {
             let lock = UIImageView(image: SettingsLook.symbol("ion:lock-closed", size: 10))
@@ -80,7 +94,7 @@ final class ThemeCard: UIControl {
         name.textColor = chosen ? Theme.text : Theme.muted
         name.adjustsFontSizeToFitWidth = true
         name.minimumScaleFactor = 0.75
-        let mark = UIImageView(image: SettingsLook.symbol("ion:checkmark-circle", size: 14))
+        let mark = UIImageView(image: SettingsLook.symbol("ion:checkmark-circle", size: kind == .tile ? 15 : 14))
         mark.tintColor = Theme.accent
         mark.isHidden = !chosen
         mark.setContentHuggingPriority(.required, for: .horizontal)
@@ -91,11 +105,20 @@ final class ThemeCard: UIControl {
         foot.isUserInteractionEnabled = false
         foot.translatesAutoresizingMaskIntoConstraints = false
         addSubview(foot)
-        rules.append(foot.topAnchor.constraint(equalTo: preview.bottomAnchor, constant: 8))
+        rules.append(foot.topAnchor.constraint(equalTo: preview.bottomAnchor, constant: kind == .tile ? 10 : 8))
         rules.append(foot.centerXAnchor.constraint(equalTo: centerXAnchor))
         rules.append(foot.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 6))
         rules.append(foot.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6))
-        rules.append(foot.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -9))
+        if kind == .tile {
+            // `minHeight: 110`: the name stands right under the picture and the rest of the height is under it.
+            rules.append(foot.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -around))
+            rules.append(heightAnchor.constraint(greaterThanOrEqualToConstant: 110))
+            let least = heightAnchor.constraint(equalToConstant: 110)
+            least.priority = .defaultHigh
+            rules.append(least)
+        } else {
+            rules.append(foot.bottomAnchor.constraint(equalTo: bottomAnchor, constant: kind == .palette ? -around : -9))
+        }
         NSLayoutConstraint.activate(rules)
 
         isAccessibilityElement = true
@@ -116,7 +139,7 @@ final class ThemeCard: UIControl {
     }
 
     /// The card of a theme by its id, in the theme's own colours (the core's `settingsTheme`).
-    static func of(_ id: String, chosen: Bool, locked: Bool) -> ThemeCard {
+    static func of(_ id: String, chosen: Bool, locked: Bool, kind: Kind = .plain) -> ThemeCard {
         let fields = ThemeStore.plainFields(id)
         let name = ThemeStore.themeName(id)
         let page = ThemeLook.color(fields["bg"] as? String) ?? UIColor.black
@@ -124,7 +147,7 @@ final class ThemeCard: UIControl {
         let mine = ThemeLook.color(fields["bubble"] as? String) ?? UIColor.gray
         let dark = fields["dark"] as? Bool ?? true
         return ThemeCard(label: name, spoken: "Тема " + name, chosen: chosen, locked: locked, page: page, theirs: theirs, mine: mine,
-                         edge: UIColor(white: dark ? 1 : 0, alpha: 0.12), dot: ThemeLook.color(fields["accent"] as? String))
+                         edge: UIColor(white: dark ? 1 : 0, alpha: 0.12), dot: ThemeLook.color(fields["accent"] as? String), kind: kind)
     }
 
     /// Cards side by side that scroll sideways.
@@ -234,12 +257,12 @@ final class AppearanceViewController: SettingsPage {
         let builtIn = UIStackView()
         builtIn.axis = .horizontal
         builtIn.distribution = .fillEqually
-        builtIn.spacing = 7
+        builtIn.spacing = 9 // ThemeSettings.tsx: `gap: 9`
         for item in ThemeStore.list("appearances") {
             guard let id = item["value"] as? String, let label = item["label"] as? String else { continue }
             let page = ThemeLook.color(item["color"] as? String) ?? UIColor.black
             let line = ThemeLook.color(item["line"] as? String) ?? UIColor.gray
-            let card = ThemeCard(label: label, spoken: label + " тема", chosen: shown == id, locked: false, page: page, theirs: line, mine: line, edge: line, dot: nil)
+            let card = ThemeCard(label: label, spoken: label + " тема", chosen: shown == id, locked: false, page: page, theirs: line, mine: line, edge: line, dot: nil, kind: .tile)
             card.onPress = { [weak self] in self?.choose(id) }
             builtIn.addArrangedSubview(card)
         }
@@ -252,14 +275,14 @@ final class AppearanceViewController: SettingsPage {
         var cards: [ThemeCard] = []
         for item in ThemeStore.list("palettes") {
             guard let id = item["id"] as? String else { continue }
-            let card = ThemeCard.of(id, chosen: platina && shown == id, locked: !platina)
+            let card = ThemeCard.of(id, chosen: platina && shown == id, locked: !platina, kind: .palette)
             card.onPress = { [weak self] in self?.pick(palette: id) }
             cards.append(card)
         }
-        let strip = ThemeCard.strip(cards, width: 112)
+        let strip = ThemeCard.strip(cards, width: 118)
         let themes = UIStackView(arrangedSubviews: [builtIn, palettesName, strip])
         themes.axis = .vertical
-        themes.spacing = 12
+        themes.spacing = 9 // ThemeSettings.tsx: 9 from «Палитры» to its cards, 16 above it
         themes.setCustomSpacing(16, after: builtIn)
         if lockedHint && !platina {
             themes.addArrangedSubview(SettingsLook.words("Палитры входят в Инвиз Platina. Войди в аккаунт с Platina, чтобы их включить.", size: 12, color: Theme.muted))
