@@ -141,6 +141,9 @@ final class IntroView: UIView {
         if link != nil { return }
         last = 0
         let made = CADisplayLink(target: self, selector: #selector(onFrame(_:)))
+        // The scene is drawn at 60 frames a second at most, as it was made and checked (a ProMotion screen would
+        // otherwise ask for twice the frames now that the app may go above 60 Hz).
+        made.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60, preferred: 60)
         made.add(to: .main, forMode: .common)
         link = made
     }

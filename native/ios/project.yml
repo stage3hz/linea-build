@@ -53,6 +53,9 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIUserInterfaceStyle: Dark
+        # ProMotion: the app's own animations and display links may run above 60 Hz, as in the previous app
+        # (mobile/app.config.js); without it only the system's scrolling does. Effects/MotionBlur.swift measures the rate.
+        CADisableMinimumFrameDurationOnPhone: true
         # Music keeps playing when the app is not on the screen (Sources/Music/MusicPlayer.swift).
         UIBackgroundModes: [audio]
         # Chats: the reference's typefaces — Montserrat for text, Unbounded ExtraBold for titles (Sources/Design/AppFont.swift).

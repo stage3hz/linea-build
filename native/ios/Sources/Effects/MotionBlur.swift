@@ -6,7 +6,8 @@ import ObjectiveC
 /// On a 60 Hz panel a page that slides 3000 pt/s jumps 50 pt between two frames; a little smear along the motion
 /// hides the steps and the slide reads smoother. A watched view is smeared along the way it moves, by its own measured
 /// speed: nothing below `dead` pt/s, a smooth rise (smoothstep) to the strongest at `full` pt/s, and gone the very
-/// frame it stops. ProMotion (120 Hz) screens get nothing; nothing either in the low power mode, in power saving, with
+/// frame it stops. A screen that gives 120 Hz gets nothing (a ProMotion screen held at 60 Hz is a slow one: `slowScreen`);
+/// nothing either in the low power mode, in power saving, with
 /// animations off («Энергосбережение и анимации») or with «Уменьшение движения».
 ///
 /// How (there is no public directional blur of a live view, and a CoreImage blur every frame would cost the frames it
@@ -46,11 +47,17 @@ enum MotionBlur {
     static let hold = false
     #endif
 
-    /// The screen's fastest rate is below 90 Hz (every iPhone without ProMotion).
-    static let slowScreen: Bool = UIScreen.main.maximumFramesPerSecond < 90
+    /// The screen's fastest rate is below 90 Hz by its make (every iPhone without ProMotion).
+    private static let slowByMake: Bool = UIScreen.main.maximumFramesPerSecond < 90
 
-    /// May the effect ever run on this device: nothing is attached on 120 Hz.
-    static var possible: Bool { return forced ?? slowScreen }
+    /// The screen gives fewer than 90 frames a second now. By its make, or — a ProMotion screen — because it is held
+    /// at 60 Hz («Ограничение частоты кадров» in the system's settings): the system does not say so, so the rate is
+    /// measured (`MotionBlurRate`). Until the first measure, the make decides.
+    static var slowScreen: Bool { return MotionBlurRate.shared.slow ?? slowByMake }
+
+    /// May the effect ever run on this device. Every screen may turn slow (see `slowScreen`), so the watchers are
+    /// attached everywhere; on a fast screen they do nothing (`allowed`).
+    static var possible: Bool { return forced ?? true }
 
     /// May a view be smeared right now.
     static var allowed: Bool {
@@ -97,6 +104,7 @@ enum MotionBlur {
     static func install() {
         guard !installed, possible else { return }
         installed = true
+        MotionBlurRate.shared.start()
         swap(#selector(UIViewController.viewWillAppear(_:)), #selector(UIViewController.motionBlur_viewWillAppear(_:)))
         swap(#selector(UIViewController.viewWillDisappear(_:)), #selector(UIViewController.motionBlur_viewWillDisappear(_:)))
     }
@@ -313,5 +321,56 @@ final class MotionBlurTracker: NSObject, UIGestureRecognizerDelegate {
         speed = .zero
         copyIn = nil
         if !held { dropGhosts() }
+    }
+}
+
+/// The rate the screen really gives: a display link asks for the fastest there is and a few frames are timed. Measured
+/// at the start, each time the app comes back (the system's switch may have been changed meanwhile) and when the
+/// power mode changes. (A display link may go above 60 Hz on an iPhone only with
+/// `CADisableMinimumFrameDurationOnPhone` in Info.plist — project.yml.)
+final class MotionBlurRate: NSObject {
+    static let shared = MotionBlurRate()
+
+    /// Fewer than 90 frames a second; nil until measured.
+    private(set) var slow: Bool?
+    private var link: CADisplayLink?
+    private var frames = 0
+    private var shortest: CFTimeInterval = 1
+    private var started = false
+
+    func start() {
+        guard !started else { return }
+        started = true
+        let centre = NotificationCenter.default
+        centre.addObserver(self, selector: #selector(measure), name: UIApplication.didBecomeActiveNotification, object: nil)
+        centre.addObserver(self, selector: #selector(measure), name: NSNotification.Name.NSProcessInfoPowerStateDidChange, object: nil)
+        measure()
+    }
+
+    @objc private func measure() {
+        // The power mode's notice may come on another thread.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.link == nil else { return }
+            if UIScreen.main.maximumFramesPerSecond < 90 {
+                self.slow = true
+                return
+            }
+            self.frames = 0
+            self.shortest = 1
+            let made = CADisplayLink(target: self, selector: #selector(self.frame(_:)))
+            made.preferredFrameRateRange = CAFrameRateRange(minimum: 80, maximum: 120, preferred: 120)
+            made.add(to: .main, forMode: .common)
+            self.link = made
+        }
+    }
+
+    @objc private func frame(_ link: CADisplayLink) {
+        frames += 1
+        // The first frames after a link starts may come at the old rate.
+        if frames > 4 { shortest = min(shortest, link.targetTimestamp - link.timestamp) }
+        guard frames >= 24 else { return }
+        link.invalidate()
+        self.link = nil
+        slow = shortest > 1.0 / 90
     }
 }
