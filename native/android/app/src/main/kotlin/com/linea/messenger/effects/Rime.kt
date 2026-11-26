@@ -25,6 +25,9 @@ class Rime(private val owner: View) {
   private var askedW = 0; private var askedH = 0; private var askedR = -1f; private var askedDark = false
   @Volatile private var ticket = 0
   private var appearing = 1f
+  /** The plate has shown its rime before: a picture made again (its page was covered and comes back) is simply
+   *  there, not faded in once more, so the frost does not seem to arrive late on a plate that already had it. */
+  private var seen = false
   private var fader: ValueAnimator? = null
   private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
   private val rect = RectF()
@@ -70,7 +73,8 @@ class Rime(private val owner: View) {
     val first = frost == null
     // The replaced bitmap may still be referenced by the last recorded frame: it is left to the GC, not recycled.
     frost = bitmap
-    if (first && bitmap != null) appear()
+    if (first && bitmap != null && !seen) appear()
+    if (bitmap != null) seen = true
     owner.invalidate()
   }
 
@@ -87,8 +91,10 @@ class Rime(private val owner: View) {
     }
   }
 
-  /** The bitmap is let go (the setting was turned off, or the plate left the screen); the next drawing asks anew. */
-  fun forget() {
+  /** The bitmap is let go (the setting was turned off, or the plate left the screen); the next drawing asks anew.
+   *  `fade`: the next picture fades in as the first one did (the setting was turned on again). */
+  fun forget(fade: Boolean = true) {
+    if (fade) seen = false
     ticket++
     fader?.cancel(); fader = null; appearing = 1f
     frost = null; askedW = 0; askedH = 0; askedR = -1f

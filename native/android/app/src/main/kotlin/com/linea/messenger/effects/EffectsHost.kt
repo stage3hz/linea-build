@@ -215,7 +215,7 @@ object EffectsHost {
   private fun keepRime() {
     for (glass in Glass.plates.keys.toList()) {
       val owner = glass.owned
-      if (!owner.isAttachedToWindow || !owner.isShown) glass.forgetRime()
+      if (!owner.isAttachedToWindow || !owner.isShown) glass.forgetRime(fade = false)
     }
   }
 

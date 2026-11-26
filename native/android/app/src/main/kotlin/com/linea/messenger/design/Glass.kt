@@ -3,6 +3,7 @@ package com.linea.messenger.design
 import android.annotation.TargetApi
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Outline
 import android.graphics.Paint
 import android.graphics.RenderEffect
@@ -10,6 +11,7 @@ import android.graphics.RenderNode
 import android.graphics.Shader
 import android.os.Build
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import com.linea.messenger.effects.EffectsHost
 import com.linea.messenger.effects.Rime
@@ -22,12 +24,31 @@ open class GlassSource(context: Context) : FrameLayout(context) {
 
   override fun dispatchDraw(canvas: Canvas) {
     val node = recorder
-    if (Build.VERSION.SDK_INT >= 31 && node is SourceNode && canvas.isHardwareAccelerated) node.draw(this, canvas) { super.dispatchDraw(it) }
+    if (Build.VERSION.SDK_INT >= 31 && node is SourceNode && canvas.isHardwareAccelerated) {
+      node.draw(this, canvas) { super.dispatchDraw(it) }
+      // A plate drawn before the page had any picture showed the plain fill: it is drawn again, now with the page.
+      if (viewers.isNotEmpty()) for (glass in viewers.keys) if (glass.missed) glass.owned.invalidate()
+    }
     else super.dispatchDraw(canvas)
   }
 
   /** The node with the children's drawing; null where glass is a plain fill. */
   internal fun node(): Any? = recorder
+
+  // The plates that show this page (weakly held). A plate's own drawing holds the place of the page under it as it
+  // was when the plate was last drawn; when something inside the page changes (a list scrolls, a picture moves) the
+  // plates are drawn again for the same frame, so their picture never stays a step behind the page.
+  private val viewers = java.util.WeakHashMap<Glass, Unit>()
+  private var relaying = false
+
+  internal fun shownBy(glass: Glass, on: Boolean) { if (on) viewers[glass] = Unit else viewers.remove(glass) }
+
+  override fun onDescendantInvalidated(child: View, target: View) {
+    super.onDescendantInvalidated(child, target)
+    if (relaying || viewers.isEmpty()) return
+    relaying = true
+    try { for (glass in viewers.keys) glass.owned.invalidate() } finally { relaying = false }
+  }
 
   /** The same node typed, for the progressive edges behind bars (shell/EdgeFade.kt); null before Android 12. */
   @TargetApi(31)
@@ -84,8 +105,71 @@ class Glass(private val owner: View) {
   private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
   private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
   private val blur: Any? = if (Build.VERSION.SDK_INT >= 31) BlurNode(22f * d) else null
-  private val here = IntArray(2)
-  private val there = IntArray(2)
+  // Where the page lies in the plate's own coordinates (the page's corner, and any scale on the way, as on a pressed
+  // button), as last drawn; and the same looked at again before a frame.
+  private val placed = Matrix()
+  private val placedValues = FloatArray(9)
+  private val probe = Matrix()
+  private val probeValues = FloatArray(9)
+  /** The page this plate last showed (it tells the plate when it changes). */
+  private var shown: GlassSource? = null
+  private var watched: ViewTreeObserver? = null
+  /** The plate was asked to be drawn again and has not been yet (it is asked once: an owner that no longer draws its
+   *  glass is not asked frame after frame). */
+  private var pending = false
+  /** The plate wanted its page but the page had no picture yet. */
+  internal var missed = false
+    private set
+  /** Before every frame: a plate whose page moved under it, or which moved over its page, without being drawn again
+   *  (a row of a scrolled list, the bar over a page sliding in, the composer going up with the keyboard) is drawn
+   *  again, so its picture is the page where it is in this frame, not where it was. */
+  private val follow = ViewTreeObserver.OnPreDrawListener {
+    val page = shown
+    if (!pending && page != null && Build.VERSION.SDK_INT >= 31 && owner.isShown && page.isAttachedToWindow) {
+      place(page, probe); probe.getValues(probeValues)
+      if (!probeValues.contentEquals(placedValues)) { pending = true; owner.invalidate() }
+    }
+    true
+  }
+
+  init {
+    // A plate taken off the window and put back (a list's row) may come back without being drawn again: it looks
+    // again before its next frame.
+    owner.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+      override fun onViewAttachedToWindow(view: View) { listen(true) }
+      override fun onViewDetachedFromWindow(view: View) { listen(false) }
+    })
+  }
+
+  /** The page this plate shows is followed (or no page, `null`). */
+  private fun watch(page: GlassSource?) {
+    if (shown !== page) { shown?.shownBy(this, false); page?.shownBy(this, true); shown = page }
+    listen(owner.isAttachedToWindow)
+  }
+
+  private fun listen(attached: Boolean) {
+    val tree = if (shown != null && attached) owner.viewTreeObserver.takeIf { it.isAlive } else null
+    if (tree === watched) return
+    watched?.let { if (it.isAlive) it.removeOnPreDrawListener(follow) }
+    watched = tree
+    tree?.addOnPreDrawListener(follow)
+  }
+
+  /** `out`: from the page's coordinates to the owner's (both in this window), with every scroll, offset, translation
+   *  and scale between them as they are now. */
+  @TargetApi(31)
+  private fun place(page: View, out: Matrix) {
+    out.reset()
+    page.transformMatrixToGlobal(out)
+    owner.transformMatrixToLocal(out)
+  }
+
+  /** Whether the owner stands inside `page`: the page would then hold the plate that shows the page. */
+  private fun within(page: View): Boolean {
+    var at = owner.parent
+    while (at != null) { if (at === page) return true; at = at.parent }
+    return false
+  }
 
   /** Effects: where this plate was last drawn (owner's coordinates) and its corners — the snow lies on it
    *  (effects/EffectsHost.kt). */
@@ -98,20 +182,27 @@ class Glass(private val owner: View) {
   private var rime: Rime? = null
   /** Whether this plate asked for its rime (for the tests). */
   internal val rimed: Boolean get() = rime?.asked == true
-  /** The rime's picture is let go; it is made again if the plate is drawn with the setting on. */
-  internal fun forgetRime() { rime?.forget() }
+  /** The rime's picture is let go; it is made again if the plate is drawn with the setting on. `fade`: it then
+   *  fades in as a new plate's does (false: the plate only left the screen for a while). */
+  internal fun forgetRime(fade: Boolean = true) { rime?.forget(fade) }
 
   /** Draws the plate into the rectangle (owner's coordinates) with corners of `radius`. */
   /** `inside`: drawn in the glass, over its fill and under its rim (the tab bar's lights). */
   fun draw(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float, radius: Float, inside: ((Canvas) -> Unit)? = null) {
     drawn.set(left, top, right, bottom); drawnRadius = radius; plates[this] = Unit // Effects
+    pending = false
     var blurred = false
     val page = source
     val node = blur
-    if (Build.VERSION.SDK_INT >= 31 && node is BlurNode && page != null && canvas.isHardwareAccelerated && page.isAttachedToWindow) {
-      owner.getLocationInWindow(here); page.getLocationInWindow(there)
-      blurred = try { node.draw(canvas, page.node(), left, top, right, bottom, radius, there[0] - here[0], there[1] - here[1]) } catch (_: RuntimeException) { false }
+    // A plate inside its own page would be drawn into the very picture it shows (and always from the frame before):
+    // it keeps the plain fill instead.
+    val live = Build.VERSION.SDK_INT >= 31 && node is BlurNode && page != null && canvas.isHardwareAccelerated && page.isAttachedToWindow && !within(page)
+    if (live && node is BlurNode && page != null) {
+      place(page, placed); placed.getValues(placedValues)
+      blurred = try { node.draw(canvas, page.node(), left, top, right, bottom, radius, placed) } catch (_: RuntimeException) { false }
     }
+    missed = live && !blurred
+    watch(if (live) page else null)
     fill.color = if (blurred) tint else plain
     canvas.drawRoundRect(left, top, right, bottom, radius, radius, fill)
     inside?.invoke(canvas)
@@ -131,8 +222,8 @@ private class BlurNode(radius: Float) {
   }
   private val outline = Outline()
 
-  /** `dx`, `dy`: where the page's corner is, from the owner's corner. False when there was nothing to blur. */
-  fun draw(canvas: Canvas, page: Any?, left: Float, top: Float, right: Float, bottom: Float, radius: Float, dx: Int, dy: Int): Boolean {
+  /** `placed`: from the page's coordinates to the owner's. False when there was nothing to blur. */
+  fun draw(canvas: Canvas, page: Any?, left: Float, top: Float, right: Float, bottom: Float, radius: Float, placed: Matrix): Boolean {
     val source = (page as? SourceNode)?.node ?: return false
     if (!source.hasDisplayList()) return false
     val l = left.toInt(); val t = top.toInt(); val r = right.toInt(); val b = bottom.toInt()
@@ -143,7 +234,8 @@ private class BlurNode(radius: Float) {
     val recording = node.beginRecording()
     try {
       recording.drawColor(Theme.bg)
-      recording.translate((dx - l).toFloat(), (dy - t).toFloat())
+      recording.translate(-l.toFloat(), -t.toFloat())
+      recording.concat(placed)
       recording.drawRenderNode(source)
     } finally { node.endRecording() }
     canvas.drawRenderNode(node)
