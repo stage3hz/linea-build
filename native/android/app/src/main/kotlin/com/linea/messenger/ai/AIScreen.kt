@@ -134,9 +134,14 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
       if (messenger == null && AIDemo.mode != null) demo() else { if (!quick) history.load(); refreshStatus() }
     }
     if (conversation.pending) { main.removeCallbacks(clock); main.post(clock) }
+    com.linea.messenger.shell.ShellInsets.changed.watch(shellChanged) // Shell: the mini-player's room
   }
 
+  /** The mini-player came or went: the composer moves to stay above it (as the chat list keeps its room). */
+  private val shellChanged: (Unit) -> Unit = { requestLayout() }
+
   override fun onDetachedFromWindow() {
+    com.linea.messenger.shell.ShellInsets.changed.unwatch(shellChanged) // Shell
     main.removeCallbacks(clock)
     stopAudio()
     super.onDetachedFromWindow()
@@ -688,8 +693,13 @@ class AIScreen(context: Context, private val messenger: Messenger?, private val 
   override fun place(width: Int, height: Int) {
     val top = edges.top + dp(10f)
     put(topBar, dp(16f), top, width - dp(32f), dp(48f))
-    // The section sits under the shell's bar: the composer stays above it — or above the keyboard when it is up.
-    val floor = if (edges.keyboard > 0) height - edges.keyboard - dp(8f) else height - dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 10f)
+    // The section sits under the shell's bar and the mini-player (while music plays, shell/ShellExtras.kt): the
+    // composer stays above both, as the chat list keeps their room — or above the keyboard when it is up, and still
+    // above the bar and the player when the keyboard is too low to cover them. The quick dialog is a pushed page:
+    // the mini-player stays under it.
+    val player = if (quick) 0f else com.linea.messenger.shell.ShellInsets.miniPlayer
+    val overBar = height - dp(BarMetrics.bottomGap(edges.bottom / d) + BarMetrics.height + 10f + player)
+    val floor = if (edges.keyboard > 0) minOf(height - edges.keyboard - dp(8f), overBar) else overBar
     val composerWidth = width - dp(28f)
     composer.measure(MeasureSpec.makeMeasureSpec(composerWidth, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
     val composerTop = floor - composer.measuredHeight

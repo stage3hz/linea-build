@@ -720,8 +720,12 @@ final class AIViewController: UIViewController, UITextViewDelegate, UIDocumentPi
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // The section sits under the shell's bar: the composer stays above it.
-        barClearance?.constant = quick ? -12 : -(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 10)
+        // The section sits under the shell's bar and the mini-player (while music plays, Shell/RootViewController.swift
+        // `refreshMini`, which lays every section out again when it comes or goes): the composer stays above both, as
+        // the chat list keeps their room. With the keyboard up the composer stands over whichever is higher, the
+        // keyboard or this limit (both are «at most» constraints), so a low keyboard still leaves it over the player.
+        // The quick dialog is a pushed page: neither stands under it.
+        barClearance?.constant = quick ? -12 : -(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 10 + ShellInsets.miniPlayer)
     }
 
     func textViewDidBeginEditing(_ textView: UITextView) {
