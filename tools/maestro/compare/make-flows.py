@@ -99,6 +99,10 @@ PROFILE_UP = '- extendedWaitUntil:\n    notVisible: ".*Как тебе фото.
 # not come, and the page must be there before anything else is done.
 SETTINGS = (tap('Настройки') + wait('Оформление.*', 10000)
             + '- runFlow:\n    when:\n      notVisible: "Оформление.*"\n    commands:\n      - tapOn:\n          text: "Настройки"\n      - waitForAnimationToEnd\n'
+            + wait('Оформление.*', 12000)
+            # A third try by the place of the bar's «Настройки» (the reference's setup of the folder stopped on the chat
+            # list in the run of fd7a62c4, the app just started and its stories not there yet).
+            + '- runFlow:\n    when:\n      notVisible: "Оформление.*"\n    commands:\n      - tapOn:\n          point: "61%,93%"\n      - waitForAnimationToEnd\n'
             + wait('Оформление.*', 30000, optional=False))
 def section(name):  # the list of sections (a hold on «Чаты»), then one of them
     return flow('sections.yaml') + tap(f'{name}.*')
@@ -215,13 +219,14 @@ pair('17-attach-panel', 1, '-openchat 1', 30, OPEN_TIMUR + flow('paperclip.yaml'
 # The native app is started with its panel open (-chataction emoji, ChatActions/ChatScreenActions.swift simulatorAct):
 # three runs of the same touch on «Стикеры и эмодзи» left its panel shut at the shot, and why is not known yet. The
 # reference still opens its own by the touch.
-# -keyboardheight 326: the panel is as tall as the keyboard last was, and the reference has typed before this shot (its
-# card is 282 tall: a keyboard of 326, less the home indicator's 34 and the 10 under the card); the native app, started
+# -keyboardheight 334: the panel is as tall as the keyboard last was, and the reference has typed before this shot (in
+# the run of fd7a62c4 its card is 290 tall and the keyboard of 30-reply-bar 334: the keyboard, less the home
+# indicator's 34 and the 10 under the card; the 326 of the run before left the native card 8 short); the native app, started
 # for the picture, has seen no keyboard and would take the height of «never seen» (Composer/ComposerExtras.swift).
 # After the scored shot the same native flow shuts the panel and opens it again by ONE plain touch, and photographs
 # that as nat-18b-emoji-tap: a picture of its own, kept with the others and not scored (it is in no line of plan.txt),
 # which shows whether the touch leaves the panel open.
-pair('18-emoji-panel', 1, '-openchat 1 -chataction emoji -keyboardheight 326', 30, OPEN_TIMUR + flow('emoji.yaml'),
+pair('18-emoji-panel', 1, '-openchat 1 -chataction emoji -keyboardheight 334', 30, OPEN_TIMUR + flow('emoji.yaml'),
      nat=wait('Скрыть эмодзи', 20000) + SETTLE + '@SHOT@'
      + '- tapOn:\n    text: "Скрыть эмодзи"\n    retryTapIfNoChange: false\n    optional: true\n' + SETTLE + pause(1500)
      + '- tapOn:\n    text: "Стикеры и эмодзи"\n    retryTapIfNoChange: false\n    optional: true\n' + pause(2500)
@@ -289,7 +294,18 @@ HOLD_STILL = '- evalScript: ${var until = Date.now() + 1800; while (Date.now() <
 def story(circle):
     return tap_now(circle, index=0) + HOLD_STILL
 pair('43-story-viewer', 3, '', 25, '|' + story('Анна Лебедева, (новых историй|истории просмотрены|запись).*'), 'same', start='home')
-pair('44-own-story', 3, '', 25, story('Моя история'), 'same', start='home')
+# The own story is one story of five seconds, and the picture Maestro takes after the touch came later than that on
+# both apps in the run of fd7a62c4 (the reference was back on its chat list, the native app at the end of the next
+# person's story): what Maestro does around a touch lasts longer than the story. So the picture is not Maestro's:
+# before the touch the flow asks the runner (act/shoot-later.js, compare/shot-server.py) for a picture 3.5 seconds
+# later, the circle is touched by its place (the first of the strip, the same on both apps — no reading of the screen
+# before the touch), and the flow waits until the picture is taken. Maestro's own late picture is kept beside it
+# under «…-late», not scored.
+SHOOT_LATER = '- runScript:\n    file: @ACT@/shoot-later.js\n    env:\n      NAME: "@NAME@"\n      AFTER: "3500"\n'
+OWN_STORY = (wait('Моя история', 20000) + SHOOT_LATER
+             + '- tapOn:\n    point: "13%,19%"\n    retryTapIfNoChange: false\n    waitToSettleTimeoutMs: 300\n'
+             + HOLD_STILL * 3 + '- takeScreenshot: @NAME@-late\n@NOSHOT@')
+pair('44-own-story', 3, '', 25, OWN_STORY, 'same', start='home')
 # The account has a story, so its circle reads «Моя история» and its «+» is inside it (not a control of its own to
 # Maestro); a hold on the circle adds a story on both apps (mobile/src/stories/StoriesStrip.tsx onLongPress,
 # native/ios/Sources/Stories/StoriesStrip.swift heldDown).
@@ -408,7 +424,11 @@ NAT_ROW = '- tapOn:\n    text: "Тимур Богданов( [^.,]+)?(\\\\. .*|,
 NAT_TIMUR = (NAT_ROW + wait('Профиль Тимур Богданов.*', 10000) + when('Профиль Тимур Богданов.*', NAT_ROW, visible=False)
              + flow('wait-timur.yaml') + tap('Профиль Тимур Богданов.*') + PROFILE_UP)
 CALL = wait('Звонок', 30000) + tap('Звонок') + tap('Allow|Разрешить|OK', optional=True)
-MINIMIZED = pause(3000) + tap('Свернуть звонок') + pause(1500) + '@SHOT@' + tap('Завершить звонок|Завершить', index=0, optional=True)
+# The strip of a call put away is photographed over the chat LIST: in Тимур's chat the native app, which comes after
+# the reference, always shows more «Отменённый звонок» rows than the reference did (the reference's own earlier calls),
+# so the two chats under the strip never were the same.
+MINIMIZED = (pause(3000) + tap('Свернуть звонок') + pause(1500) + tap('Назад к чатам.*', optional=True) + pause(1500) + '@SHOT@'
+             + tap('Завершить звонок|Завершить', index=0, optional=True))
 pair('97-call-outgoing', 3, '', 25, PROFILE_TIMUR + CALL + pause(4000), nat=NAT_TIMUR + CALL + pause(4000), start='home')
 pair('98-call-minimized', 3, '', 25, PROFILE_TIMUR + CALL + MINIMIZED, nat=NAT_TIMUR + CALL + MINIMIZED, start='home')
 pair('99-call-history', 3, '-tab people', 25, section('Люди') + '|' + tap('Звонки.*', index=0) + pause(2000), 'same')
@@ -440,6 +460,9 @@ def body(steps, act, shotname):
     steps = steps.replace('@ACT@', act).replace(HIDEKB, HIDEKB_NAT if act == '../act' else HIDEKB_REF)
     steps = steps.replace(THEIRS, '.*' if act == '../act' else 'Тимур Богданов: ').replace(OURS, '.*' if act == '../act' else 'Ты: ')
     shot = f'- takeScreenshot: {shotname}\n'
+    steps = steps.replace('@NAME@', shotname)
+    # @NOSHOT@: the flow's picture is taken for it by the runner (see 44-own-story), not by Maestro.
+    if '@NOSHOT@' in steps: return steps.replace('@NOSHOT@', '')
     return steps.replace('@SHOT@', shot) if '@SHOT@' in steps else steps + shot
 
 plan = ['# The pairs of .github/workflows/native-compare.yml, one per line, in the order they are photographed:',

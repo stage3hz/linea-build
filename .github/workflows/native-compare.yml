@@ -233,6 +233,9 @@ jobs:
           # Maestro writes a picture where it was started, or next to the flow in some versions: gathered here.
           gather() { find "$GITHUB_WORKSPACE/tools/maestro" "$OUT/ref" "$HOME/.maestro" -maxdepth 5 \( -name 'ref-[0-9]*-*.png' -o -name 'nat-[0-9]*-*.png' \) -exec mv -f {} "$CMP/" \; 2>/dev/null || true; }
           grant() { for what in camera microphone photos; do limit 30 xcrun simctl privacy "$UDID" grant "$what" com.linea.messenger.preview || true; done; }
+          # tools/maestro/compare/shot-server.py: a flow asks the runner for a picture a few seconds later (a story is
+          # photographed while it plays; Maestro's own picture after the touch came when the story was over).
+          (nohup python3 "$GITHUB_WORKSPACE/tools/maestro/compare/shot-server.py" "$UDID" "$CMP" > "$OUT/shot-server.txt" 2>&1 &)
           export PATH="$HOME/.maestro/bin:$PATH"
           MENV=(-e "LOGIN=$TEST_LOGIN" -e "PASSWORD=$TEST_PASSWORD" -e "WORD=$TEST_WORD")
           # The simulator's appearance: the previous app follows it (its theme is «Как в системе»).
@@ -285,6 +288,15 @@ jobs:
             # with the list on screen; ref-10 began while the list said «Соединение…») is run once more.
             if [ "$ok" = 0 ] && [ "$phase" != auth ] && ! grep -q 'Run act/ref-home.yaml... COMPLETED' "$OUT/ref-last.txt"; then
               echo "-- $(date -u +%H:%M:%S) ref-$name again (it stopped before the chat list)"; ok=1
+              (cd "$CMP" && limit "$seconds" maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/ref-$name.yaml" < /dev/null) || ok=0
+            fi
+            # The folder's setup is tried once more from the start when it stopped (the run of fd7a62c4: it stopped on the
+            # chat list, and 21-folder-tab then had no folder on either side); a second folder of the same name does no
+            # harm (the tab is found by its name, the first one is touched). The other setup flows send messages and
+            # are not repeated.
+            if [ "$ok" = 0 ] && [ "$name" = 00-setup-folder ]; then
+              shot "compare/ref-$name-first-failed"
+              echo "-- $(date -u +%H:%M:%S) ref-$name again (it stopped)"; ok=1
               (cd "$CMP" && limit "$seconds" maestro --device "$UDID" test "${MENV[@]}" "$FLOWS/ref-$name.yaml" < /dev/null) || ok=0
             fi
             if [ "$ok" = 0 ]; then

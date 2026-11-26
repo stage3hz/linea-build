@@ -1,6 +1,6 @@
 appId: com.linea.messenger.preview
 ---
-# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1 -chataction emoji -keyboardheight 326; then these gestures.
+# Comparison shot 18-emoji-panel of the native app, started by the workflow with: -openchat 1 -chataction emoji -keyboardheight 334; then these gestures.
 - runFlow:
     when:
       visible: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"

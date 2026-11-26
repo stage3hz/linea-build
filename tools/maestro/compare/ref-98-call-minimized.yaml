@@ -38,6 +38,14 @@ appId: com.linea.messenger.preview
     visible: "a text that never shows 7f3k"
     timeout: 1500
     optional: true
+- tapOn:
+    text: "Назад к чатам.*"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "a text that never shows 7f3k"
+    timeout: 1500
+    optional: true
 - takeScreenshot: ref-98-call-minimized
 - tapOn:
     text: "Завершить звонок|Завершить"

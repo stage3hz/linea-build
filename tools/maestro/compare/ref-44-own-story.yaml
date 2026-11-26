@@ -7,10 +7,20 @@ appId: com.linea.messenger.preview
     commands:
       - tapOn: "Allow Full Access|Allow Access to All Photos|Разрешить доступ ко всем фото"
 - runFlow: act/ref-home.yaml
+- extendedWaitUntil:
+    visible: "Моя история"
+    timeout: 20000
+    optional: true
+- runScript:
+    file: act/shoot-later.js
+    env:
+      NAME: "ref-44-own-story"
+      AFTER: "3500"
 - tapOn:
-    text: "Моя история"
-    index: 0
+    point: "13%,19%"
     retryTapIfNoChange: false
     waitToSettleTimeoutMs: 300
 - evalScript: ${var until = Date.now() + 1800; while (Date.now() < until);}
-- takeScreenshot: ref-44-own-story
+- evalScript: ${var until = Date.now() + 1800; while (Date.now() < until);}
+- evalScript: ${var until = Date.now() + 1800; while (Date.now() < until);}
+- takeScreenshot: ref-44-own-story-late
