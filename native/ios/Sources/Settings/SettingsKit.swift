@@ -658,7 +658,8 @@ final class SettingsSwitchRow: UIView {
         toggle.addTarget(self, action: #selector(flipped), for: .valueChanged)
         let content = UIStackView(arrangedSubviews: [texts, toggle])
         content.axis = .horizontal
-        content.alignment = .center
+        // The previous app shows the switch at the row's top beside a description; a name alone stands at its middle.
+        content.alignment = words.isEmpty ? .center : .top
         content.spacing = 12
         content.translatesAutoresizingMaskIntoConstraints = false
         addSubview(content)

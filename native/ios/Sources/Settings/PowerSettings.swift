@@ -57,7 +57,8 @@ final class PowerSettingsViewController: SettingsPage {
         top.axis = .vertical
         top.spacing = 10
 
-        var rows: [UIView] = [SettingsLook.inset(top, top: 14, side: 14, bottom: 6)]
+        // SettingsScreen.tsx: nothing under the slider's words but the caption's own 18.
+        var rows: [UIView] = [SettingsLook.inset(top, top: 14, side: 14, bottom: 0)]
         let caption = UILabel()
         caption.attributedText = NSAttributedString(string: "РЕСУРСОЁМКИЕ ПРОЦЕССЫ", attributes: [.kern: 1.2, .font: UIFont.systemFont(ofSize: 11, weight: .bold), .foregroundColor: Theme.muted])
         // SettingsScreen.tsx: the caption keeps 18 above it and 4 under it.
@@ -237,9 +238,14 @@ final class PowerRow: UIView {
         toggle.setContentHuggingPriority(.required, for: .horizontal)
         toggle.setContentCompressionResistancePriority(.required, for: .horizontal)
         toggle.addTarget(self, action: #selector(flipped), for: .valueChanged)
-        let content = UIStackView(arrangedSubviews: [chip, texts, toggle])
+        // The icon stands at the middle of the words; the switch stands at the row's top, as the previous app shows it.
+        let described = UIStackView(arrangedSubviews: [chip, texts])
+        described.axis = .horizontal
+        described.alignment = .center
+        described.spacing = 12
+        let content = UIStackView(arrangedSubviews: [described, toggle])
         content.axis = .horizontal
-        content.alignment = .center
+        content.alignment = .top
         content.spacing = 12
         content.translatesAutoresizingMaskIntoConstraints = false
         addSubview(content)
