@@ -718,24 +718,28 @@ final class ChannelChatViewController: UIViewController, UITextViewDelegate, PHP
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let me = messenger?.userId ?? ""
         let mine = message.senderId == me
-        var actions: [ChannelMenuView.Action] = []
+        // ChannelChat.tsx: the same menu as a chat's message has (ContextMenu.tsx) — the chat blurred and darkened, the
+        // reactions, the message's own words on a plate, the list of 250 — at the side the message stands on.
+        var actions: [MessageMenuController.Item] = []
         if canWrite {
-            actions.append(ChannelMenuView.Action(symbol: "arrow-undo-outline", label: "Ответить", danger: false, run: { [weak self] in self?.startReply(message, author: author) }))
+            actions.append(MessageMenuController.Item(symbol: "ion:arrow-undo-outline", label: "Ответить", run: { [weak self] in self?.startReply(message, author: author) }))
         }
         if !message.text.isEmpty {
-            actions.append(ChannelMenuView.Action(symbol: "copy-outline", label: "Скопировать", danger: false, run: { UIPasteboard.general.string = message.text }))
+            actions.append(MessageMenuController.Item(symbol: "ion:copy-outline", label: "Скопировать", run: { UIPasteboard.general.string = message.text }))
         }
         if mine && !message.text.isEmpty {
-            actions.append(ChannelMenuView.Action(symbol: "create-outline", label: "Изменить", danger: false, run: { [weak self] in self?.startEdit(message) }))
+            actions.append(MessageMenuController.Item(symbol: "ion:create-outline", label: "Изменить", run: { [weak self] in self?.startEdit(message) }))
         }
         if mine || canModerate {
-            actions.append(ChannelMenuView.Action(symbol: "trash-outline", label: "Удалить", danger: true, run: { [weak self] in self?.remove(message) }))
+            actions.append(MessageMenuController.Item(symbol: "ion:trash-outline", label: "Удалить", danger: true, separated: true, run: { [weak self] in self?.remove(message) }))
         }
         let reactions = ChannelWords.quickReactions.map { (emoji: String) -> (emoji: String, chosen: Bool) in
             (emoji: emoji, chosen: message.reactions.contains { $0.emoji == emoji && $0.userIds.contains(me) })
         }
-        let menu = ChannelMenuView(reactions: reactions, actions: actions, at: y, onReact: { [weak self] emoji in self?.react(message, emoji) })
-        menu.show(in: navigationController?.view ?? view)
+        let preview = message.text.isEmpty ? (message.attachment?.name ?? "") : message.text
+        let menu = MessageMenuController(anchorY: y, mine: mine, preview: preview, reactions: reactions, items: actions)
+        menu.onReact = { [weak self] (emoji: String) -> Void in self?.react(message, emoji) }
+        present(menu, animated: true)
     }
 
     private func startReply(_ message: CommunityMessage, author: String) {
