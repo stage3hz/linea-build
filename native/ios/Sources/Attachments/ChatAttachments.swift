@@ -164,7 +164,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         // Attachments: two or more photos go out as one album — up to ten per album (Sources/Attachments/AlbumGrid.swift).
         let albums = AlbumRows.groups(results.count)
         for (index, result) in results.enumerated() {
-            let item = add(Pending(heading: "🖼 Фотография"))
+            let item = add(Pending(heading: "Фотография"))
             item.meta = takeReply?()
             if index < albums.count, let album = albums[index] {
                 var meta = item.meta ?? [:]
@@ -200,7 +200,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     /// A file copy in the app's own folder: prepared, sent, and the copy removed.
     private func sendFile(_ url: URL) {
         if ChatAttachments.isVideo(url), let onVideoFile, onVideoFile(url) { return }
-        let item = add(Pending(heading: "📎 " + url.lastPathComponent))
+        let item = add(Pending(heading: url.lastPathComponent))
         item.meta = takeReply?()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
@@ -233,7 +233,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             case .video(let url):
                 if let onVideoFile, onVideoFile(url) { continue }
                 try? FileManager.default.removeItem(at: url)
-                let failed = add(Pending(heading: "🎬 Видео"))
+                let failed = add(Pending(heading: "Видео"))
                 fail(failed, "Видео пока нельзя отправить в этой версии приложения.")
             case .file(let url):
                 sendFile(url)
@@ -241,7 +241,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         }
         let albums = AlbumRows.groups(photos.count)
         for (index, photo) in photos.enumerated() {
-            let item = add(Pending(heading: "🖼 Фотография"))
+            let item = add(Pending(heading: "Фотография"))
             item.meta = takeReply?()
             if index < albums.count, let album = albums[index] {
                 var meta = item.meta ?? [:]
@@ -280,7 +280,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             DispatchQueue.main.async {
                 guard let self else { return }
                 guard let data, let picture else {
-                    let item = self.add(Pending(heading: "🖼 Фотография"))
+                    let item = self.add(Pending(heading: "Фотография"))
                     self.fail(item, "Не удалось обработать фото. Файл не отправлен.")
                     return
                 }
@@ -299,7 +299,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         let editor = PhotoEditorController(image: picture)
         editor.onDone = { [weak self] (edited: PhotoEditorController.Output?) -> Void in
             guard let self else { return }
-            let item = self.add(Pending(heading: "🖼 Фотография"))
+            let item = self.add(Pending(heading: "Фотография"))
             item.meta = self.takeReply?()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 guard let self else { return }
@@ -643,7 +643,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             ["key": "sample-attach-5", "kind": 0, "mine": false, "text": "", "time": "09:38", "tail": false, "media": "photo", "thumb": small, "thumbWide": 0.75, "mediaTime": FileCore.sizeText(2_202_009)],
             ["key": "sample-attach-2", "kind": 0, "mine": false, "text": "Договор и приложение к нему", "time": "09:39", "tail": false, "media": "file", "label": "Договор № 7.pdf\n" + FileCore.sizeText(1_258_291) + " · PDF"],
             ["key": "sample-attach-6", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": false, "media": "file", "label": "Смета.xlsx\n" + FileCore.sizeText(1_258_291) + " · XLSX"],
-            ["key": "sample-attach-3", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": true, "label": "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)],
+            ["key": "sample-attach-3", "kind": 0, "mine": false, "text": "", "time": "09:39", "tail": true, "label": "Видео\n" + FileCore.sizeText(3_221_225_472)],
             // An outgoing photo on its way: the ring with ✕ and «2,1 МБ / 5,3 МБ», as the pending rows draw it.
             ["key": "sample-attach-4", "kind": 0, "mine": true, "text": "", "time": "09:41", "ticks": 3, "tail": true, "media": "photo", "thumb": picture, "thumbWide": 1.5, "mediaTime": FileCore.sizeText(5_505_024)],
         ]

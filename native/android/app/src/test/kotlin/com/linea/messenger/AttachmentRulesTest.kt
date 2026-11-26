@@ -34,10 +34,10 @@ class AttachmentRulesTest {
     assertEquals(mapOf("media" to "photo", "thumbWide" to 0.5, "mediaTime" to "", "thumb" to "QUJD"),
       AttachmentRows.fields(mapOf("text" to "Смотри", "attachment" to photo + ("media" to mapOf("width" to 600.0, "height" to 1200.0))), "peer:c2", about("photo")))
     // A photo that cannot be opened here is a label; one without a sound small picture is 4:3.
-    assertEquals("🖼 Фотография\n1 КБ", AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo), "k", about("photo", "1 КБ", refusal = "Нет ключа"))["label"])
+    assertEquals("Фотография\n1 КБ", AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo), "k", about("photo", "1 КБ", refusal = "Нет ключа"))["label"])
     assertEquals(mapOf("media" to "photo", "thumbWide" to 4.0 / 3.0, "mediaTime" to ""), AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo - "preview"), "k", about("photo")))
     assertEquals(4.0 / 3.0, AttachmentRows.fields(mapOf("text" to "x", "attachment" to photo + ("preview" to (preview + ("height" to 0.0)))), "k", about("photo"))["thumbWide"])
-    assertEquals(mapOf("label" to "🎬 Видео\n3 ГБ"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "a.mp4")), "k", about("video", "3 ГБ")))
+    assertEquals(mapOf("label" to "Видео\n3 ГБ"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "a.mp4")), "k", about("video", "3 ГБ")))
     // Any other file is a card: the name, then «1.2 МБ · PDF» (FileBubble).
     assertEquals(mapOf("media" to "file", "label" to "Договор № 7.pdf\n1.2 МБ · PDF"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to mapOf("name" to "Договор № 7.pdf")), "k", about("file", "1.2 МБ")))
     assertEquals(mapOf("media" to "file", "label" to "Файл\n"), AttachmentRows.fields(mapOf("text" to "x", "attachment" to emptyMap<String, Any?>()), "k", about("audio")))
@@ -48,15 +48,15 @@ class AttachmentRulesTest {
   }
 
   @Test fun theRowOfAnAttachmentOnItsWayOut() {
-    fun row(heading: String = "📎 a.pdf", note: String = "", thumb: String = "", failed: String? = null, uploading: Boolean = false) =
+    fun row(heading: String = "a.pdf", note: String = "", thumb: String = "", failed: String? = null, uploading: Boolean = false) =
       ChatAttachments.pendingRow("attach-1", "09:41", heading, note, thumb, 1.5, failed, uploading)
     // A file: its name, then how much of it has gone.
-    assertEquals(mapOf("key" to "attach-1", "kind" to 0, "mine" to true, "text" to "", "time" to "09:41", "ticks" to 3, "tail" to true, "label" to "📎 a.pdf"), row())
-    assertEquals("📎 a.pdf\n1 МБ из 2 МБ", row(note = "1 МБ из 2 МБ", uploading = true)["label"])
+    assertEquals(mapOf("key" to "attach-1", "kind" to 0, "mine" to true, "text" to "", "time" to "09:41", "ticks" to 3, "tail" to true, "label" to "a.pdf"), row())
+    assertEquals("a.pdf\n1 МБ из 2 МБ", row(note = "1 МБ из 2 МБ", uploading = true)["label"])
     // A photo: the picture itself; the progress only while it is uploaded.
-    val photo = row(heading = "🖼 Фотография", note = "1 МБ из 2 МБ", thumb = "QUJD", uploading = true)
+    val photo = row(heading = "Фотография", note = "1 МБ из 2 МБ", thumb = "QUJD", uploading = true)
     assertEquals(listOf("1 МБ из 2 МБ", "QUJD", 1.5), listOf(photo["label"], photo["thumb"], photo["thumbWide"]))
-    assertEquals("", row(heading = "🖼 Фотография", note = "2 МБ", thumb = "QUJD")["label"])
+    assertEquals("", row(heading = "Фотография", note = "2 МБ", thumb = "QUJD")["label"])
     // What was not sent says so, in red (ticks 4), and offers to try again.
     val failed = row(note = "2 МБ", failed = "Нет связи с сервером.")
     assertEquals(listOf("Не отправлено · повторить\nНет связи с сервером.", 4), listOf(failed["label"], failed["ticks"]))

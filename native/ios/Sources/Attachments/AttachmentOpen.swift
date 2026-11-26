@@ -65,7 +65,7 @@ enum AttachmentRows {
             fields["label"] = name + "\n" + InlineMedia.sizeLine(attachment, sizeText: about.sizeText)
             return fields
         }
-        let heading = about.kind == "photo" ? "🖼 Фотография" : about.kind == "video" ? "🎬 Видео" : "📎 " + name
+        let heading = about.kind == "photo" ? "Фотография" : about.kind == "video" ? "Видео" : name
         fields["label"] = about.sizeText.isEmpty ? heading : heading + "\n" + about.sizeText
         return fields
     }

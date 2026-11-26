@@ -95,7 +95,7 @@ object AttachmentsDemo {
       mapOf("key" to "sample-attach-5", "kind" to 0, "mine" to false, "text" to "", "time" to "09:38", "tail" to false, "media" to "photo", "thumb" to small, "thumbWide" to 0.75, "mediaTime" to FileCore.sizeText(2_202_009)),
       mapOf("key" to "sample-attach-2", "kind" to 0, "mine" to false, "text" to "Договор и приложение к нему", "time" to "09:39", "tail" to false, "media" to "file", "label" to "Договор № 7.pdf\n" + FileCore.sizeText(1_258_291) + " · PDF"),
       mapOf("key" to "sample-attach-6", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to false, "media" to "file", "label" to "Смета.xlsx\n" + FileCore.sizeText(1_258_291) + " · XLSX"),
-      mapOf("key" to "sample-attach-3", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to true, "label" to "🎬 Видео\n" + FileCore.sizeText(3_221_225_472)),
+      mapOf("key" to "sample-attach-3", "kind" to 0, "mine" to false, "text" to "", "time" to "09:39", "tail" to true, "label" to "Видео\n" + FileCore.sizeText(3_221_225_472)),
       // An outgoing photo on its way: the ring with ✕ and «2,1 МБ / 5,3 МБ», as the pending rows draw it
       // (ChatAttachments.pendingRow; iOS Attachments/ChatAttachments.swift).
       mapOf("key" to "sample-attach-4", "kind" to 0, "mine" to true, "text" to "", "time" to "09:41", "ticks" to 3, "tail" to true, "media" to "photo", "thumb" to picture, "thumbWide" to 1.5,

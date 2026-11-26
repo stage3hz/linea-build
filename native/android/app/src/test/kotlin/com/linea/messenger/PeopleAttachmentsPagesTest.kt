@@ -222,7 +222,7 @@ class PeopleAttachmentsPagesTest {
     // Attachments: a file card (the name, then «1.2 МБ · PDF»), a photo shown whole in its row (attachments/InlineMedia.kt).
     assertTrue(rows.toString(), rows.any { it.startsWith("Договор № 7.pdf") && it.contains("Договор и приложение к нему") })
     assertTrue(rows.toString(), rows.any { it.startsWith("Фото. 09:38") })
-    assertTrue(rows.any { it.startsWith("🎬 Видео") })
+    assertTrue(rows.any { it.startsWith("Видео") })
     // Media: the paperclip opens its own panel — «Галерея», «Файл», «Опрос», «Аудио» (attachments/AttachmentPanel.kt).
     assertTrue(press(chat, "Вложения: галерея, файлы, опрос")); idle(activity)
     val sheet = ShadowDialog.getLatestDialog()
@@ -231,7 +231,7 @@ class PeopleAttachmentsPagesTest {
     sheet.dismiss()
     // Without the argument the sample chat has no such rows.
     val plain = launch("14-attachments-none", demo().putExtra("chat", true))
-    assertFalse(named(plain.window.decorView).any { it.startsWith("🎬 Видео") })
+    assertFalse(named(plain.window.decorView).any { it.startsWith("Видео") })
   }
 
   @Test fun theSamplePhotoViewer() {

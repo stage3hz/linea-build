@@ -65,7 +65,7 @@ class RealDataRulesTest {
     // A message that is only an attachment has no words of its own: its label says what it is. A day's line is
     // labelled «day» (the list draws it as the reference's date pill).
     assertEquals(listOf("Вчера", "Привет", "Привет!", "Сегодня", "Как дела?", ""), rows.map { it["text"] })
-    assertEquals(listOf("day", null, null, "day", null, "🖼 Фотография"), rows.map { it["label"] })
+    assertEquals(listOf("day", null, null, "day", null, "Фотография"), rows.map { it["label"] })
     assertEquals(listOf(1, 0, 0, 1, 0, 0), rows.map { it["kind"] })
     // Two ticks up to what the other side has read, one after it, none on their messages.
     assertEquals(listOf(null, 0, 2, null, 1, 0), rows.map { it["ticks"] })

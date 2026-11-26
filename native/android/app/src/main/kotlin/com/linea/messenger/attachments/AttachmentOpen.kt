@@ -86,13 +86,13 @@ object AttachmentRows {
       return fields
     }
     // Attachments: any other file is a card with the round button (MediaBubble.tsx `FileBubble`): the name, then
-    // «44 Б · PDF». A photo that cannot be opened here keeps its «🖼 Фотография» label.
+    // «44 Б · PDF». A photo that cannot be opened here keeps its «Фотография» label.
     if (about.kind != "video" && about.kind != "photo") {
       fields["media"] = "file"
       fields["label"] = name + "\n" + InlineMedia.sizeLine(attachment, about.sizeText)
       return fields
     }
-    val heading = if (about.kind == "photo") "🖼 Фотография" else if (about.kind == "video") "🎬 Видео" else "📎 $name"
+    val heading = if (about.kind == "photo") "Фотография" else if (about.kind == "video") "Видео" else name
     fields["label"] = if (about.sizeText.isEmpty()) heading else heading + "\n" + about.sizeText
     return fields
   }

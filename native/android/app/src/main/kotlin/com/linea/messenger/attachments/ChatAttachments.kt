@@ -220,7 +220,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
         is AttachmentPanel.Picked.Photo -> photos.add(item)
         is AttachmentPanel.Picked.Video -> {
           val meta = takeReply?.invoke()
-          if (onVideoFile?.invoke(item.uri, meta) != true) fail(add(Pending("🎬 Видео")), "Видео пока нельзя отправить в этой версии приложения.")
+          if (onVideoFile?.invoke(item.uri, meta) != true) fail(add(Pending("Видео")), "Видео пока нельзя отправить в этой версии приложения.")
         }
         is AttachmentPanel.Picked.File -> files.add(item.uri)
       }
@@ -229,7 +229,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     val albums = AlbumRows.groups(photos.size)
     val resolver = context.contentResolver
     photos.forEachIndexed { index, photo ->
-      val item = add(Pending("🖼 Фотография"))
+      val item = add(Pending("Фотография"))
       item.meta = withAlbum(takeReply?.invoke(), albums.getOrNull(index))
       preparing.execute {
         val prepared = if (photo.edited != null) edited(photo.edited, photo.format)
@@ -267,7 +267,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     // Media: two or more photos go out as one album — up to ten per album (attachments/AlbumGrid.kt).
     val albums = AlbumRows.groups(chosen.size)
     for ((index, uri) in chosen.withIndex()) {
-      val item = add(Pending("🖼 Фотография"))
+      val item = add(Pending("Фотография"))
       item.meta = withAlbum(takeReply?.invoke(), albums.getOrNull(index))
       // What the picker gave is read and drawn anew right here, one picture at a time.
       preparing.execute {
@@ -281,11 +281,11 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     if (messenger == null) return
     val resolver = context.contentResolver
     for (uri in chosen) {
-      val item = add(Pending("📎 Файл"))
+      val item = add(Pending("Файл"))
       item.meta = takeReply?.invoke()
       preparing.execute {
         val about = about(resolver, uri)
-        main.post { if (!item.removed) { item.heading = "📎 " + about.name; onPendingChanged?.invoke() } }
+        main.post { if (!item.removed) { item.heading = about.name; onPendingChanged?.invoke() } }
         if (onVideoFile != null && looksLikeVideo(resolver, uri, about)) {
           main.post {
             if (item.removed) return@post
