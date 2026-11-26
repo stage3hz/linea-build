@@ -313,27 +313,37 @@ final class SelectionHeader: UIView {
     private let cancelButton = UIButton(type: .system)
     private let countLabel = UILabel()
     private let copyButton = UIButton(type: .system)
+    // ChatScreen.tsx: each part stands on its own pill of glass, 48 tall with a radius of 24.
+    private let cancelGlass = UIVisualEffectView(effect: nil)
+    private let countGlass = UIVisualEffectView(effect: nil)
+    private let copyGlass = UIVisualEffectView(effect: nil)
     var onCancel: (() -> Void)?
     var onCopy: (() -> Void)?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        // Opaque: messages scrolled under it must not show through its words.
-        backgroundColor = Theme.bg
+        backgroundColor = .clear
+        for glass in [cancelGlass, countGlass, copyGlass] {
+            glass.effect = chatGlass()
+            glass.clipsToBounds = true
+            glass.layer.cornerRadius = 24
+            glass.layer.cornerCurve = .continuous
+            addSubview(glass)
+        }
         cancelButton.setTitle("Отмена", for: .normal)
         cancelButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         cancelButton.tintColor = Theme.accent
         cancelButton.addTarget(self, action: #selector(cancelNow), for: .touchUpInside)
-        addSubview(cancelButton)
+        cancelGlass.contentView.addSubview(cancelButton)
         countLabel.font = .systemFont(ofSize: 16, weight: .bold)
         countLabel.textColor = Theme.text
         countLabel.textAlignment = .center
-        addSubview(countLabel)
-        copyButton.setImage(chatSymbol("doc.on.doc", 18), for: .normal)
+        countGlass.contentView.addSubview(countLabel)
+        copyButton.setImage(chatSymbol("ion:copy-outline", 21), for: .normal) // <Icon name="copy-outline" size={21}>
         copyButton.tintColor = Theme.accent
         copyButton.accessibilityLabel = "Скопировать выбранные"
         copyButton.addTarget(self, action: #selector(copyNow), for: .touchUpInside)
-        addSubview(copyButton)
+        copyGlass.contentView.addSubview(copyButton)
     }
 
     required init?(coder: NSCoder) { return nil }
@@ -342,6 +352,7 @@ final class SelectionHeader: UIView {
         countLabel.text = "Выбрано: \(count)"
         copyButton.isEnabled = canCopy
         copyButton.alpha = canCopy ? 1 : 0.4
+        setNeedsLayout()
     }
 
     @objc private func cancelNow() { onCancel?() }
@@ -350,10 +361,17 @@ final class SelectionHeader: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let width = bounds.width, height = bounds.height
-        cancelButton.frame = CGRect(x: 12, y: 0, width: 84, height: height)
-        cancelButton.contentHorizontalAlignment = .left
-        countLabel.frame = CGRect(x: 100, y: 0, width: max(0, width - 200), height: height)
-        copyButton.frame = CGRect(x: width - 56, y: 0, width: 44, height: height)
+        // 12 from the sides and 8 between the parts; «Отмена» has 16 around its word, the count 18, the copy is a round.
+        let cancelFont = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        let cancelWidth = ceil(("Отмена" as NSString).size(withAttributes: [.font: cancelFont]).width) + 32
+        cancelGlass.frame = CGRect(x: 12, y: 0, width: cancelWidth, height: height)
+        cancelButton.frame = cancelGlass.bounds
+        copyGlass.frame = CGRect(x: width - 12 - height, y: 0, width: height, height: height)
+        copyButton.frame = copyGlass.bounds
+        let room = max(0, copyGlass.frame.minX - 8 - (cancelGlass.frame.maxX + 8))
+        let countWidth = min(room, ceil(countLabel.sizeThatFits(CGSize(width: 400, height: height)).width) + 36)
+        countGlass.frame = CGRect(x: cancelGlass.frame.maxX + 8 + (room - countWidth) / 2, y: 0, width: countWidth, height: height)
+        countLabel.frame = countGlass.bounds
     }
 }
 

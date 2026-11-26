@@ -326,7 +326,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         statusLabel.frame = CGRect(x: 56, y: safeTop + 27, width: width - 112, height: 16)
         statusLabel.isHidden = chosen || !hasStatus
         backButton?.isHidden = chosen
-        selectionHeader.frame = CGRect(x: 0, y: safeTop + 2, width: width, height: 44)
+        // The pills of the chosen messages are 48 tall, at the middle of the line the header's own pills stand on.
+        selectionHeader.frame = CGRect(x: 0, y: safeTop + 6, width: width, height: 48)
 
         var top = headerBottom + 8
         // ChatActions: the search line stands where the pinned message would.
