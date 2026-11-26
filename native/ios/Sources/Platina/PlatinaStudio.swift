@@ -46,6 +46,7 @@ final class PlatinaStudioView: UIView {
         tab = AvatarCatalog.isCodeFrame(initial) ? "Анимация" : AvatarCatalog.decoration(initial)?.collection ?? (initial.isEmpty ? "Анимация" : "Кольца")
         NotificationCenter.default.addObserver(self, selector: #selector(outside), name: Messenger.ownProfileChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(outside), name: PlatinaState.changed, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(avatarReady(_:)), name: ChatAvatarStore.ready, object: nil)
         rebuild()
     }
 
@@ -142,6 +143,7 @@ final class PlatinaStudioView: UIView {
             let hero = ProfileHeroCard(frame: .zero)
             hero.show(person, look: look, base: base)
             stack.addArrangedSubview(hero)
+            stack.addArrangedSubview(section("Так тебя видят", "Твоя строка в «Чатах» у собеседника: рамка, табличка, имя и статус — как в настоящем списке.", seenBy()))
         }
         if !active {
             let lock = UIStackView()
@@ -244,6 +246,91 @@ final class PlatinaStudioView: UIView {
         }
         stack.addArrangedSubview(section("Табличка", "Фон за твоим именем в списке чатов и участников серверов.", scroller(plates)))
         onHeight?()
+    }
+
+    // MARK: Seen by others
+
+    /// The row of «Так тебя видят», redrawn when its photo arrives.
+    private weak var seenCanvas: ChatRowCanvas?
+
+    /// «Так тебя видят»: the real chat-list row (Chats/ChatList.swift `ChatRowCanvas`, made by the list's own
+    /// `Messenger.summary` and `ChatRowLooks.applyPerson` with ChatListDecor) of a chat with this account, as the other
+    /// person's list shows it — with what is chosen here, also before the server answers. The row draws in one pass
+    /// and its frames stand still, so it costs one view. Under it the real mini profile opens on a tap.
+    private func seenBy() -> UIView {
+        ChatListDecor.install()
+        let card = UIView()
+        card.backgroundColor = Theme.bg
+        card.layer.cornerRadius = 20
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 1
+        card.layer.borderColor = ThemeStore.look.border.cgColor
+        card.clipsToBounds = true
+        let canvas = ChatRowCanvas(frame: .zero)
+        canvas.row = Self.previewRow(user, messenger: messenger)
+        canvas.palette = Theme.chatList
+        canvas.isAccessibilityElement = true
+        canvas.accessibilityLabel = canvas.row.map { $0.title + ". " + $0.preview }
+        canvas.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(canvas)
+        NSLayoutConstraint.activate([
+            canvas.topAnchor.constraint(equalTo: card.topAnchor),
+            canvas.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            canvas.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            canvas.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            canvas.heightAnchor.constraint(equalToConstant: 76), // the list's row (ChatList.swift `chatRowHeight`)
+        ])
+        seenCanvas = canvas
+        let mini = SettingsButton(label: "Показать мини-профиль", kind: .secondary, icon: "person-circle-outline")
+        mini.onPress = { [weak self] in
+            guard let self, let host = self.hostController else { return }
+            MiniProfileViewController.present(self.person, messenger: self.messenger, from: host)
+        }
+        let column = UIStackView(arrangedSubviews: [card, mini])
+        column.axis = .vertical
+        column.spacing = 10
+        return column
+    }
+
+    @objc private func avatarReady(_ note: Notification) {
+        guard let key = note.object as? String, let canvas = seenCanvas, canvas.row?.avatarKey == key else { return }
+        canvas.setNeedsDisplay()
+    }
+
+    private var hostController: UIViewController? {
+        var next: UIResponder? = self
+        while let responder = next {
+            if let controller = responder as? UIViewController { return controller }
+            next = responder.next
+        }
+        return nil
+    }
+
+    /// The row of a chat with the account `user` (its raw profile, choices included) in someone else's list: the
+    /// list's own `Messenger.summary` and `ChatRowLooks.applyPerson`, so the avatar, the frame or art, the nameplate,
+    /// the Platina name and the status emoji are exactly the list's; the last message «Привет! 👋» is the other
+    /// person's, read (two ticks). Without an account (the simulator's sample) the same keys are filled here.
+    static func previewRow(_ user: [String: Any], messenger: Messenger?) -> ChatRow? {
+        var peer = user
+        if (peer["id"] as? String ?? "").isEmpty { peer["id"] = "me" }
+        // The list's ticks belong to the messages of the one whose list it is.
+        let viewer = messenger?.userId ?? "studio-viewer"
+        let sent = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-120))
+        let last: [String: Any] = ["id": 1, "senderId": viewer, "text": "Привет! 👋", "createdAt": sent]
+        let chat: [String: Any] = ["id": "studio-preview", "peer": peer, "peerLastReadMessageId": 1, "lastMessage": last]
+        var row: [String: Any]
+        if let messenger, let summary = messenger.summary(chat, shown: last, section: "") {
+            row = summary.row
+        } else {
+            let name = peer["displayName"] as? String ?? ""
+            let color = Messenger.color(peer["avatarColor"] as? String ?? "#4B73BB")
+            let orb = orbPair(color)
+            row = ["id": "studio-preview", "section": "", "avatarUrl": "", "avatarKey": "", "title": name, "preview": "Привет! 👋",
+                   "time": Messenger.listTime(sent), "unread": 0, "ticks": 2, "avatarColor": Int(0xFF00_0000 | color),
+                   "initials": Messenger.initials(name), "orbA": orb.light, "orbB": orb.deep]
+        }
+        ChatRowLooks.applyPerson(&row, peer: peer)
+        return ChatRow.parse([row]).first
     }
 
     private func section(_ title: String, _ hint: String, _ body: UIView) -> UIView {
