@@ -15,6 +15,7 @@ import android.view.Menu
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.Window
 import android.widget.FrameLayout
 import com.linea.messenger.design.Glass
@@ -50,6 +51,14 @@ object EffectsHost {
   private const val SNOW_LIES = false
   private var window = WeakReference<Activity>(null)
   private var overlay: EffectsOverlay? = null
+  /** The window whose every frame the rime follows (`follow`). */
+  private var followed = WeakReference<View>(null)
+  /** «Ледяное стекло» keeps to its glass: before each frame of the window the rime is put where the plates are now.
+   *  (Looked at only a few times a second, it stayed behind a list that was being scrolled.) */
+  private val follow = ViewTreeObserver.OnPreDrawListener {
+    if (iceOn) (window.get()?.window?.peekDecorView() as? ViewGroup)?.let { placeRime(it) }
+    true
+  }
   private val main = Handler(Looper.getMainLooper())
   private val backs = java.util.WeakHashMap<EffectsBackLayer, Unit>()
   private var seen = HashMap<String, LedgeSpec>()
@@ -141,6 +150,15 @@ object EffectsHost {
     placeOverlay(decor)
     placeBacks(decor)
     placeRime(decor)
+    val had = followed.get()
+    if (iceOn && had !== decor) {
+      had?.viewTreeObserver?.let { if (it.isAlive) it.removeOnPreDrawListener(follow) }
+      decor.viewTreeObserver.addOnPreDrawListener(follow)
+      followed = WeakReference(decor)
+    } else if (!iceOn && had != null) {
+      had.viewTreeObserver.let { if (it.isAlive) it.removeOnPreDrawListener(follow) }
+      followed = WeakReference(null)
+    }
     if (snowOn) reportLedges(decor)
   }
 
@@ -308,14 +326,20 @@ object EffectsHost {
     }
 
     fun rime(plates: List<Plate>) {
-      val keep = plates.map { it.key }.toSet()
-      for (key in rimes.keys.toList()) if (key !in keep) { removeView(rimes.getValue(key).first); rimes.remove(key) }
+      // Called before every frame while «Ледяное стекло» is on: a layout is asked for only when a plate came or went;
+      // otherwise the rime views are only moved to where their plates stand now.
+      var changed = false
+      if (rimes.size != plates.size || plates.any { it.key !in rimes }) {
+        val keep = plates.map { it.key }.toSet()
+        for (key in rimes.keys.toList()) if (key !in keep) { removeView(rimes.getValue(key).first); rimes.remove(key); changed = true }
+      }
       for (plate in plates) {
-        val view = rimes[plate.key]?.first ?: SnowView(context).also { it.layer = "rime"; addView(it) }
+        val had = rimes[plate.key]?.first
+        val view = had ?: SnowView(context).also { it.layer = "rime"; addView(it); changed = true }
         view.radius = plate.radius / resources.displayMetrics.density
         rimes[plate.key] = Pair(view, plate)
       }
-      requestLayout()
+      if (changed) requestLayout()
       layoutRimes()
     }
 
