@@ -115,6 +115,15 @@ class SettingsProfileChrome(private val context: Context) {
     status.setOnClickListener { onStatus?.invoke() }
     nameRow.addView(status, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { leftMargin = context.px(8f) })
     head.addView(nameRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(12f); leftMargin = context.px(4f); rightMargin = context.px(4f) })
+    // The status takes the touch 10 around it, as the reference's (`hitSlop`) and the iPhone's: the emoji is small, and
+    // a finger a little beside it landed on the name, past the end of its row or between the lines, and did nothing.
+    val reach = context.px(10f)
+    val aim = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+      head.touchDelegate = if (status.visibility != View.VISIBLE || status.width <= 0) null else android.view.TouchDelegate(
+        android.graphics.Rect(nameRow.left + status.left - reach, nameRow.top + status.top - reach, nameRow.left + status.right + reach, nameRow.top + status.bottom + reach), status)
+    }
+    status.addOnLayoutChangeListener(aim)
+    nameRow.addOnLayoutChangeListener(aim)
     val handleRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     handleRow.addView(context.words(if (person.username.isEmpty()) "" else "@" + person.username, 15f, Theme.muted))
     if (person.look.platina) {

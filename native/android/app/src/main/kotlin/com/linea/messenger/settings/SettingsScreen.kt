@@ -30,10 +30,13 @@ class SettingsScreen internal constructor(context: Context, private val account:
   private var leaving = false
   // D: no big «Настройки» — the reference's `Root` starts with the profile head and «Изменить» on glass.
   override val showsHeading: Boolean get() = false
-  private val profileChanged: () -> Unit = { if (built) build() }
+  private val profileChanged: () -> Unit = { if (built) buildIfChanged() }
   // Profile: the banner, the effect, «Изменить» and the decorated head (profile/SettingsProfileHead.kt).
   private val profileChrome = com.linea.messenger.profile.SettingsProfileChrome(context)
-  private val platinaChanged: (Unit) -> Unit = { if (built) build() }
+  private val platinaChanged: (Unit) -> Unit = { if (built) buildIfChanged() }
+  /** What the page was last built from: the same profile told again leaves the head and the rows as they are. */
+  private var builtPerson: Map<String, Any?>? = null
+  private var builtRows = ""
 
   override fun onAttachedToWindow() {
     val again = built
@@ -61,9 +64,28 @@ class SettingsScreen internal constructor(context: Context, private val account:
 
   private val person: Map<String, Any?> get() = account?.ownProfile ?: Demo.settingsPerson()
 
+  /** The server is asked for the profile every time the section comes to the eyes, and for Platina's state by the
+   *  profile's pages; each answer is told here even when it says nothing new. Built anew, the head and every row were
+   *  new views: a finger on the status or on a row lost its touch (its view was taken from under it), and the press
+   *  did nothing. The iPhone's Settings/SettingsViewController.swift keeps its page the same way. */
+  private fun buildIfChanged() {
+    if (builtPerson == person && builtRows == rowsKey()) return
+    build()
+  }
+
+  /** What the rows show besides the profile: the theme's name, the number of folders, the language, the quiet chats
+   *  and Platina (the offer). */
+  private fun rowsKey(): String {
+    val theme = ThemeStore.nightState()["shown"] as? String ?: "black"
+    val folders = account?.let { com.linea.messenger.chatsplus.ChatFolderStore.of(context, it.userId).folders.size } ?: 0
+    return listOf(theme, folders.toString(), com.linea.messenger.language.Language.chosenName, mutedChats.toString(), if (com.linea.messenger.platina.PlatinaState.active) "platina" else "").joinToString("|")
+  }
+
   override fun build() {
     clear()
     val who = person
+    builtPerson = who
+    builtRows = rowsKey()
     if (who.isNotEmpty()) {
       // Profile: the reference's head (banner under the status bar, decorated avatar, platinum name, seal).
       profileChrome.attach(this, scroll, account?.messenger)

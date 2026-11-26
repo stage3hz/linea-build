@@ -275,6 +275,94 @@ class SettingsPagesTest {
     idle()
   }
 
+  /** A finger down and up where the view is on the screen — its centre, moved by `dx`, `dy` dp — handed to the window
+   *  as the screen hands it: every view on the way and over the view has its say. `meanwhile` runs while the finger is
+   *  down. */
+  private fun fingerOnScreen(view: View, dx: Float = 0f, dy: Float = 0f, meanwhile: () -> Unit = {}) {
+    assertTrue(view.width > 0 && view.height > 0 && view.isShown)
+    val at = IntArray(2)
+    view.getLocationInWindow(at)
+    val d = view.resources.displayMetrics.density
+    val x = at[0] + view.width / 2f + dx * d
+    val y = at[1] + view.height / 2f + dy * d
+    val now = android.os.SystemClock.uptimeMillis()
+    val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0)
+    activity.window.decorView.dispatchTouchEvent(down)
+    down.recycle()
+    meanwhile()
+    val up = MotionEvent.obtain(now, now + 60, MotionEvent.ACTION_UP, x, y, 0)
+    activity.window.decorView.dispatchTouchEvent(up)
+    up.recycle()
+    idle()
+  }
+
+  /** The settings of an account with Platina whose status is the moving 🔥. */
+  private fun launchWithEmojiStatus(): View {
+    account.profile = account.profile + mapOf("seal" to "platina", "statusEmoji" to "🔥", "statusEmojiPermanent" to true, "statusEmojiExpiresAt" to null)
+    launch()
+    val status = find(top) { it is StatusEmojiView && it.isShown }!!
+    assertNotNull(find(status) { it is AnimatedEmojiView && it.isShown })
+    return status
+  }
+
+  @Test fun theEmojiBesideTheNameOpensThePickerUnderAFingerOnTheScreen() {
+    // The owner's report: a tap on the emoji next to the name in the settings did nothing. The finger goes to the
+    // window, at the emoji's place on the screen, not to the emoji's own view.
+    val motion = AvatarMotion.override
+    try {
+      AvatarMotion.override = { true }
+      val status = launchWithEmojiStatus()
+      fingerOnScreen(status)
+      assertEquals("OwnProfileScreen", topName)
+      assertTrue((ShadowDialog.getLatestDialog() as StatusPicker).isShowing)
+    } finally {
+      AvatarMotion.override = motion
+    }
+  }
+
+  @Test fun theEmojiBesideTheNameTakesAFingerALittleBesideIt() {
+    // As the reference's (`hitSlop` 10) and the iPhone's: a finger 6 dp past the emoji's right edge, where its row
+    // has already ended, and one 6 dp under it, between the name and the @username, open the picker too.
+    val motion = AvatarMotion.override
+    try {
+      AvatarMotion.override = { true }
+      val status = launchWithEmojiStatus()
+      val d = status.resources.displayMetrics.density
+      fingerOnScreen(status, dx = status.width / 2f / d + 6f)
+      assertEquals("OwnProfileScreen", topName)
+      (ShadowDialog.getLatestDialog() as StatusPicker).dismiss()
+      stack.pop(animated = false); idle()
+      assertEquals("SettingsScreen", topName)
+      val again = find(top) { it is StatusEmojiView && it.isShown }!!
+      fingerOnScreen(again, dy = again.height / 2f / d + 6f)
+      assertEquals("OwnProfileScreen", topName)
+    } finally {
+      AvatarMotion.override = motion
+    }
+  }
+
+  @Test fun theSameProfileToldWhileAFingerIsOnTheEmojiLeavesThePressAlone() {
+    // The server is asked for the profile each time the section shows, and Platina's state by the profile's pages;
+    // their answer, unchanged, came while the finger was down: the page was built anew, the emoji under the finger was
+    // a new view and the press did nothing.
+    val motion = AvatarMotion.override
+    try {
+      AvatarMotion.override = { true }
+      val status = launchWithEmojiStatus()
+      fingerOnScreen(status, meanwhile = { account.keepOwnProfile(account.profile) })
+      assertEquals("OwnProfileScreen", topName)
+      assertTrue((ShadowDialog.getLatestDialog() as StatusPicker).isShowing)
+      // A profile that did change is still shown.
+      (ShadowDialog.getLatestDialog() as StatusPicker).dismiss()
+      stack.pop(animated = false); idle()
+      account.keepOwnProfile(account.profile + mapOf("displayName" to "Мария Орлова-Ким"))
+      idle()
+      has("Мария Орлова-Ким")
+    } finally {
+      AvatarMotion.override = motion
+    }
+  }
+
   @Test fun theStatusBesideTheNameIsPressedAgainOnceItIsAnEmoji() {
     // The owner's report: the status was chosen once and could not be chosen again. With Platina and nothing chosen
     // the status is the gem; once an emoji is chosen it is the moving emoji, and that one took the finger for itself.
