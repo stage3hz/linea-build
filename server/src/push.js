@@ -182,10 +182,10 @@ export function chatNotification({ chatId, senderName, kind, unread, badge, ring
   // (mobile/src/calls/incomingPush.ts). `title` / `message` / `channelId` are there for the case the app's own code
   // does not get to run: the notifications library then shows them as the ordinary ringing notification.
   if (call && wake) return {
-    data: { chatId, kind, wake: '1', title: senderName, message: '📞 Входящий звонок', channelId: 'calls-ring' },
+    data: { chatId, kind, wake: '1', title: senderName, message: 'Входящий звонок', channelId: 'calls-ring' },
     android: { priority: 'high', ttl: '60s' },
   };
-  const body = call ? '📞 Входящий звонок' : missed ? '📞 Пропущенный звонок' : unread > 1 ? `${unread} ${plural(unread, 'новое сообщение', 'новых сообщения', 'новых сообщений')}` : 'Новое сообщение';
+  const body = call ? 'Входящий звонок' : missed ? 'Пропущенный звонок' : unread > 1 ? `${unread} ${plural(unread, 'новое сообщение', 'новых сообщения', 'новых сообщений')}` : 'Новое сообщение';
   return {
     data: { chatId, kind },
     android: {

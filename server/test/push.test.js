@@ -124,11 +124,11 @@ test('a call nobody answered gets a notification of its own: no 60 s limit, and 
   const missed = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'missed', unread: 0 });
   assert.equal(ringing.android.ttl, '60s');
   assert.equal(missed.android.ttl, undefined, 'kept until the phone wakes up');
-  assert.equal(missed.android.notification.body, '📞 Пропущенный звонок');
+  assert.equal(missed.android.notification.body, 'Пропущенный звонок');
   assert.equal(missed.android.notification.tag, ringing.android.notification.tag, 'replaces «Входящий звонок» on the screen');
   assert.equal(missed.android.notification.channel_id, 'messages');
   assert.equal(missed.android.priority, 'high');
-  assert.equal(missed.apns.payload.aps.alert.body, '📞 Пропущенный звонок');
+  assert.equal(missed.apns.payload.aps.alert.body, 'Пропущенный звонок');
   assert.equal(missed.apns.headers['apns-expiration'], undefined);
   assert.equal(missed.data.kind, 'missed');
 });
@@ -155,7 +155,7 @@ test('an incoming call to an iPhone rings with the app\'s long ringtone only whe
 test('a call wakes the app with a data message that still reads as a ringing notification if the app\'s code does not run', () => {
   const wake = chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'call', unread: 0, ring: true, wake: true });
   assert.equal(wake.android.notification, undefined, 'a data message: Android hands it to the closed app');
-  assert.deepEqual(wake.data, { chatId: 'c1', kind: 'call', wake: '1', title: 'Аня', message: '📞 Входящий звонок', channelId: 'calls-ring' });
+  assert.deepEqual(wake.data, { chatId: 'c1', kind: 'call', wake: '1', title: 'Аня', message: 'Входящий звонок', channelId: 'calls-ring' });
   assert.deepEqual(wake.android, { priority: 'high', ttl: '60s' });
   assert.ok(chatNotification({ chatId: 'c1', senderName: 'Аня', kind: 'message', unread: 1, wake: true }).android.notification, 'only a call');
 });
