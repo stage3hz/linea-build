@@ -16,6 +16,7 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import com.linea.messenger.app.Messenger
 import com.linea.messenger.avatars.AvatarCatalog
+import com.linea.messenger.avatars.ChatListDecor
 import com.linea.messenger.avatars.DecoratedAvatarView
 import com.linea.messenger.avatars.NameplateView
 import com.linea.messenger.avatars.PersonLook
@@ -26,10 +27,13 @@ import com.linea.messenger.design.Theme
 import com.linea.messenger.design.plate
 import com.linea.messenger.design.px
 import com.linea.messenger.design.words
+import com.linea.messenger.chats.ChatRow
+import com.linea.messenger.chats.ChatRowView
 import com.linea.messenger.people.Person
 import com.linea.messenger.profile.ProfileAmbientView
 import com.linea.messenger.profile.ProfileBannerView
 import com.linea.messenger.profile.ProfileEffectView
+import com.linea.messenger.profile.MiniProfile
 import com.linea.messenger.profile.ProfileIconView
 import com.linea.messenger.profile.ProfilePhotoChange
 import com.linea.messenger.profile.patchOwnProfile
@@ -40,6 +44,8 @@ import com.linea.messenger.settings.SettingsNotice
 import com.linea.messenger.settings.SettingsPage
 import com.linea.messenger.settings.ownProfile
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
 
 /** Sample data for the debug build (set by profile/ProfileSamples.kt of src/debug): the sample account's raw `user`
  *  and whether its Platina counts as active. Null in a release build. */
@@ -132,7 +138,10 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     removeAllViews()
     val look = PersonLook.from(user)
     fun add(view: View, gap: Float = 16f) = addView(view, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { if (childCount > 0) topMargin = context.px(gap) })
-    if (!compact) add(ProfileHeroCard(context).apply { show(person, look, base) })
+    if (!compact) {
+      add(ProfileHeroCard(context).apply { show(person, look, base) })
+      add(section("Так тебя видят", "Твоя строка в «Чатах» у собеседника: рамка, табличка, имя и статус — как в настоящем списке.", seenBy()))
+    }
     if (!active) {
       val lock = LinearLayout(context).apply {
         orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -198,6 +207,28 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
     add(section("Табличка", "Фон за твоим именем в списке чатов и участников серверов.", scroller(plates)))
   }
 
+  /** «Так тебя видят»: the real chat-list row (chats/ChatRowView.kt, built by the list's own `Messenger.summary` with
+   *  ChatListDecor) of a chat with this account, as the other person's list shows it — with what is chosen here, also
+   *  before the server answers. The row draws in one pass and its frames stand still, so it costs one view. Under it
+   *  the real mini profile opens on a tap. */
+  private fun seenBy(): View {
+    val box = LinearLayout(context).apply { orientation = VERTICAL }
+    ChatListDecor.install(context)
+    val card = FrameLayout(context).apply {
+      background = GradientDrawable().apply { setColor(Theme.bg); cornerRadius = 20f * resources.displayMetrics.density; setStroke(context.px(1f), com.linea.messenger.settings.ThemeStore.look.border) }
+      clipToOutline = true
+    }
+    val row = ChatRowView(context)
+    previewRow(user, base)?.let { row.bind(it, Theme.chatList) }
+    row.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+    card.addView(row, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))
+    box.addView(card, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
+    val mini = SettingsButton(context, "Показать мини-профиль", SettingsButton.Kind.SECONDARY, icon = "person-circle-outline")
+    mini.onPress = { MiniProfile(context, person, messenger).show() }
+    box.addView(mini, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = context.px(10f) })
+    return box
+  }
+
   private fun section(title: String, hint: String, body: View): View = LinearLayout(context).apply {
     orientation = VERTICAL
     addView(context.words(title, 15f, Theme.text, 600))
@@ -243,6 +274,19 @@ class PlatinaStudioView(context: Context, private val messenger: Messenger?, pri
 
   companion object {
     private val gridTabs = listOf("Анимация") + AvatarCatalog.decorationCollections + listOf("Кольца")
+    private const val VIEWER = "studio-viewer"
+
+    /** The row of a chat with the account `user` (its raw profile, choices included) in someone else's list: the
+     *  list's own `Messenger.summary`, so the avatar, the frame or art, the nameplate, the Platina name and the
+     *  status emoji are exactly the list's; the last message «Привет! 👋» is theirs, read (two ticks). */
+    fun previewRow(user: Map<String, Any?>, base: String, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): ChatRow? {
+      val peer = LinkedHashMap(user)
+      if ((peer["id"] as? String).isNullOrEmpty()) peer["id"] = "me"
+      val chat = mapOf<String, Any?>("id" to "studio-preview", "peer" to peer, "peerLastReadMessageId" to 1)
+      val last = mapOf<String, Any?>("id" to 1, "senderId" to VIEWER, "text" to "Привет! 👋", "createdAt" to now.minusSeconds(120).toString())
+      val summary = Messenger.summary(chat, last, VIEWER, now, zone, base = base) ?: return null
+      return ChatRow.parse(listOf(summary.row)).firstOrNull()
+    }
   }
 
   /** Tabs and an even three-column grid; the chosen tile wears a check mark and plays its motion. */
