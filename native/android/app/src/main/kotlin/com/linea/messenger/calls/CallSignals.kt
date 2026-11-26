@@ -181,6 +181,9 @@ class CallNetwork {
   /** null until the system has said. */
   var online: Boolean? = null
     private set
+  /** The kind of the network the phone is on: "wifi", "cellular", "wired", "other", "offline", or "?" before the
+   *  system has said (the grey line of a call in the preview build). */
+  val kind: String get() = key?.substringBefore('|') ?: "?"
   /** The phone lost its network, or has one again. */
   var onOnline: (() -> Unit)? = null
   /** The phone switched networks (not when it merely lost one). */

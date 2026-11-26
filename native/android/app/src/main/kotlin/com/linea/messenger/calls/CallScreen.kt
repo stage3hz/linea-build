@@ -358,7 +358,10 @@ class CallScreenView(context: Context) : Screen(context) {
     statusButton.contentDescription = "$words. Диагностика звонка"
     clockLabel.text = status.clock ?: ""
     clockLabel.visibility = if (reconnecting && !showsVideo) VISIBLE else GONE
-    val lines = if (statsOpen && call.status == "active") Calls.linkLines else emptyList()
+    // An ended call of the preview build: what it went through, in one grey line (CallReport.kt).
+    val report = if (call.isOver) Calls.endReport else null
+    val lines = if (report != null) listOf(report) else if (statsOpen && call.status == "active") Calls.linkLines else emptyList()
+    statsLabel.setTextColor(if (report != null) 0x99FFFFFF.toInt() else 0xE6FFFFFF.toInt())
     statsLabel.text = lines.joinToString("\n")
     val wanted = if (lines.isEmpty()) GONE else VISIBLE
     if (statsLabel.visibility != wanted) statsLabel.visibility = wanted
@@ -368,7 +371,7 @@ class CallScreenView(context: Context) : Screen(context) {
   private fun rebuildButtons(call: CallState) {
     // Built again only when the set of buttons or what they show changes.
     val key = CallRules.buttons(call).joinToString("|") + (if (call.video) "|video" else "|audio") + (if (call.cameraOff) "|off" else "|on") +
-      (if (call.muted) "|muted" else "|heard") + (if (call.speaker) "|loud" else "|quiet")
+      (if (call.muted) "|muted" else "|heard") + (if (call.speaker) "|loud" else "|quiet") + (if (call.isOver && Calls.endReport != null) "|report" else "")
     if (key == buttonsKey) return
     buttonsKey = key
     for (old in buttons) removeView(old)
@@ -385,6 +388,9 @@ class CallScreenView(context: Context) : Screen(context) {
       if (call.retry) {
         add("close", "Закрыть") { Calls.close() }
         add(callSymbol, "Повторить", color = green) { Calls.retry() }
+      } else if (Calls.endReport != null) {
+        // The preview build keeps a call that did not come up on the screen for a while (its grey line): it can be put away.
+        add("close", "Закрыть") { Calls.close() }
       }
     } else {
       val cameraOn = call.video && !call.cameraOff

@@ -89,6 +89,11 @@ object Calls {
   private var restarting = false
   private var linkSample: Map<String, Any?>? = null
   private var calm = 0
+  /** What the call on screen went through (CallReport.kt), for the grey line of the preview build. */
+  private var report: CallReport? = null
+  /** That line, once the call has ended (null: none, or not this build). */
+  var endReport: String? = null
+    private set
 
   /** The debug build's samples (`--es calldemo`, src/debug CallsDemo.kt): the screens without an account, a
    *  server or any media. What a sample call becomes when «Ответить» or «Повторить» is pressed is theirs to say. */
@@ -99,6 +104,11 @@ object Calls {
   private var samples: Samples? = null
   /** Whether the call on screen is a sample (its pictures are drawn, not filmed). */
   val isDemo: Boolean get() = samples != null
+
+  /** Servers asked for this recently are used as they are (the relay's password lasts 6 hours). */
+  private const val ICE_FRESH_MS = 5 * 60_000L
+  /** How long the preview build keeps a call that never came up on the screen, with its grey line. */
+  private const val REPORT_HOLD_MS = 15_000L
 
   private fun after(ms: Long, work: () -> Unit): Runnable = Runnable { work() }.also { main.postDelayed(it, ms) }
   private fun cancel(timer: Runnable?) { if (timer != null) main.removeCallbacks(timer) }
@@ -172,13 +182,16 @@ object Calls {
 
   /** «Позвонить» / «Видеозвонок». With a call already on, that call comes back to the screen instead. */
   fun place(chatId: String, peer: Person, video: Boolean) {
-    if (call != null) return restore()
+    // A call that has ended and only shows its last words is no call: a new one takes its place.
+    if (call?.isOver == false) return restore()
     val messenger = messenger ?: return
     val id = UUID.randomUUID().toString().lowercase()
     seen.add(id)
     try { MusicPlayer.shared.stop() } catch (_: Exception) {}
     tap(strong = true)
     samples = null
+    report = CallReport(incoming = false).also { it.network = network.kind }
+    endReport = null
     call = CallState(id, chatId, peer, incoming = false, video = video, status = "requesting", speaker = video)
     began()
     // The header knows only the name: the picture and the colour come from the profile.
@@ -221,6 +234,7 @@ object Calls {
       if (current == null || current.id != id || current.isOver) return@waitForNetwork
       if (!online) return@waitForNetwork finish(CallRules.noConnectionText, null, retry = true)
       send(current, mapOf("type" to "call", "call" to id, "step" to "offer", "video" to video, "sdp" to marked(sdp)))
+      report?.offerAt = System.currentTimeMillis()
       patch { it.copy(status = "ringing") }
       // The first ringback: the call is on its way. The server then says how far it got (`call.reach`) and
       // the ringing one takes over. A server that says nothing gets the ringing tone after 3 s.
@@ -239,6 +253,7 @@ object Calls {
       ringTimer = after(CallRules.ringTimeout) {
         if (isCurrent(id) && call?.status == "ringing") {
           val expiry = CallRules.fields("callRingExpiry", listOf(signalNetwork))
+          report?.cause = "нет ответа за ${CallRules.ringTimeout / 1000} с"
           finish(expiry["text"] as? String ?: "Нет ответа", "missed", retry = expiry["retry"] as? Boolean ?: false)
         }
       }
@@ -261,14 +276,15 @@ object Calls {
 
   /** Asks for the call's servers and makes the connection with the microphone (and the camera). */
   private fun prepare(id: String, video: Boolean, done: (CallMedia?) -> Unit) {
-    iceServers(0) { servers ->
+    iceServers(0) { servers, source ->
       if (!isCurrent(id)) return@iceServers
       wantRelay = CallRules.flag("callHasRelay", listOf(servers))
       relayFound = false
+      report?.let { it.servers = servers.size; it.source = source; it.wantRelay = wantRelay }
       val made = app?.let { CallMedia.create(it, servers, video) }
-      trace("servers ${servers.size} relay $wantRelay media ${made != null}")
+      trace("servers ${servers.size} ($source) relay $wantRelay media ${made != null}")
       if (made == null) return@iceServers done(null)
-      made.onCandidate = { line -> if (CallRules.flag("callIsRelayCandidate", listOf(line))) relayFound = true }
+      made.onCandidate = { line -> if (CallRules.flag("callIsRelayCandidate", listOf(line))) { relayFound = true; report?.relayFound = true } }
       made.onGathering = { checkGathering() }
       made.onState = { state -> if (media === made) connectionMoved(state) }
       made.onRemoteVideo = { patch { it.copy(remoteVideo = true) } }
@@ -280,17 +296,35 @@ object Calls {
   }
 
   /** Without the relay's address a call between two mobile networks cannot connect, so its request is not given
-   *  up at the first failure: one more try, then the servers of the last call (the relay's password lasts 6
-   *  hours), then the public address finder alone. */
-  private fun iceServers(attempt: Int, done: (List<Map<String, Any?>>) -> Unit) {
-    val messenger = messenger ?: return done(CallRules.publicIce)
+   *  up at the first failure: two more tries (after 0.4 and 1.5 s: right after the app was started by a call's
+   *  notification the session may still be settling), then the servers of the last call (the relay's password
+   *  lasts 6 hours), then the public address finder alone. Servers asked for a few minutes ago — while the
+   *  call rang, see `prefetchIce` — are taken as they are. `done` also says where the servers came from. */
+  private fun iceServers(attempt: Int, done: (List<Map<String, Any?>>, String) -> Unit) {
+    val kept = lastIce
+    if (attempt == 0 && kept != null && System.currentTimeMillis() - kept.first < ICE_FRESH_MS) return done(kept.second, "сервер, заранее")
+    val messenger = messenger ?: return done(CallRules.publicIce, "публичные")
     messenger.callIceServers { servers ->
       if (servers != null) {
         lastIce = Pair(System.currentTimeMillis(), servers)
-        return@callIceServers done(servers)
+        return@callIceServers done(servers, if (attempt == 0) "сервер" else "сервер, попытка ${attempt + 1}")
       }
-      if (attempt == 0) { after(400) { iceServers(1, done) }; return@callIceServers }
-      done(CallRules.iceChoice(null, lastIce, System.currentTimeMillis(), CallRules.iceReuse))
+      trace("ice servers not given, attempt ${attempt + 1}")
+      if (attempt < 2) { after(if (attempt == 0) 400 else 1500) { iceServers(attempt + 1, done) }; return@callIceServers }
+      val chosen = CallRules.iceChoice(null, lastIce, System.currentTimeMillis(), CallRules.iceReuse)
+      done(chosen, if (chosen === CallRules.publicIce) "публичные" else "прошлые")
+    }
+  }
+
+  /** An incoming call rings: its servers are asked for now, while the person reaches for the phone, so that
+   *  «Ответить» does not wait for them — and a request that fails has the ringing to be tried again. Only the
+   *  servers are kept (in memory, like the last call's); nothing else is done with them. */
+  private fun prefetchIce(callId: String, attempt: Int = 0) {
+    val messenger = messenger ?: return
+    messenger.callIceServers { servers ->
+      if (servers != null) { lastIce = Pair(System.currentTimeMillis(), servers); return@callIceServers }
+      trace("ice servers not given while ringing, attempt ${attempt + 1}")
+      if (attempt < 3 && call?.id == callId && call?.status == "incoming") after(2000) { prefetchIce(callId, attempt + 1) }
     }
   }
 
@@ -370,8 +404,11 @@ object Calls {
       val complete = if (wait.fresh) wait.moved && finished else finished
       if (!CallRules.flag("callGatherDone", listOf(complete, relayFound, wantRelay, elapsed))) continue
       wait.settled = true
-      trace("gathered in ${elapsed.toLong()} ms complete $complete relay $relayFound")
-      wait.done(made.localSdp)
+      val sdp = made.localSdp
+      val counted = CallReport.counts(sdp)
+      report?.let { it.gatherMs = elapsed.toLong(); it.gatherComplete = complete; it.own = counted }
+      trace("gathered in ${elapsed.toLong()} ms complete $complete relay $relayFound candidates $counted")
+      wait.done(sdp)
     }
     gatherWaits.removeAll { it.settled }
   }
@@ -411,7 +448,10 @@ object Calls {
       val senderId = message["senderId"] as? String ?: return
       val created = message["createdAt"] as? String ?: return
       if (callId in over) return
-      if (!CallRules.flag("callOfferFresh", listOf(created, CallRules.nowMs, seen.toList(), callId))) return
+      if (!CallRules.flag("callOfferFresh", listOf(created, CallRules.nowMs, seen.toList(), callId))) {
+        trace("offer too old or already seen")
+        return
+      }
       seen.add(callId)
       val messenger = messenger ?: return
       messenger.callPeer(chatId) { peer ->
@@ -420,7 +460,7 @@ object Calls {
         messenger.callAllowed(senderId, incoming = true) { allowed ->
           if (this.messenger !== messenger) return@callAllowed
           if (allowed == false) messenger.sendCallSignal(chatId, peer.id, CallRules.end(callId, video, incoming = true, startedAt = null, reason = "declined"))
-          else rings(chatId, peer, callId, video, sdp)
+          else rings(chatId, peer, callId, video, sdp, created)
         }
       }
       return
@@ -480,30 +520,46 @@ object Calls {
       cancel(reachTimer)
       CallSounds.stop()
       patch { it.copy(status = "connecting", remoteSdp = sdp) }
+      report?.let { it.answer = "получен"; it.answerAt = System.currentTimeMillis() }
       connecting(callId)
       val made = media ?: return
       made.setRemote("answer", stripped(sdp)) { fine ->
         if (!isCurrent(callId) || media !== made) return@setRemote
-        if (fine) showKey(made.localSdp, sdp) else finish("Не удалось соединиться", "failed")
+        trace("answer " + if (fine) "taken" else "refused")
+        if (fine) showKey(made.localSdp, sdp) else {
+          report?.let { it.answer = "не принят"; it.cause = "ответ не принят" }
+          finish("Не удалось соединиться", "failed")
+        }
       }
       return
     }
-    if (step == "end") finish(CallRules.endedWords(action["reason"] as? String), null)
+    if (step == "end") {
+      report?.cause = "собеседник: " + (action["reason"] as? String ?: "—")
+      finish(CallRules.endedWords(action["reason"] as? String), null)
+    }
   }
 
   /** An offer that may ring: the incoming call comes up — or, with a call already on, the caller hears «busy». */
-  private fun rings(chatId: String, peer: Person, callId: String, video: Boolean, sdp: String) {
+  private fun rings(chatId: String, peer: Person, callId: String, video: Boolean, sdp: String, created: String) {
     // Ended by the caller while it was being looked into: nothing rings, nobody is told «busy».
     if (callId in over) return trace("the call ended before it rang")
-    if (call != null) {
+    // Busy only while a call is on: one that has ended and only shows its last words gives way.
+    if (call?.isOver == false) {
       // Busy: the same `end` as a hang-up, so the caller's chat says «Собеседник занят» and ours a missed call.
       messenger?.sendCallSignal(chatId, peer.id, CallRules.end(callId, video, incoming = true, startedAt = null, reason = "busy"))
       return
     }
     samples = null
+    val ringing = CallReport(incoming = true).also { made ->
+      made.network = network.kind
+      made.offerAt = Messenger.date(created)?.toEpochMilli()
+    }
+    report = ringing
+    endReport = null
     call = CallState(callId, chatId, peer, incoming = true, video = video, status = "incoming", speaker = video, remoteSdp = sdp)
-    trace("rings")
+    trace("rings, the offer is ${ringing.offerAt?.let { (System.currentTimeMillis() - it) / 1000 } ?: "?"} s old, network ${network.kind}")
     began()
+    prefetchIce(callId)
     // Push: opened from the ringing notification of a closed app — it goes now, and «Ответить» pressed on it answers
     // here once the call is on screen (push/IncomingCall.kt, the reference's CallProvider).
     app?.let { context -> com.linea.messenger.push.IncomingCall.callUp(context, chatId) { if (isCurrent(callId) && call?.status == "incoming") accept() } }
@@ -532,22 +588,24 @@ object Calls {
     CallAudio.allow(window.get(), current.video) asked@{ refusal ->
       if (!isCurrent(id)) return@asked
       trace("microphone " + if (refusal == null) "allowed" else "refused")
-      if (refusal != null) return@asked finish(refusal, "failed")
+      if (refusal != null) { report?.cause = "микрофон"; return@asked finish(refusal, "failed") }
       app?.let { CallAudio.start(it, current.video) }
       prepare(id, current.video) prepared@{ made ->
         if (!isCurrent(id)) return@prepared
-        if (made == null) return@prepared finish("Не удалось ответить", "failed")
+        if (made == null) { report?.cause = "нет соединения WebRTC"; return@prepared finish("Не удалось ответить", "failed") }
         answer(made, stripped(offer), again = false) answered@{ own ->
           val now = call
           if (now == null || now.id != id || now.isOver) return@answered
           trace("answer " + if (own == null) "not made" else "made")
-          if (own == null) return@answered finish("Не удалось ответить", "failed")
+          report?.answer = if (own == null) "не сделан" else "сделан"
+          if (own == null) { report?.cause = "ответ не сделан"; return@answered finish("Не удалось ответить", "failed") }
           val messenger = messenger ?: return@answered finish("Не удалось ответить", "failed")
           // The answer is the whole call: when it cannot leave this phone the caller rings on and nothing
           // would ever connect here, so the call ends instead of saying «Соединение…» for ever.
           messenger.sendCallSignal(now.chatId, now.peer.id, mapOf("type" to "call", "call" to id, "step" to "answer", "sdp" to marked(own))) { sent ->
             trace("answer " + if (sent) "sent" else "not sent")
-            if (!sent && isCurrent(id) && call?.status == "connecting") finish("Не удалось соединиться", "failed")
+            if (isCurrent(id)) report?.let { it.answer = if (sent) "отправлен" else "не отправлен"; if (sent) it.answerAt = System.currentTimeMillis() }
+            if (!sent && isCurrent(id) && call?.status == "connecting") { report?.cause = "ответ не ушёл"; finish("Не удалось соединиться", "failed") }
           }
           showKey(own, offer)
         }
@@ -560,10 +618,12 @@ object Calls {
    *  side went away without a word that reached this phone — the call ends after as long as a call rings,
    *  instead of waiting for ever. The other side is told, like after any failed connection. */
   private fun connecting(id: String) {
+    report?.connectingAt = System.currentTimeMillis()
     cancel(connectTimer)
     connectTimer = after(CallRules.ringTimeout) {
       if (isCurrent(id) && call?.status == "connecting") {
         trace("still connecting after ${CallRules.ringTimeout} ms")
+        report?.cause = "${CallRules.ringTimeout / 1000} с без связи"
         finish("Не удалось соединиться", "failed")
       }
     }
@@ -580,6 +640,7 @@ object Calls {
   private fun connectionMoved(state: String) {
     val current = call ?: return
     trace("media $state in ${current.status}")
+    report?.state = state
     if (state == "connected" && current.status != "active" && current.status != "ended") {
       cancel(connectTimer); connectTimer = null
       resetLink()
@@ -589,7 +650,10 @@ object Calls {
     }
     // Once the call is up, a drop is not the end: «Восстановление связи…», ICE restarts, «Связь потеряна» after 30 s.
     if (current.status == "active") return feedLink(mapOf("kind" to "state", "state" to state))
-    if (state == "failed") finish("Не удалось соединиться", "failed")
+    if (state == "failed") {
+      report?.cause = "ICE failed"
+      finish("Не удалось соединиться", "failed")
+    }
   }
 
   private fun resetLink() {
@@ -618,7 +682,7 @@ object Calls {
     val showing = step["showing"] as? Boolean ?: false
     if (current.reconnecting != showing) patch { it.copy(reconnecting = showing) }
     if (step["recovered"] == true) tap()
-    if (step["end"] == true) return finish("Связь потеряна", "failed")
+    if (step["end"] == true) { report?.cause = "связь потеряна"; return finish("Связь потеряна", "failed") }
     if (step["restart"] == true) sendRestart()
   }
 
@@ -683,6 +747,7 @@ object Calls {
     val current = call ?: return
     if (current.isOver) return
     val outcome = CallRules.fields("callHangup", listOf(current.status, current.incoming))
+    report?.let { if (it.cause.isEmpty()) it.cause = "кнопка" }
     finish(outcome["text"] as? String ?: "Звонок завершён", outcome["reason"] as? String)
   }
 
@@ -820,12 +885,19 @@ object Calls {
     if (current.isOver) return
     app?.let { com.linea.messenger.push.IncomingCall.dismiss(it) } // Push: the ringing notification goes with the call, whoever ended it
     trace("ended in ${current.status}" + (if (notify != null) ", told as $notify" else ""))
+    // The grey line of the preview build: made before the connection is closed (its last state is in it).
+    val line = report?.line(current.remoteSdp)
+    report = null
+    if (line != null) trace("report: $line")
+    endReport = if (line != null && CallReport.shown(app?.packageName)) line else null
     if (notify != null) send(current, CallRules.end(current, notify))
     cleanup()
     call = current.copy(status = "ended", endedText = words, retry = retry, localVideo = false, remoteVideo = false, reconnecting = false,
       minimized = if (retry) false else current.minimized)
     if (retry) return
-    after(1600) {
+    // A call that never came up stays on the screen long enough for a picture of its line to be taken.
+    val troubled = endReport != null && current.startedAt == null && (current.status == "connecting" || notify == "failed" || notify == "missed")
+    after(if (troubled) REPORT_HOLD_MS else 1600) {
       val ended = call
       if (ended != null && ended.id == current.id && ended.isOver) call = null
     }
