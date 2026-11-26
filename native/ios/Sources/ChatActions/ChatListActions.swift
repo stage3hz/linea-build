@@ -87,7 +87,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
         searchButton.setImage(chatSymbol("magnifyingglass", 16, .semibold), for: .normal)
         searchButton.tintColor = Theme.text
         searchButton.backgroundColor = Theme.surface2
-        searchButton.layer.cornerRadius = 20
+        searchButton.layer.cornerRadius = 22
         searchButton.accessibilityLabel = "Поиск"
         searchButton.addTarget(self, action: #selector(openSearchScreen), for: .touchUpInside) // ChatSearch
         host.view.addSubview(searchButton)
@@ -129,7 +129,7 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
     /// list must leave at the top.
     func place(in view: UIView, safeTop: CGFloat) -> CGFloat {
         let width = view.bounds.width
-        searchButton.frame = CGRect(x: width - 20 - 40 - 8 - 40, y: safeTop + 8, width: 40, height: 40)
+        searchButton.frame = CGRect(x: width - 16 - 44 - 8 - 44, y: safeTop + 10, width: 44, height: 44) // ChatListScreen.tsx: 44, 8 apart
         searchButton.isHidden = plus?.selecting ?? false // ChatsPlus: «Выбрать» — the search gives way
         var top = safeTop + 8 + 41 + 8
         if searching {

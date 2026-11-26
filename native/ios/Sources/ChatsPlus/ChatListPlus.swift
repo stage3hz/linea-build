@@ -152,11 +152,11 @@ final class ChatListPlus: NSObject, UIGestureRecognizerDelegate {
     func place(in view: UIView, safeTop: CGFloat, listTop: CGFloat, strip: (CGFloat) -> CGFloat) -> CGFloat {
         let width = view.bounds.width
         let searching = listTop > safeTop + 60
-        subtitle.frame = CGRect(x: 21, y: safeTop + 47, width: width - 42 - 96, height: 16)
+        subtitle.frame = CGRect(x: 21, y: safeTop + 43, width: width - 42 - 104, height: 16) // 1 under the title's line of 36
         subtitle.isHidden = searching || !status.isHidden
-        status.frame = CGRect(x: 20, y: safeTop + 8, width: width - 40 - 100, height: 41)
+        status.frame = CGRect(x: 20, y: safeTop + 4, width: width - 40 - 100, height: 40)
         statusSpinner.frame = CGRect(x: 0, y: 10, width: 20, height: 21)
-        statusWords.frame = CGRect(x: 26, y: 0, width: status.bounds.width - 26, height: 41)
+        statusWords.frame = CGRect(x: 26, y: 0, width: status.bounds.width - 26, height: 40)
         var top = listTop + (searching ? 0 : 10)
         let showTabs = !folders.folders.isEmpty && !(actions?.showingArchive ?? false) && !searching
         // The stories, then the folders 8 above the header's end; the first row stands 12 under the header (the

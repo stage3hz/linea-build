@@ -72,8 +72,8 @@ final class ChatListEdit: NSObject {
         let width = view.bounds.width
         let wordsWidth = ceil(buttonWords.sizeThatFits(CGSize(width: 200, height: 40)).width)
         let side = wordsWidth + 32
-        let x = selecting ? width - 20 - side : searchLeft - 8 - side
-        button.frame = CGRect(x: x, y: safeTop + 8, width: side, height: 40)
+        let x = selecting ? width - 16 - side : searchLeft - 8 - side
+        button.frame = CGRect(x: x, y: safeTop + 12, width: side, height: 40) // at the middle of the header's round buttons
         buttonGlass.frame = button.bounds
         buttonWords.frame = button.bounds
         let bottom = view.safeAreaInsets.bottom

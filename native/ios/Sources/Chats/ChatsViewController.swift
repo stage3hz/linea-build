@@ -43,7 +43,7 @@ final class ChatsViewController: UIViewController {
         newChat.setImage(UIImage(systemName: "square.and.pencil", withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold)), for: .normal)
         newChat.tintColor = Theme.onAccent
         newChat.backgroundColor = Theme.accent
-        newChat.layer.cornerRadius = 20
+        newChat.layer.cornerRadius = 22
         newChat.accessibilityLabel = "Новый чат"
         newChat.addTarget(self, action: #selector(openPeople), for: .touchUpInside)
         view.addSubview(newChat)
@@ -203,8 +203,10 @@ final class ChatsViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let top = view.safeAreaInsets.top
-        heading.frame = CGRect(x: 20, y: top + 8, width: view.bounds.width - 40, height: 41)
-        newChat.frame = CGRect(x: view.bounds.width - 20 - 40, y: top + 8, width: 40, height: 40)
+        // ChatListScreen.tsx header: 6 above a title on a line of 36 (its middle 24 under the status bar); the round
+        // buttons are 44, 16 from the side and 8 apart, at the middle of the title and the line under it together.
+        heading.frame = CGRect(x: 20, y: top + 4, width: view.bounds.width - 40, height: 40)
+        newChat.frame = CGRect(x: view.bounds.width - 16 - 44, y: top + 10, width: 44, height: 44)
         list.frame = view.bounds
         // Shell: the mini-player's room above the bar; ChatsPlus: the choosing bar's room while choosing chats.
         let barRoom = plus.listBottom(BarMetrics.bottomGap(safeBottom: view.safeAreaInsets.bottom) + BarMetrics.height + 12 + ShellInsets.miniPlayer, safeBottom: view.safeAreaInsets.bottom)
