@@ -142,11 +142,11 @@ final class ComposerExtras: NSObject {
         return known > 0 ? max(250, known - safe) : 300
     }
 
-    /// The panel's card, as the previous app places it: its room stands above the home indicator's strip and the
-    /// card ends 10 above the room's end (measured: 7 above the strip), 12 from the sides.
+    /// The panel's card, as the previous app places it (StickerPanel.tsx `marginBottom: 10`): its room stands above
+    /// the home indicator's strip and the card ends 10 above the room's end, 12 from the sides.
     private func panelFrame(in view: UIView) -> CGRect {
         let height = panelHeight(in: view) - 10
-        let bottom = view.bounds.height - view.safeAreaInsets.bottom - 7
+        let bottom = view.bounds.height - view.safeAreaInsets.bottom - 10
         return CGRect(x: 12, y: bottom - height, width: view.bounds.width - 24, height: height)
     }
 
