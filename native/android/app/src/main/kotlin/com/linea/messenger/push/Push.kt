@@ -208,8 +208,8 @@ object Push {
       .setSmallIcon(R.drawable.notification_icon)
       .setColor(COLOR)
       .setContentTitle(title)
-      // The server's «📞 Входящий звонок» / «📞 Пропущенный звонок» read without the emoji here.
-      .setContentText(com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(body))
+      // An older server's «📞 Входящий звонок» / «📞 Пропущенный звонок» read without the emoji here (chatsplus/ChatRowLooks.kt).
+      .setContentText(com.linea.messenger.chatsplus.ChatRowLooks.withoutAppMark(body))
       .setAutoCancel(true)
       .setContentIntent(open)
       .apply { if (kind == "call") setCategory(Notification.CATEGORY_CALL) else setCategory(Notification.CATEGORY_MESSAGE) }

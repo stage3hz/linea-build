@@ -94,8 +94,8 @@ object ChatActionsDemo {
       val lunch = mapOf("question" to "Куда пойдём в пятницу?", "options" to listOf("Кино", "Боулинг", "Остаться дома"), "multiple" to false)
       add(false, com.linea.messenger.polls.PollText.fallback(lunch), "09:44", mapOf("poll" to lunch))
       val pollClient = client(list.size)
-      add(false, "🗳 Голос в опросе", "09:45", mapOf("action" to mapOf("type" to "vote", "target" to pollClient, "options" to listOf(0))))
-      add(true, "🗳 Голос в опросе", "09:45", mapOf("action" to mapOf("type" to "vote", "target" to pollClient, "options" to listOf(1))))
+      add(false, "Голос в опросе", "09:45", mapOf("action" to mapOf("type" to "vote", "target" to pollClient, "options" to listOf(0))))
+      add(true, "Голос в опросе", "09:45", mapOf("action" to mapOf("type" to "vote", "target" to pollClient, "options" to listOf(1))))
       val picnic = mapOf("question" to "Что взять на пикник?", "options" to listOf("Плед", "Мяч", "Термос", "Гитара"), "multiple" to true)
       add(true, com.linea.messenger.polls.PollText.fallback(picnic), "09:46", mapOf("poll" to picnic))
       for ((mine, words) in listOf(false to "🎉🔥", true to "👍")) {

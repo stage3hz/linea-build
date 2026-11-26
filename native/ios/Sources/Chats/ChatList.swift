@@ -30,7 +30,7 @@ struct ChatRow: Equatable {
   /// A small JPEG/PNG (base64) shown before the preview text.
   let thumb: String
   let thumbRound: Bool
-  /// A small grey icon before the preview text: "mic" for a voice message, "phone" / "video" for a call; empty = none.
+  /// A small grey icon before the preview text: "mic" for a voice message; empty = none.
   let previewIcon: String
   /// The first N characters (UTF-16) of the preview are drawn in the danger colour («Черновик:»).
   let previewRed: Int
@@ -60,16 +60,16 @@ struct ChatRow: Equatable {
     for row in rows {
       let id = text(row["id"])
       if id.isEmpty { continue }
-      // A call's line draws a phone or a camera before its words instead of the emoji (ChatsPlus/ChatRowLooks.swift).
-      let line = ChatRowLooks.callIcon(preview: text(row["preview"]), icon: text(row["previewIcon"]), thumb: text(row["thumb"]))
+      // The owner's rule: the line carries no emoji the app made, and no icon in its place (ChatsPlus/ChatRowLooks.swift).
+      let preview = ChatRowLooks.withoutAppMark(text(row["preview"]))
       result.append(ChatRow(
-        id: id, title: text(row["title"]), preview: line.preview, time: text(row["time"]),
+        id: id, title: text(row["title"]), preview: preview, time: text(row["time"]),
         unread: max(0, int(row["unread"], 0)), muted: flag(row["muted"]), pinned: flag(row["pinned"]),
         accentPreview: flag(row["accentPreview"]), ticks: min(2, max(0, int(row["ticks"], 0))),
         checked: min(1, max(-1, int(row["checked"], -1))), selected: flag(row["selected"]),
         avatarColor: int(row["avatarColor"], 0xFF5E7BFF), initials: String(text(row["initials"]).prefix(2)), orbA: int(row["orbA"], 0), orbB: int(row["orbB"], 0), section: String(text(row["section"]).prefix(24)),
         avatarUrl: text(row["avatarUrl"]), avatarKey: text(row["avatarKey"]), thumb: text(row["thumb"]),
-        thumbRound: flag(row["thumbRound"]), previewIcon: line.icon, previewRed: max(0, int(row["previewRed"], 0)), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
+        thumbRound: flag(row["thumbRound"]), previewIcon: text(row["previewIcon"]), previewRed: max(0, int(row["previewRed"], 0)), lead: (row["lead"] as? [String]) ?? [], trail: (row["trail"] as? [String]) ?? [],
         ring: ((row["ring"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, deco: text(row["deco"]),
         decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"]),
         metal: ((row["metal"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, nameLen: max(0, int(row["nameLen"], 0))))
@@ -256,8 +256,6 @@ final class ChatRowCanvas: UIView {
 
   private static let titleFont = AppFont.text(16, .semibold) // ChatsPlus: Montserrat (Design/AppFont.swift)
   private static let previewFont = AppFont.text(15)
-  /// The grey signs before the preview text, by `ChatRow.previewIcon`: a voice message, a call, a video call.
-  private static let previewSigns = ["mic": "mic.fill", "phone": "phone.fill", "video": "video.fill"]
   private static let timeFont = AppFont.text(13)
   private static let badgeFont = AppFont.text(12, .bold)
   private static let avatarFont = AppFont.text(21, .bold)
@@ -464,11 +462,11 @@ final class ChatRowCanvas: UIView {
     if let small = thumbImage {
       drawPicture(context, small, CGRect(x: x, y: top + 23, width: 20, height: 20), item.thumbRound ? 10 : 4)
       thumbRoom = 26
-    } else if let symbol = ChatRowCanvas.previewSigns[item.previewIcon], let sign = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .regular))?
+    } else if item.previewIcon == "mic", let mic = UIImage(systemName: "mic.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .regular))?
                 .withTintColor(palette.subtle, renderingMode: .alwaysOriginal) {
-      // A voice message is a grey microphone before its name; a call a grey phone, a video call a grey camera.
-      sign.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - sign.size.height) / 2))
-      thumbRoom = ceil(sign.size.width) + 7
+      // A voice message is a grey microphone before its name.
+      mic.draw(at: CGPoint(x: x + 1, y: top + 22 + (ChatRowCanvas.previewFont.lineHeight - mic.size.height) / 2))
+      thumbRoom = ceil(mic.size.width) + 7
     }
     let previewWidth = max(0, right - x - thumbRoom - (markWidth > 0 ? markWidth + 8 : 0))
     preview.draw(with: CGRect(x: x + thumbRoom, y: top + 22, width: previewWidth, height: 38),

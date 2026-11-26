@@ -144,7 +144,8 @@ data class ScheduledItem(
   val body: String
     get() {
       if (text.isNotBlank()) return text
-      attachment?.let { return "📎 " + (it["name"] as? String ?: "Файл") }
+      // The file's name, without the reference's «📎» (the owner's rule: no emoji in the app's lines).
+      attachment?.let { return it["name"] as? String ?: "Файл" }
       return if (cryptoState == "decrypted") "" else "Отложено с другого устройства"
     }
 

@@ -5,36 +5,37 @@ import UIKit
 /// or a round video before the preview, the microphone of a voice message, the person's status emoji after the
 /// name, the Platina metal of the name, and the server fields the avatar decorations are made from.
 enum ChatRowLooks {
-    // MARK: Calls
+    // MARK: The app's emoji marks
 
-    /// The core words a call «📞 Звонок · 0:04», «📹 Пропущенный видеозвонок», «📞 Восстановление связи» (chat_view.rs
-    /// `call_preview`, `action_fallback`), and the server's push «📞 Входящий звонок». The app draws a phone or a
-    /// camera instead of the emoji (the owner's choice over the reference's messageMeta.ts): only before these words,
-    /// so an emoji someone typed stays theirs.
-    private static let callMark = try! NSRegularExpression(pattern: "(\u{1F4DE}|\u{1F4F9}) (?=Звонок|Видеозвонок|Пропущенный|Отклонённый|Восстановление связи|Входящий звонок)")
+    /// The owner's rule: the app's own lines carry no emoji, and no icon takes its place. The core words its lines
+    /// without them now (chat_view.rs), but older messages keep the reference's marks in their stored text
+    /// («📞 Звонок · 0:04», «🖼 Фотография», «🧹 История очищена», chat_view.rs `APP_MARKS`), as does an older
+    /// server's push («📞 Входящий звонок»). A mark is dropped only at the start of a line or of a quote «…», and only
+    /// before the app's own words that follow it, so an emoji someone typed stays theirs.
+    private static let appMark: NSRegularExpression = {
+        let file: String = "[^\\s«»][^\\n«»]*\\.[A-Za-z0-9]{1,8}(?:$|[\\n»]| ·)"
+        let marks: [String] = [
+            "(?:\u{1F4DE}|\u{1F4F9}) (?=Звонок|Видеозвонок|Пропущенный|Отклонённый|Восстановление связи|Входящий звонок)",
+            "\u{1F3A4}\u{FE0F}? (?=Голосовое сообщение)",
+            "\u{1F5BC}\u{FE0F}? (?=Фотография)",
+            "\u{1F3AC}\u{FE0F}? (?=Видео)",
+            "\u{1F4CE}\u{FE0F}? (?=Файл|" + file + ")",
+            "\u{1F3B5}\u{FE0F}? (?=Аудио|" + file + ")",
+            "\u{270F}\u{FE0F}? (?=Изменено:)",
+            "\u{1F5D1}\u{FE0F}? (?=Сообщение удалено)",
+            "\u{1F5F3}\u{FE0F}? (?=Голос в опросе)",
+            "\u{23F1}\u{FE0F}? (?=Автоудаление)",
+            "\u{1F6AB} (?=Копирование запрещено)",
+            "\u{1F9F9} (?=История очищена)",
+        ]
+        return try! NSRegularExpression(pattern: "(^|«|\n)(?:" + marks.joined(separator: "|") + ")")
+    }()
 
-    /// A line that starts with a call's emoji: the words without it and the icon to draw — "phone" or "video"; nil
-    /// for any other line.
-    static func callLine(_ text: String) -> (text: String, icon: String)? {
-        let whole = text as NSString
-        guard let found = callMark.firstMatch(in: text, range: NSRange(location: 0, length: whole.length)), found.range.location == 0 else { return nil }
-        let mark = whole.substring(with: found.range(at: 1))
-        return (whole.substring(from: found.range.length), mark == "\u{1F4F9}" ? "video" : "phone")
-    }
-
-    /// Text that cannot carry an icon (a quote, a bar above the composer): the call's emoji dropped.
-    static func withoutCallMark(_ text: String) -> String {
+    /// A line the app shows (a chat row, a quote, a bar above the composer, a search hit): the app's emoji marks
+    /// dropped.
+    static func withoutAppMark(_ text: String) -> String {
         if text.isEmpty { return text }
-        return callMark.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length), withTemplate: "")
-    }
-
-    /// A chat row's line: a call's emoji at its start becomes the drawn icon (as the microphone of a voice message),
-    /// one inside the line (a pin «Вы закрепили «📞 Звонок»») is dropped. Rows that already draw an icon or a
-    /// picture are left as they are.
-    static func callIcon(preview: String, icon: String, thumb: String) -> (preview: String, icon: String) {
-        if !icon.isEmpty || !thumb.isEmpty { return (withoutCallMark(preview), icon) }
-        guard let line = callLine(preview) else { return (withoutCallMark(preview), icon) }
-        return (withoutCallMark(line.text), line.icon)
+        return appMark.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length), withTemplate: "$1")
     }
 
     // MARK: Attachments
@@ -64,8 +65,9 @@ enum ChatRowLooks {
     /// voice.ts `attachmentLabel` for the remaining kinds: the file's own name.
     private static func attachmentLabel(_ attachment: [String: Any]) -> String {
         let type = attachment["mimeType"] as? String ?? ""
-        if type.hasPrefix("audio/") { return "🎵 " + (attachment["name"] as? String ?? "Аудио") }
-        return "📎 " + (attachment["name"] as? String ?? "Файл")
+        // Without the reference's «🎵»/«📎» (the owner's rule: no emoji in the app's lines).
+        if type.hasPrefix("audio/") { return attachment["name"] as? String ?? "Аудио" }
+        return attachment["name"] as? String ?? "Файл"
     }
 
     /// The line of a chat whose last message is shown as it is (no typing, no draft, no line found elsewhere):

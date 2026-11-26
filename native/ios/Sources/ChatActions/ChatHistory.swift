@@ -430,9 +430,9 @@ final class ChatHistory {
     /// The quote above an answer (the reference's replyQuote.ts): the original as it is now when it is loaded,
     /// else the line stored with the answer; «Сообщение удалено» when there is neither.
     static func quoteText(original: [String: Any]?, stored: String) -> String {
-        // A quoted call reads without its emoji (ChatsPlus/ChatRowLooks.swift `withoutCallMark`).
-        if let original, let line = Core.view("replyPreview", [original]) as? String, !line.isEmpty { return ChatRowLooks.withoutCallMark(line) }
-        let kept = ChatRowLooks.withoutCallMark(stored.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" }).joined(separator: " "))
+        // A quote reads without the emoji marks the app made (ChatsPlus/ChatRowLooks.swift `withoutAppMark`).
+        if let original, let line = Core.view("replyPreview", [original]) as? String, !line.isEmpty { return ChatRowLooks.withoutAppMark(line) }
+        let kept = ChatRowLooks.withoutAppMark(stored.split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" }).joined(separator: " "))
         return kept.isEmpty ? "Сообщение удалено" : kept
     }
 
@@ -516,8 +516,8 @@ final class ChatHistory {
             // A finished call is a line of its own, not a message of anyone's.
             if let action = meta?["action"] as? [String: Any], action["type"] as? String == "call" {
                 // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
-                // Without the core's words, the stored ones without their emoji (ChatsPlus/ChatRowLooks.swift).
-                let words = Core.view("callServiceText", [action, sender, input.userId]) as? String ?? ChatRowLooks.withoutCallMark(Core.view("chatListText", [message]) as? String ?? (message["text"] as? String ?? ""))
+                // Without the core's words, the stored ones without their emoji mark (ChatsPlus/ChatRowLooks.swift).
+                let words = Core.view("callServiceText", [action, sender, input.userId]) as? String ?? ChatRowLooks.withoutAppMark(Core.view("chatListText", [message]) as? String ?? (message["text"] as? String ?? ""))
                 if action["step"] as? String == "end" {
                     out.calls[key] = action // ChatsPlus
                     // MessageRow.tsx CallServiceRow: a pill with the round icon, the words and the time under them;
@@ -692,8 +692,8 @@ final class ChatHistory {
             let lunch: [String: Any] = ["question": "Куда пойдём в пятницу?", "options": ["Кино", "Боулинг", "Остаться дома"], "multiple": false]
             add(false, PollText.fallback(lunch), "09:44", ["poll": lunch])
             let pollClient = client(list.count)
-            add(false, "🗳 Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [0]]])
-            add(true, "🗳 Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [1]]])
+            add(false, "Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [0]]])
+            add(true, "Голос в опросе", "09:45", ["action": ["type": "vote", "target": pollClient, "options": [1]]])
             let picnic: [String: Any] = ["question": "Что взять на пикник?", "options": ["Плед", "Мяч", "Термос", "Гитара"], "multiple": true]
             add(true, PollText.fallback(picnic), "09:46", ["poll": picnic])
             for (mine, words) in [(false, "🎉🔥"), (true, "👍")] {

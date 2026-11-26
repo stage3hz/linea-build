@@ -355,7 +355,8 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
 
     /// The line of a found message: the words around the place where the query stands.
     private static func snippet(_ text: String, around wanted: String) -> String {
-        let flat = text.split(whereSeparator: { $0 == "\n" || $0 == "\t" }).joined(separator: " ")
+        // Without the emoji marks the app made (ChatsPlus/ChatRowLooks.swift `withoutAppMark`).
+        let flat = ChatRowLooks.withoutAppMark(text.split(whereSeparator: { $0 == "\n" || $0 == "\t" }).joined(separator: " "))
         guard !wanted.isEmpty, let found = flat.lowercased().range(of: wanted) else { return String(flat.prefix(160)) }
         let before = flat.lowercased().distance(from: flat.lowercased().startIndex, to: found.lowerBound)
         if before <= 24 || before >= flat.count { return String(flat.prefix(160)) }

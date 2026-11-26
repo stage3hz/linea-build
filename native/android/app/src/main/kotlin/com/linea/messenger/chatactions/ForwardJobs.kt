@@ -12,7 +12,7 @@ class ForwardJobs(limit: Int = PARALLEL) {
   data class Job(
     val id: String,
     val chatId: String,
-    /** What it is, for the line of the chat in the list: «Видео», «📎 отчёт.pdf», a text. */
+    /** What it is, for the line of the chat in the list: «Видео», «отчёт.pdf», a text. */
     val what: String,
     val state: State = State.QUEUED,
     /** How much of the copy is done, 0…1 (while running). */

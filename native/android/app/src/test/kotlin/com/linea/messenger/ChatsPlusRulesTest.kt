@@ -99,23 +99,41 @@ class ChatsPlusRulesTest {
     assertEquals("Заметки, файлы и сохранённые сообщения", ChatListPlus.savedRowFor(null, 0, now, moscow)["preview"])
   }
 
-  @Test fun aCallInTheListIsADrawnPhoneOrCameraNotAnEmoji() {
-    // The owner's choice over messageMeta.ts: the emoji of the core's words becomes the icon before them.
-    assertEquals("Звонок · 0:04" to "phone", ChatRowLooks.callLine("📞 Звонок · 0:04"))
-    assertEquals("Пропущенный видеозвонок" to "video", ChatRowLooks.callLine("📹 Пропущенный видеозвонок"))
-    assertEquals("Видеозвонок" to "video", ChatRowLooks.callLine("📹 Видеозвонок"))
-    assertNull(ChatRowLooks.callLine("📞 позвони мне"))
-    assertNull(ChatRowLooks.callLine("Вы закрепили «📞 Звонок»"))
-    assertEquals("Вы закрепили «Звонок»", ChatRowLooks.withoutCallMark("Вы закрепили «📞 Звонок»"))
-    assertEquals("Входящий звонок", ChatRowLooks.withoutCallMark("📞 Входящий звонок"))
-    assertEquals("📞 позвони мне", ChatRowLooks.withoutCallMark("📞 позвони мне"))
+  @Test fun theAppsLinesCarryNoEmojiAndNoIconInTheirPlace() {
+    // The owner's rule over messageMeta.ts: a call reads just its words, no emoji and no drawn phone or camera.
+    assertEquals("Звонок · 0:04", ChatRowLooks.withoutAppMark("📞 Звонок · 0:04"))
+    assertEquals("Пропущенный видеозвонок", ChatRowLooks.withoutAppMark("📹 Пропущенный видеозвонок"))
+    assertEquals("Входящий звонок", ChatRowLooks.withoutAppMark("📞 Входящий звонок"))
+    assertEquals("Вы закрепили «Звонок»", ChatRowLooks.withoutAppMark("Вы закрепили «📞 Звонок»"))
+    // Every mark the reference put before its own words, as older messages still carry them.
+    assertEquals("Голосовое сообщение · 0:12", ChatRowLooks.withoutAppMark("🎤 Голосовое сообщение · 0:12"))
+    assertEquals("Фотография", ChatRowLooks.withoutAppMark("🖼 Фотография"))
+    assertEquals("Фотография", ChatRowLooks.withoutAppMark("🖼️ Фотография"))
+    assertEquals("Видео", ChatRowLooks.withoutAppMark("🎬 Видео"))
+    assertEquals("отчёт.pdf", ChatRowLooks.withoutAppMark("📎 отчёт.pdf"))
+    assertEquals("Изменено: привет", ChatRowLooks.withoutAppMark("✏️ Изменено: привет"))
+    assertEquals("Сообщение удалено", ChatRowLooks.withoutAppMark("🗑 Сообщение удалено"))
+    assertEquals("Голос в опросе «Куда?»", ChatRowLooks.withoutAppMark("🗳 Голос в опросе «Куда?»"))
+    assertEquals("Автоудаление: 1 день", ChatRowLooks.withoutAppMark("⏱ Автоудаление: 1 день"))
+    assertEquals("Автоудаление выключено", ChatRowLooks.withoutAppMark("⏱ Автоудаление выключено"))
+    assertEquals("Копирование запрещено", ChatRowLooks.withoutAppMark("🚫 Копирование запрещено"))
+    assertEquals("История очищена", ChatRowLooks.withoutAppMark("🧹 История очищена"))
+    assertEquals("Входящий звонок\nИстория очищена", ChatRowLooks.withoutAppMark("📞 Входящий звонок\n🧹 История очищена"))
+    // An emoji someone typed stays: not before the app's words, or not at the start of a line or a quote.
+    assertEquals("📞 позвони мне", ChatRowLooks.withoutAppMark("📞 позвони мне"))
+    assertEquals("Привет 📞 Звонок", ChatRowLooks.withoutAppMark("Привет 📞 Звонок"))
+    assertEquals("🧹 убрался дома", ChatRowLooks.withoutAppMark("🧹 убрался дома"))
+    assertEquals("📎 скрепка", ChatRowLooks.withoutAppMark("📎 скрепка"))
+    assertEquals("🖼 картина", ChatRowLooks.withoutAppMark("🖼 картина"))
+    // A row keeps its words and its own icon (the voice message's microphone); a call gets none.
     val rows = ChatRow.parse(listOf(
       mapOf("id" to "a", "preview" to "📞 Звонок · 0:04"),
       mapOf("id" to "b", "preview" to "📹 Отклонённый видеозвонок"),
       mapOf("id" to "c", "preview" to "Голосовое сообщение", "previewIcon" to "mic"),
       mapOf("id" to "d", "preview" to "Привет 📞"),
+      mapOf("id" to "e", "preview" to "🧹 История очищена"),
     ))
-    assertEquals(listOf("Звонок · 0:04" to "phone", "Отклонённый видеозвонок" to "video", "Голосовое сообщение" to "mic", "Привет 📞" to ""),
+    assertEquals(listOf("Звонок · 0:04" to "", "Отклонённый видеозвонок" to "", "Голосовое сообщение" to "mic", "Привет 📞" to "", "История очищена" to ""),
       rows.map { it.preview to it.previewIcon })
   }
 
@@ -124,7 +142,8 @@ class ChatsPlusRulesTest {
     assertFalse(ChatRowLooks.isVoice(mapOf("mimeType" to "audio/mp4", "name" to "song.m4a")))
     assertTrue(ChatRowLooks.isVideoNote(mapOf("mimeType" to "video/mp4", "name" to "circle-5.mp4")))
     assertEquals("Фотография" to "", ChatRowLooks.attachmentLine(mapOf("mimeType" to "image/jpeg", "name" to "x.jpg")))
-    assertEquals("📎 план.pdf" to "", ChatRowLooks.attachmentLine(mapOf("mimeType" to "application/pdf", "name" to "план.pdf")))
+    assertEquals("план.pdf" to "", ChatRowLooks.attachmentLine(mapOf("mimeType" to "application/pdf", "name" to "план.pdf")))
+    assertEquals("песня.mp3" to "", ChatRowLooks.attachmentLine(mapOf("mimeType" to "audio/mpeg", "name" to "песня.mp3")))
     val row = HashMap<String, Any?>()
     ChatRowLooks.applyMedia(row, mapOf("attachment" to mapOf("mimeType" to "video/mp4", "name" to "circle-5.mp4", "preview" to mapOf("base64" to "AAAA"))), words = "")
     assertEquals(listOf("Видеосообщение", "", "AAAA", true), listOf(row["preview"], row["previewIcon"], row["thumb"], row["thumbRound"]))

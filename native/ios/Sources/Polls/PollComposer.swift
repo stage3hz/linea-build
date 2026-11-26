@@ -212,10 +212,11 @@ final class PollComposerController: UIViewController, UITextFieldDelegate {
 }
 
 /// What a poll goes out with (the reference's messageMeta.ts `pollFallback`): the text a chat list or an older
-/// client shows — «📊 question», then «1. option» lines — at most 8000 UTF-16 units.
+/// client shows — the question, then «1. option» lines — at most 8000 UTF-16 units. Without the reference's «📊»
+/// (the owner's rule: no emoji in the app's lines; the reference reads `meta.poll`, not this text).
 enum PollText {
     static func fallback(_ poll: [String: Any]) -> String {
-        var lines = ["📊 " + (poll["question"] as? String ?? "")]
+        var lines = [poll["question"] as? String ?? ""]
         for (index, option) in (poll["options"] as? [String] ?? []).enumerated() { lines.append("\(index + 1). " + option) }
         let whole = lines.joined(separator: "\n")
         let units = Array(whole.utf16)

@@ -390,7 +390,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         onRows?(shown.rows)
 
         if let pinned = shown.pinned {
-            let line = ChatRowLooks.withoutCallMark(Core.view("replyPreview", [pinned]) as? String ?? "")
+            let line = ChatRowLooks.withoutAppMark(Core.view("replyPreview", [pinned]) as? String ?? "")
             pinnedBar.show(words: line.isEmpty ? "Вложение" : line)
         }
         let pinnedHidden = shown.pinned == nil || !searchBar.isHidden // ChatActions: not while searching
@@ -756,7 +756,7 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func showBar() {
         var hidden = false
         if let editing {
-            composerBar.show(symbol: "square.and.pencil", heading: "Редактирование", words: ChatRowLooks.withoutCallMark(Core.view("replyPreview", [editing]) as? String ?? ""), closeWords: "Отменить редактирование")
+            composerBar.show(symbol: "square.and.pencil", heading: "Редактирование", words: ChatRowLooks.withoutAppMark(Core.view("replyPreview", [editing]) as? String ?? ""), closeWords: "Отменить редактирование")
         } else if let replyTo {
             let own = replyTo["senderId"] as? String == history.userId
             composerBar.show(symbol: "arrowshape.turn.up.left", heading: "Ответ " + (own ? "себе" : peerName), words: ChatHistory.quoteText(original: replyTo, stored: ""), closeWords: "Отменить ответ")

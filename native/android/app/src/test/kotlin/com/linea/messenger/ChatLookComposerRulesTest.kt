@@ -151,7 +151,7 @@ class ChatLookComposerRulesTest {
     assertEquals(2, poll.total)
     assertEquals("Куда?. Опрос. Кино, 50%. Боулинг, 50%. 2 голоса", poll.spoken)
     assertEquals(listOf("голос", "голоса", "голосов", "голосов", "голос"), listOf(1, 3, 5, 11, 21).map { MsgPoll.votes(it) })
-    assertEquals("📊 Куда?\n1. Кино\n2. Боулинг", PollText.fallback(mapOf("question" to "Куда?", "options" to listOf("Кино", "Боулинг"))))
+    assertEquals("Куда?\n1. Кино\n2. Боулинг", PollText.fallback(mapOf("question" to "Куда?", "options" to listOf("Кино", "Боулинг"))))
     assertNull(MsgPoll.parse(mapOf("question" to "Пусто", "options" to emptyList<String>())))
   }
 

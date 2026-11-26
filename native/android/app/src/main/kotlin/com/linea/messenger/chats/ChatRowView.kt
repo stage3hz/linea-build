@@ -228,9 +228,8 @@ class ChatRowView(context: Context) : View(context) {
     // A chat without sound carries « 🔕» at the end of its title (ChatListScreen.tsx nativeRows).
     val titleWidth = right - x - timeWidth - 8f * d - tickWidth
     val small = thumb
-    // A grey sign before the words: the microphone of a voice message, the phone or the camera of a call.
-    val sign = if (small == null && item.previewIcon in signs) item.previewIcon else ""
-    val thumbRoom = if (small != null) 26f * d else if (sign.isNotEmpty()) 19f * d else 0f
+    val mic = small == null && item.previewIcon == "mic"
+    val thumbRoom = if (small != null) 26f * d else if (mic) 19f * d else 0f
     val textWidth = (right - x - thumbRoom - (if (markWidth > 0f) markWidth + 8f * d else 0f)).toInt()
     if (builtFor != item || builtWidth != width) build(item, textWidth, titleWidth)
 
@@ -249,36 +248,14 @@ class ChatRowView(context: Context) : View(context) {
 
     previewPaint.color = if (item.accentPreview) palette.accent else mutedColor
     if (small != null) drawPicture(canvas, small, x, top + 23f * d, 20f * d, if (item.thumbRound) 10f * d else 4f * d, false)
-    if (sign.isNotEmpty()) {
+    if (mic) {
+      // A voice message is a grey microphone before its name. The capsule, the cradle and the stand.
       val mx = x + 6f * d; val my = top + 23f * d + 9.5f * d
       fill.color = palette.subtle
-      stroke.color = palette.subtle
-      when (sign) {
-        "mic" -> {
-          // A voice message is a grey microphone before its name. The capsule, the cradle and the stand.
-          canvas.drawRoundRect(mx - 2.6f * d, my - 6.5f * d, mx + 2.6f * d, my + 1.5f * d, 2.6f * d, 2.6f * d, fill)
-          stroke.strokeWidth = 1.3f * d
-          canvas.drawArc(mx - 4.6f * d, my - 5.5f * d, mx + 4.6f * d, my + 4f * d, 0f, 180f, false, stroke)
-          canvas.drawLine(mx, my + 4f * d, mx, my + 6.5f * d, stroke)
-        }
-        "phone" -> {
-          // A call is a handset leaning to the left, as wide as the microphone is tall: the bowed grip, the ear cup
-          // at the top left and the mouth cup at the bottom right, both turned to the inside of the bow.
-          val u = 0.85f * d
-          stroke.strokeWidth = 2.4f * u
-          canvas.drawArc(mx - 4.5f * u, my - 12.5f * u, mx + 12.5f * u, my + 4.5f * u, 90f, 90f, false, stroke)
-          canvas.drawRoundRect(mx - 6f * u, my - 6.2f * u, mx - 2.2f * u, my - 3f * u, 1.4f * u, 1.4f * u, fill)
-          canvas.drawRoundRect(mx + 3f * u, my + 2.2f * u, mx + 6.2f * u, my + 6f * u, 1.4f * u, 1.4f * u, fill)
-        }
-        else -> {
-          // A video call is a camera: the body and the lens beside it.
-          val u = 0.85f * d
-          canvas.drawRoundRect(mx - 6.2f * u, my - 4f * u, mx + 1.6f * u, my + 4f * u, 1.8f * u, 1.8f * u, fill)
-          path.reset(); path.moveTo(mx + 2.6f * u, my - 1.2f * u); path.lineTo(mx + 6.4f * u, my - 3.8f * u)
-          path.lineTo(mx + 6.4f * u, my + 3.8f * u); path.lineTo(mx + 2.6f * u, my + 1.2f * u); path.close()
-          canvas.drawPath(path, fill)
-        }
-      }
+      canvas.drawRoundRect(mx - 2.6f * d, my - 6.5f * d, mx + 2.6f * d, my + 1.5f * d, 2.6f * d, 2.6f * d, fill)
+      stroke.color = palette.subtle; stroke.strokeWidth = 1.3f * d
+      canvas.drawArc(mx - 4.6f * d, my - 5.5f * d, mx + 4.6f * d, my + 4f * d, 0f, 180f, false, stroke)
+      canvas.drawLine(mx, my + 4f * d, mx, my + 6.5f * d, stroke)
     }
     preview?.let { layout -> canvas.save(); canvas.translate(x + thumbRoom, top + 23f * d); layout.draw(canvas); canvas.restore() }
 
@@ -310,8 +287,5 @@ class ChatRowView(context: Context) : View(context) {
     fill.color = palette.border; canvas.drawRect(x, h - maxOf(1f, d / 2), w, h, fill)
   }
 
-  companion object {
-    private val signs = setOf("mic", "phone", "video")
-    const val ROW_DP = 76f; const val BUTTON_DP = 78f; const val SECTION_DP = 30f
-  }
+  companion object { const val ROW_DP = 76f; const val BUTTON_DP = 78f; const val SECTION_DP = 30f }
 }

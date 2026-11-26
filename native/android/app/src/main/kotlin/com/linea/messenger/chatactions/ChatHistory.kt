@@ -402,12 +402,12 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
     /** The quote above an answer (the reference's replyQuote.ts): the original as it is now when it is loaded,
      *  else the line stored with the answer; «Сообщение удалено» when there is neither. */
     fun quoteText(original: Map<String, Any?>?, stored: String): String {
-      // A quoted call reads without its emoji (chatsplus/ChatRowLooks.kt `withoutCallMark`).
+      // A quote reads without the emoji marks the app made (chatsplus/ChatRowLooks.kt `withoutAppMark`).
       if (original != null) {
         val line = Core.view("replyPreview", listOf(original)) as? String
-        if (!line.isNullOrEmpty()) return com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(line)
+        if (!line.isNullOrEmpty()) return com.linea.messenger.chatsplus.ChatRowLooks.withoutAppMark(line)
       }
-      val kept = com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(stored.split(blanks).filter { it.isNotEmpty() }.joinToString(" "))
+      val kept = com.linea.messenger.chatsplus.ChatRowLooks.withoutAppMark(stored.split(blanks).filter { it.isNotEmpty() }.joinToString(" "))
       return kept.ifEmpty { "Сообщение удалено" }
     }
 
@@ -488,8 +488,8 @@ class ChatHistory(private val messenger: Messenger?, private val local: ChatLoca
         if (own != null && own["type"] as? String == "call") {
           if (own["step"] == "end") calls[key] = own // ChatsPlus: «Перезвонить»
           // Calls: the row names the direction («Исходящий звонок · 3:12»), as the reference's chat does.
-          // Without the core's words, the stored ones without their emoji (chatsplus/ChatRowLooks.kt).
-          val words = Core.view("callServiceText", listOf(own, sender, input.userId)) as? String ?: com.linea.messenger.chatsplus.ChatRowLooks.withoutCallMark(Core.view("chatListText", listOf(message)) as? String ?: (message["text"] as? String ?: ""))
+          // Without the core's words, the stored ones without their emoji mark (chatsplus/ChatRowLooks.kt).
+          val words = Core.view("callServiceText", listOf(own, sender, input.userId)) as? String ?: com.linea.messenger.chatsplus.ChatRowLooks.withoutAppMark(Core.view("chatListText", listOf(message)) as? String ?: (message["text"] as? String ?: ""))
           if (own["step"] == "end") {
             // MessageRow.tsx CallServiceRow: the round icon, the words and the time under them; red for a missed or
             // declined call. "call", then "!" when red and "v" for a video call.

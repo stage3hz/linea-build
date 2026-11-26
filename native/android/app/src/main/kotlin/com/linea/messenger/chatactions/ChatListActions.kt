@@ -766,7 +766,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
 
     /** The line of a found message: the words around the place where the query stands. */
     fun snippet(text: String, wanted: String): String {
-      val flat = text.split('\n', '\t').filter { it.isNotEmpty() }.joinToString(" ")
+      // Without the emoji marks the app made (chatsplus/ChatRowLooks.kt `withoutAppMark`).
+      val flat = com.linea.messenger.chatsplus.ChatRowLooks.withoutAppMark(text.split('\n', '\t').filter { it.isNotEmpty() }.joinToString(" "))
       // Looked for without regard to case, in the text itself: its places are then the text's own.
       val before = if (wanted.isEmpty()) -1 else flat.indexOf(wanted, ignoreCase = true)
       if (before <= 24) return flat.take(160)

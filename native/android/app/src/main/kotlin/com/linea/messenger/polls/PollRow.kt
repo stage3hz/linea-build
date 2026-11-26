@@ -77,10 +77,11 @@ object PollRows {
 }
 
 /** What a poll goes out with (the reference's messageMeta.ts `pollFallback`): the text a chat list or an older client
- *  shows — «📊 question», then «1. option» lines — at most 8000 UTF-16 units. */
+ *  shows — the question, then «1. option» lines — at most 8000 UTF-16 units. Without the reference's «📊» (the
+ *  owner's rule: no emoji in the app's lines; the reference reads `meta.poll`, not this text). */
 object PollText {
   fun fallback(poll: Map<String, Any?>): String {
-    val lines = arrayListOf("📊 " + (poll["question"] as? String ?: ""))
+    val lines = arrayListOf(poll["question"] as? String ?: "")
     (poll["options"] as? List<*>).orEmpty().filterIsInstance<String>().forEachIndexed { index, option -> lines.add("${index + 1}. $option") }
     val whole = lines.joinToString("\n")
     return if (whole.length <= 8000) whole else whole.substring(0, 8000)

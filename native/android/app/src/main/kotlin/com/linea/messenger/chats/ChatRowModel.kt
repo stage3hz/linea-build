@@ -23,7 +23,7 @@ data class ChatRow(
   val lead: List<String>, val trail: List<String>,
   /** A Platina name: the first `nameLen` characters of the title are drawn in this metal (ARGB); empty = plain. */
   val metal: List<Int>, val nameLen: Int,
-  /** A small grey icon before the preview text: "mic" for a voice message, "phone" / "video" for a call; '' = none. */
+  /** A small grey icon before the preview text: "mic" for a voice message; '' = none. */
   val previewIcon: String = "",
   /** The first N characters of the preview are drawn in the danger colour («Черновик:»). */
   val previewRed: Int = 0,
@@ -38,8 +38,8 @@ data class ChatRow(
     /** Rows without an id are dropped: a row the app cannot name cannot be tapped. */
     fun parse(rows: List<Map<String, Any?>>?): List<ChatRow> = rows.orEmpty().mapNotNull { row ->
       val id = text(row["id"])
-      // A call's line draws a phone or a camera before its words instead of the emoji (chatsplus/ChatRowLooks.kt).
-      val (preview, previewIcon) = com.linea.messenger.chatsplus.ChatRowLooks.callIcon(text(row["preview"]), text(row["previewIcon"]), text(row["thumb"]))
+      // The owner's rule: the line carries no emoji the app made, and no icon in its place (chatsplus/ChatRowLooks.kt).
+      val preview = com.linea.messenger.chatsplus.ChatRowLooks.withoutAppMark(text(row["preview"]))
       if (id.isEmpty()) null else ChatRow(
         id, text(row["title"]), preview, text(row["time"]), int(row["unread"], 0).coerceAtLeast(0),
         flag(row["muted"]), flag(row["pinned"]), flag(row["accentPreview"]), int(row["ticks"], 0).coerceIn(0, 2),
@@ -49,7 +49,7 @@ data class ChatRow(
         text(row["deco"]), ((row["decoScale"] as? Number)?.toDouble() ?: 1.0).coerceIn(1.0, 2.0), text(row["plate"]),
         (row["lead"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["trail"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
         (row["metal"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), int(row["nameLen"], 0).coerceAtLeast(0),
-        previewIcon, int(row["previewRed"], 0).coerceAtLeast(0), flag(row["quietPreview"]),
+        text(row["previewIcon"]), int(row["previewRed"], 0).coerceAtLeast(0), flag(row["quietPreview"]),
       )
     }
   }

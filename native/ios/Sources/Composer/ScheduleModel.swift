@@ -174,7 +174,8 @@ struct ScheduledItem {
     /// The words of the item's body in the list.
     var body: String {
         if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return text }
-        if let attachment { return "📎 " + (attachment["name"] as? String ?? "Файл") }
+        // The file's name, without the reference's «📎» (the owner's rule: no emoji in the app's lines).
+        if let attachment { return attachment["name"] as? String ?? "Файл" }
         return cryptoState == "decrypted" ? "" : "Отложено с другого устройства"
     }
 }

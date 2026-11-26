@@ -10,31 +10,30 @@ object ChatRowLooks {
   private val voiceName = Regex("^voice-[0-9]{1,16}\\.m4a$")
   private val noteName = Regex("^circle-[0-9]{1,16}\\.mp4$")
 
-  // The core words a call «📞 Звонок · 0:04», «📹 Пропущенный видеозвонок», «📞 Восстановление связи» (chat_view.rs
-  // `call_preview`, `action_fallback`), and the server's push «📞 Входящий звонок». The app draws a phone or a camera
-  // instead of the emoji (the owner's choice over the reference's messageMeta.ts): only before these words, so an
-  // emoji someone typed stays theirs.
-  private val callMark = Regex("(\uD83D\uDCDE|\uD83D\uDCF9) (?=Звонок|Видеозвонок|Пропущенный|Отклонённый|Восстановление связи|Входящий звонок)")
+  // The owner's rule: the app's own lines carry no emoji, and no icon takes its place. The core words its lines
+  // without them now (chat_view.rs), but older messages keep the reference's marks in their stored text
+  // («📞 Звонок · 0:04», «🖼 Фотография», «🧹 История очищена», chat_view.rs `APP_MARKS`), as does an older server's
+  // push («📞 Входящий звонок»). A mark is dropped only at the start of a line or of a quote «…», and only before
+  // the app's own words that follow it, so an emoji someone typed stays theirs.
+  private const val FILE = "[^\\s«»][^\\n«»]*\\.[A-Za-z0-9]{1,8}(?:$|[\\n»]| ·)"
+  private val appMark = Regex("(^|«|\n)(?:" + listOf(
+    "(?:\uD83D\uDCDE|\uD83D\uDCF9) (?=Звонок|Видеозвонок|Пропущенный|Отклонённый|Восстановление связи|Входящий звонок)",
+    "\uD83C\uDFA4\uFE0F? (?=Голосовое сообщение)",
+    "\uD83D\uDDBC\uFE0F? (?=Фотография)",
+    "\uD83C\uDFAC\uFE0F? (?=Видео)",
+    "\uD83D\uDCCE\uFE0F? (?=Файл|$FILE)",
+    "\uD83C\uDFB5\uFE0F? (?=Аудио|$FILE)",
+    "\u270F\uFE0F? (?=Изменено:)",
+    "\uD83D\uDDD1\uFE0F? (?=Сообщение удалено)",
+    "\uD83D\uDDF3\uFE0F? (?=Голос в опросе)",
+    "\u23F1\uFE0F? (?=Автоудаление)",
+    "\uD83D\uDEAB (?=Копирование запрещено)",
+    "\uD83E\uDDF9 (?=История очищена)",
+  ).joinToString("|") + ")")
 
-  /** A line that starts with a call's emoji: the words without it and the icon to draw — "phone" or "video";
-   *  null for any other line. */
-  fun callLine(text: String): Pair<String, String>? {
-    val found = callMark.find(text) ?: return null
-    if (found.range.first != 0) return null
-    return text.substring(found.range.last + 1) to (if (found.groupValues[1] == "\uD83D\uDCF9") "video" else "phone")
-  }
-
-  /** Text that cannot carry an icon (a quote, a bar above the composer, a notification): the call's emoji dropped. */
-  fun withoutCallMark(text: String): String = if (text.isEmpty()) text else callMark.replace(text, "")
-
-  /** A chat row's line: a call's emoji at its start becomes the drawn icon (as the microphone of a voice message),
-   *  one inside the line (a pin «Вы закрепили «📞 Звонок»») is dropped. Rows that already draw an icon or a
-   *  picture are left as they are. */
-  fun callIcon(preview: String, icon: String, thumb: String): Pair<String, String> {
-    if (icon.isNotEmpty() || thumb.isNotEmpty()) return withoutCallMark(preview) to icon
-    val line = callLine(preview) ?: return withoutCallMark(preview) to icon
-    return withoutCallMark(line.first) to line.second
-  }
+  /** A line the app shows (a chat row, a quote, a bar above the composer, a search hit, a notification): the
+   *  app's emoji marks dropped. */
+  fun withoutAppMark(text: String): String = if (text.isEmpty()) text else appMark.replace(text, "$1")
 
   /** voice.ts `isVoice`: `audio/mp4` named `voice-<digits>.m4a`. */
   fun isVoice(attachment: Map<String, Any?>): Boolean =
@@ -52,8 +51,9 @@ object ChatRowLooks {
       isVideoNote(attachment) -> "Видеосообщение" to ""
       type.startsWith("image/") -> "Фотография" to ""
       type.startsWith("video/") -> "Видео" to ""
-      type.startsWith("audio/") -> "🎵 " + (attachment["name"] as? String ?: "Аудио") to ""
-      else -> "📎 " + (attachment["name"] as? String ?: "Файл") to ""
+      // The file's own name, without the reference's «🎵»/«📎» (the owner's rule: no emoji in the app's lines).
+      type.startsWith("audio/") -> (attachment["name"] as? String ?: "Аудио") to ""
+      else -> (attachment["name"] as? String ?: "Файл") to ""
     }
   }
 
