@@ -1,0 +1,124 @@
+curl: (7) Failed to connect to localhost port 8443 after 1 ms: Could not connect to server
+{"status":"ok"}
+== account
+{"id":"956fe7bd-e498-40a1-8516-4a340992d186","login":"nativetester","handle":"native_check","password":"…","word":"…"}
+== sign in (the app makes its keys and publishes them)
+Status: ok
+shot 07-signed-in
+sign-in requests: 1, keys published: 1, chat lists read: 5
+== other people write
+communities seeded
+forward check: 6 attachments noted, the forward goes to @simpeer0_lhqpg
+{"people":6,"messages":44,"to":"956fe7bd-e498-40a1-8516-4a340992d186"}
+== the list and a chat (the session and the keys are read back from the device's storage)
+Status: ok
+shot 08-real-chats
+Status: ok
+shot 09-real-chat
+chat lists read: 17, inbox pages: 34, message pages: 15, read marks: 1
+== offline: the test server stopped — the list and the chat come from the vault's copy, at once
+Status: ok
+shot 09d-offline-chats
+Status: ok
+shot 09e-offline-chat
+curl: (7) Failed to connect to localhost port 8443 after 0 ms: Could not connect to server
+== the other sections, with the same account
+Status: ok
+shot 09b-photo-open
+Status: ok
+shot 10-people
+Status: ok
+shot 11-profile
+Status: ok
+shot 12-people-search
+Status: ok
+shot 17-channels
+Status: ok
+shot 18-community
+Status: ok
+shot 19-channel-chat
+Status: ok
+shot 13-settings
+Status: ok
+shot 14-settings-profile
+Status: ok
+shot 15-settings-sessions
+Status: ok
+shot 16-settings-security
+== forward: every attachment of the first chat (file, photo, voice, small, long and round video) goes on to Анна's chat
+Status: ok
+shot 20-forward-real
+OK       Договор.pdf (aes-256-gcm-siv, 44 bytes, from «Тимур Богданов»)
+OK       photo.png (aes-256-gcm-siv, 1609 bytes, from «Тимур Богданов»)
+OK       voice-1795821065399.m4a (aes-256-gcm-siv, 48044 bytes, from «Тимур Богданов»)
+OK       video.mp4 (aes-256-gcm-siv, 725 bytes, from «Тимур Богданов»)
+OK       big-video.mp4 (aes-256-gcm-siv-chunked, 4495037 bytes, from «Тимур Богданов»)
+OK       circle-1795821065442.mp4 (aes-256-gcm-siv-chunked, 20733 bytes, from «Тимур Богданов»)
+forward check passed: 6 of 6
+forward uploads: 4 small, 2 chunked
+Status: ok
+shot 21-forward-list
+== the requests, as the proxy saw them (last 60)
+2026-11-27T23:19:24.829Z GET /chats 200 7ms
+2026-11-27T23:19:24.866Z GET /e2ee/limits 200 5ms
+2026-11-27T23:19:25.102Z POST /e2ee/files 201 214ms
+2026-11-27T23:19:25.137Z GET /e2ee/devices 200 2ms
+2026-11-27T23:19:25.165Z GET /e2ee/devices 200 2ms
+2026-11-27T23:19:25.261Z POST /chats/4345f9de-91f6-4f0d-a1d5-78546ce724b2/messages 201 3ms
+2026-11-27T23:19:25.357Z GET /chats 200 6ms
+2026-11-27T23:19:25.496Z GET /files/ee86eda7-399d-413f-ae84-11645fe27825 206 7ms
+2026-11-27T23:19:25.971Z GET /chats 200 10ms
+2026-11-27T23:19:26.909Z GET /files/ee86eda7-399d-413f-ae84-11645fe27825 206 5ms
+2026-11-27T23:19:26.988Z GET /e2ee/limits 200 3ms
+2026-11-27T23:19:27.017Z POST /e2ee/uploads 201 4ms
+2026-11-27T23:19:28.715Z PUT /e2ee/uploads/1da9dc20-9fda-48c5-87bd-28474e8fcb2c 200 1532ms
+2026-11-27T23:19:28.940Z PUT /e2ee/uploads/1da9dc20-9fda-48c5-87bd-28474e8fcb2c 200 62ms
+2026-11-27T23:19:29.096Z POST /e2ee/uploads/1da9dc20-9fda-48c5-87bd-28474e8fcb2c/complete 201 3ms
+2026-11-27T23:19:29.235Z GET /e2ee/devices 200 3ms
+2026-11-27T23:19:29.298Z GET /e2ee/devices 200 5ms
+2026-11-27T23:19:29.429Z POST /chats/4345f9de-91f6-4f0d-a1d5-78546ce724b2/messages 201 5ms
+2026-11-27T23:19:30.076Z GET /files/672afae4-7ee4-4789-92c0-8e5240704fc0 206 1ms
+2026-11-27T23:19:30.100Z GET /e2ee/limits 200 4ms
+2026-11-27T23:19:30.120Z POST /e2ee/uploads 201 4ms
+2026-11-27T23:19:30.205Z PUT /e2ee/uploads/a4c40fac-267d-400b-b493-5f5d13bfd50f 200 15ms
+2026-11-27T23:19:30.255Z POST /e2ee/uploads/a4c40fac-267d-400b-b493-5f5d13bfd50f/complete 201 4ms
+2026-11-27T23:19:30.396Z GET /e2ee/devices 200 2ms
+2026-11-27T23:19:30.573Z GET /e2ee/devices 200 6ms
+2026-11-27T23:19:30.683Z GET /chats 200 4ms
+2026-11-27T23:19:30.720Z POST /chats/4345f9de-91f6-4f0d-a1d5-78546ce724b2/messages 201 3ms
+2026-11-27T23:19:31.637Z GET /chats 200 12ms
+2026-11-27T23:19:35.092Z GET /history/backup 200 2ms
+2026-11-27T23:19:45.292Z GET /auth/recovery/requests 200 2ms
+2026-11-27T23:20:16.031Z GET /auth/recovery/requests 200 3ms
+2026-11-27T23:20:21.501Z GET /chats/f963f19a-923d-4343-9288-a5371c537117/messages 200 3ms
+2026-11-27T23:20:21.755Z GET /chats 200 6ms
+2026-11-27T23:20:25.260Z GET /stories/feed 401 2ms
+2026-11-27T23:20:25.262Z POST /auth/device/challenge 200 1ms
+2026-11-27T23:20:25.264Z POST /e2ee/devices 401 1ms
+2026-11-27T23:20:25.304Z POST /auth/device/proof 200 2ms
+2026-11-27T23:20:25.315Z GET /stories/feed 200 1ms
+2026-11-27T23:20:25.319Z POST /e2ee/devices 200 2ms
+2026-11-27T23:20:25.333Z GET /friends/requests 401 1ms
+2026-11-27T23:20:25.341Z GET /friends/requests 200 1ms
+2026-11-27T23:20:25.595Z GET /me/username 200 1ms
+2026-11-27T23:20:25.610Z GET /communities 200 2ms
+2026-11-27T23:20:25.619Z GET /rooms 200 1ms
+2026-11-27T23:20:25.637Z GET /history/transfers/outgoing 200 2ms
+2026-11-27T23:20:25.641Z GET /auth/recovery/requests 200 1ms
+2026-11-27T23:20:25.658Z GET /auth/recovery/requests 200 1ms
+2026-11-27T23:20:25.783Z GET /history/transfers/incoming 200 2ms
+2026-11-27T23:20:25.788Z PUT /me/push 200 5ms
+2026-11-27T23:20:25.996Z GET /chats 200 4ms
+2026-11-27T23:20:26.515Z GET /app/update 200 1ms
+2026-11-27T23:20:26.553Z GET /communities 200 2ms
+2026-11-27T23:20:26.641Z GET /rooms 200 2ms
+2026-11-27T23:20:26.648Z GET /chats 200 6ms
+2026-11-27T23:20:26.715Z GET /stories/feed 200 1ms
+2026-11-27T23:20:26.731Z GET /chats 200 4ms
+2026-11-27T23:20:26.901Z GET /scheduled 200 4ms
+2026-11-27T23:20:26.935Z GET /chats 200 9ms
+2026-11-27T23:20:27.104Z GET /chats 200 6ms
+2026-11-27T23:20:46.150Z GET /history/backup 200 1ms
+== the server's last words
+{"level":30,"time":1795821028581,"pid":17162,"hostname":"runnervm3lb7s","msg":"Server listening at http://127.0.0.1:3999"}
+== live done

@@ -1,0 +1,20 @@
+--------- beginning of system
+11-27 23:10:16.069   849   879 E SingleInstanceRemoteListener: Failed remote call on null listener
+11-27 23:10:16.069   849   879 E SingleInstanceRemoteListener: Failed remote call on null listener
+11-27 23:10:16.102   849   879 E SingleInstanceRemoteListener: Failed remote call on null listener
+--------- beginning of main
+11-27 23:10:16.183   401   401 E BpTransactionCompletedListener: Failed to transact (-32)
+11-27 23:10:16.183   401   401 E BpTransactionCompletedListener: Failed to transact (-32)
+11-27 23:10:16.706  6713  6740 E OpenGLRenderer: Unable to match the desired swap behavior.
+11-27 23:10:16.861  1893  3078 E OpenGLRenderer: Unable to match the desired swap behavior.
+11-27 23:10:17.243  6713  6740 E FrameEvents: updateAcquireFence: Did not find frame.
+11-27 23:10:18.126  6760  6799 E OpenGLRenderer: Unable to match the desired swap behavior.
+11-27 23:10:18.405  6760  6799 E OpenGLRenderer: Unable to match the desired swap behavior.
+11-27 23:10:19.168   522  3423 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+11-27 23:10:24.328   522   545 E IPCThreadState: Binder transaction failure: 1738043/29189/-3
+11-27 23:10:24.389  6839  6839 E s.nexuslauncher: Not starting debugger since process cannot load the jdwp agent.
+11-27 23:10:25.195  6839  6861 E FrameEvents: updateAcquireFence: Did not find frame.
+11-27 23:10:25.203  6839  6861 E FrameEvents: updateAcquireFence: Did not find frame.
+11-27 23:10:25.270   849   879 E SingleInstanceRemoteListener: Failed remote call on null listener
+11-27 23:10:25.270   849   879 E SingleInstanceRemoteListener: Failed remote call on null listener
+11-27 23:10:26.174  6839  6861 E FrameEvents: updateAcquireFence: Did not find frame.
