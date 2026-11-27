@@ -29,6 +29,8 @@ data class ChatRow(
   val previewRed: Int = 0,
   /** Offline: the last message cannot be opened on this device — the line is said quietly (subtle, italic, a lock). */
   val quietPreview: Boolean = false,
+  /** Somebody is doing something in the chat (the preview says what): three dots blink after the words. */
+  val activity: Boolean = false,
 ) {
   companion object {
     private fun int(value: Any?, fallback: Int) = (value as? Number)?.toInt() ?: fallback
@@ -50,6 +52,7 @@ data class ChatRow(
         (row["lead"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(), (row["trail"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
         (row["metal"] as? List<*>)?.mapNotNull { (it as? Number)?.toInt() } ?: emptyList(), int(row["nameLen"], 0).coerceAtLeast(0),
         text(row["previewIcon"]), int(row["previewRed"], 0).coerceAtLeast(0), flag(row["quietPreview"]),
+        flag(row["activity"]),
       )
     }
   }

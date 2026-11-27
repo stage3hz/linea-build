@@ -151,6 +151,8 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     var percent = -1
     /** What goes with the message inside the ciphertext: the answer it is, or null. */
     var meta: Map<String, Any?>? = null
+    /** «отправляет голосовое / видеосообщение / видео», said while it is on its way (net/ActivitySend.kt). */
+    var activity: com.linea.messenger.net.ActivitySend.Token? = null
   }
 
   private val context: Context = host.context
@@ -243,7 +245,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     recording.say = { words -> say(words) }
     recording.sendVoice = { file, ms, waveform -> sendVoice(file, ms, waveform) }
     recording.sendNote = { file -> sendNote(file) }
-    control.onPhase = { relayout() }
+    control.onPhase = { phase -> relayout(); recordingSaid(phase) }
     // Record: the blob of a sent take flies to the new message's play button (the list's px → the screen's).
     control.sentTarget = target@{
       val key = flightKey ?: return@target null
@@ -338,6 +340,36 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     main.postDelayed(watch, 500)
   }
 
+  /** «записывает голосовое» / «записывает видеосообщение» while a take is recorded (held or locked); its end —
+   *  sent, called off, stopped for the preview — tells the other side. */
+  private var recordingToken: com.linea.messenger.net.ActivitySend.Token? = null
+  private fun recordingSaid(phase: RecordControl.Phase) {
+    val recording = phase == RecordControl.Phase.HOLDING || phase == RecordControl.Phase.LOCKED
+    val kind = if (control.mode == RecordControl.Mode.VIDEO) "round" else "voice"
+    val token = recordingToken
+    if (recording && token != null && !token.ended && token.kind == kind) return
+    token?.end()
+    recordingToken = if (recording) messenger?.live?.activity?.begin(chatId, kind) else null
+  }
+
+  /** The kind an item on its way out is said as. */
+  private fun sendingKind(item: Outgoing): String = when (item.kind) {
+    "voice" -> "voice-upload"
+    "note" -> "round-upload"
+    else -> "video"
+  }
+
+  /** The item is being made ready or uploaded: the other side hears of it until it is sent, fails or is called off. */
+  private fun sendingSaid(item: Outgoing) {
+    if (item.activity?.ended == false) return
+    item.activity = messenger?.live?.activity?.begin(chatId, sendingKind(item))
+  }
+
+  private fun sendingDone(item: Outgoing) {
+    item.activity?.end()
+    item.activity = null
+  }
+
   /** The chat is left: whatever plays stops, a take in progress is called off, the decrypted copies go. */
   fun left() {
     watching = false
@@ -428,6 +460,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   }
 
   private fun fail(item: Outgoing, words: String) {
+    sendingDone(item)
     item.failed = words
     item.small = null
     com.linea.messenger.attachments.InlineMedia.forgetSending(item.key)
@@ -436,6 +469,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
   }
 
   private fun remove(item: Outgoing, forget: Boolean) {
+    sendingDone(item)
     item.removed = true
     item.small?.cancel()
     com.linea.messenger.attachments.InlineMedia.forgetSending(item.key)
@@ -456,6 +490,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
     val messenger = messenger ?: return
     if (item.removed) return
     item.failed = null
+    sendingSaid(item)
     if (item.payload == null) return prepare(item)
     val payload = item.payload ?: return
     val size = payload.file.length()
@@ -471,6 +506,7 @@ class ChatMedia(private val host: ViewGroup, private val messenger: Messenger?, 
       main.post {
         if (!item.removed && item.failed == null && percent != item.percent) {
           item.percent = percent
+          item.activity?.progress(percent)
           item.note = FileCore.sizeText(size / 100 * percent) + " из " + whole
           if (ringed) com.linea.messenger.attachments.InlineMedia.showSending(item.key, percent / 100f, FileCore.sizeText(size / 100 * percent) + " / " + whole)
           onPendingChanged?.invoke()

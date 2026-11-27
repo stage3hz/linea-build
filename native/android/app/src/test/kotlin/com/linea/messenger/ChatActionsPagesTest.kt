@@ -73,7 +73,7 @@ class ChatActionsPagesTest {
     assertEquals("в сети", screen.actions.status)
     assertEquals(9, screen.actions.history.shown.order.size)
     assertEquals("", screen.actions.bar)
-    assertEquals("печатает…", chat("30b-chat-typing", "typing").actions.status)
+    assertEquals("печатает...", chat("30b-chat-typing", "typing").actions.status)
   }
 
   @Test fun replyEditAndDraft() {

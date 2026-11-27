@@ -129,8 +129,10 @@ class ChatRowView(context: Context) : View(context) {
       android.text.SpannableString(item.preview).apply { setSpan(android.text.style.ForegroundColorSpan(palette.danger), 0, minOf(item.previewRed, length), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE) }
       // The reference draws a line this device cannot open like any other line (no italic, no lock).
       else item.preview
-    preview = StaticLayout.Builder.obtain(line, 0, line.length, previewPaint, width)
-      .setAlignment(Layout.Alignment.ALIGN_NORMAL).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
+    // Somebody is doing something in the chat: one line, with room kept for the three blinking dots after it.
+    val room = if (item.activity) (width - previewPaint.measureText("...").toInt()).coerceAtLeast(1) else width
+    preview = StaticLayout.Builder.obtain(line, 0, line.length, previewPaint, room)
+      .setAlignment(Layout.Alignment.ALIGN_NORMAL).setMaxLines(if (item.activity) 1 else 2).setEllipsize(TextUtils.TruncateAt.END).setIncludePad(false).build()
     builtFor = item; builtWidth = this.width
   }
 
@@ -258,6 +260,13 @@ class ChatRowView(context: Context) : View(context) {
       canvas.drawLine(mx, my + 4f * d, mx, my + 6.5f * d, stroke)
     }
     preview?.let { layout -> canvas.save(); canvas.translate(x + thumbRoom, top + 23f * d); layout.draw(canvas); canvas.restore() }
+    val layout = preview
+    if (item.activity && layout != null && layout.lineCount > 0) {
+      // «Печатает», «Записывает голосовое»…: the dots after the words light one by one, in the words' colour.
+      val lit = com.linea.messenger.chatactions.ChatActivityWords.dots(android.os.SystemClock.uptimeMillis())
+      if (lit > 0) canvas.drawText(".".repeat(lit), x + thumbRoom + layout.getLineWidth(0), top + 23f * d + layout.getLineBaseline(0), previewPaint)
+      if (isAttachedToWindow) postInvalidateDelayed(350)
+    }
 
     val markY = top + 23f * d + 11f * d
     if (badge.isNotEmpty()) {

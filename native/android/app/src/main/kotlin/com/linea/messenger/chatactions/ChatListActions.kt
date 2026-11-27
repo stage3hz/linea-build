@@ -59,7 +59,8 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     val chats: List<Chat>, val userId: String?, val archiveOpen: Boolean = false, val query: String = "", val hits: List<Hit> = emptyList(),
     val searchingHistory: Boolean = false, val fills: Map<String, Fill> = emptyMap(), val hidden: Set<String> = emptySet(),
     val removed: (Chat) -> Boolean = { false }, val marked: (String) -> Boolean = { false }, val draft: (String) -> String = { "" },
-    val typing: (String) -> Boolean = { false }, val now: Instant = Instant.now(), val zone: ZoneId = ZoneId.systemDefault(),
+    /** What someone is doing in a chat now, in words («печатает», «записывает голосовое»…); null — nothing. */
+    val typing: (String) -> String? = { null }, val now: Instant = Instant.now(), val zone: ZoneId = ZoneId.systemDefault(),
     /** ChatsPlus: whether a chat stands in the folder shown (id, unread or marked). */
     val keeps: (String, Boolean) -> Boolean = { _, _ -> true },
     /** ChatsPlus: the «Избранное» row above everything (null: none), and «Архив» kept behind the pull instead of a row. */
@@ -168,7 +169,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     searchBox.addView(searchClose, FrameLayout.LayoutParams(dp(40f), dp(40f), Gravity.END))
   }
 
-  /** The list's screen is in the window: drafts, marks and «Печатает…» are followed. */
+  /** The list's screen is in the window: drafts, marks and «Печатает», «Записывает голосовое»… are followed. */
   fun attached() {
     if (attached) return
     attached = true
@@ -235,7 +236,7 @@ class ChatListActions(private val context: Context, private val messenger: Messe
     val wanted = query.trim(' ')
     val pulled = if (plus == null) false else if (inArchive || wanted.isNotEmpty() || archivedCount == 0) plus.archivePull(0) else plus.archivePull(archivedCount)
     val made = rows(State(chats, messenger?.userId, archiveOpen, query, hits, searchingHistory, fills, local?.hiddenKeys?.toSet() ?: emptySet(),
-      removed = { removed(it) }, marked = { marked(it) }, draft = { local?.draft(it) ?: sampleDrafts[it] ?: "" }, typing = { ChatTyping.isTyping(it) },
+      removed = { removed(it) }, marked = { marked(it) }, draft = { local?.draft(it) ?: sampleDrafts[it] ?: "" }, typing = { id -> ChatTyping.words(id, group = false) { null } },
       keeps = { id, unread -> plus?.keeps(id, unread) ?: true }, savedRow = if (inArchive) null else plus?.savedRow(query), archivePulled = pulled,
       selecting = plus?.selecting ?: false, chosen = { plus?.isChosen(it) ?: false }, sections = plus?.showsSections ?: true,
       people = if (wanted.isNotEmpty() && !inArchive) plus?.peopleRows(query) ?: emptyList() else emptyList(),
@@ -835,11 +836,15 @@ class ChatListActions(private val context: Context, private val messenger: Messe
         val draft = draftLine(state.draft(chat.id))
         val sending = state.sending(chat.id)
         // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
-        if (state.typing(chat.id) || draft.isNotEmpty() || state.fills[chat.id] != null) row["quietPreview"] = false
-        if (state.typing(chat.id)) {
-          row["preview"] = "Печатает…"
+        val doing = state.typing(chat.id)
+        if (doing != null || draft.isNotEmpty() || state.fills[chat.id] != null) row["quietPreview"] = false
+        if (doing != null) {
+          // In the accent colour in place of the last message; the row blinks its three dots after the words.
+          row["preview"] = com.linea.messenger.language.Language.tr(ChatActivityWords.line(doing))
           row["accentPreview"] = true
+          row["activity"] = true
           row["previewIcon"] = ""
+          row["thumb"] = ""
         } else if (draft.isNotEmpty()) {
           row["preview"] = draft
           row["previewRed"] = draftWord.length

@@ -90,6 +90,14 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     var meta: Map<String, Any?>? = null
     /** Media: the upload has begun (the photos of an album start in their order). */
     var started = false
+    /** «отправляет фото / файл», said while it is on its way (net/ActivitySend.kt). */
+    var activity: com.linea.messenger.net.ActivitySend.Token? = null
+  }
+
+  /** The item ends its way (sent, failed, called off): the other side is told. */
+  private fun sendingDone(item: Pending) {
+    item.activity?.end()
+    item.activity = null
   }
 
   private val context: Context = host.context
@@ -375,6 +383,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   }
 
   private fun fail(item: Pending, words: String) {
+    sendingDone(item)
     item.failed = words
     item.transfer = null
     InlineMedia.forgetSending(item.key) // a failed row offers «повторить», not the ring
@@ -395,6 +404,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
   }
 
   private fun remove(item: Pending) {
+    sendingDone(item)
     item.removed = true
     item.transfer?.cancel()
     InlineMedia.forgetSending(item.key)
@@ -425,6 +435,8 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
     item.failed = null
     val transfer = FileTransfer()
     item.transfer = transfer
+    // A picture is «фото», anything else «файл» (a video goes through voice/ChatMedia.kt as «видео»).
+    if (item.activity?.ended != false) item.activity = messenger.live.activity.begin(chatId, if (prepared.mimeType.startsWith("image/")) "photo" else "file")
     onPendingChanged?.invoke()
     val size = prepared.bytes.size.toLong()
     val whole = FileCore.sizeText(size)
@@ -439,6 +451,7 @@ class ChatAttachments(private val host: View, private val messenger: Messenger?,
       main.post {
         if (item.removed || item.failed != null || item.transfer !== transfer || percent == item.percent) return@post
         item.percent = percent
+        item.activity?.progress(percent)
         item.note = FileCore.sizeText(size * percent / 100) + (if (photo) " / " else " из ") + whole
         InlineMedia.showSending(item.key, percent / 100f, item.note)
         onPendingChanged?.invoke()

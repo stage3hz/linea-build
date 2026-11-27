@@ -11,31 +11,117 @@ import com.linea.messenger.crypto.CryptoService
 import com.linea.messenger.net.Live
 import java.lang.ref.WeakReference
 
-/** «печатает…»: who is typing in which chat right now, as the live line says it. Main thread only.
- *  The reference keeps the mark for five seconds after the last event (useMessenger.ts, `typing`). */
+/** «печатает», «записывает голосовое», «отправляет видео»…: what the people of each chat are doing right now, as
+ *  the live line says it (`typing` events with their `kind`). Main thread only.
+ *
+ *  One action per person: a newer kind replaces the older one, an explicit stop clears everything that person was
+ *  doing in the chat. The sender says it again every few seconds while it lasts (net/ActivitySend.kt); a mark not
+ *  heard again for `HOLD` ms goes by itself, so a lost stop never sticks. */
 object ChatTyping {
-  /** Posted on the main thread when somebody started or stopped typing: the chat's id. */
+  /** How long a mark lasts without being heard again, ms (the sender repeats it every 4 s). */
+  const val HOLD = 6000L
+  /** Posted on the main thread when somebody started or stopped: the chat's id. */
   val changed = Live.Signal<String?>()
-  private val until = HashMap<String, Long>()
+  /** Tests: the clock the marks are timed by. */
+  var clock: () -> Long = { SystemClock.elapsedRealtime() }
+  /** Tests: where the expiry is waited for; null — the main thread. */
+  var timer: Handler? = null
+
+  private class Mark(val kind: String, val since: Long, val until: Long)
+  /** chat → person → what they do. */
+  private val active = HashMap<String, LinkedHashMap<String, Mark>>()
   private val main by lazy { Handler(Looper.getMainLooper()) }
 
-  fun heard(chatId: String, on: Boolean) {
-    if (on) until[chatId] = SystemClock.elapsedRealtime() + 5000 else until.remove(chatId)
-    changed.post(chatId)
-    if (!on) return
-    main.postDelayed({
-      val end = until[chatId]
-      if (end != null && end <= SystemClock.elapsedRealtime()) {
-        until.remove(chatId)
-        changed.post(chatId)
-      }
-    }, 5100)
+  fun heard(chatId: String, userId: String, kind: String, on: Boolean) {
+    val now = clock()
+    if (!on) {
+      val people = active[chatId] ?: return
+      if (people.remove(userId) == null) return
+      if (people.isEmpty()) active.remove(chatId)
+      changed.post(chatId)
+      return
+    }
+    val known = ChatActivityWords.known(kind)
+    val people = active.getOrPut(chatId) { LinkedHashMap() }
+    val before = people[userId]
+    // The same action heard again only moves its end; a new one starts now (the newest is said first).
+    people[userId] = Mark(known, if (before != null && before.kind == known) before.since else now, now + HOLD)
+    if (before == null || before.kind != known) changed.post(chatId)
+    (timer ?: main).postDelayed({ expire(chatId) }, HOLD + 100)
   }
 
-  fun isTyping(chatId: String): Boolean {
-    val end = until[chatId] ?: return false
-    return end > SystemClock.elapsedRealtime()
+  /** Drops the marks of a chat that were not heard again in time. */
+  fun expire(chatId: String) {
+    val people = active[chatId] ?: return
+    val now = clock()
+    if (!people.values.removeAll { it.until <= now }) return
+    if (people.isEmpty()) active.remove(chatId)
+    changed.post(chatId)
   }
+
+  fun isTyping(chatId: String): Boolean = who(chatId).isNotEmpty()
+
+  /** Who does what in a chat now, the newest action first: (person, kind). */
+  fun who(chatId: String): List<Pair<String, String>> {
+    val now = clock()
+    return active[chatId].orEmpty().entries.filter { it.value.until > now }.sortedByDescending { it.value.since }.map { it.key to it.value.kind }
+  }
+
+  /** The words for a chat, without the dots («печатает», «Аня и Лев печатают»); null — nobody does anything.
+   *  `name`: a person's name, for a group. */
+  fun words(chatId: String, group: Boolean, name: (String) -> String?): String? =
+    ChatActivityWords.label(who(chatId).map { (userId, kind) -> name(userId) to kind }, group)
+
+  /** Tests and the account's end: forgets everything. */
+  fun clear() { active.clear(); changed.post(null) }
+}
+
+/** The words of what people are doing in a chat. The app's own lines carry no emoji. */
+object ChatActivityWords {
+  /** kind → (one person, several people). */
+  private val verbs = linkedMapOf(
+    "typing" to ("печатает" to "печатают"),
+    "voice" to ("записывает голосовое" to "записывают голосовое"),
+    "round" to ("записывает видеосообщение" to "записывают видеосообщение"),
+    "video" to ("отправляет видео" to "отправляют видео"),
+    "photo" to ("отправляет фото" to "отправляют фото"),
+    "file" to ("отправляет файл" to "отправляют файл"),
+    "voice-upload" to ("отправляет голосовое" to "отправляют голосовое"),
+    "round-upload" to ("отправляет видеосообщение" to "отправляют видеосообщение"),
+  )
+  val kinds: Set<String> get() = verbs.keys
+
+  /** A kind this app knows, else plain typing (an unknown or missing kind from another version). */
+  fun known(kind: String?): String = if (kind != null && verbs.containsKey(kind)) kind else "typing"
+
+  /** `people`: (name, kind), the newest action first. One to one: just the action of the other person. In a group:
+   *  the people doing what the newest one does — «Аня печатает», «Аня и Лев печатают», «3 человека печатают». */
+  fun label(people: List<Pair<String?, String>>, group: Boolean): String? {
+    val first = people.firstOrNull() ?: return null
+    val kind = known(first.second)
+    val (one, many) = verbs.getValue(kind)
+    if (!group) return one
+    val doing = people.filter { known(it.second) == kind }
+    val names = doing.map { it.first?.trim().orEmpty() }
+    return when {
+      doing.size == 1 -> if (names[0].isEmpty()) one.replaceFirstChar { it.uppercase() } else "${names[0]} $one"
+      doing.size == 2 && names.none { it.isEmpty() } -> "${names[0]} и ${names[1]} $many"
+      else -> "${doing.size} ${people(doing.size)} $many"
+    }
+  }
+
+  /** 2 человека, 5 человек, 21 человек, 22 человека. */
+  fun people(count: Int): String {
+    val tens = count % 100
+    val last = count % 10
+    return if (last in 2..4 && tens !in 12..14) "человека" else "человек"
+  }
+
+  /** The start of a chat row's line: the same words with a capital letter. */
+  fun line(words: String): String = words.replaceFirstChar { it.uppercase() }
+
+  /** How many of the three dots after the words are lit at `ms` (0…3, a step every 350 ms). */
+  fun dots(ms: Long): Int = ((ms / 350) % 4).toInt()
 }
 
 /** What one account keeps about its chats on this device only:
@@ -213,4 +299,14 @@ class ChatLocal private constructor(context: Context, private val userId: String
       return kept
     }
   }
+}
+
+/** The words of what someone is doing with three dots after them, `lit` of them shown (the others take their room,
+ *  so the line does not move while they blink). */
+fun activityDotted(words: String, lit: Int): CharSequence {
+  val said = com.linea.messenger.language.Language.tr(words)
+  val text = android.text.SpannableString("$said...")
+  val from = said.length + lit.coerceIn(0, 3)
+  if (from < text.length) text.setSpan(android.text.style.ForegroundColorSpan(0), from, text.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+  return text
 }

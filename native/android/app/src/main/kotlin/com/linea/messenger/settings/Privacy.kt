@@ -194,7 +194,7 @@ class PrivacyScreen(context: Context, account: SettingsAccount) : SettingsPage(c
     addGroup("Звонки", listOf(callCard))
 
     // «На этом устройстве» — the typing notice (SettingsScreen.tsx; DevicePreferences `sendTyping`).
-    val typing = SettingsSwitchRow(context, "Показывать «печатает…»", "Собеседник видит, что ты набираешь сообщение.", DevicePreferences.flag("sendTyping") ?: true)
+    val typing = SettingsSwitchRow(context, "Показывать «печатает…»", "Собеседник видит, что ты набираешь сообщение, записываешь или отправляешь голосовое, видео или файл.", DevicePreferences.flag("sendTyping") ?: true)
     typing.onChange = { value -> DevicePreferences.set(mapOf("sendTyping" to value)) }
     addGroup("На этом устройстве", listOf(typing))
 

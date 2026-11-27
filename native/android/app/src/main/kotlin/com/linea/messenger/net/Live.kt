@@ -26,7 +26,9 @@ class Live(private val server: Server) {
     class Chat(val id: String?) : Event()
     /** The other side read up to a message. */
     class Read(val chatId: String, val userId: String, val messageId: Long) : Event()
-    class Typing(val chatId: String, val userId: String, val on: Boolean) : Event()
+    /** Someone in a chat is doing something (`kind`: typing, voice, round, video, photo, file, voice-upload,
+     *  round-upload), or stopped doing anything. Only the kind comes, never anything of the message. */
+    class Typing(val chatId: String, val userId: String, val on: Boolean, val kind: String = "typing") : Event()
   }
 
   private val main = Handler(Looper.getMainLooper())
@@ -69,6 +71,8 @@ class Live(private val server: Server) {
     // Calls: a live call keeps the line open in the background (its signalling goes through it).
     if (heldByCall) { sleepWanted = true; return }
     sleepWanted = false
+    // The other side is told the person stopped (while the line is still up); said again once it is back.
+    activity.pause()
     stopped = true
     line = "offline"
     main.removeCallbacks(beat)
@@ -170,7 +174,7 @@ class Live(private val server: Server) {
     // Old chats on a new device: a request, a copy ready, the backup changed (security/HistoryTransfer.kt).
     if (type.startsWith("history.")) historyEvent.post(data)
     when (type) {
-      "ready" -> { attempts = 0; onEvent?.invoke(Event.Ready) }
+      "ready" -> { attempts = 0; activity.resume(); onEvent?.invoke(Event.Ready) }
       "message" -> onEvent?.invoke(Event.Chat(Core.map(data["message"])?.get("chatId") as? String))
       "chat" -> onEvent?.invoke(Event.Chat(Core.map(data["chat"])?.get("id") as? String))
       "chat.deleted", "e2ee.devices", "profile" -> onEvent?.invoke(Event.Chat(null))
@@ -180,7 +184,7 @@ class Live(private val server: Server) {
       }
       "typing" -> {
         val chatId = data["chatId"] as? String; val userId = data["userId"] as? String
-        if (chatId != null && userId != null) onEvent?.invoke(Event.Typing(chatId, userId, data["isTyping"] as? Boolean ?: false))
+        if (chatId != null && userId != null) onEvent?.invoke(Event.Typing(chatId, userId, data["isTyping"] as? Boolean ?: false, data["kind"] as? String ?: "typing"))
       }
       // People (people/): presence and friends.
       "presence.snapshot" -> {
@@ -206,11 +210,21 @@ class Live(private val server: Server) {
     return open.send(text)
   }
 
-  /** Tells the other side that the person is typing in a chat (or stopped). */
-  fun typing(chatId: String, on: Boolean) {
-    val frame = Core.text(mapOf("type" to "typing", "chatId" to chatId, "isTyping" to on)) ?: return
-    socket?.send(frame)
+  /** Tells the other side what the person is doing in a chat (`kind`), or that they stopped doing anything (`on`
+   *  false). `progress`: an upload's percent. Screens go through `activity`, which repeats it while it lasts. */
+  fun typing(chatId: String, on: Boolean, kind: String = "typing", progress: Int? = null) {
+    val frame = linkedMapOf<String, Any?>("type" to "typing", "chatId" to chatId, "isTyping" to on)
+    if (on) { frame["kind"] = kind; if (progress != null) frame["progress"] = progress.coerceIn(0, 100) }
+    val text = Core.text(frame) ?: return
+    socket?.send(text)
   }
+
+  /** What the person is doing in each chat, said and repeated over this line (net/ActivitySend.kt). Composer:
+   *  «Показывать «печатает…»» off — the other side is told nothing (DevicePreferences `sendTyping`). */
+  val activity = ActivitySend(
+    tell = { chatId, on, kind, progress -> typing(chatId, on, kind, progress) },
+    allowed = { com.linea.messenger.settings.DevicePreferences.flag("sendTyping") ?: true },
+  )
 
   /** What several screens hear of at once (the app's own small notice board). Main thread only. */
   class Signal<T> {

@@ -80,8 +80,17 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
   private var forwardItems: List<ForwardDraft.Item> = emptyList()
   private var tapWork: Runnable? = null
   private var tapKey = ""
-  private var typingAt = 0L
-  private val typingStop = Runnable { messenger?.live?.typing(chatId, false) }
+  /** «печатает»: said while the field changes, until it has been still for a moment (net/ActivitySend.kt). */
+  private var typingToken: com.linea.messenger.net.ActivitySend.Token? = null
+  private val typingStop = Runnable { stopTyping() }
+  /** The dots after «печатает» blink while the line says it. */
+  private val dotsTick = object : Runnable {
+    override fun run() {
+      showStatus()
+      if (attached && activityShown) host?.postDelayed(this, 350)
+    }
+  }
+  private var activityShown = false
   private var jump: Pair<String, Int>? = null
   private var focusClient = ""
   private var fromNewest = 0f
@@ -257,9 +266,13 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     extras.detached() // Composer
     host?.removeCallbacks(clock)
     host?.removeCallbacks(typingStop)
+    host?.removeCallbacks(dotsTick)
+    activityShown = false
     tapWork?.let { host?.removeCallbacks(it) }
     tapWork = null
-    messenger?.live?.typing(chatId, false)
+    // The chat is left: whatever was said about this person here ends (a recording, an upload, typing).
+    typingToken = null
+    messenger?.live?.activity?.endChat(chatId)
     openedMenu?.dismiss()
   }
 
@@ -270,13 +283,16 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
 
   // The header
 
-  /** The line under the name: «печатает…», else «в сети» / «был(а) …», else the person's @name. */
+  /** The line under the name: what the other side is doing («печатает», «записывает голосовое»…, with blinking
+   *  dots), else «в сети» / «был(а) …», else the person's @name. */
   private fun showStatus() {
-    var words = ""
+    var words: CharSequence = ""
     var lit = false
     val seen = messenger?.let { PresenceWords.text(it.live.presence[peerId]) }
-    if (ChatTyping.isTyping(chatId)) {
-      words = "печатает…"
+    // A chat of two: the other person's action without their name (a group would name them).
+    val doing = ChatTyping.words(chatId, group = false) { peerName }
+    if (doing != null) {
+      words = activityDotted(doing, ChatActivityWords.dots(SystemClock.elapsedRealtime()))
       lit = true
     } else if (seen != null) {
       words = seen
@@ -285,12 +301,22 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
       words = "@$peerUsername"
     }
     if (messenger == null && ChatActionsDemo.present) {
-      words = if (ChatActionsDemo.chatdemo == "typing") "печатает…" else "в сети"
+      words = if (ChatActionsDemo.chatdemo == "typing") activityDotted("печатает", 3) else "в сети"
       lit = true
     }
     // ChatLook: while the connection is not up, the line says so (the reference's `headerStatus`).
     com.linea.messenger.chatlook.ChatLookConnection.words(context, messenger)?.let { words = it; lit = false }
-    if (statusLabel.text.toString() == words) return
+    val blinking = doing != null && words is android.text.Spanned
+    if (blinking != activityShown) {
+      activityShown = blinking
+      host?.removeCallbacks(dotsTick)
+      if (blinking && attached) host?.postDelayed(dotsTick, 350)
+    }
+    if (statusLabel.text.toString() == words.toString()) {
+      // Only the lit dots changed: the line keeps its room, nothing moves.
+      if (words is android.text.Spanned) statusLabel.text = words
+      return
+    }
     statusLabel.text = words
     statusLabel.setTextColor(if (lit) Theme.accent else Theme.muted)
     showHeader()
@@ -1111,14 +1137,14 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
     if (editing == null) {
       if (local != null) local.setDraft(chatId, value) else sampleDraft = value
     }
-    val now = SystemClock.elapsedRealtime()
-    if (typingAt == 0L || now - typingAt > 1500) {
-      // Composer: «Показывать «печатает…»» off — the other side is never told (DevicePreferences `sendTyping`).
-      messenger?.live?.typing(chatId, value.isNotEmpty() && (com.linea.messenger.settings.DevicePreferences.flag("sendTyping") ?: true))
-      typingAt = now
-    }
+    // «печатает» while the text changes; the text deleted, or still for a moment: the other side is told it stopped.
+    // Composer: «Показывать «печатает…»» off — the other side is never told (Live.activity, `sendTyping`).
     host?.removeCallbacks(typingStop)
-    host?.postDelayed(typingStop, 1800)
+    if (value.isEmpty()) stopTyping()
+    else {
+      if (typingToken?.ended != false) typingToken = messenger?.live?.activity?.begin(chatId, "typing")
+      host?.postDelayed(typingStop, 1800)
+    }
     // LinkPreview: a link typed into a new message gets its card (not an edit, not the comment of a forward).
     links.typed(value, active = editing == null && forwardItems.isEmpty())
     extras.textChanged(value) // Composer: the styles move with the text
@@ -1128,8 +1154,8 @@ class ChatScreenActions(private val context: Context, private val messenger: Mes
 
   private fun stopTyping() {
     host?.removeCallbacks(typingStop)
-    typingAt = 0L
-    messenger?.live?.typing(chatId, false)
+    typingToken?.end()
+    typingToken = null
   }
 
   // The emulator check (debug builds only: `ChatActionsDemo` of a release build asks for nothing)

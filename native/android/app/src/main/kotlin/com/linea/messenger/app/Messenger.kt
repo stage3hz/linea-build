@@ -64,8 +64,8 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
           if (event.userId != userId) for (watcher in watchers.toList()) watcher.peerRead(event.chatId, event.messageId)
           tellChanged(null)
         }
-        // ChatActions: «печатает…» of the other side (chatactions/ChatLocal.kt).
-        is Live.Event.Typing -> { if (event.userId != userId) com.linea.messenger.chatactions.ChatTyping.heard(event.chatId, event.on) }
+        // ChatActions: «печатает», «записывает голосовое»… of the other side (chatactions/ChatLocal.kt).
+        is Live.Event.Typing -> { if (event.userId != userId) com.linea.messenger.chatactions.ChatTyping.heard(event.chatId, event.userId, event.kind, event.on) }
       }
     }
     // Offline: the fastest live address of the server, and the phone's network (offline/NetPool.kt).
@@ -92,6 +92,7 @@ class Messenger(context: Context, token: String, val user: Map<String, Any?>) {
     closed = true
     watchers.clear()
     live.sleep()
+    com.linea.messenger.chatactions.ChatTyping.clear() // what the people of this account's chats were doing
     crypto.close()
   }
 

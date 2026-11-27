@@ -207,7 +207,7 @@ class ChatActionsRulesTest {
 
   private fun state(chats: List<ChatListActions.Chat>, archiveOpen: Boolean = false, query: String = "", hits: List<ChatListActions.Hit> = emptyList(), searching: Boolean = false,
                     fills: Map<String, ChatListActions.Fill> = emptyMap(), hidden: Set<String> = emptySet(), marked: Set<String> = emptySet(), drafts: Map<String, String> = emptyMap(), typing: Set<String> = emptySet()) =
-    ChatListActions.State(chats, me, archiveOpen, query, hits, searching, fills, hidden, marked = { it in marked }, draft = { drafts[it] ?: "" }, typing = { it in typing }, now = now, zone = moscow)
+    ChatListActions.State(chats, me, archiveOpen, query, hits, searching, fills, hidden, marked = { it in marked }, draft = { drafts[it] ?: "" }, typing = { if (it in typing) "печатает" else null }, now = now, zone = moscow)
 
   @Test fun theSoundOfAChat() {
     assertFalse(ChatListActions.muted(chat("1", "А"), now))
@@ -296,7 +296,7 @@ class ChatActionsRulesTest {
     assertEquals(listOf("__archive", "1", "2", "3"), rows.map { it.id })
     assertEquals(listOf("Архив", "1 чат"), listOf(rows[0].title, rows[0].preview))
     // Pinned and typing: the buttons say «Прочитано» and «Открепить».
-    assertEquals(listOf("Закреплённые", "Печатает…", true, 2), listOf(rows[1].section, rows[1].preview, rows[1].accentPreview, rows[1].unread))
+    assertEquals(listOf("Закреплённые", "Печатает", true, true, 2), listOf(rows[1].section, rows[1].preview, rows[1].accentPreview, rows[1].activity, rows[1].unread))
     assertEquals(listOf("read:Прочитано", "unpin:Открепить"), rows[1].lead)
     assertEquals(listOf("archive:В архив", "delete:Удалить", "mute:Без звука"), rows[1].trail)
     // Without sound, with a draft: «Черновик:» is the red part; the title ends with « 🔕» (ChatListScreen.tsx).
