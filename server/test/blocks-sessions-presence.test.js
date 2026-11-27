@@ -187,6 +187,62 @@ test('B51 + B35: a block hides typing, presence, read receipts and the avatar fr
   assert.equal((await request(app, 'GET', `/chats`, alice)).json().chats[0].peerLastReadMessageId, message.id);
 });
 
+test('typing carries what the person is doing: a known kind, else plain typing; an upload may carry its percent', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice_kinds'), bob = await register(app, 'bob_kinds'), eve = await register(app, 'eve_kinds');
+  const chat = await newChat(app, alice, bob);
+  const bobSocket = await socketFor(t, app, bob), aliceSocket = await socketFor(t, app, alice);
+  const heard = async frame => {
+    const marker = bobSocket.packets.length;
+    aliceSocket.socket.send(JSON.stringify({ type: 'typing', chatId: chat.id, ...frame }));
+    return bobSocket.next(packet => packet.type === 'typing', { from: marker });
+  };
+  for (const kind of ['typing', 'voice', 'round', 'video', 'photo', 'file', 'voice-upload', 'round-upload']) {
+    const packet = await heard({ isTyping: true, kind });
+    assert.deepEqual([packet.chatId, packet.userId, packet.isTyping, packet.kind], [chat.id, alice.user.id, true, kind], kind);
+    assert.equal('progress' in packet, false, `${kind}: no progress unless one is sent`);
+  }
+  // An old client sends no kind; a newer one may send a kind this server does not know: both are typing.
+  assert.equal((await heard({ isTyping: true })).kind, 'typing');
+  assert.equal((await heard({ isTyping: true, kind: 'dance' })).kind, 'typing');
+  assert.equal((await heard({ isTyping: true, kind: 42 })).kind, 'typing');
+  // Progress: an integer 0–100 on an upload kind is relayed; anything else is dropped, the event still goes through.
+  assert.equal((await heard({ isTyping: true, kind: 'video', progress: 0 })).progress, 0);
+  assert.equal((await heard({ isTyping: true, kind: 'round-upload', progress: 100 })).progress, 100);
+  assert.equal((await heard({ isTyping: true, kind: 'file', progress: 37 })).progress, 37);
+  for (const progress of [101, -1, 12.5, '50', null]) {
+    const packet = await heard({ isTyping: true, kind: 'photo', progress });
+    assert.equal(packet.kind, 'photo');
+    assert.equal('progress' in packet, false, `progress ${JSON.stringify(progress)} is dropped`);
+  }
+  assert.equal('progress' in (await heard({ isTyping: true, kind: 'voice', progress: 50 })), false, 'recording has no percent');
+  assert.equal('progress' in (await heard({ isTyping: true, kind: 'typing', progress: 50 })), false);
+  // The stop is relayed as it was: the receiver clears everything this person was doing there.
+  const stop = await heard({ isTyping: false, kind: 'video', progress: 80 });
+  assert.deepEqual([stop.isTyping, stop.kind, 'progress' in stop], [false, 'video', false]);
+  // Still checked: the shape, and the membership.
+  const eveSocket = await socketFor(t, app, eve);
+  const marker = bobSocket.packets.length;
+  eveSocket.socket.send(JSON.stringify({ type: 'typing', chatId: chat.id, isTyping: true, kind: 'voice' }));
+  const refused = await eveSocket.next(packet => packet.type === 'error');
+  assert.ok(refused, 'a non-member is refused');
+  aliceSocket.socket.send(JSON.stringify({ type: 'typing', chatId: chat.id, isTyping: 'yes', kind: 'voice' }));
+  await aliceSocket.next(packet => packet.type === 'error');
+  await settle(bobSocket);
+  assert.equal(bobSocket.packets.slice(marker).some(packet => packet.type === 'typing'), false);
+});
+
+test('typing keeps its rate limit whatever the kind', async t => {
+  const { app } = await fixture(t);
+  const alice = await register(app, 'alice_burst'), bob = await register(app, 'bob_burst');
+  const chat = await newChat(app, alice, bob);
+  const aliceSocket = await socketFor(t, app, alice);
+  const kinds = ['typing', 'voice', 'round', 'video'];
+  for (let i = 0; i < 31; i++) aliceSocket.socket.send(JSON.stringify({ type: 'typing', chatId: chat.id, isTyping: true, kind: kinds[i % kinds.length] }));
+  const refused = await aliceSocket.next(packet => packet.type === 'error' && packet.error === 'Слишком много событий набора текста.');
+  assert.ok(refused);
+});
+
 test('B69: last_seen_at is written at sign-in and at shutdown, not only when a socket closes', async t => {
   const { app, dataDir } = await fixture(t);
   const alice = await register(app, 'alice_seen');

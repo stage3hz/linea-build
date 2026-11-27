@@ -47,6 +47,9 @@ const MAX_AVATAR_BYTES = 4 * MiB;
 const MAX_AVATAR_GIF_BYTES = 20 * MiB;
 const avatarLimit = upload => (upload.mime_type === 'image/gif' ? MAX_AVATAR_GIF_BYTES : MAX_AVATAR_BYTES);
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000;
+// What a `typing` event may say a person is doing in a chat: writing, recording, or sending an attachment.
+const UPLOAD_KINDS = new Set(['video', 'photo', 'file', 'voice-upload', 'round-upload']);
+const TYPING_KINDS = new Set(['typing', 'voice', 'round', ...UPLOAD_KINDS]);
 
 // React Native Android sends an endpoint Origin even for a native WebSocket.
 // This exception is scoped to the upgrade route, uses the raw Host (never
@@ -1080,9 +1083,15 @@ export async function buildApp({
           if (typeof data.chatId !== 'string' || typeof data.isTyping !== 'boolean') fail(400, 'Некорректное событие набора текста.');
           requireMembership(data.chatId, state.auth.user_id);
           if (!limiter.allow(`typing:${state.auth.user_id}`, 30, 10_000)) fail(429, 'Слишком много событий набора текста.');
+          // `kind`: what the person is doing, never what it contains. Unknown or absent: plain typing (old clients).
+          const kind = TYPING_KINDS.has(data.kind) ? data.kind : 'typing';
+          // `progress`: an upload's percent, an integer 0–100; anything else is dropped.
+          const progress = UPLOAD_KINDS.has(kind) && Number.isInteger(data.progress) && data.progress >= 0 && data.progress <= 100 ? data.progress : undefined;
+          const event = { type: 'typing', chatId: data.chatId, userId: state.auth.user_id, isTyping: data.isTyping, kind };
+          if (data.isTyping && progress !== undefined) event.progress = progress;
           // Blocked either way: no activity leaks in either direction (messages are refused too).
           for (const userId of memberIds(data.chatId)) if (userId !== state.auth.user_id && !blockedBetween(db, state.auth.user_id, userId)) {
-            emitUser(userId, { type: 'typing', chatId: data.chatId, userId: state.auth.user_id, isTyping: data.isTyping });
+            emitUser(userId, event);
           }
           return;
         }
