@@ -1,0 +1,57 @@
+commit ce7d9a663288070a4b2a93433f07e54dd6dd5ab3
+== size
+48604380 bytes
+sha256 a755fe3db1fe44efced93ea0dc28b089bed9b32a2b6fd4c45f3fff2421b22992
+== request-signing key: none
+== identity
+package: name='com.linea.messenger.preview' versionCode='1018' versionName='0.17.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+targetSdkVersion:'36'
+application-label:'INVIZENT'
+== signing: release (certificate SHA-256 )
+== google-services.json: committed mobile/google-services.json
+== firebase settings in the APK
+    resource 0x7f0f003d string/gcm_defaultSenderId
+    resource 0x7f0f003f string/google_app_id
+    resource 0x7f0f0042 string/project_id
+== notification sounds
+MISSING
+== permissions
+package: com.linea.messenger.preview
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.RECORD_AUDIO'
+uses-permission: name='android.permission.CAMERA'
+uses-permission: name='android.permission.MODIFY_AUDIO_SETTINGS'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+uses-permission: name='android.permission.WAKE_LOCK'
+uses-permission: name='android.permission.VIBRATE'
+uses-permission: name='android.permission.REQUEST_INSTALL_PACKAGES'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION'
+uses-permission: name='android.permission.USE_BIOMETRIC'
+uses-permission: name='android.permission.READ_MEDIA_IMAGES'
+uses-permission: name='android.permission.READ_MEDIA_VIDEO'
+uses-permission: name='android.permission.READ_MEDIA_VISUAL_USER_SELECTED'
+uses-permission: name='android.permission.READ_EXTERNAL_STORAGE' maxSdkVersion='32'
+uses-permission: name='android.permission.USE_FULL_SCREEN_INTENT'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MICROPHONE'
+uses-permission: name='com.google.android.c2dm.permission.RECEIVE'
+permission: com.linea.messenger.preview.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission: name='com.linea.messenger.preview.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+== libraries
+lib/arm64-v8a/libdatastore_shared_counter.so 7112
+lib/arm64-v8a/libimage_processing_util_jni.so 32528
+lib/arm64-v8a/libinvizent_core.so 3156760
+lib/arm64-v8a/liblkjingle_peerconnection_so.so 12290928
+lib/arm64-v8a/libsqlcipher.so 2110992
+lib/arm64-v8a/libsurface_util_jni.so 4896
+lib/x86_64/libdatastore_shared_counter.so 6224
+lib/x86_64/libimage_processing_util_jni.so 49416
+lib/x86_64/liblkjingle_peerconnection_so.so 16169872
+lib/x86_64/libsqlcipher.so 2249352
+lib/x86_64/libsurface_util_jni.so 4912
+== debuggable (expected: no)
+0
+== sample data and test hooks (expected absent)
+absent

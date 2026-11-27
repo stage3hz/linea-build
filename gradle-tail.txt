@@ -1,0 +1,80 @@
+> Task :core:classes UP-TO-DATE
+> Task :core:jar
+> Task :app:mergeReleaseArtProfile
+> Task :app:mergeReleaseShaders
+> Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseNativeLibs
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+
+> Task :app:stripReleaseDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libdatastore_shared_counter.so, libimage_processing_util_jni.so, libinvizent_core.so, liblkjingle_peerconnection_so.so, libsqlcipher.so, libsurface_util_jni.so. Run with --info option to learn more.
+
+> Task :app:extractProguardFiles
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:collectReleaseDependencies
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
+> Task :app:optimizeReleaseResources
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/ai/AIModel.kt:324:63 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/app/Messenger.kt:399:82 'constructor(p0: String!, p1: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthEntry.kt:224:9 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthScreen.kt:745:7 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/auth/AuthScreen.kt:748:35 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallMedia.kt:295:97 'fun setFieldTrials(fieldTrials: String!): PeerConnectionFactory.InitializationOptions.Builder!' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallScreen.kt:42:173 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/calls/CallScreen.kt:66:47 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/chatactions/ChatParts.kt:644:51 'fun setDecorFitsSystemWindows(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/chatlook/ChatLookScreen.kt:363:39 'val systemWindowInsetTop: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/chatsplus/ChatFolders.kt:389:51 'static field SOFT_INPUT_ADJUST_RESIZE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/composer/ComposerExtras.kt:355:144 'static field SOFT_INPUT_ADJUST_RESIZE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/composer/SchedulePicker.kt:53:51 'static field SOFT_INPUT_ADJUST_RESIZE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/design/Glass.kt:202:17 Check for instance is always 'true'.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/design/Glass.kt:202:37 Condition is always 'true'.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/design/Insets.kt:72:3 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/design/Insets.kt:74:3 'fun setDecorFitsSystemWindows(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/effects/ActionButton.kt:137:29 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/intro/IntroHaptics.kt:52:89 'static field HAPTIC_FEEDBACK_ENABLED: String' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/intro/IntroOverlay.kt:112:11 'fun setDecorFitsSystemWindows(p0: Boolean): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/intro/IntroView.kt:212:47 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/intro/IntroView.kt:292:43 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/music/MusicEqualizer.kt:64:29 Check for instance is always 'false'.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/music/PlayerScreen.kt:598:120 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/platina/Confetti.kt:143:41 'val systemWindowInsetTop: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/profile/Gifts.kt:228:51 'static field SOFT_INPUT_ADJUST_RESIZE: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/profile/SettingsProfileHead.kt:177:38 'val systemWindowInsetTop: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/profile/StatusPicker.kt:97:49 'val systemWindowInsetBottom: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/profile/StatusPicker.kt:98:46 'val systemWindowInsetTop: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/settings/Security.kt:410:7 'fun announceForAccessibility(p0: CharSequence!): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/stories/StoryViewer.kt:304:7 'var statusBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/stories/StoryViewer.kt:305:7 'var navigationBarColor: Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/video/NoteDualCamera.kt:104:12 Annotation 'androidx.camera.camera2.interop.ExperimentalCamera2Interop' is not annotated with '@RequiresOptIn'. '@OptIn' has no effect.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/voice/RecordParts.kt:426:102 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/voice/RecordParts.kt:427:108 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/voice/RecordParts.kt:492:146 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/linea-build/linea-build/native/android/app/src/main/kotlin/com/linea/messenger/voice/RecordParts.kt:597:136 'field scaledDensity: Float' is deprecated. Deprecated in Java.
+
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:dexBuilderRelease
+> Task :app:mergeReleaseGlobalSynthetics
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:mergeDexRelease
+> Task :app:processReleaseJavaRes
+> Task :app:compileReleaseArtProfile
+> Task :app:mergeReleaseJavaResource
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+
+BUILD SUCCESSFUL in 5m 18s
+53 actionable tasks: 53 executed
