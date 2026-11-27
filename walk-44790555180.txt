@@ -1,0 +1,52 @@
+run 44790555180 2c7de98 completed cancelled started 2026-11-20T18:12:23Z updated 2026-11-20T18:32:25Z
+JOB ui (macos-26) [GitHub Actions 1000002761] completed cancelled 2026-11-20T18:12:58Z -> 2026-11-20T18:32:25Z
+   1. Set up job: completed success 2026-11-20T18:12:57Z -> 2026-11-20T18:12:58Z
+   2. Run actions/checkout@v4: completed success 2026-11-20T18:12:58Z -> 2026-11-20T18:13:00Z
+   3. Say that the walk has started (branch sim-started-<runner>): completed success 2026-11-20T18:13:00Z -> 2026-11-20T18:13:02Z
+   4. Select newest Xcode: completed success 2026-11-20T18:13:02Z -> 2026-11-20T18:13:06Z
+   5. Run actions/setup-node@v4: completed success 2026-11-20T18:13:06Z -> 2026-11-20T18:13:07Z
+   6. Pick the newest iPhone Pro simulator: completed success 2026-11-20T18:13:07Z -> 2026-11-20T18:13:11Z
+   7. Install dependencies: completed success 2026-11-20T18:13:11Z -> 2026-11-20T18:13:30Z
+   8. Test CA and localhost certificate (this run only): completed success 2026-11-20T18:13:30Z -> 2026-11-20T18:13:31Z
+   9. Start the local test server behind HTTPS: completed success 2026-11-20T18:13:31Z -> 2026-11-20T18:13:37Z
+   10. Build the app for the simulator: completed success 2026-11-20T18:13:37Z -> 2026-11-20T18:24:31Z
+   11. Boot the simulator, trust the test CA, install the app: completed success 2026-11-20T18:24:31Z -> 2026-11-20T18:27:09Z
+   12. Install Maestro: completed success 2026-11-20T18:27:09Z -> 2026-11-20T18:27:57Z
+   13. Walk the screens (dark, then light): completed cancelled 2026-11-20T18:27:57Z -> 2026-11-20T18:31:21Z
+   14. Collect logs: completed success 2026-11-20T18:31:21Z -> 2026-11-20T18:31:54Z
+   15. Run actions/upload-artifact@v4: completed success 2026-11-20T18:31:55Z -> 2026-11-20T18:31:59Z
+   16. Publish screenshots to branch sim-output: completed success 2026-11-20T18:32:00Z -> 2026-11-20T18:32:05Z
+   17. Fail if a walk failed: completed skipped 2026-11-20T18:32:05Z -> 2026-11-20T18:32:05Z
+   33. Post Run actions/setup-node@v4: completed skipped 2026-11-20T18:32:05Z -> 2026-11-20T18:32:05Z
+   34. Post Run actions/checkout@v4: completed success 2026-11-20T18:32:05Z -> 2026-11-20T18:32:07Z
+   35. Complete job: completed success 2026-11-20T18:32:07Z -> 2026-11-20T18:32:23Z
+JOB ui (macos-15-intel) [GitHub Actions 1000002762] completed cancelled 2026-11-20T18:12:58Z -> 2026-11-20T18:31:33Z
+   1. Set up job: completed success 2026-11-20T18:12:59Z -> 2026-11-20T18:13:00Z
+   2. Run actions/checkout@v4: completed success 2026-11-20T18:13:00Z -> 2026-11-20T18:13:03Z
+   3. Say that the walk has started (branch sim-started-<runner>): completed success 2026-11-20T18:13:03Z -> 2026-11-20T18:13:05Z
+   4. Select newest Xcode: completed success 2026-11-20T18:13:05Z -> 2026-11-20T18:13:14Z
+   5. Run actions/setup-node@v4: completed success 2026-11-20T18:13:14Z -> 2026-11-20T18:13:15Z
+   6. Pick the newest iPhone Pro simulator: completed success 2026-11-20T18:13:15Z -> 2026-11-20T18:13:21Z
+   7. Install dependencies: completed success 2026-11-20T18:13:21Z -> 2026-11-20T18:22:02Z
+   8. Test CA and localhost certificate (this run only): completed success 2026-11-20T18:22:02Z -> 2026-11-20T18:22:03Z
+   9. Start the local test server behind HTTPS: completed success 2026-11-20T18:22:03Z -> 2026-11-20T18:22:09Z
+   10. Build the app for the simulator: completed cancelled 2026-11-20T18:22:09Z -> 2026-11-20T18:31:16Z
+   11. Boot the simulator, trust the test CA, install the app: completed skipped 2026-11-20T18:31:16Z -> 2026-11-20T18:31:16Z
+   12. Install Maestro: completed skipped 2026-11-20T18:31:16Z -> 2026-11-20T18:31:16Z
+   13. Walk the screens (dark, then light): completed skipped 2026-11-20T18:31:16Z -> 2026-11-20T18:31:16Z
+   14. Collect logs: completed success 2026-11-20T18:31:16Z -> 2026-11-20T18:31:20Z
+   15. Run actions/upload-artifact@v4: completed success 2026-11-20T18:31:20Z -> 2026-11-20T18:31:22Z
+   16. Publish screenshots to branch sim-output: completed success 2026-11-20T18:31:22Z -> 2026-11-20T18:31:24Z
+   17. Fail if a walk failed: completed skipped 2026-11-20T18:31:24Z -> 2026-11-20T18:31:24Z
+   33. Post Run actions/setup-node@v4: completed skipped 2026-11-20T18:31:24Z -> 2026-11-20T18:31:24Z
+   34. Post Run actions/checkout@v4: completed success 2026-11-20T18:31:24Z -> 2026-11-20T18:31:26Z
+   35. Complete job: completed success 2026-11-20T18:31:26Z -> 2026-11-20T18:31:31Z
+ANNOTATIONS of job 136477053286:
+   [failure] : Canceling since a higher priority waiting request for ios-simulator-ui-v2 exists
+   [warning] : Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+   [failure] : The operation was canceled.
+   [notice] : Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.
+ANNOTATIONS of job 136477053750:
+   [failure] : Canceling since a higher priority waiting request for ios-simulator-ui-v2 exists
+   [warning] : Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+   [failure] : The operation was canceled.

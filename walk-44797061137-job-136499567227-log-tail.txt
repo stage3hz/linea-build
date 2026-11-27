@@ -1,0 +1,600 @@
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:10.5725470Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:16.3461660Z [2026-11-20 19:13:16 +0000] Status=2, isTerminal=NO, Elapsed=01:08.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:16.5081470Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:16.5889580Z 		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:16.6716090Z 		Migration Elapsed:00:50 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:16.7514240Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:18.7156540Z [2026-11-20 19:13:18 +0000] Status=2, isTerminal=NO, Elapsed=01:11.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:18.8803590Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:19.0424050Z 		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:19.0425270Z 		Migration Elapsed:00:56 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:19.0425900Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:20.9602070Z [2026-11-20 19:13:20 +0000] Status=2, isTerminal=NO, Elapsed=01:13.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:21.0413750Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:21.0432120Z 		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:21.1239630Z 		Migration Elapsed:00:58 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:21.2885340Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:22.4361340Z [2026-11-20 19:13:22 +0000] Status=2, isTerminal=NO, Elapsed=01:14.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:22.5171050Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:22.5171960Z 		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:22.6820410Z 		Migration Elapsed:01:00 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:22.6828640Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:23.1722760Z [2026-11-20 19:13:23 +0000] Status=2, isTerminal=NO, Elapsed=01:15.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:23.1724370Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:23.3604110Z 		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:23.6173830Z 		Migration Elapsed:01:02 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:24.2402360Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:24.3615500Z [2026-11-20 19:13:23 +0000] Status=2, isTerminal=NO, Elapsed=01:16.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:24.3616910Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:24.3618740Z 		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:24.3620340Z 		Migration Elapsed:01:03 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:24.3621280Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:27.1798320Z [2026-11-20 19:13:27 +0000] Status=2, isTerminal=NO, Elapsed=01:19.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:27.2621140Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:27.3411700Z 		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:27.3413270Z 		Migration Elapsed:01:04 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:27.5046580Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:28.0771700Z [2026-11-20 19:13:27 +0000] Status=2, isTerminal=NO, Elapsed=01:20.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:28.2426080Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:28.4064590Z 		Reason:Running plugin com.apple.MobileSafari.migrator (MobileSafari.migrator)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:28.4869660Z 		Migration Elapsed:01:07 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:28.4873790Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:29.2958450Z [2026-11-20 19:13:29 +0000] Status=2, isTerminal=NO, Elapsed=01:21.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:29.5849150Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:29.9503840Z 		Reason:Running plugin com.apple.accounts.migrator (Accounts.migrator)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:29.9504510Z 		Migration Elapsed:01:08 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:29.9504970Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:31.7443080Z [2026-11-20 19:13:31 +0000] Status=2, isTerminal=NO, Elapsed=01:24.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:31.8276410Z 	Waiting on Data Migration
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:31.9923540Z 		Reason:Running plugin com.apple.StocksMigrator (StocksMigrator.migrator)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:31.9924470Z 		Migration Elapsed:01:09 seconds
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:32.0748010Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:33.7935380Z [2026-11-20 19:13:33 +0000] Status=4, isTerminal=NO, Elapsed=01:26.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:33.8757410Z 	Waiting on System App
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:33.9559940Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:35.0182330Z [2026-11-20 19:13:34 +0000] Status=4, isTerminal=NO, Elapsed=01:27.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:35.1000140Z 	Waiting on System App
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:35.1825120Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:37.4866900Z [2026-11-20 19:13:36 +0000] Status=4, isTerminal=NO, Elapsed=01:29.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:37.4867910Z 	Waiting on System App
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:38.3337340Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:49.8338540Z [2026-11-20 19:13:49 +0000] Status=4294967295, isTerminal=YES, Elapsed=01:41.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:49.9140590Z 	Finished
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:13:49.9960670Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6874970Z ##[group]Run for attempt in 1 2 3; do
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6875870Z ^[[36;1mfor attempt in 1 2 3; do^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6876370Z ^[[36;1m  curl -fsSL "https://get.maestro.mobile.dev" | bash && "$HOME/.maestro/bin/maestro" --version && break^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6890000Z ^[[36;1m  [ "$attempt" = 3 ] && { echo "::error::Maestro did not install"; exit 1; }^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6891310Z ^[[36;1m  echo "Maestro install failed, retry $attempt"; rm -rf "$HOME/.maestro"; sleep 30^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6892080Z ^[[36;1mdone^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:24.6892490Z ^[[36;1mecho "$HOME/.maestro/bin" >> "$GITHUB_PATH"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2958370Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2958960Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2963890Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2966220Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2968900Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2969590Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2971560Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2972230Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2973280Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2973700Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2974170Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2974400Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2974800Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:25.2975280Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.0685510Z * Create distribution directories...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.0895090Z * Downloading...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.3737480Z #=#=#                                                                          
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.5083960Z ##O#-#                                                                         
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.5199340Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.6183960Z                                                                            0.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:27.9434210Z #                                                                          1.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.0468950Z ##                                                                         3.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.1488500Z ##                                                                         3.7%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.2725930Z ##                                                                         3.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.4041380Z ###                                                                        4.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.5284840Z ###                                                                        5.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.6316430Z ####                                                                       5.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.8495690Z ####                                                                       6.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:28.9258440Z ####                                                                       6.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.1011210Z #####                                                                      7.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.3477280Z #####                                                                      7.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.4575420Z #####                                                                      7.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.5602380Z #####                                                                      7.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.6645390Z #####                                                                      8.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.7811820Z ######                                                                     9.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.9098090Z #######                                                                   10.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:29.9954040Z #######                                                                   10.5%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.0917030Z #######                                                                   10.5%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.2070560Z ########                                                                  11.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.3149790Z #########                                                                 12.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.4454280Z #########                                                                 13.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.5940070Z #########                                                                 13.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.7397570Z ##########                                                                14.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:30.8712020Z ##########                                                                14.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.0173120Z ##########                                                                14.7%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.2258760Z ##########                                                                14.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.2812400Z ##########                                                                14.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.5001520Z ##########                                                                15.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.5849160Z ###########                                                               15.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.7286430Z ###########                                                               15.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:31.9001970Z ###########                                                               15.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:32.1150260Z ###########                                                               15.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:32.2513310Z ###########                                                               16.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:32.6692450Z ###########                                                               16.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:33.0809550Z ############                                                              17.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:33.1663210Z ############                                                              17.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:33.3315890Z ############                                                              17.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:33.6761450Z ############                                                              18.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:33.7849750Z #############                                                             18.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:33.9000030Z #############                                                             19.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:34.0212850Z #############                                                             19.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:34.1191950Z ##############                                                            20.7%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:34.2303920Z ###############                                                           22.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:34.6106890Z ################                                                          23.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:34.7088950Z #################                                                         23.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:34.8287130Z #################                                                         24.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.1099070Z #################                                                         24.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.2339080Z #################                                                         24.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.3237700Z #################                                                         24.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.4192580Z ##################                                                        25.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.5431100Z ##################                                                        25.7%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.6623050Z ##################                                                        26.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.7651730Z ###################                                                       27.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.8746880Z ####################                                                      28.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:35.9922670Z #####################                                                     30.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.0920420Z ######################                                                    30.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.1806400Z ######################                                                    31.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.2888530Z #######################                                                   33.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.3978570Z ########################                                                  33.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.5004390Z #########################                                                 35.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.6056470Z ##########################                                                37.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.7095850Z ############################                                              39.5%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.8020790Z ##############################                                            41.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:36.9192170Z ###############################                                           43.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.0092770Z ################################                                          45.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.1189490Z ##################################                                        48.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.2186030Z ####################################                                      51.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.3360280Z #######################################                                   54.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.4173490Z #########################################                                 57.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.5261760Z ##########################################                                58.8%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.6180510Z ############################################                              61.5%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.7137940Z #############################################                             63.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.8398610Z ##############################################                            65.3%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:37.9242240Z ################################################                          67.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.0315020Z ################################################                          67.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.1283710Z ##################################################                        70.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.2305450Z ####################################################                      73.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.3264570Z ######################################################                    76.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.4318200Z ########################################################                  78.7%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.5786520Z ##########################################################                81.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.6800910Z ###########################################################               82.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.7763420Z ###########################################################               82.9%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.8739950Z ############################################################              84.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:38.9818370Z ##############################################################            86.6%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:39.0735210Z ################################################################          89.4%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:39.1886840Z ##################################################################        92.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:39.2804080Z ####################################################################      95.2%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:39.3672610Z ######################################################################    98.1%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:39.3777080Z ######################################################################## 100.0%
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:39.3783810Z * Checking archive integrity...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:44.7153110Z * Extracting archive...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:52.7335750Z * Remove previous installation (if any)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:52.7336780Z * Copying archive contents...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.3991150Z * Cleaning up...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5014730Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5243710Z Adding maestro to your PATH in /Users/runner/.bash_profile
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5351660Z Adding maestro to your PATH in /Users/runner/.zshrc
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5474960Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5638260Z Installation was successful!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5667730Z Please open a new terminal OR run the following in the existing one:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5782810Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5783880Z     export PATH="$PATH":"$HOME/.maestro/bin"
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.5885670Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.6023690Z Then run the following command:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.6155220Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.6258240Z     maestro
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.6412040Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:16:53.6753460Z Welcome to Maestro!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:01.4037480Z Anonymous analytics enabled. To opt out, set MAESTRO_CLI_NO_ANALYTICS environment variable to any value before running Maestro.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:01.4147150Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:04.6908700Z 2.12.1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9627860Z ##[group]Run mkdir -p shots && cd shots
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9631370Z ^[[36;1mmkdir -p shots && cd shots^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9633450Z ^[[36;1m# Screenshots taken so far go to the output branch after every stage: a walk that is stopped half-way^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9634580Z ^[[36;1m# (time limit, a lost runner) still leaves what it saw.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9635830Z ^[[36;1mpublish() {^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9636560Z ^[[36;1m  ( rm -rf "$RUNNER_TEMP/part" && mkdir -p "$RUNNER_TEMP/part" && cp -R . "$RUNNER_TEMP/part/" 2>/dev/null^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9637840Z ^[[36;1m    cp -R "$HOME/.maestro/tests" "$RUNNER_TEMP/part/maestro-tests" 2>/dev/null^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9639050Z ^[[36;1m    cd "$RUNNER_TEMP/part" && echo "running:$1 $GITHUB_SHA $(date -u) macos-26" > STATUS.txt^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9640180Z ^[[36;1m    # The state of the Mac itself: two walks stopped publishing half-way with no final status, and without^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9641920Z ^[[36;1m    # the Actions page load, memory and disk at the last sign of life are the only clue.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9643920Z ^[[36;1m    { uptime; df -h / "$RUNNER_TEMP" | tail -2; vm_stat | head -8; ps -Ao %cpu,%mem,rss,etime,comm -r | cut -c1-150 | head -16; echo; ps -Ao rss,comm -m | cut -c1-150 | head -8; sysctl vm.swapusage; ps -A | wc -l; } > host.txt 2>&1^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9645210Z ^[[36;1m    # A push of full-size PNGs from the loaded Mac ended in HTTP 408 every time (seen in the job log).^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9646350Z ^[[36;1m    find . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9647620Z ^[[36;1m    find . -name 'commands-*.json' -delete; find . -type f -size +3000k -delete^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9648640Z ^[[36;1m    git init -q -b part && git config user.name "linea-ci" && git config user.email "ci@localhost"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9649790Z ^[[36;1m    git add -A && git commit -qm "Simulator shots so far ($1) for $GITHUB_SHA"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9659800Z ^[[36;1m    limit 180 git push -qf "***github.com/stage3hz/linea-build.git" "HEAD:sim-output-macos-26" ) || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9661500Z ^[[36;1m}^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9664930Z ^[[36;1m# No maestro call may run longer than its limit (one hung for two hours with no output), and while the^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9770880Z ^[[36;1m# walk goes on a picture of the simulator screen is published every four minutes: what the robot is^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9771820Z ^[[36;1m# looking at can be read from the branch without the Actions page.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9777840Z ^[[36;1mlimit() { local s="$1"; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9779410Z ^[[36;1m( n=0; while true; do sleep 240; n=$((n+1)); limit 60 xcrun simctl io "$SIMULATOR_UDID" screenshot "live-$(printf %02d $n).png" >/dev/null 2>&1 || true; publish "live-$n"; done ) &^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9780040Z ^[[36;1mLIVE=$!^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9780250Z ^[[36;1mpublish walk-begins^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9780700Z ^[[36;1m# The Mac was at load 425-545 on 3-4 cores during the walk (host.txt) and went silent a minute after the^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9781430Z ^[[36;1m# chat list first appeared. The falling snow keeps the software renderer busy all the time, so this^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9794880Z ^[[36;1m# walk runs with the system «Reduce Motion» on (the app obeys it: motionPolicy.ts) and takes still^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9795630Z ^[[36;1m# pictures; indexing and what is left of the build are stopped as well.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9796200Z ^[[36;1msudo mdutil -a -i off >/dev/null 2>&1 || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9806800Z ^[[36;1mpkill -f XCBBuildService 2>/dev/null || true; pkill -f SourceKitService 2>/dev/null || true; pkill -x swift-frontend 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9810200Z ^[[36;1mlimit 60 xcrun simctl spawn "$SIMULATOR_UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9811410Z ^[[36;1mxcrun simctl ui "$SIMULATOR_UDID" appearance dark^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9812930Z ^[[36;1m# Two attempts: on a slow runner the very first XCTest tap once took 377 s (34 s on a normal run, 0.4 s^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9815710Z ^[[36;1m# afterwards) and the driver gave up. Each attempt registers its own account (ATTEMPT in login/username).^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9816920Z ^[[36;1mdark_ok=0^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9817580Z ^[[36;1mfor attempt in 1 2; do^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9820560Z ^[[36;1m  if limit 1500 maestro --device "$SIMULATOR_UDID" test -e THEME=dark -e ATTEMPT="$attempt" "$GITHUB_WORKSPACE/tools/maestro/register-and-screens.yaml"; then dark_ok=1; break; fi^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9823450Z ^[[36;1m  echo "Registration attempt $attempt failed"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9824850Z ^[[36;1m  publish "registration-attempt-$attempt-failed"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9826690Z ^[[36;1mdone^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9827140Z ^[[36;1mif [ "$dark_ok" = 1 ]; then^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9827900Z ^[[36;1m  publish registered^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9829050Z ^[[36;1m  # People to talk to: accounts with avatars and really encrypted messages, on the local server only.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9831570Z ^[[36;1m  (cd "$GITHUB_WORKSPACE" && node tools/sim-seed.mjs http://127.0.0.1:3999 "simui_check$attempt" "$GITHUB_WORKSPACE/srvdata") || echo "SEED_FAILED=1" >> "$GITHUB_ENV"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9836190Z ^[[36;1m  limit 1200 maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/native-check.yaml" || echo "NATIVE_FAILED=1" >> "$GITHUB_ENV"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9850120Z ^[[36;1m  xcrun simctl io "$SIMULATOR_UDID" screenshot zy-after-native.png || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9852610Z ^[[36;1m  publish native-check-done^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9856710Z ^[[36;1m  limit 1200 maestro --device "$SIMULATOR_UDID" test -e THEME=dark "$GITHUB_WORKSPACE/tools/maestro/screens-again.yaml" || echo "DARK_FAILED=1" >> "$GITHUB_ENV"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9858110Z ^[[36;1melse^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9860190Z ^[[36;1m  echo "DARK_FAILED=1" >> "$GITHUB_ENV"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9860640Z ^[[36;1mfi^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9866760Z ^[[36;1mkill "$LIVE" 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9874490Z ^[[36;1mxcrun simctl io "$SIMULATOR_UDID" screenshot zz-last-state.png || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:06.9875580Z ^[[36;1mpublish walk-ended^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1117750Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1118200Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1118380Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1118680Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1119650Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1120110Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1120400Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1120670Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1121000Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1121340Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1121740Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1122000Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1122380Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:17:07.1122710Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:19:01.4103130Z Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:19:01.4107230Z  > Flow register-and-screens
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:00.1933160Z Launch app "com.linea.messenger.preview" with clear state... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:13.8787990Z Assert that "Создать аккаунт" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:17.9808520Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:18.3275360Z Take screenshot 00-auth... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:26.4646370Z Tap on "Создать аккаунт"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:39.2880650Z Tap on id: field-Логин... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:47.6349210Z Input text simtester${ATTEMPT}... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:49.6086630Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:51.2795300Z Take screenshot 01-register-login... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:51.8409020Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:51.9146520Z Run flow when id: field-Имя is not visible...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:20:57.9833000Z   Scrolling DOWN until "Продолжить" is visible with speed 40, visibility percentage 100%, timeout 20000 ms, with centering disabled... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:01.8451700Z   Tap on "Продолжить"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:01.8486650Z Run flow when id: field-Имя is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:23.3754680Z Assert that id: field-Имя is visible... FAILED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4662670Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4709300Z Assertion is false: id: field-Имя is visible
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4710090Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4711030Z Assertion 'id: field-Имя is visible' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4716470Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4716870Z Possible causes:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4721790Z - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4770940Z - Element may be temporarily unavailable due to loading state
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4775640Z - This could be a real regression that needs to be addressed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4776240Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4776590Z ==== Debug output (logs & screenshots) ====
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4794890Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:27.4796460Z /Users/runner/.maestro/tests/2026-11-20_191757
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:21:35.8401780Z Registration attempt 1 failed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:22:22.3485400Z Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:22:22.3486700Z  > Flow register-and-screens
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:22:47.7160560Z Launch app "com.linea.messenger.preview" with clear state... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:22:58.3466600Z Assert that "Создать аккаунт" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:04.1561330Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:04.5305550Z Take screenshot 00-auth... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:11.3231480Z Tap on "Создать аккаунт"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:13.4913650Z Tap on id: field-Логин... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:18.0177470Z Input text simtester${ATTEMPT}... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:18.9078960Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:19.0871850Z Take screenshot 01-register-login... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:20.0386610Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:20.0475400Z Run flow when id: field-Имя is not visible...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:27.3419060Z Run flow when id: field-Имя is not visible... SKIPPED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:27.6538990Z Assert that id: field-Имя is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:33.9982600Z Tap on id: field-Имя... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:37.8017950Z Input text Sim Tester... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:39.1459790Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:40.7684820Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:44.4921900Z Tap on id: field-Публичный @юзернейм... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:46.5116680Z Input text simui_check${ATTEMPT}... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:47.9900950Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:49.9735740Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:49.9886830Z Run flow when id: field-Пароль is not visible...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:57.2951820Z Run flow when id: field-Пароль is not visible... SKIPPED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:23:57.7006160Z Assert that id: field-Пароль is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:02.6774040Z Tap on id: field-Пароль... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:07.2852110Z Input text correct horse battery staple 42... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:08.7094030Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:10.4954540Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:19.1292440Z Tap on (Optional) "Not Now|Не сейчас"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:19.1325480Z Run flow when id: field-Слово подтверждения is not visible...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:19.4905940Z Run flow when id: field-Слово подтверждения is not visible... SKIPPED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:19.8060760Z Assert that id: field-Слово подтверждения is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:21.1393750Z Tap on (Optional) "Not Now|Не сейчас"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:22.8394760Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:28.5659410Z Tap on id: field-Слово подтверждения... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:33.9699410Z Input text ludwigsalt... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:35.2407810Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:36.5239120Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:44.6913340Z Tap on (Optional) "Not Now|Не сейчас"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:44.6925060Z Run flow when id: field-Слово восстановления is not visible...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:44.9848110Z Run flow when id: field-Слово восстановления is not visible... SKIPPED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:45.2333110Z Assert that id: field-Слово восстановления is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:46.2802230Z Tap on (Optional) "Not Now|Не сейчас"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:47.4784650Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:50.4796860Z Tap on id: field-Слово восстановления... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:52.2549960Z Input text mariposa... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:53.5938470Z Assert that "Введи по одному символу.*" is not visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:53.8627210Z Take screenshot 02-register-last-step... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:24:55.1625920Z Press Enter key... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:01.1061330Z Assert that "Избранное.*|Чаты|Not Now|Не сейчас|Сервер не ответил.*|Нет связи.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:04.8679920Z Tap on (Optional) "Not Now|Не сейчас"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:04.9131680Z Run flow when "Создать аккаунт", Index: 1 is visible and "Чаты" is not visible...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:05.7750010Z Run flow when "Создать аккаунт", Index: 1 is visible and "Чаты" is not visible... SKIPPED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:07.2005490Z Tap on (Optional) "Allow"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:08.6487610Z Tap on (Optional) "Разрешить"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:08.8818760Z Assert that "Избранное.*|Чаты|Not Now|Не сейчас" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:09.9209630Z Tap on (Optional) "Not Now|Не сейчас"... WARNED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:10.2068060Z Assert that "Избранное.*|Чаты" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:11.4038570Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:12.3941480Z Take screenshot 03-registered... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:25:51.4450590Z {"people":6,"messages":38,"to":"dad01d66-f851-4780-85ee-9a8d5bf91f83"}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:26:57.2531030Z Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:26:57.2571410Z  > Flow native-check
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:05.9340970Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:18.9772600Z Assert that "Чаты" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:19.2869550Z Assert that "Лариса Новикова.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:21.3874560Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:22.8270610Z Take screenshot ${THEME}-n01-list... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:23.0556690Z Assert that "Анна Лебедева.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:23.2074300Z Take screenshot ${THEME}-n02-list-avatars... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:25.0207380Z Tap on "Лариса Новикова.*"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:25.6029670Z Assert that id: chat-composer is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:32.6555790Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:32.8973590Z Take screenshot ${THEME}-n03-chat-long... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:36.9310580Z Swipe from (50%,35%) to (50%,75%) in 400 ms... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:38.1356010Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:38.3976690Z Take screenshot ${THEME}-n04-chat-long-scrolled... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:44.9971920Z Tap on id: chat-composer... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:47.1879440Z Input text Привет из симулятора... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:52.8268400Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:53.0849210Z Take screenshot ${THEME}-n05-chat-keyboard... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:57.2619240Z Tap on id: chat-send... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:58.3824050Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:27:58.6685590Z Take screenshot ${THEME}-n06-chat-sent... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:05.1350150Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:13.7424390Z Assert that "Максим Голубев.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:19.0794380Z Tap on "Максим Голубев.*"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:19.3534350Z Assert that id: chat-composer is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:20.7724650Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:21.0524300Z Take screenshot ${THEME}-n07-chat-paragraph... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:27.8313570Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:33.2499160Z Assert that "Ксюша.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:36.4446840Z Tap on "Ксюша.*"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:37.8757740Z Assert that id: chat-composer is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:39.5843330Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:39.9125600Z Take screenshot ${THEME}-n08-chat-emoji... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:45.3403440Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:28:55.4724140Z Assert that "Тимур Богданов.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:03.7747700Z Tap on "Тимур Богданов.*"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:04.5305670Z Assert that id: chat-composer is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:12.7113910Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:13.1455670Z Take screenshot ${THEME}-n10-chat-format... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:20.9213570Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:27.8929880Z Assert that "Dimas.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:34.0354130Z Long press on "Dimas.*"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:36.4927210Z Tap on (Optional) "Закрепить"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:39.2924410Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:39.5963270Z Take screenshot ${THEME}-n11-list-pinned... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:48.2633430Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:52.9786580Z Assert that "Лариса Новикова.*" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:57.9826980Z Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:29:58.3521170Z Take screenshot ${THEME}-n09-list-after... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:30:12.0453310Z Detected file type from extension: PNG
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:30:12.0531180Z Note: No display specified. Defaulting to display: 58F78424-F682-454B-9C5C-49A367CC1849 (screenID: 1, name: LCD)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:30:12.1541220Z Wrote screenshot to: /Users/runner/work/linea-build/linea-build/shots/zy-after-native.png
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:15.9799570Z Running on iPhone 17 Pro - iOS 26.5 - 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:16.6100130Z  > Flow screens-again
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:25.8465890Z Launch app "com.linea.messenger.preview"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:40.1926970Z Assert that "Избранное.*|Чаты" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:40.1936530Z Run screens.yaml...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:54.5710810Z   Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:31:57.5478780Z   Take screenshot ${THEME}-01-chats... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:01.6090650Z   Tap on "Избранное.*"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:01.9736120Z   Assert that id: chat-composer is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:03.6013640Z   Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:03.9192860Z   Take screenshot ${THEME}-05-saved... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:08.3622080Z   Tap on id: chat-composer... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:11.6959760Z   Input text Привет, это тест... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:18.1236540Z   Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:23.1041150Z   Tap on id: chat-send... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:23.7144520Z   Assert that "Привет, это тест" is visible... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:25.3078570Z   Wait for animation to end... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:25.7246780Z   Take screenshot ${THEME}-09-saved-note... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:31.6197050Z   Long press on "Привет, это тест"... COMPLETED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:48.3603820Z   Assert that "Удалить из Избранного" is visible... FAILED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:48.5994910Z Run screens.yaml... FAILED
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.0843730Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.0850830Z Assertion is false: "Удалить из Избранного" is visible
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.0859330Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.0860610Z Assertion '"Удалить из Избранного" is visible' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.0869310Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1000150Z Possible causes:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1055010Z - Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1157770Z - Element may be temporarily unavailable due to loading state
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1158910Z - This could be a real regression that needs to be addressed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1159510Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1159750Z ==== Debug output (logs & screenshots) ====
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1161540Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:32:53.1164030Z /Users/runner/.maestro/tests/2026-11-20_193021
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:00.8818570Z Detected file type from extension: PNG
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:00.8996250Z Note: No display specified. Defaulting to display: 58F78424-F682-454B-9C5C-49A367CC1849 (screenID: 1, name: LCD)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:01.3084290Z Wrote screenshot to: /Users/runner/work/linea-build/linea-build/shots/zz-last-state.png
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:01.3188730Z /Users/runner/work/_temp/3a857b2c-7b10-4ba0-bf82-6afbfa9f113a.sh: line 53: 38279 Terminated: 15          ( n=0; while true; do
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:01.3295340Z     sleep 240; n=$((n+1)); limit 60 xcrun simctl io "$SIMULATOR_UDID" screenshot "live-$(printf %02d $n).png" > /dev/null 2>&1 || true; publish "live-$n";
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:01.3404830Z done )
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0152430Z ##[group]Run mkdir -p shots
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0154370Z ^[[36;1mmkdir -p shots^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0156010Z ^[[36;1mcp server.log proxy.log simulators.json shots/ 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0158200Z ^[[36;1mtail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0160030Z ^[[36;1mcp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0161410Z ^[[36;1m# The whole walk (it takes up to two hours), not the last minutes: a launch crash happens early.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0173420Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0182850Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0216950Z ^[[36;1m# Crash reports of the app (simulator crashes land in the host's DiagnosticReports).^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0218490Z ^[[36;1mmkdir -p shots/crashes^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0222210Z ^[[36;1mfind "$HOME/Library/Logs/DiagnosticReports" -maxdepth 2 \( -name 'INVIZENT*' -o -name '*linea*' \) -mmin -240 -exec cp {} shots/crashes/ \; 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.0225320Z ^[[36;1mls -la shots/crashes || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4239140Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4239920Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4241010Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4241790Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4242990Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4243950Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4245180Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4245990Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4246660Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4256960Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4257740Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4258810Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4259490Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4260570Z   DARK_FAILED: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:14.4261300Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6252140Z total 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6255350Z drwxr-xr-x   2 runner  staff   64 Nov 20 19:33 .
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6256040Z drwxr-xr-x  15 runner  staff  480 Nov 20 19:33 ..
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6852510Z ##[group]Run actions/upload-artifact@v4
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6852900Z with:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6853310Z   name: ios-simulator-ui-macos-26
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6853850Z   path: shots
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6854160Z   if-no-files-found: ignore
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6854470Z   compression-level: 6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6854860Z   overwrite: false
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6855490Z   include-hidden-files: false
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6857350Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6857690Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6858220Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6858650Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6859680Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6859990Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6860390Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6860710Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6861550Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6862000Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6862670Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6863020Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6863240Z   DARK_FAILED: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:45.6864060Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:46.8412590Z (node:77759) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:46.8413950Z (Use `node --trace-deprecation ...` to show where the warning was created)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:46.8926060Z With the provided path, there will be 80 files uploaded
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:46.8926730Z Artifact name is valid!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:46.8927140Z Root directory input is valid!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:47.2519430Z Beginning upload of artifact content to blob storage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:48.8956750Z (node:77759) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:49.3650060Z Uploaded bytes 8388608
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:50.8513910Z Uploaded bytes 16777216
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:52.0093390Z Uploaded bytes 25165824
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:53.2706700Z Uploaded bytes 33554432
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:55.0569620Z Uploaded bytes 41943040
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:56.1286180Z Uploaded bytes 50331648
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:57.5905740Z Uploaded bytes 58720256
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:58.5532270Z Uploaded bytes 64115016
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:58.5880920Z Finished uploading artifact content to blob storage!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:58.6091920Z SHA256 digest of uploaded artifact zip is 64f37337f3bc2d9136a5c4bcf9a62a020708091e9e5b9d88fad38da8d5877bef
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:58.6161240Z Finalizing artifact upload
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.0334630Z Artifact ios-simulator-ui-macos-26.zip successfully finalized. Artifact ID 14662585567
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.0335720Z Artifact ios-simulator-ui-macos-26 has been successfully uploaded! Final size is 64115016 bytes. Artifact ID is 14662585567
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.0337630Z Artifact download URL: https://github.com/stage3hz/linea-build/actions/runs/44797061137/artifacts/14662585567
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1053460Z ##[group]Run set -e
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1054410Z ^[[36;1mset -e^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1054830Z ^[[36;1m[ -d shots ] || exit 0^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1055660Z ^[[36;1mrm -rf pub && cp -R shots pub^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1056130Z ^[[36;1mecho "success $GITHUB_SHA $(date -u) macos-26" > pub/STATUS.txt^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1056490Z ^[[36;1mcd pub^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1057260Z ^[[36;1mfind . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1059420Z ^[[36;1mfind . -name 'commands-*.json' -delete^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1059960Z ^[[36;1mfind . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1060930Z ^[[36;1mgit init -q -b sim-output^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1061590Z ^[[36;1mgit config user.name "linea-ci"; git config user.email "ci@localhost"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1080850Z ^[[36;1mgit add -A && git commit -qm "Simulator shots for $GITHUB_SHA"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1085800Z ^[[36;1mgit push -f "***github.com/stage3hz/linea-build.git" "HEAD:sim-output-macos-26"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1930020Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1930460Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1930780Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1931160Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1931520Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1931880Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1932170Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1932440Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1932780Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1933130Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1934080Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1934290Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1934510Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1934850Z   DARK_FAILED: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:33:59.1935100Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:10.9758700Z To https://github.com/stage3hz/linea-build.git
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:10.9777390Z  + f13c871...5a7a71a HEAD -> sim-output-macos-26 (forced update)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:10.9984110Z ##[group]Run exit 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:10.9984590Z ^[[36;1mexit 1^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0307370Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0307730Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0308160Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0308530Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0309060Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0309980Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0310380Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0310750Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0311030Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0311450Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0313380Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0314140Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0314870Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0315640Z   DARK_FAILED: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.0316220Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.1500770Z ##[error]Process completed with exit code 1.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.2632530Z Post job cleanup.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.6395300Z [command]/opt/homebrew/bin/git version
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.6609770Z git version 2.56.1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.6674700Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/1bcff44e-4073-4db2-a78c-4ac68fa1a7aa/.gitconfig'
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.6676690Z Temporarily overriding HOME='/Users/runner/work/_temp/1bcff44e-4073-4db2-a78c-4ac68fa1a7aa' before making global git config changes
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.6684570Z Adding repository directory to the temporary git global config as a safe directory
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.6688290Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/linea-build/linea-build
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.7021660Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.7119930Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.9810180Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.9842390Z http.https://github.com/.extraheader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.9864790Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:11.9980310Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:12.2895770Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:12.2931460Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:12.5422760Z Cleaning up orphan processes
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:12.8815620Z Terminate orphan process: pid (70101) (DTServiceHub)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:16.2576190Z Terminate orphan process: pid (40838) (adb)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:33.9282940Z Terminate orphan process: pid (2094) (node)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:34.0108280Z Terminate orphan process: pid (2096) (node)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T19:34:34.5169750Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

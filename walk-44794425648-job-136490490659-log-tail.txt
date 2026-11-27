@@ -1,0 +1,600 @@
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8069740Z [Expo] Enabling modular headers for pod ReactCodegen
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8070320Z [Expo] Enabling modular headers for pod RCTRequired
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8070840Z [Expo] Enabling modular headers for pod RCTTypeSafety
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8071250Z [Expo] Enabling modular headers for pod ReactCommon
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8071800Z [Expo] Enabling modular headers for pod React-NativeModulesApple
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8072350Z [Expo] Enabling modular headers for pod Yoga
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8072790Z [Expo] Enabling modular headers for pod React-Fabric
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8073330Z [Expo] Enabling modular headers for pod React-graphics
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8073780Z [Expo] Enabling modular headers for pod React-utils
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8074320Z [Expo] Enabling modular headers for pod React-featureflags
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8076600Z [Expo] Enabling modular headers for pod React-debug
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8077270Z [Expo] Enabling modular headers for pod React-ImageManager
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8077810Z [Expo] Enabling modular headers for pod React-rendererdebug
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8078220Z [Expo] Enabling modular headers for pod React-jsi
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8078700Z [Expo] Enabling modular headers for pod React-renderercss
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8081160Z [Expo] Enabling modular headers for pod hermes-engine
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8081710Z [Expo] Enabling modular headers for pod glog
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8082240Z [Expo] Enabling modular headers for pod boost
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8085260Z [Expo] Enabling modular headers for pod DoubleConversion
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8086820Z [Expo] Enabling modular headers for pod fast_float
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8087940Z [Expo] Enabling modular headers for pod fmt
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8089380Z [Expo] Enabling modular headers for pod RCT-Folly
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8109540Z [Expo] Enabling modular headers for pod SocketRocket
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8112120Z [Expo] Enabling modular headers for pod ExpoTaskManager
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8116130Z [Expo] Enabling modular headers for pod SDWebImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8133790Z [Expo] Enabling modular headers for pod SDWebImageAVIFCoder
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8134590Z [Expo] Enabling modular headers for pod SDWebImageSVGCoder
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8135260Z [Expo] Enabling modular headers for pod SDWebImageWebPCoder
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8135740Z [Expo] Enabling modular headers for pod libavif
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8136390Z [Expo] Enabling modular headers for pod UMAppLoader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8136900Z [Expo] Enabling modular headers for pod LibSignalClient
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8138110Z [Expo-precompiled] RNReanimated: building from source (prebuilt tarball not found)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8139670Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-reanimated/output/4.5.1/0.86.3/250829098.0.17/debug/xcframeworks/RNReanimated.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8141900Z [Expo-precompiled] react-native-safe-area-context: building from source (prebuilt tarball not found)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8143710Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-safe-area-context/output/5.7.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCSafeAreaContext.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8145260Z [Expo-precompiled] RNScreens: building from source (prebuilt tarball not found)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8146690Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-screens/output/4.26.2/0.86.3/250829098.0.17/debug/xcframeworks/RNScreens.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8147720Z [Expo-precompiled] RNSVG: building from source (prebuilt tarball not found)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8149000Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-svg/output/15.15.4/0.86.3/250829098.0.17/debug/xcframeworks/RNSVG.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8150040Z [Expo-precompiled] RNWorklets: building from source (prebuilt tarball not found)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8151400Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-worklets/output/0.10.1/0.86.3/250829098.0.17/debug/xcframeworks/RNWorklets.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8152600Z [Expo-precompiled] RNCAsyncStorage: building from source (prebuilt tarball not found)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:05.8153940Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/@react-native-async-storage/async-storage/output/2.2.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCAsyncStorage.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:06.8349230Z [Lottie React Native] Using install_modules_dependencies
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:07.1348370Z Found 15 modules for target `INVIZENT`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:07.1398630Z link_native_modules! {ios_packages: [{configurations: [], name: "@react-native-async-storage/async-storage", root: "/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-async-storage/async-storage", path: "../node_modules/@react-native-async-storage/async-storage", podspec_path: "/Users/runner/work/linea-build/linea-bu
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:07.2778610Z [Lottie React Native] Using install_modules_dependencies
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:07.8778510Z Auto-linking React Native modules for target `INVIZENT`: LiquidGlassmorphism, RNCAsyncStorage, RNCMaskedView, RNGestureHandler, RNReanimated, RNSVG, RNScreens, RNWorklets, ReactNativeIncallManager, livekit-react-native-webrtc, lottie-react-native, react-native-keyboard-controller, react-native-netinfo, and react-native-safe-area-context
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:10.7219080Z Framework build type is static framework
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:10.7486160Z [ReactNativeDependencies] Setting up ReactNativeDependencies...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.1288670Z [ReactNativeDependencies] Building from source: false
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.1296590Z [ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.1733810Z [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.2308650Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.2312110Z                                  Dload  Upload   Total   Spent    Left  Speed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.2312530Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.2496840Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.2498800Z 100   167    0   167    0     0   8766      0 --:--:-- --:--:-- --:--:--  9277
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.2893080Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.5351990Z   2 17.8M    2  447k    0     0  7611k      0  0:00:02 --:--:--  0:00:02 7611k
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.5352900Z 100 17.8M  100 17.8M    0     0  58.7M      0 --:--:-- --:--:-- --:--:-- 71.1M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.5674730Z [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:11.9519660Z [Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.0233700Z [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.0845300Z [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.1528810Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.1630920Z                                  Dload  Upload   Total   Spent    Left  Speed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.1730790Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.1831880Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.1846720Z 100   167    0   167    0     0   7067      0 --:--:-- --:--:-- --:--:--  7260
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.2890900Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.5454430Z   2  9.9M    2  256k    0     0  1750k      0  0:00:05 --:--:--  0:00:05 1750k
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.5502820Z 100  9.9M  100  9.9M    0     0  24.6M      0 --:--:-- --:--:-- --:--:-- 37.8M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.5660730Z [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.6448550Z [Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.6762010Z [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.6791600Z [ReactNativeDependencies] Source: {http: "https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz"}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.6905980Z [ReactNativeCore] Setting up ReactNativeCore...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.8323550Z [ReactNativeCore] Building from source: false
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.8325010Z Configuring the target with the New Architecture
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:12.8325610Z [ReactNativeCore] Using React Native Core and React Native Dependencies prebuilt versions.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3198480Z ^[[36m^[[1m[Codegen]^[[0m Analyzing /Users/runner/work/linea-build/linea-build/mobile/package.json^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3216290Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for codegen-enabled libraries in the app.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3230900Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mThe "codegenConfig" field is not defined in package.json. Assuming there is nothing to generate at the app level.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3232160Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for codegen-enabled libraries in react-native.config.js^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3233140Z ^[[36m^[[1m[Codegen]^[[0m Found @react-native-async-storage/async-storage^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3233900Z ^[[36m^[[1m[Codegen]^[[0m Found @react-native-community/netinfo^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3234530Z ^[[36m^[[1m[Codegen]^[[0m Found lottie-react-native^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3235270Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-gesture-handler^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3236130Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-keyboard-controller^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3237110Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-liquid-glassmorphism^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3237810Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-reanimated^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3238390Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-safe-area-context^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3238990Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-screens^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3239560Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-svg^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3240180Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-worklets^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3240910Z ^[[36m^[[1m[Codegen]^[[0m Processing rnasyncstorage^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3241660Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3242690Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnasyncstorage^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3243550Z ^[[36m^[[1m[Codegen]^[[0m Processing RNCNetInfoSpec^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3244270Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3245290Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for RNCNetInfoSpec^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3245990Z ^[[36m^[[1m[Codegen]^[[0m Processing lottiereactnative^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3246790Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3247710Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for lottiereactnative^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3249130Z ^[[36m^[[1m[Codegen]^[[0m Processing rngesturehandler_codegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3250420Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3251320Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rngesturehandler_codegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3252340Z ^[[36m^[[1m[Codegen]^[[0m Processing RNKC^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3253280Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3253940Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios for RNKC^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3254780Z ^[[36m^[[1m[Codegen]^[[0m Processing LiquidGlassmorphismViewSpec^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3255720Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3256520Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios for LiquidGlassmorphismViewSpec^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3259950Z ^[[36m^[[1m[Codegen]^[[0m Processing rnreanimated^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3260600Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3261340Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnreanimated^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3261990Z ^[[36m^[[1m[Codegen]^[[0m Processing safeareacontext^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3263520Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3264240Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for safeareacontext^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3264930Z ^[[36m^[[1m[Codegen]^[[0m Processing rnscreens^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3265460Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3266130Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, tvos, visionos for rnscreens^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3266600Z ^[[36m^[[1m[Codegen]^[[0m Processing rnsvg^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3267190Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3267820Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnsvg^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3268440Z ^[[36m^[[1m[Codegen]^[[0m Processing rnworklets^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3269050Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3269750Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnworklets^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3270450Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnasyncstorage - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3271410Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3272550Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for RNCNetInfoSpec - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3274720Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3275720Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for lottiereactnative - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3276620Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3277520Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rngesturehandler_codegen - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3278410Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3279780Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for RNKC - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3280590Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3281530Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for LiquidGlassmorphismViewSpec - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3282780Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3283590Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnreanimated - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3284710Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3285630Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for safeareacontext - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3286570Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3287480Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnscreens - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3289150Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3290500Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnsvg - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3292310Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3293070Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnworklets - ios^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3293850Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3294620Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTThirdPartyComponentsProvider.h^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3295660Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.h^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3296660Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTThirdPartyComponentsProvider.mm^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3297740Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.mm^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3298610Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTModulesProvider.h^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3299700Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.h^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3300600Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTModuleProviders.mm^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3301640Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.mm^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3302620Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTAppDependencyProvider^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3303710Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.h^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3305350Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.mm^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3306850Z ^[[36m^[[1m[Codegen]^[[0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/ReactAppDependencyProvider.podspec^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3308110Z ^[[36m^[[1m[Codegen]^[[0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/ReactCodegen.podspec^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3308850Z ^[[36m^[[1m[Codegen]^[[0m Generating Package.swift^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3309680Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/Package.swift^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3310350Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mDone.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3310780Z Analyzing dependencies
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3311500Z [Expo-precompiled] Bundled SPM frameworks: ZXingObjC, SDWebImage, SDWebImageAVIFCoder, SDWebImageSVGCoder, SDWebImageWebPCoder, libavif
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.3964550Z Fetching podspec for `ExpoCamera` from `../node_modules/expo-camera/ios/ExpoCamera.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4005680Z Fetching podspec for `ExpoCameraBarcodeScanning` from `../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4022140Z [Expo-precompiled] Stripping bundled dependency 'ZXingObjC/PDF417' from ExpoCameraBarcodeScanning
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4023090Z [Expo-precompiled] Stripping bundled dependency 'ZXingObjC/OneD' from ExpoCameraBarcodeScanning
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4078090Z Fetching podspec for `ExpoFileSystem` from `../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4095470Z Fetching podspec for `ExpoFont` from `../node_modules/expo-font/ios/ExpoFont.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4157300Z Fetching podspec for `ExpoImage` from `../node_modules/expo-image/ios/ExpoImage.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4178600Z [Expo-precompiled] Stripping bundled dependency 'SDWebImage' from ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4179440Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageAVIFCoder' from ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4181890Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageSVGCoder' from ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4182670Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4183600Z [Expo-precompiled] Stripping bundled dependency 'libavif/libdav1d' from ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4184580Z Fetching podspec for `ExpoImageManipulator` from `../node_modules/expo-image-manipulator/ios/ExpoImageManipulator.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4199860Z [Expo-precompiled] Skipping SDWebImage.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4201180Z [Expo-precompiled] Skipping SDWebImageWebPCoder.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4202090Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImageManipulator
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4264380Z Fetching podspec for `ExpoMediaLibrary` from `../node_modules/expo-media-library/ios/ExpoMediaLibrary.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4284910Z Fetching podspec for `ExpoModulesCore` from `../node_modules/expo-modules-core/ExpoModulesCore.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.4731210Z Fetching podspec for `ExpoModulesWorklets` from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.5232070Z Fetching podspec for `ExpoVideo` from `../node_modules/expo-video/ios/ExpoVideo.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:14.5421890Z Pre-downloading: `LibSignalClient` from `https://github.com/signalapp/libsignal.git`, tag `v0.106.0`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.7973950Z Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/React-Core-prebuilt.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.8044560Z [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.8165580Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.8166480Z                                  Dload  Upload   Total   Spent    Left  Speed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.8166730Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.8334220Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:17.8334790Z 100   167    0   167    0     0   9839      0 --:--:-- --:--:-- --:--:-- 10437
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.2887840Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.7449100Z  31 94.2M   31 29.7M    0     0  63.0M      0  0:00:01 --:--:--  0:00:01 63.0M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.7501640Z 100 94.2M  100 94.2M    0     0   101M      0 --:--:-- --:--:-- --:--:--  141M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.7554740Z [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.8646870Z [Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9518750Z [ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9649200Z [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9788060Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9788660Z                                  Dload  Upload   Total   Spent    Left  Speed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9788950Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9967900Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:18.9968490Z 100   167    0   167    0     0   9255      0 --:--:-- --:--:-- --:--:--  9823
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.2889420Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.6674670Z  14 29.5M   14 4410k    0     0  13.8M      0  0:00:02 --:--:--  0:00:02 13.8M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.6676870Z 100 29.5M  100 29.5M    0     0  42.9M      0 --:--:-- --:--:-- --:--:-- 66.8M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.7152610Z [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.8515130Z [Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.8784450Z [ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.8785340Z [ReactNativeCore] Resolved stable ReactNativeCore-prebuilt version:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.8786070Z [ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:19.8786910Z [ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.0304880Z Fetching podspec for `ReactNativeDependencies` from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.1261500Z [ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.1263140Z [ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-debug.tar.gz already exists in Pods. Skipping download.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.1264500Z [ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-release.tar.gz already exists in Pods. Skipping download.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.1388500Z Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3006930Z [Hermes] Using release tarball from URL: https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3086260Z [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3265210Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3266120Z                                  Dload  Upload   Total   Spent    Left  Speed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3266500Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3435970Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.3436560Z 100   167    0   167    0     0   9757      0 --:--:-- --:--:-- --:--:--  9823
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.8198570Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.8299640Z 100 31.2M  100 31.2M    0     0  63.2M      0 --:--:-- --:--:-- --:--:-- 63.2M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.8300310Z [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.8922000Z [Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9125180Z [Hermes] Saved hermes-ios-250829098.0.17-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9240330Z [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9405180Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9407320Z                                  Dload  Upload   Total   Spent    Left  Speed
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9407820Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9538660Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:20.9539620Z 100   167    0   167    0     0  12356      0 --:--:-- --:--:-- --:--:-- 12846
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:21.2643000Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:21.2643870Z 100 24.3M  100 24.3M    0     0  75.1M      0 --:--:-- --:--:-- --:--:-- 75.1M
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:21.2713000Z [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-release.tar.gz...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:21.3267520Z [Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:21.3462870Z [Hermes] Saved hermes-ios-250829098.0.17-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:21.4372490Z [Lottie React Native] Using install_modules_dependencies
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8589900Z Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8691420Z Downloading dependencies
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8794310Z Installing EXApplication (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8876570Z Installing EXConstants (57.0.22)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8886380Z Installing Expo (57.0.31)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8930060Z Installing ExpoAlternateAppIcons (8.0.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8937130Z Installing ExpoAsset (57.0.20)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8946530Z Installing ExpoAudio (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8947480Z Installing ExpoBackgroundTask (57.0.23)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8948140Z Installing ExpoBattery (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8948910Z Installing ExpoBlur (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8949500Z Installing ExpoBrightness (57.0.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:22.8949880Z Installing ExpoCamera (57.0.6)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.2387630Z Installing ExpoCameraBarcodeScanning (57.0.6)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.4716500Z Installing ExpoClipboard (57.0.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.4717830Z Installing ExpoCrypto (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.4720120Z Installing ExpoDocumentPicker (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.4721110Z Installing ExpoDomWebView (57.0.1)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.4722210Z Installing ExpoFileSystem (57.0.7)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:23.9412790Z Installing ExpoFont (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.2896930Z Installing ExpoGlassEffect (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.2897480Z Installing ExpoHaptics (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.2897970Z Installing ExpoImage (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.6102500Z Installing ExpoImageManipulator (57.0.21)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.8596030Z Installing ExpoImagePicker (57.0.20)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.8607010Z Installing ExpoKeepAwake (57.0.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.8609800Z Installing ExpoLinearGradient (57.0.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.8613480Z Installing ExpoLocalAuthentication (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.8636290Z Installing ExpoLogBox (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:24.8636730Z Installing ExpoMediaLibrary (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:25.1759020Z Installing ExpoModulesCore (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:26.2434860Z Installing ExpoModulesJSI (57.1.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:30.7714110Z Installing ExpoModulesWorklets (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2024140Z Installing ExpoModulesWorkletsAdapter (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2025350Z Installing ExpoNotifications (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2025770Z Installing ExpoSQLite (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2026110Z Installing ExpoSecureStore (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2026630Z Installing ExpoSensors (57.0.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2026980Z Installing ExpoSharing (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2027400Z Installing ExpoSystemUI (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2027800Z Installing ExpoTaskManager (57.0.23)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.2028210Z Installing ExpoVideo (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7718910Z Installing ExpoVideoThumbnails (57.0.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7720110Z Installing FBLazyVector (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7720900Z Installing LibSignalClient (0.106.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7721670Z Installing LineaCall (0.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7722470Z Installing LineaChatList (0.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7723250Z Installing LineaNearby (0.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7724060Z Installing LineaPhoto (0.4.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7732010Z Installing LineaScreen (0.14.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7732700Z Installing LineaSignal (0.3.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7733000Z Installing LineaSnow (0.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7733350Z Installing LineaTabBar (0.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7733650Z Installing LineaTrail (0.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7733880Z Installing LineaVideo (0.5.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7734150Z Installing LiquidGlassmorphism (1.2.1)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:31.7734490Z Installing LiveKitWebRTC (150.7871.03)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1460750Z Installing RCTDeprecation (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1462190Z Installing RCTRequired (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1462950Z Installing RCTSwiftUI (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1463860Z Installing RCTSwiftUIWrapper (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1464790Z Installing RCTTypeSafety (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1465710Z Installing RNCAsyncStorage (2.2.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1466180Z Installing RNCMaskedView (0.3.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1477920Z Installing RNGestureHandler (2.32.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1478360Z Installing RNReanimated (4.5.1)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1478740Z Installing RNSVG (15.15.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1479020Z Installing RNScreens (4.26.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1479440Z Installing RNWorklets (0.10.1)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1479760Z Installing React (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1480190Z Installing React-Core (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:39:37.1480560Z Installing React-Core-prebuilt (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5094910Z Installing React-CoreModules (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5095540Z Installing React-Fabric (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5095900Z Installing React-FabricComponents (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5096370Z Installing React-FabricImage (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5096840Z Installing React-ImageManager (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5097160Z Installing React-Mapbuffer (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5097620Z Installing React-NativeModulesApple (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5098000Z Installing React-RCTActionSheet (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5098710Z Installing React-RCTAnimation (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5099380Z Installing React-RCTAppDelegate (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5099790Z Installing React-RCTBlob (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5100270Z Installing React-RCTFBReactNativeSpec (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5100710Z Installing React-RCTFabric (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5101170Z Installing React-RCTImage (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5101470Z Installing React-RCTLinking (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5101860Z Installing React-RCTNetwork (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5102240Z Installing React-RCTRuntime (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5102550Z Installing React-RCTSettings (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5102960Z Installing React-RCTText (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5103340Z Installing React-RCTVibration (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5103760Z Installing React-RuntimeApple (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5104140Z Installing React-RuntimeCore (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5104590Z Installing React-RuntimeHermes (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5105130Z Installing React-callinvoker (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5105530Z Installing React-cxxreact (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5105920Z Installing React-debug (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5106280Z Installing React-defaultsnativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5106700Z Installing React-domnativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5107120Z Installing React-featureflags (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5107510Z Installing React-featureflagsnativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5107920Z Installing React-graphics (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5108210Z Installing React-hermes (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5108630Z Installing React-idlecallbacksnativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5109800Z Installing React-intersectionobservernativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5110320Z Installing React-jserrorhandler (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5110620Z Installing React-jsi (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5111010Z Installing React-jsiexecutor (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5111330Z Installing React-jsinspector (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5111700Z Installing React-jsinspectorcdp (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5117660Z Installing React-jsinspectornetwork (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5118320Z Installing React-jsinspectortracing (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5118810Z Installing React-jsitooling (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5119130Z Installing React-jsitracing (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5119470Z Installing React-logger (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5119810Z Installing React-microtasksnativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5120330Z Installing React-mutationobservernativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5120750Z Installing React-networking (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5121070Z Installing React-oscompat (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5121420Z Installing React-perflogger (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5121770Z Installing React-performancecdpmetrics (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5122500Z Installing React-performancetimeline (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5122920Z Installing React-rendererconsistency (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5124330Z Installing React-renderercss (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5124710Z Installing React-rendererdebug (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5125070Z Installing React-runtimeexecutor (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5125470Z Installing React-runtimescheduler (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5125790Z Installing React-timing (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5126170Z Installing React-utils (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5126580Z Installing React-viewtransitionnativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5127060Z Installing React-webperformancenativemodule (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5127510Z Installing ReactAppDependencyProvider (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5127850Z Installing ReactCodegen (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5128190Z Installing ReactCommon (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:00.5128530Z Installing ReactNativeDependencies (0.86.3)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:09.4185470Z Installing ReactNativeIncallManager (4.3.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:09.4187250Z Installing UMAppLoader (57.0.2)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:09.4188370Z Installing Yoga (0.0.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:09.4189000Z Installing hermes-engine (250829098.0.17)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:11.3794920Z Installing livekit-react-native-webrtc (150.1.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:11.3796030Z Installing lottie-ios (4.6.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:24.7177870Z Installing lottie-react-native (7.3.8)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:24.7178810Z Installing react-native-keyboard-controller (1.21.9)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:24.7179310Z Installing react-native-netinfo (12.0.1)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:24.7179730Z Installing react-native-safe-area-context (5.7.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:24.7342790Z [Expo] Ensuring required slices in ExpoModulesJSI.xcframework
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5678070Z [Expo] Staged 6/6 shared SPM xcframework(s) (debug)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5698550Z [Expo] Disabling USE_FRAMEWORKS for 90 pods (ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu, ExpoCamera, ExpoCameraBarcodeScanning, ExpoFileSystem, ExpoFont, ExpoImage, ExpoImageManipulator, ExpoLogBox, ExpoMediaLibrary, ExpoModulesWorklets, ExpoVideo, LiquidGlassmorphism, LiveKitWebRTC, RCTTypeSafety, RNCAsy
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5852540Z [Expo] Disabling USE_FRAMEWORKS for modules ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5853470Z Generating Pods project
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5854030Z Setting USE_HERMES build settings
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5854450Z Setting REACT_NATIVE_PATH build settings
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:41.5854870Z Setting SWIFT_ACTIVE_COMPILATION_CONDITIONS build settings
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4533120Z [Ccache]: Removing Ccache from CC, LD, CXX & LDPLUSPLUS build settings
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4549130Z Setting SWIFT_ENABLE_EXPLICIT_MODULES build settings
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4549670Z [ReactNativeCore] Processing VFS overlay file...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4551650Z [ReactNativeCore]   Created VFS overlay at /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/React-Core-prebuilt/React-VFS.yaml
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4554470Z [ReactNativeCore] VFS overlay setup complete
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4554980Z [ReactNativeCore] Configuring xcconfig for prebuilt React Native Core...
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4555560Z [ReactNativeCore] Prebuilt xcconfig configuration complete
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4557430Z [SPM] Cleaning old SPM dependencies from Pods project
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4558260Z [SPM] Adding SPM dependencies to Pods project
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4559510Z [Privacy Manifest Aggregation] No existing PrivacyInfo.xcprivacy file found, creating a new one.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4560850Z [Privacy Manifest Aggregation] Reading .xcprivacy files to aggregate all used Required Reason APIs.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4561740Z file_root: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:43.4562500Z Setting CLANG_CXX_LANGUAGE_STANDARD to c++20 on /Users/runner/work/linea-build/linea-build/mobile/ios/INVIZENT.xcodeproj
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.5816440Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.5964150Z ==================== DEPRECATION NOTICE =====================
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6079270Z Calling `pod install` directly is deprecated in React Native
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6181050Z because we are moving away from Cocoapods toward alternative
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6342350Z solutions to build the project.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6495100Z * If you are using Expo, please run:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6602530Z `npx expo run:ios`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6716130Z * If you are using the Community CLI, please run:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.6895710Z `yarn ios`
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.7008700Z =============================================================
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.7192540Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.7295690Z Pod install took 100 [s] to run
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.7398060Z Integrating client project
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.7498840Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.7600700Z [!] Please close any current Xcode sessions and use `INVIZENT.xcworkspace` for this project from now on.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:45.9757400Z [Expo] Installing the build script for target INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5586490Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5603030Z Pod installation complete! There are 143 dependencies from the Podfile and 144 total pods installed.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5693830Z [!] ExpoCamera has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5695140Z [Expo-precompiled] Precompiled modules:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5799990Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5806240Z [Expo-precompiled]   📦 ExpoCamera (57.0.6)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5904720Z [!] ExpoCameraBarcodeScanning has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.5906430Z [Expo-precompiled]   📦 ExpoCameraBarcodeScanning (57.0.6)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6007710Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6012900Z [Expo-precompiled]       ∟ ZXingObjC.xcframework (3.6.9)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6111310Z [!] ExpoFileSystem has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6112760Z [Expo-precompiled]   📦 ExpoFileSystem (57.0.7)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6213740Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6227030Z [Expo-precompiled]   📦 ExpoFont (57.0.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6322060Z [!] ExpoFont has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6323320Z [Expo-precompiled]   📦 ExpoImage (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6420900Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6423470Z [Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.6)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6513200Z [!] ExpoImage has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6532430Z [Expo-precompiled]       ∟ SDWebImageAVIFCoder.xcframework (0.12.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6533040Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6533390Z [Expo-precompiled]       ∟ SDWebImageSVGCoder.xcframework (1.8.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6535190Z [!] ExpoImageManipulator has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6536240Z [Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.15.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6536780Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6537010Z [Expo-precompiled]       ∟ libavif.xcframework (1.0.0)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6538300Z [!] ExpoMediaLibrary has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6539200Z [Expo-precompiled]   📦 ExpoImageManipulator (57.0.21)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6566520Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6567420Z [Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.1)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6583900Z [!] ExpoModulesCore has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6584520Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6585290Z [!] ExpoModulesWorklets has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6585990Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6587600Z [!] ExpoVideo has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6588290Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6589420Z [!] LibSignalClient has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6590490Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6591370Z [!] React-Core-prebuilt has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6592010Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6592850Z [!] ReactNativeDependencies has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6593470Z 
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6594610Z [!] hermes-engine has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6595650Z [Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.14.6)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6671140Z [Expo-precompiled]   📦 ExpoMediaLibrary (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6772740Z [Expo-precompiled]   📦 ExpoModulesCore (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6874860Z [Expo-precompiled]   📦 ExpoModulesWorklets (57.0.24)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6912890Z [Expo-precompiled]   📦 ExpoVideo (57.0.5)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6925520Z [Expo] Disabling SWIFT_EMIT_MODULE_INTERFACE for pod targets (prebuilt React compatibility)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6932060Z [Expo] Created non-framework React modulemap for use_frameworks! compatibility
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6935730Z [Expo-precompiled] Looking for ExpoModulesCore.xcframework at: /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/ExpoModulesCore/ExpoModulesCore.xcframework
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6938270Z [Expo-precompiled] Adding ExpoModulesJSI header search paths to all targets
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6939940Z [Expo] Adding '[Expo] Remove duplicate codegen output' build phase to ReactCodegen
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6940730Z [Expo] Raised deployment target for Expo modules matching ExpoModulesCore:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6941200Z   ExpoAlternateAppIcons (iOS=16.4)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:40:50.6943960Z [Expo] Raised resource bundle deployment targets to match their pods: RNCAsyncStorage-RNCAsyncStorage_resources, RNSVG-RNSVGFilters, lottie-ios-LottiePrivacyInfo, lottie-react-native-Lottie_React_Native_Privacy
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0409240Z ##[error]The operation was canceled.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0631050Z ##[group]Run mkdir -p shots
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0631560Z ^[[36;1mmkdir -p shots^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0631910Z ^[[36;1mcp server.log proxy.log simulators.json shots/ 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0632540Z ^[[36;1mtail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0633390Z ^[[36;1mcp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0633970Z ^[[36;1m# The whole walk (it takes up to two hours), not the last minutes: a launch crash happens early.^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0634910Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0636670Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0638000Z ^[[36;1m# Crash reports of the app (simulator crashes land in the host's DiagnosticReports).^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0638540Z ^[[36;1mmkdir -p shots/crashes^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0639190Z ^[[36;1mfind "$HOME/Library/Logs/DiagnosticReports" -maxdepth 2 \( -name 'INVIZENT*' -o -name '*linea*' \) -mmin -240 -exec cp {} shots/crashes/ \; 2>/dev/null || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.0639970Z ^[[36;1mls -la shots/crashes || true^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4813720Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4814470Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4814970Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4815620Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4816460Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4817330Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4817930Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4818550Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4819170Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4819930Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4820740Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4821360Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4821960Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:53:56.4822520Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.8934910Z total 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9032060Z drwxr-xr-x  2 runner  staff   64 Nov 20 18:54 .
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9133870Z drwxr-xr-x  9 runner  staff  288 Nov 20 18:54 ..
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9624100Z ##[group]Run actions/upload-artifact@v4
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9624390Z with:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9624650Z   name: ios-simulator-ui-macos-26
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9624840Z   path: shots
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9625270Z   if-no-files-found: ignore
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9626090Z   compression-level: 6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9626870Z   overwrite: false
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9627550Z   include-hidden-files: false
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9628220Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9628390Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9628560Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9628990Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9629240Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9629440Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9629840Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9630210Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9630550Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9630790Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9631090Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9631420Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:01.9631570Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:02.8229880Z (node:29742) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:02.8344280Z (Use `node --trace-deprecation ...` to show where the warning was created)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.0121700Z With the provided path, there will be 6 files uploaded
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.0325970Z Artifact name is valid!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.0438870Z Root directory input is valid!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.2161690Z (node:29742) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.2162790Z Beginning upload of artifact content to blob storage
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.2568290Z Uploaded bytes 10350
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.2770100Z Finished uploading artifact content to blob storage!
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.2871920Z SHA256 digest of uploaded artifact zip is c646842a6a732e4ab039bfad676bd6d76758084a171b4a7781c687d15b0a2fe2
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.2974280Z Finalizing artifact upload
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6404230Z Artifact ios-simulator-ui-macos-26.zip successfully finalized. Artifact ID 14659426337
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6524240Z Artifact ios-simulator-ui-macos-26 has been successfully uploaded! Final size is 10350 bytes. Artifact ID is 14659426337
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6691260Z Artifact download URL: https://github.com/stage3hz/linea-build/actions/runs/44794425648/artifacts/14659426337
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6918410Z ##[group]Run set -e
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6918800Z ^[[36;1mset -e^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6919070Z ^[[36;1m[ -d shots ] || exit 0^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6919350Z ^[[36;1mrm -rf pub && cp -R shots pub^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6919800Z ^[[36;1mecho "cancelled $GITHUB_SHA $(date -u) macos-26" > pub/STATUS.txt^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6921020Z ^[[36;1mcd pub^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6922500Z ^[[36;1mfind . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6924140Z ^[[36;1mfind . -name 'commands-*.json' -delete^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6925340Z ^[[36;1mfind . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6926520Z ^[[36;1mgit init -q -b sim-output^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6927370Z ^[[36;1mgit config user.name "linea-ci"; git config user.email "ci@localhost"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6928780Z ^[[36;1mgit add -A && git commit -qm "Simulator shots for $GITHUB_SHA"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.6932540Z ^[[36;1mgit push -f "***github.com/stage3hz/linea-build.git" "HEAD:sim-output-macos-26"^[[0m
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7393400Z shell: /bin/bash -e {0}
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7394330Z env:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7394640Z   APP_ENV: development
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7394900Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7395840Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7413650Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7414020Z   EXPO_NO_TELEMETRY: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7414650Z   CI: 1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7421120Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7421520Z   SIMULATOR_UDID: 6478AFFB-AE17-412A-A1E5-51BCFFD300B6
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7421860Z   SIM_ARCH: arm64
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7422120Z   SIM_RUST: aarch64-apple-ios-sim
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7423070Z   SCHEME: INVIZENT
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:03.7423360Z ##[endgroup]
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.3799510Z To https://github.com/stage3hz/linea-build.git
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.3847040Z  + 0b3e21b...0ec4b13 HEAD -> sim-output-macos-26 (forced update)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.4224690Z Post job cleanup.
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.7058000Z [command]/opt/homebrew/bin/git version
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.7163320Z git version 2.56.1
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.7681410Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/cadf283c-f60f-4a1b-b4eb-01ab0fe81da6/.gitconfig'
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.7787250Z Temporarily overriding HOME='/Users/runner/work/_temp/cadf283c-f60f-4a1b-b4eb-01ab0fe81da6' before making global git config changes
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.7888690Z Adding repository directory to the temporary git global config as a safe directory
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.7991890Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/linea-build/linea-build
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.8297930Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:06.8611560Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.0387340Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.0487420Z http.https://github.com/.extraheader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.0794010Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.0959420Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.2272090Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.2579380Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.4791740Z Cleaning up orphan processes
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:07.6151060Z Terminate orphan process: pid (29830) (swift-frontend)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:12.7168720Z Terminate orphan process: pid (2304) (node)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:12.7966150Z Terminate orphan process: pid (2306) (node)
+ui (macos-26)	UNKNOWN STEP	2026-11-20T18:54:13.8545430Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

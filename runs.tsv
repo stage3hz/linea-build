@@ -1,0 +1,25 @@
+45968039132	CI report	2a98791	workflow_run	in_progress	-	2026-11-27T08:44:41Z	2026-11-27T08:45:34Z
+45968012516	CI report	2a98791	workflow_run	completed	cancelled	2026-11-27T08:44:29Z	2026-11-27T08:44:42Z
+45968003096	CI report	2a98791	workflow_run	completed	cancelled	2026-11-27T08:44:25Z	2026-11-27T08:44:30Z
+45967997310	CI report	2a98791	workflow_run	completed	success	2026-11-27T08:44:22Z	2026-11-27T08:45:32Z
+45912437450	Native iOS simulator check	ef3fab5	push	completed	failure	2026-11-26T23:41:44Z	2026-11-27T01:12:30Z
+45912437427	Native Android emulator check	ef3fab5	push	completed	success	2026-11-26T23:41:44Z	2026-11-27T00:40:12Z
+45911277022	Native iOS unsigned IPA	a5c7381	push	completed	success	2026-11-26T23:29:58Z	2026-11-26T23:39:43Z
+45911275358	Native Android APK	a5c7381	push	completed	success	2026-11-26T23:29:57Z	2026-11-26T23:35:53Z
+45911272340	Native iOS simulator check	a5c7381	push	completed	cancelled	2026-11-26T23:29:55Z	2026-11-26T23:42:50Z
+45911272300	Native Android emulator check	a5c7381	push	completed	failure	2026-11-26T23:29:55Z	2026-11-26T23:40:30Z
+45889077243	Native iOS unsigned IPA	f64f379	push	completed	success	2026-11-26T20:10:29Z	2026-11-26T20:20:33Z
+45889072997	Native Android APK	f64f379	push	completed	success	2026-11-26T20:10:27Z	2026-11-26T20:17:37Z
+45889067568	Native iOS simulator check	f64f379	push	completed	failure	2026-11-26T20:10:24Z	2026-11-26T21:38:44Z
+45889067554	Native Android emulator check	f64f379	push	completed	success	2026-11-26T20:10:24Z	2026-11-26T21:07:02Z
+45869992645	Native iOS unsigned IPA	c634dd9	push	completed	success	2026-11-26T17:42:30Z	2026-11-26T17:51:40Z
+45869987240	Native Android APK	c634dd9	push	completed	success	2026-11-26T17:42:28Z	2026-11-26T17:48:26Z
+45869983097	Native iOS simulator check	c634dd9	push	completed	failure	2026-11-26T17:42:26Z	2026-11-26T19:01:24Z
+45869983089	Native Android emulator check	c634dd9	push	completed	success	2026-11-26T17:42:26Z	2026-11-26T18:45:49Z
+45867337944	Native Android emulator check	52a6234	push	completed	cancelled	2026-11-26T17:23:33Z	2026-11-26T17:42:37Z
+45867337800	Native iOS simulator check	52a6234	push	completed	cancelled	2026-11-26T17:23:33Z	2026-11-26T17:44:35Z
+45867166932	Native Android emulator check	f6144a1	push	completed	cancelled	2026-11-26T17:22:21Z	2026-11-26T17:23:51Z
+45867166660	Native iOS simulator check	f6144a1	push	completed	cancelled	2026-11-26T17:22:21Z	2026-11-26T17:23:53Z
+45865933245	Native Android APK	3787dfb	push	completed	success	2026-11-26T17:13:53Z	2026-11-26T17:21:21Z
+45859257041	Native Android APK	f7c6f66	push	completed	success	2026-11-26T16:29:34Z	2026-11-26T16:36:12Z
+45859251233	Native Android emulator check	f7c6f66	push	completed	cancelled	2026-11-26T16:29:31Z	2026-11-26T17:22:36Z

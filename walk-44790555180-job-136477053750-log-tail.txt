@@ -1,0 +1,600 @@
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6932640Z [Expo] Enabling modular headers for pod SDWebImageAVIFCoder
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6933840Z [Expo] Enabling modular headers for pod SDWebImageSVGCoder
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6936290Z [Expo] Enabling modular headers for pod SDWebImageWebPCoder
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6938850Z [Expo] Enabling modular headers for pod libavif
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6940420Z [Expo] Enabling modular headers for pod UMAppLoader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6941360Z [Expo] Enabling modular headers for pod LibSignalClient
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6942760Z [Expo-precompiled] RNReanimated: building from source (prebuilt tarball not found)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6945770Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-reanimated/output/4.5.1/0.86.3/250829098.0.17/debug/xcframeworks/RNReanimated.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6948590Z [Expo-precompiled] react-native-safe-area-context: building from source (prebuilt tarball not found)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6952150Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-safe-area-context/output/5.7.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCSafeAreaContext.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6955380Z [Expo-precompiled] RNScreens: building from source (prebuilt tarball not found)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6958840Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-screens/output/4.26.2/0.86.3/250829098.0.17/debug/xcframeworks/RNScreens.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6961610Z [Expo-precompiled] RNSVG: building from source (prebuilt tarball not found)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6964580Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-svg/output/15.15.4/0.86.3/250829098.0.17/debug/xcframeworks/RNSVG.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6967070Z [Expo-precompiled] RNWorklets: building from source (prebuilt tarball not found)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6969990Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/react-native-worklets/output/0.10.1/0.86.3/250829098.0.17/debug/xcframeworks/RNWorklets.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6972610Z [Expo-precompiled] RNCAsyncStorage: building from source (prebuilt tarball not found)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:16.6975820Z [Expo-precompiled]   Expected tarball: /Users/runner/work/linea-build/linea-build/mobile/packages/precompile/.build/@react-native-async-storage/async-storage/output/2.2.0/0.86.3/250829098.0.17/debug/xcframeworks/RNCAsyncStorage.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:17.5246100Z [Lottie React Native] Using install_modules_dependencies
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:18.1966390Z Found 15 modules for target `INVIZENT`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:18.2033160Z link_native_modules! {:ios_packages=>[{:configurations=>[], :name=>"@react-native-async-storage/async-storage", :root=>"/Users/runner/work/linea-build/linea-build/mobile/node_modules/@react-native-async-storage/async-storage", :path=>"../node_modules/@react-native-async-storage/async-storage", :podspec_path=>"/Users/runner/work/linea-bu
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:18.3454070Z [Lottie React Native] Using install_modules_dependencies
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:18.9703550Z Auto-linking React Native modules for target `INVIZENT`: LiquidGlassmorphism, RNCAsyncStorage, RNCMaskedView, RNGestureHandler, RNReanimated, RNSVG, RNScreens, RNWorklets, ReactNativeIncallManager, livekit-react-native-webrtc, lottie-react-native, react-native-keyboard-controller, react-native-netinfo, and react-native-safe-area-context
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.3133180Z Framework build type is static framework
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.3289850Z [ReactNativeDependencies] Setting up ReactNativeDependencies...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5149460Z [ReactNativeDependencies] Building from source: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5153550Z [ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5271580Z [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5808800Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5810110Z                                  Dload  Upload  Total   Spent   Left   Speed
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5811220Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5868390Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5869710Z 100    167   0    167   0      0   5905      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.5872040Z 100    167   0    167   0      0   5886      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.6069520Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.9371780Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.9374140Z 100 17.87M 100 17.87M   0      0 47.23M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.9377090Z 100 17.87M 100 17.87M   0      0 47.21M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.9378780Z 100 17.87M 100 17.87M   0      0 47.20M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:19.9506600Z [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-debug.tar.gz...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.0516450Z [Cache] SHA1 verified for reactnative-dependencies-0.86.3-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.0757250Z [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.0880680Z [ReactNativeDependencies] Cache miss: downloading reactnative-dependencies-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1423090Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1425140Z                                  Dload  Upload  Total   Spent   Left   Speed
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1426270Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1474720Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1476610Z 100    167   0    167   0      0   5636      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1477640Z 100    167   0    167   0      0   5601      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.1665560Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.2661140Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.2663260Z 100  9.93M 100  9.93M   0      0 66.97M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.2665670Z 100  9.93M 100  9.93M   0      0 66.92M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.2668210Z 100  9.93M 100  9.93M   0      0 66.90M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.2852240Z [ReactNativeDependencies] Verifying checksum for downloaded reactnative-dependencies-0.86.3-release.tar.gz...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.3802900Z [Cache] SHA1 verified for reactnative-dependencies-0.86.3-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.4015590Z [ReactNativeDependencies] Saved reactnative-dependencies-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.4019400Z [ReactNativeDependencies] Source: {:http=>"https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz"}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.4023640Z [ReactNativeCore] Setting up ReactNativeCore...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.5637620Z [ReactNativeCore] Building from source: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.5638880Z Configuring the target with the New Architecture
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:20.5640140Z [ReactNativeCore] Using React Native Core and React Native Dependencies prebuilt versions.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.1980250Z ^[[36m^[[1m[Codegen]^[[0m Analyzing /Users/runner/work/linea-build/linea-build/mobile/package.json^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.1995970Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for codegen-enabled libraries in the app.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.1999010Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mThe "codegenConfig" field is not defined in package.json. Assuming there is nothing to generate at the app level.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2001270Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for codegen-enabled libraries in react-native.config.js^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2002670Z ^[[36m^[[1m[Codegen]^[[0m Found @react-native-async-storage/async-storage^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2003820Z ^[[36m^[[1m[Codegen]^[[0m Found @react-native-community/netinfo^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2004790Z ^[[36m^[[1m[Codegen]^[[0m Found lottie-react-native^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2005770Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-gesture-handler^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2006810Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-keyboard-controller^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2007890Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-liquid-glassmorphism^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2008870Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-reanimated^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2009870Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-safe-area-context^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2010850Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-screens^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2011690Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-svg^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2012520Z ^[[36m^[[1m[Codegen]^[[0m Found react-native-worklets^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2013390Z ^[[36m^[[1m[Codegen]^[[0m Processing rnasyncstorage^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2014530Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2016780Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnasyncstorage^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2018120Z ^[[36m^[[1m[Codegen]^[[0m Processing RNCNetInfoSpec^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2019260Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2020790Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for RNCNetInfoSpec^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2022030Z ^[[36m^[[1m[Codegen]^[[0m Processing lottiereactnative^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2023200Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2024770Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for lottiereactnative^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2026090Z ^[[36m^[[1m[Codegen]^[[0m Processing rngesturehandler_codegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2027300Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2028940Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rngesturehandler_codegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2030160Z ^[[36m^[[1m[Codegen]^[[0m Processing RNKC^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2031270Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2032470Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios for RNKC^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2033550Z ^[[36m^[[1m[Codegen]^[[0m Processing LiquidGlassmorphismViewSpec^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2034770Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2036210Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios for LiquidGlassmorphismViewSpec^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2037390Z ^[[36m^[[1m[Codegen]^[[0m Processing rnreanimated^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2038520Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2040640Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnreanimated^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2042620Z ^[[36m^[[1m[Codegen]^[[0m Processing safeareacontext^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2043790Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2045320Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for safeareacontext^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2046520Z ^[[36m^[[1m[Codegen]^[[0m Processing rnscreens^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2047620Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2049850Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, tvos, visionos for rnscreens^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2050900Z ^[[36m^[[1m[Codegen]^[[0m Processing rnsvg^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2051990Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2053420Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnsvg^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2054540Z ^[[36m^[[1m[Codegen]^[[0m Processing rnworklets^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2055660Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mSearching for podspec in the project dependencies.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2057140Z ^[[36m^[[1m[Codegen]^[[0m Supported Apple platforms: ios, macos, tvos, visionos for rnworklets^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2058530Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnasyncstorage - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2060420Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2062120Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for RNCNetInfoSpec - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2064010Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2065730Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for lottiereactnative - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2067600Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2069750Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rngesturehandler_codegen - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2071750Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2073360Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for RNKC - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2075570Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2077580Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for LiquidGlassmorphismViewSpec - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2079610Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2081280Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnreanimated - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2083130Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2084810Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for safeareacontext - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2086710Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2088360Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnscreens - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2090360Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2092030Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnsvg - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2093830Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2096100Z ^[[36m^[[1m[Codegen]^[[0m Generating Native Code for rnworklets - ios^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2098640Z ^[[36m^[[1m[Codegen]^[[0m Generated artifacts: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2100390Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTThirdPartyComponentsProvider.h^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2102680Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.h^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2104870Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTThirdPartyComponentsProvider.mm^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2107160Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTThirdPartyComponentsProvider.mm^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2109470Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTModulesProvider.h^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2111460Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.h^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2113210Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTModuleProviders.mm^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2115250Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/RCTModuleProviders.mm^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2117020Z ^[[36m^[[1m[Codegen]^[[0m Generating RCTAppDependencyProvider^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2119300Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.h^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2122570Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/RCTAppDependencyProvider.mm^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2125850Z ^[[36m^[[1m[Codegen]^[[0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactAppDependencyProvider/ReactAppDependencyProvider.podspec^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2128880Z ^[[36m^[[1m[Codegen]^[[0m Generated podspec: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/ReactCodegen/ReactCodegen.podspec^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2130840Z ^[[36m^[[1m[Codegen]^[[0m Generating Package.swift^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2132960Z ^[[36m^[[1m[Codegen]^[[0m Generated artifact: /Users/runner/work/linea-build/linea-build/mobile/ios/build/generated/ios/Package.swift^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2134410Z ^[[36m^[[1m[Codegen]^[[0m ^[[33mDone.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2134970Z Analyzing dependencies
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.2136760Z [Expo-precompiled] Bundled SPM frameworks: ZXingObjC, SDWebImage, SDWebImageAVIFCoder, SDWebImageSVGCoder, SDWebImageWebPCoder, libavif
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3090900Z Fetching podspec for `ExpoCamera` from `../node_modules/expo-camera/ios/ExpoCamera.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3154090Z Fetching podspec for `ExpoCameraBarcodeScanning` from `../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3180580Z [Expo-precompiled] Stripping bundled dependency 'ZXingObjC/PDF417' from ExpoCameraBarcodeScanning
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3182330Z [Expo-precompiled] Stripping bundled dependency 'ZXingObjC/OneD' from ExpoCameraBarcodeScanning
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3271110Z Fetching podspec for `ExpoFileSystem` from `../node_modules/expo-file-system/ios/ExpoFileSystem.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3302960Z Fetching podspec for `ExpoFont` from `../node_modules/expo-font/ios/ExpoFont.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3373680Z Fetching podspec for `ExpoImage` from `../node_modules/expo-image/ios/ExpoImage.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3439560Z [Expo-precompiled] Stripping bundled dependency 'SDWebImage' from ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3441140Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageAVIFCoder' from ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3442660Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageSVGCoder' from ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3444170Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3445590Z [Expo-precompiled] Stripping bundled dependency 'libavif/libdav1d' from ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3447620Z Fetching podspec for `ExpoImageManipulator` from `../node_modules/expo-image-manipulator/ios/ExpoImageManipulator.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3478740Z [Expo-precompiled] Skipping SDWebImage.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3480950Z [Expo-precompiled] Skipping SDWebImageWebPCoder.xcframework from ExpoImageManipulator — already vendored by ExpoImage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3482830Z [Expo-precompiled] Stripping bundled dependency 'SDWebImageWebPCoder' from ExpoImageManipulator
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3602690Z Fetching podspec for `ExpoMediaLibrary` from `../node_modules/expo-media-library/ios/ExpoMediaLibrary.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.3637590Z Fetching podspec for `ExpoModulesCore` from `../node_modules/expo-modules-core/ExpoModulesCore.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.4643930Z Fetching podspec for `ExpoModulesWorklets` from `../node_modules/expo-modules-core/ExpoModulesWorklets.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.5045250Z Fetching podspec for `ExpoVideo` from `../node_modules/expo-video/ios/ExpoVideo.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:21.5160160Z Pre-downloading: `LibSignalClient` from `https://github.com/signalapp/libsignal.git`, tag `v0.106.0`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.5927860Z Fetching podspec for `React-Core-prebuilt` from `../node_modules/react-native/React-Core-prebuilt.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6062560Z [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6633130Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6634510Z                                  Dload  Upload  Total   Spent   Left   Speed
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6636280Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6689830Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6697190Z 100    167   0    167   0      0   5721      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.6702460Z 100    167   0    167   0      0   5688      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:27.7124920Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.5536830Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.5539130Z 100 94.20M 100 94.20M   0      0 103.0M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.5541220Z 100 94.20M 100 94.20M   0      0 103.0M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.5543130Z 100 94.20M 100 94.20M   0      0 103.0M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.5693240Z [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-debug.tar.gz...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.7869030Z [Cache] SHA1 verified for reactnative-core-0.86.3-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.8635710Z [ReactNativeCore] Saved reactnative-core-0.86.3-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.8792210Z [ReactNativeCore] Cache miss: downloading reactnative-core-0.86.3-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-core-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9327610Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9328930Z                                  Dload  Upload  Total   Spent   Left   Speed
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9329720Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9382790Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9385320Z 100    167   0    167   0      0   5953      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9386310Z 100    167   0    167   0      0   5933      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:28.9565950Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.1863940Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.1865800Z 100 29.56M 100 29.56M   0      0 107.0M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.1867270Z 100 29.56M 100 29.56M   0      0 107.0M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.1868490Z 100 29.56M 100 29.56M   0      0 106.9M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.1998870Z [ReactNativeCore] Verifying checksum for downloaded reactnative-core-0.86.3-release.tar.gz...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.3063120Z [Cache] SHA1 verified for reactnative-core-0.86.3-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.3381580Z [ReactNativeCore] Saved reactnative-core-0.86.3-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.3385220Z [ReactNativeCore] Resolved stable ReactNativeCore-prebuilt version:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.3393630Z [ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.3396250Z [ReactNativeCore]   ../../ios/Pods/ReactNativeCore-artifacts/reactnative-core-0.86.3-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.5456290Z Fetching podspec for `ReactNativeDependencies` from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.6627330Z [ReactNativeDependencies] Using tarball from URL: https://repo1.maven.org/maven2/com/facebook/react/react-native-artifacts/0.86.3/react-native-artifacts-0.86.3-reactnative-dependencies-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.6634220Z [ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-debug.tar.gz already exists in Pods. Skipping download.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.7071010Z [ReactNativeDependencies] Tarball reactnative-dependencies-0.86.3-release.tar.gz already exists in Pods. Skipping download.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.7076720Z Fetching podspec for `hermes-engine` from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.8711070Z [Hermes] Using release tarball from URL: https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.8828150Z [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-debug.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9329210Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9330450Z                                  Dload  Upload  Total   Spent   Left   Speed
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9330990Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9372060Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9373040Z 100    167   0    167   0      0   6519      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9374390Z 100    167   0    167   0      0   6495      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:29.9557500Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.1783410Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.1784440Z 100 31.23M 100 31.23M   0      0 117.1M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.1785820Z 100 31.23M 100 31.23M   0      0 117.1M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.1787910Z 100 31.23M 100 31.23M   0      0 117.0M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.5534690Z [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-debug.tar.gz...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.6591280Z [Hermes] SHA1 verified for hermes-ios-250829098.0.17-debug.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7001460Z [Hermes] Saved hermes-ios-250829098.0.17-debug.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7171110Z [Hermes] Cache miss: downloading hermes-ios-250829098.0.17-release.tar.gz from https://repo1.maven.org/maven2/com/facebook/hermes/hermes-ios/250829098.0.17/hermes-ios-250829098.0.17-hermes-ios-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7695640Z   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7696730Z                                  Dload  Upload  Total   Spent   Left   Speed
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7697210Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7747200Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7748260Z 100    167   0    167   0      0   6336      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7749210Z 100    167   0    167   0      0   6312      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:30.7996180Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.2138870Z   0      0   0      0   0      0      0      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.2139960Z 100 24.35M 100 24.35M   0      0 52.34M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.2141880Z 100 24.35M 100 24.35M   0      0 52.33M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.2142940Z 100 24.35M 100 24.35M   0      0 52.32M      0                              0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.2281550Z [Hermes] Verifying checksum for downloaded hermes-ios-250829098.0.17-release.tar.gz...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.3399680Z [Hermes] SHA1 verified for hermes-ios-250829098.0.17-release.tar.gz
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.4148200Z [Hermes] Saved hermes-ios-250829098.0.17-release.tar.gz to shared cache (/Users/runner/Library/Caches/ReactNative)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:31.4813560Z [Lottie React Native] Using install_modules_dependencies
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2555620Z Adding spec repo `trunk` with CDN `https://cdn.cocoapods.org/`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2556600Z Downloading dependencies
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2557640Z Installing EXApplication (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2558210Z Installing EXConstants (57.0.22)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2558910Z Installing Expo (57.0.31)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2559490Z Installing ExpoAlternateAppIcons (8.0.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2560500Z Installing ExpoAsset (57.0.20)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2561150Z Installing ExpoAudio (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2561930Z Installing ExpoBackgroundTask (57.0.23)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2562560Z Installing ExpoBattery (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2563070Z Installing ExpoBlur (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2563990Z Installing ExpoBrightness (57.0.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.2564700Z Installing ExpoCamera (57.0.6)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:33.7526210Z Installing ExpoCameraBarcodeScanning (57.0.6)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:34.1176630Z Installing ExpoClipboard (57.0.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:34.1177760Z Installing ExpoCrypto (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:34.1178390Z Installing ExpoDocumentPicker (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:34.1179020Z Installing ExpoDomWebView (57.0.1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:34.1179600Z Installing ExpoFileSystem (57.0.7)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:34.8042570Z Installing ExpoFont (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:35.2590940Z Installing ExpoGlassEffect (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:35.2591570Z Installing ExpoHaptics (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:35.2592110Z Installing ExpoImage (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:35.8340570Z Installing ExpoImageManipulator (57.0.21)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.2729660Z Installing ExpoImagePicker (57.0.20)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.2741250Z Installing ExpoKeepAwake (57.0.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.2742640Z Installing ExpoLinearGradient (57.0.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.2763210Z Installing ExpoLocalAuthentication (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.2810550Z Installing ExpoLogBox (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.2862330Z Installing ExpoMediaLibrary (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:36.8854910Z Installing ExpoModulesCore (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:39.0642260Z Installing ExpoModulesJSI (57.1.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:41.8231500Z Installing ExpoModulesWorklets (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.1901740Z Installing ExpoModulesWorkletsAdapter (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.1931540Z Installing ExpoNotifications (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.1946480Z Installing ExpoSQLite (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.1957820Z Installing ExpoSecureStore (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.2015000Z Installing ExpoSensors (57.0.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.2029050Z Installing ExpoSharing (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.2030390Z Installing ExpoSystemUI (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.2031480Z Installing ExpoTaskManager (57.0.23)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:42.2032560Z Installing ExpoVideo (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0383070Z Installing ExpoVideoThumbnails (57.0.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0383780Z Installing FBLazyVector (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0384510Z Installing LibSignalClient (0.106.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0391830Z Installing LineaCall (0.1.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0399980Z Installing LineaChatList (0.1.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0570170Z Installing LineaNearby (0.1.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0571280Z Installing LineaPhoto (0.4.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0572230Z Installing LineaScreen (0.14.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0573650Z Installing LineaSignal (0.3.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0600410Z Installing LineaSnow (0.1.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0622430Z Installing LineaTrail (0.1.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0627240Z Installing LineaVideo (0.5.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0667200Z Installing LiquidGlassmorphism (1.2.1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:43.0668430Z Installing LiveKitWebRTC (150.7871.03)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1174290Z Installing RCTDeprecation (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1175290Z Installing RCTRequired (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1175850Z Installing RCTSwiftUI (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1176450Z Installing RCTSwiftUIWrapper (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1177060Z Installing RCTTypeSafety (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1177660Z Installing RNCAsyncStorage (2.2.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1178250Z Installing RNCMaskedView (0.3.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1178870Z Installing RNGestureHandler (2.32.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1179460Z Installing RNReanimated (4.5.1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1179960Z Installing RNSVG (15.15.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1180430Z Installing RNScreens (4.26.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1180970Z Installing RNWorklets (0.10.1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1181450Z Installing React (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1181960Z Installing React-Core (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:22:49.1182540Z Installing React-Core-prebuilt (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5656830Z Installing React-CoreModules (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5657750Z Installing React-Fabric (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5658570Z Installing React-FabricComponents (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5659270Z Installing React-FabricImage (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5660090Z Installing React-ImageManager (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5660730Z Installing React-Mapbuffer (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5661870Z Installing React-NativeModulesApple (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5662750Z Installing React-RCTActionSheet (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5664330Z Installing React-RCTAnimation (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5665230Z Installing React-RCTAppDelegate (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5666040Z Installing React-RCTBlob (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5666910Z Installing React-RCTFBReactNativeSpec (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5667770Z Installing React-RCTFabric (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5668390Z Installing React-RCTImage (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5669160Z Installing React-RCTLinking (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5669980Z Installing React-RCTNetwork (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5670780Z Installing React-RCTRuntime (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5671580Z Installing React-RCTSettings (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5672370Z Installing React-RCTText (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5673170Z Installing React-RCTVibration (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5674010Z Installing React-RuntimeApple (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5674820Z Installing React-RuntimeCore (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5675790Z Installing React-RuntimeHermes (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5676600Z Installing React-callinvoker (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5677370Z Installing React-cxxreact (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5678120Z Installing React-debug (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5678920Z Installing React-defaultsnativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5679800Z Installing React-domnativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5680620Z Installing React-featureflags (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5681520Z Installing React-featureflagsnativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5682390Z Installing React-graphics (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5683140Z Installing React-hermes (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5684010Z Installing React-idlecallbacksnativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5685080Z Installing React-intersectionobservernativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5686050Z Installing React-jserrorhandler (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5686780Z Installing React-jsi (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5687510Z Installing React-jsiexecutor (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5688300Z Installing React-jsinspector (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5689120Z Installing React-jsinspectorcdp (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5689980Z Installing React-jsinspectornetwork (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5690860Z Installing React-jsinspectortracing (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5691700Z Installing React-jsitooling (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5692470Z Installing React-jsitracing (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5693230Z Installing React-logger (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5694070Z Installing React-microtasksnativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5695610Z Installing React-mutationobservernativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5696520Z Installing React-networking (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5697290Z Installing React-oscompat (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5698070Z Installing React-perflogger (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5699020Z Installing React-performancecdpmetrics (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5699960Z Installing React-performancetimeline (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5700870Z Installing React-rendererconsistency (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5701900Z Installing React-renderercss (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5702710Z Installing React-rendererdebug (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5703560Z Installing React-runtimeexecutor (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5704440Z Installing React-runtimescheduler (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5705260Z Installing React-timing (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5706010Z Installing React-utils (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5706930Z Installing React-viewtransitionnativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5708560Z Installing React-webperformancenativemodule (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5709690Z Installing ReactAppDependencyProvider (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5711040Z Installing ReactCodegen (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5711990Z Installing ReactCommon (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:11.5713160Z Installing ReactNativeDependencies (0.86.3)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:20.8483130Z Installing ReactNativeIncallManager (4.3.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:20.8484050Z Installing UMAppLoader (57.0.2)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:20.8484720Z Installing Yoga (0.0.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:20.8485880Z Installing hermes-engine (250829098.0.17)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:23.2734770Z Installing livekit-react-native-webrtc (150.1.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:23.2788480Z Installing lottie-ios (4.6.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:33.2515290Z Installing lottie-react-native (7.3.8)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:33.2516080Z Installing react-native-keyboard-controller (1.21.9)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:33.2518440Z Installing react-native-netinfo (12.0.1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:33.2519170Z Installing react-native-safe-area-context (5.7.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:33.2706960Z [Expo] Ensuring required slices in ExpoModulesJSI.xcframework
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4744740Z [Expo] Staged 6/6 shared SPM xcframework(s) (debug)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4841990Z [Expo] Disabling USE_FRAMEWORKS for 90 pods (ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu, ExpoCamera, ExpoCameraBarcodeScanning, ExpoFileSystem, ExpoFont, ExpoImage, ExpoImageManipulator, ExpoLogBox, ExpoMediaLibrary, ExpoModulesWorklets, ExpoVideo, LiquidGlassmorphism, LiveKitWebRTC, RCTTypeSafety, 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4869670Z [Expo] Disabling USE_FRAMEWORKS for modules ExpoModulesCore, ExpoModulesJSI, Expo, ReactAppDependencyProvider, expo-dev-menu
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4891400Z Generating Pods project
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4893280Z Setting USE_HERMES build settings
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4928870Z Setting REACT_NATIVE_PATH build settings
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:23:57.4932160Z Setting SWIFT_ACTIVE_COMPILATION_CONDITIONS build settings
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6217320Z [Ccache]: Removing Ccache from CC, LD, CXX & LDPLUSPLUS build settings
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6218510Z Setting SWIFT_ENABLE_EXPLICIT_MODULES build settings
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6219310Z [ReactNativeCore] Processing VFS overlay file...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6221110Z [ReactNativeCore]   Created VFS overlay at /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/React-Core-prebuilt/React-VFS.yaml
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6222500Z [ReactNativeCore] VFS overlay setup complete
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6223440Z [ReactNativeCore] Configuring xcconfig for prebuilt React Native Core...
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6224490Z [ReactNativeCore] Prebuilt xcconfig configuration complete
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6225350Z [SPM] Cleaning old SPM dependencies from Pods project
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6226100Z [SPM] Adding SPM dependencies to Pods project
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6227290Z [Privacy Manifest Aggregation] No existing PrivacyInfo.xcprivacy file found, creating a new one.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6228900Z [Privacy Manifest Aggregation] Reading .xcprivacy files to aggregate all used Required Reason APIs.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6229860Z file_root: INVIZENT
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:00.6233880Z Setting CLANG_CXX_LANGUAGE_STANDARD to c++20 on /Users/runner/work/linea-build/linea-build/mobile/ios/INVIZENT.xcodeproj
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7828930Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7871060Z ==================== DEPRECATION NOTICE =====================
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7920060Z Calling `pod install` directly is deprecated in React Native
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7925320Z because we are moving away from Cocoapods toward alternative
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7931620Z solutions to build the project.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7940450Z * If you are using Expo, please run:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7966730Z `npx expo run:ios`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7971050Z * If you are using the Community CLI, please run:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7973110Z `yarn ios`
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7977360Z =============================================================
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7981640Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7984720Z Pod install took 106 [s] to run
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7996230Z Integrating client project
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.7998070Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:03.8001460Z [!] Please close any current Xcode sessions and use `INVIZENT.xcworkspace` for this project from now on.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:04.0885150Z [Expo] Installing the build script for target INVIZENT
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.6997640Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.6999040Z Pod installation complete! There are 142 dependencies from the Podfile and 143 total pods installed.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7000230Z [Expo-precompiled] Precompiled modules:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7001170Z [Expo-precompiled]   📦 ExpoCamera (57.0.6)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7002130Z [Expo-precompiled]   📦 ExpoCameraBarcodeScanning (57.0.6)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7003130Z [Expo-precompiled]       ∟ ZXingObjC.xcframework (3.6.9)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7004010Z [Expo-precompiled]   📦 ExpoFileSystem (57.0.7)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7004790Z [Expo-precompiled]   📦 ExpoFont (57.0.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7005520Z [Expo-precompiled]   📦 ExpoImage (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7006410Z [Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.6)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7007520Z [Expo-precompiled]       ∟ SDWebImageAVIFCoder.xcframework (0.12.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7008660Z [Expo-precompiled]       ∟ SDWebImageSVGCoder.xcframework (1.8.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7009810Z [Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.15.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7011010Z [Expo-precompiled]       ∟ libavif.xcframework (1.0.0)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7011930Z [Expo-precompiled]   📦 ExpoImageManipulator (57.0.21)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7013540Z [Expo-precompiled]       ∟ SDWebImage.xcframework (5.21.1)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7014630Z [Expo-precompiled]       ∟ SDWebImageWebPCoder.xcframework (0.14.6)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7015600Z [Expo-precompiled]   📦 ExpoMediaLibrary (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7016430Z [Expo-precompiled]   📦 ExpoModulesCore (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7017400Z [Expo-precompiled]   📦 ExpoModulesWorklets (57.0.24)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7018680Z [Expo-precompiled]   📦 ExpoVideo (57.0.5)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7019800Z [Expo] Disabling SWIFT_EMIT_MODULE_INTERFACE for pod targets (prebuilt React compatibility)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7021710Z [Expo] Created non-framework React modulemap for use_frameworks! compatibility
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7023950Z [Expo-precompiled] Looking for ExpoModulesCore.xcframework at: /Users/runner/work/linea-build/linea-build/mobile/ios/Pods/ExpoModulesCore/ExpoModulesCore.xcframework
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7026060Z [Expo-precompiled] Adding ExpoModulesJSI header search paths to all targets
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7027920Z [Expo] Adding '[Expo] Remove duplicate codegen output' build phase to ReactCodegen
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7029440Z [Expo] Raised deployment target for Expo modules matching ExpoModulesCore:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7030400Z   ExpoAlternateAppIcons (iOS=16.4)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7032850Z [Expo] Raised resource bundle deployment targets to match their pods: RNCAsyncStorage-RNCAsyncStorage_resources, RNSVG-RNSVGFilters, lottie-ios-LottiePrivacyInfo, lottie-react-native-Lottie_React_Native_Privacy
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7036720Z [!] ExpoCamera has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7038260Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7040010Z [!] ExpoCameraBarcodeScanning has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7041500Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7043320Z [!] ExpoFileSystem has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7044930Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7046530Z [!] ExpoFont has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7047870Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7049470Z [!] ExpoImage has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7050830Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7052590Z [!] ExpoImageManipulator has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7054050Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7055750Z [!] ExpoMediaLibrary has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7057170Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7058850Z [!] ExpoModulesCore has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7060420Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7062110Z [!] ExpoModulesWorklets has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7063540Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7065130Z [!] ExpoVideo has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7066460Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7068090Z [!] LibSignalClient has added 2 script phases. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7069770Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7071450Z [!] React-Core-prebuilt has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7072840Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7074570Z [!] ReactNativeDependencies has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7076020Z 
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:24:10.7077610Z [!] hermes-engine has added 1 script phase. Please inspect before executing a build. See `https://guides.cocoapods.org/syntax/podspec.html#script_phases` for more information.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7568830Z ##[error]The operation was canceled.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7684460Z ##[group]Run mkdir -p shots
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7684950Z ^[[36;1mmkdir -p shots^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7685600Z ^[[36;1mcp server.log proxy.log simulators.json shots/ 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7686720Z ^[[36;1mtail -300 simulator-build.log > shots/simulator-build-tail.log 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7687810Z ^[[36;1mcp -R "$HOME/.maestro/tests" shots/maestro-tests 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7688930Z ^[[36;1m# The whole walk (it takes up to two hours), not the last minutes: a launch crash happens early.^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7690890Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'process == "INVIZENT"' > shots/app.log 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7694130Z ^[[36;1mperl -e 'alarm shift; exec @ARGV' 300 xcrun simctl spawn "$SIMULATOR_UDID" log show --last 3h --style compact --predicate 'eventMessage CONTAINS[c] "INVIZENT" OR eventMessage CONTAINS[c] "linea.messenger"' > shots/system-about-app.log 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7696670Z ^[[36;1m# Crash reports of the app (simulator crashes land in the host's DiagnosticReports).^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7697580Z ^[[36;1mmkdir -p shots/crashes^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7699030Z ^[[36;1mfind "$HOME/Library/Logs/DiagnosticReports" -maxdepth 2 \( -name 'INVIZENT*' -o -name '*linea*' \) -mmin -240 -exec cp {} shots/crashes/ \; 2>/dev/null || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.7700480Z ^[[36;1mls -la shots/crashes || true^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8080730Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8081130Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8081450Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8081860Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8082440Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8083060Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8083480Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8083850Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8084200Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8084790Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8085350Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8085710Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8086130Z   SCHEME: INVIZENT
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:16.8086470Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.7441030Z total 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8041500Z drwxr-xr-x  2 runner  staff   64 Nov 20 18:31 .
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8101620Z drwxr-xr-x  9 runner  staff  288 Nov 20 18:31 ..
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8316770Z ##[group]Run actions/upload-artifact@v4
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8317380Z with:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8317780Z   name: ios-simulator-ui-macos-15-intel
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8318300Z   path: shots
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8318710Z   if-no-files-found: ignore
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8319180Z   compression-level: 6
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8319600Z   overwrite: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8320020Z   include-hidden-files: false
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8320500Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8320840Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8321280Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8321920Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8322590Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8323070Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8326860Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8327270Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8327940Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8328560Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8329040Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8329540Z   SCHEME: INVIZENT
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:20.8329940Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.1889460Z (node:32474) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.2059140Z (Use `node --trace-deprecation ...` to show where the warning was created)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.6026710Z With the provided path, there will be 6 files uploaded
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.6319440Z Artifact name is valid!
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.6406210Z Root directory input is valid!
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.7715950Z Beginning upload of artifact content to blob storage
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.8343710Z (node:32474) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.8734240Z Uploaded bytes 10753
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.8988080Z Finished uploading artifact content to blob storage!
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.9112710Z SHA256 digest of uploaded artifact zip is e1e42eaf7f26187be4dec4b5e35933786961f9283bde5fc43f7715329a899e07
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:21.9191390Z Finalizing artifact upload
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.4761430Z Artifact ios-simulator-ui-macos-15-intel.zip successfully finalized. Artifact ID 14658160783
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.4786230Z Artifact ios-simulator-ui-macos-15-intel has been successfully uploaded! Final size is 10753 bytes. Artifact ID is 14658160783
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.4889900Z Artifact download URL: https://github.com/stage3hz/linea-build/actions/runs/44790555180/artifacts/14658160783
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5157450Z ##[group]Run set -e
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5158050Z ^[[36;1mset -e^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5158450Z ^[[36;1m[ -d shots ] || exit 0^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5158980Z ^[[36;1mrm -rf pub && cp -R shots pub^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5159800Z ^[[36;1mecho "cancelled $GITHUB_SHA $(date -u) macos-15-intel" > pub/STATUS.txt^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5160620Z ^[[36;1mcd pub^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5161770Z ^[[36;1mfind . -name '*.png' -exec sh -c 'sips -Z 1400 -s format jpeg -s formatOptions 80 "$1" --out "${1%.png}.jpg" >/dev/null 2>&1 && rm "$1"' _ {} \;^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5163080Z ^[[36;1mfind . -name 'commands-*.json' -delete^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5164030Z ^[[36;1mfind . -type f -size +3000k -exec sh -c 'tail -c 1500000 "$1" > "$1.tail" && rm "$1"' _ {} \;^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5164970Z ^[[36;1mgit init -q -b sim-output^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5165790Z ^[[36;1mgit config user.name "linea-ci"; git config user.email "ci@localhost"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5166910Z ^[[36;1mgit add -A && git commit -qm "Simulator shots for $GITHUB_SHA"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5173350Z ^[[36;1mgit push -f "***github.com/stage3hz/linea-build.git" "HEAD:sim-output-macos-15-intel"^[[0m
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5533480Z shell: /bin/bash -e {0}
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5533980Z env:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5534380Z   APP_ENV: development
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5534870Z   EXPO_PUBLIC_ALLOW_LOCAL_HTTP: 0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5535530Z   EXPO_PUBLIC_SIMULATOR_SERVER: https://localhost:8443
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5536260Z   EXPO_PUBLIC_NATIVE_CHAT: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5536760Z   EXPO_NO_TELEMETRY: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5537210Z   CI: 1
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5537620Z   MAESTRO_DRIVER_STARTUP_TIMEOUT: 600000
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5538300Z   SIMULATOR_UDID: C15FAC2A-CB46-4F16-B882-3970BD44CFAD
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5538990Z   SIM_ARCH: x86_64
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5539420Z   SIM_RUST: x86_64-apple-ios
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5539910Z   SCHEME: INVIZENT
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:22.5540360Z ##[endgroup]
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:24.7185840Z To https://github.com/stage3hz/linea-build.git
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:24.7624090Z  + 3429391...0082fee HEAD -> sim-output-macos-15-intel (forced update)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:24.8770740Z Post job cleanup.
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.0744310Z [command]/usr/local/bin/git version
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.0859630Z git version 2.55.0
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.1280620Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/249860a1-b4a0-429e-bf77-cbd3a4b5cd8c/.gitconfig'
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.1383970Z Temporarily overriding HOME='/Users/runner/work/_temp/249860a1-b4a0-429e-bf77-cbd3a4b5cd8c' before making global git config changes
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.2220570Z Adding repository directory to the temporary git global config as a safe directory
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.2309810Z [command]/usr/local/bin/git config --global --add safe.directory /Users/runner/work/linea-build/linea-build
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.2680100Z [command]/usr/local/bin/git config --local --name-only --get-regexp core\.sshCommand
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.3090500Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.3706160Z [command]/usr/local/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.4709380Z http.https://github.com/.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.7569330Z [command]/usr/local/bin/git config --local --unset-all http.https://github.com/.extraheader
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:25.9778840Z [command]/usr/local/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:26.2137840Z [command]/usr/local/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:26.2857950Z [command]/usr/local/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:26.6402700Z Cleaning up orphan processes
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:27.9949830Z Terminate orphan process: pid (32558) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:28.1076990Z Terminate orphan process: pid (32553) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:29.1149670Z Terminate orphan process: pid (32485) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:29.2888910Z Terminate orphan process: pid (32484) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:30.0857680Z Terminate orphan process: pid (32440) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:30.2902220Z Terminate orphan process: pid (32439) (clang)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:30.9113190Z Terminate orphan process: pid (20713) (SWBBuildService)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:31.4865070Z Terminate orphan process: pid (17228) (node)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:31.5178950Z Terminate orphan process: pid (17230) (node)
+ui (macos-15-intel)	UNKNOWN STEP	2026-11-20T18:31:31.6531620Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
