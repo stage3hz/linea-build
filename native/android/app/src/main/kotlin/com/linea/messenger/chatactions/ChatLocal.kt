@@ -64,7 +64,8 @@ object ChatTyping {
   /** Who does what in a chat now, the newest action first: (person, kind). */
   fun who(chatId: String): List<Pair<String, String>> {
     val now = clock()
-    return active[chatId].orEmpty().entries.filter { it.value.until > now }.sortedByDescending { it.value.since }.map { it.key to it.value.kind }
+    // Newest first; heard in the same moment, the one heard later comes first (the sort keeps that order).
+    return active[chatId].orEmpty().entries.toList().asReversed().filter { it.value.until > now }.sortedByDescending { it.value.since }.map { it.key to it.value.kind }
   }
 
   /** The words for a chat, without the dots («печатает», «Аня и Лев печатают»); null — nobody does anything.
