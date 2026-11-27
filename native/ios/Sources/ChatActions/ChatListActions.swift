@@ -278,11 +278,15 @@ final class ChatListActions: NSObject, UITextFieldDelegate {
             row["unread"] = count > 0 ? count : (isMarked ? 1 : 0)
             let draft = draftLine(chat.id)
             // Offline: the quiet look belongs to the line of a message that cannot be opened here, nothing else.
-            if ChatTyping.shared.isTyping(chat.id) || !draft.isEmpty || fills[chat.id] != nil { row["quietPreview"] = false }
-            if ChatTyping.shared.isTyping(chat.id) {
-                row["preview"] = "Печатает…"
+            let doing = ChatTyping.shared.words(chat.id, group: false) { _ in nil }
+            if doing != nil || !draft.isEmpty || fills[chat.id] != nil { row["quietPreview"] = false }
+            if let doing {
+                // In the accent colour in place of the last message; the row blinks its three dots after the words.
+                row["preview"] = ChatActivityWords.line(doing)
                 row["accentPreview"] = true
+                row["activity"] = true
                 row["previewIcon"] = ""
+                row["thumb"] = ""
             } else if !draft.isEmpty {
                 row["preview"] = draft
                 row["previewRed"] = (ChatListActions.draftWord as NSString).length

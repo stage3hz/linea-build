@@ -2952,5 +2952,22 @@
 "Закрыть список разделов": "Close the list of sections",
 "Отпусти — в чаты": "Let go to return to chats",
 "Следующий раздел": "Next section",
-"Прошлый раздел": "Previous section"
+"Прошлый раздел": "Previous section",
+"печатает": "typing",
+"Печатает": "Typing",
+"записывает голосовое": "recording a voice message",
+"Записывает голосовое": "Recording a voice message",
+"записывает видеосообщение": "recording a video message",
+"Записывает видеосообщение": "Recording a video message",
+"отправляет видео": "sending a video",
+"Отправляет видео": "Sending a video",
+"отправляет фото": "sending a photo",
+"Отправляет фото": "Sending a photo",
+"отправляет файл": "sending a file",
+"Отправляет файл": "Sending a file",
+"отправляет голосовое": "sending a voice message",
+"Отправляет голосовое": "Sending a voice message",
+"отправляет видеосообщение": "sending a video message",
+"Отправляет видеосообщение": "Sending a video message",
+"Собеседник видит, что ты набираешь сообщение, записываешь или отправляешь голосовое, видео или файл.": "The other person sees that you're typing, recording or sending a voice message, a video or a file."
 }

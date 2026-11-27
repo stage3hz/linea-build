@@ -49,6 +49,8 @@ struct ChatRow: Equatable {
   let nameLen: Int
   /// Offline: the last message cannot be opened on this device — the line is said quietly (subtle, italic, a lock).
   var quietPreview = false
+  /// Somebody is doing something in the chat (the preview says what): three dots blink after the words.
+  var activity = false
 
   private static func int(_ value: Any?, _ fallback: Int) -> Int { (value as? NSNumber)?.intValue ?? fallback }
   private static func flag(_ value: Any?) -> Bool { (value as? Bool) ?? false }
@@ -74,6 +76,7 @@ struct ChatRow: Equatable {
         decoScale: CGFloat(min(2, max(1, (row["decoScale"] as? NSNumber)?.doubleValue ?? 1))), plate: text(row["plate"]),
         metal: ((row["metal"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue }, nameLen: max(0, int(row["nameLen"], 0))))
       result[result.count - 1].quietPreview = flag(row["quietPreview"])
+      result[result.count - 1].activity = flag(row["activity"])
     }
     return result
   }
@@ -242,6 +245,8 @@ final class ChatRowCanvas: UIView {
   var pressed = false
   private var thumbOf = ""
   private var thumbImage: UIImage?
+  /// The next blink of the dots after «Печатает» is asked for.
+  private var dotsQueued = false
 
   /// `image` centre-cropped into the rounded rectangle `box`.
   private func drawPicture(_ context: CGContext, _ image: UIImage, _ box: CGRect, _ radius: CGFloat) {
@@ -453,6 +458,19 @@ final class ChatRowCanvas: UIView {
     // The word «Черновик:» of a draft is red.
     if item.previewRed > 0 {
       preview.addAttribute(.foregroundColor, value: palette.danger, range: NSRange(location: 0, length: min(item.previewRed, preview.length)))
+    }
+    if item.activity {
+      // «Печатает», «Записывает голосовое»…: the dots after the words light one by one, in the words' colour.
+      preview.setAttributedString(ChatActivityWords.dotted(item.preview, lit: ChatActivityWords.dots(ProcessInfo.processInfo.systemUptime), color: previewColor, font: previewFont))
+      preview.addAttribute(.paragraphStyle, value: paragraph(.byTruncatingTail), range: NSRange(location: 0, length: preview.length))
+      if !dotsQueued {
+        dotsQueued = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+          guard let self else { return }
+          self.dotsQueued = false
+          if self.row?.activity == true, self.window != nil { self.setNeedsDisplay() }
+        }
+      }
     }
     if item.thumb != thumbOf {
       thumbOf = item.thumb

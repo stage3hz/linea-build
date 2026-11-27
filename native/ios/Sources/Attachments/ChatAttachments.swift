@@ -37,6 +37,8 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         var meta: [String: Any]?
         /// Attachments: the upload has begun (the photos of an album start in their order).
         var started = false
+        /// «отправляет фото / файл», said while it is on its way (Sources/Net/ActivitySend.swift).
+        var activity: ActivitySend.Token?
 
         init(heading: String) {
             self.heading = heading
@@ -369,7 +371,14 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         return item
     }
 
+    /// The item ends its way (sent, failed, called off): the other side is told.
+    private func sendingDone(_ item: Pending) {
+        item.activity?.end()
+        item.activity = nil
+    }
+
     private func fail(_ item: Pending, _ words: String) {
+        sendingDone(item)
         item.failed = words
         item.transfer = nil
         InlineMedia.shared.forgetSending(item.key) // a failed row offers «повторить», not the ring
@@ -378,6 +387,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
     }
 
     private func remove(_ item: Pending) {
+        sendingDone(item)
         item.removed = true
         item.transfer?.cancel()
         InlineMedia.shared.forgetSending(item.key)
@@ -425,6 +435,10 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
         item.failed = nil
         let transfer = FileTransfer()
         item.transfer = transfer
+        // A picture is «фото», anything else «файл» (a video goes through Sources/Voice/ChatMedia.swift as «видео»).
+        if item.activity == nil || item.activity?.ended == true {
+            item.activity = messenger.live.activity.begin(chatId: chatId, kind: prepared.mimeType.hasPrefix("image/") ? "photo" : "file")
+        }
         onPendingChanged?()
         let whole = FileCore.sizeText(prepared.bytes.count)
         item.percent = -1
@@ -438,6 +452,7 @@ final class ChatAttachments: NSObject, PHPickerViewControllerDelegate, UIDocumen
             DispatchQueue.main.async {
                 guard let self, let item, !item.removed, item.failed == nil, percent != item.percent else { return }
                 item.percent = percent
+                item.activity?.progress(percent)
                 item.note = FileCore.sizeText(prepared.bytes.count * percent / 100) + (photo ? " / " : " из ") + whole
                 InlineMedia.shared.showSending(item.key, progress: CGFloat(percent) / 100, words: item.note)
                 self.onPendingChanged?()

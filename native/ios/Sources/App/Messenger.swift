@@ -41,8 +41,8 @@ final class Messenger {
             case .read(let chatId, let userId, let messageId):
                 if userId != self.userId { NotificationCenter.default.post(name: Messenger.peerRead, object: nil, userInfo: ["chatId": chatId, "messageId": messageId]) }
                 NotificationCenter.default.post(name: Messenger.changed, object: nil)
-            // ChatActions: «печатает…» of the other side (Sources/ChatActions/ChatLocal.swift).
-            case .typing(let chatId, let userId, let on): if userId != self.userId { ChatTyping.shared.heard(chatId: chatId, on: on) }
+            // ChatActions: «печатает», «записывает голосовое»… of the other side (Sources/ChatActions/ChatLocal.swift).
+            case .typing(let chatId, let userId, let on, let kind): if userId != self.userId { ChatTyping.shared.heard(chatId: chatId, userId: userId, kind: kind, on: on) }
             }
         }
         // Offline: the fastest live address of the server, and the phone's network (Sources/Offline/ServerPool.swift).

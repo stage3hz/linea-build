@@ -85,6 +85,8 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
         var percent = -1
         /// What goes with the message inside the ciphertext: the answer it is, or nil.
         var meta: [String: Any]?
+        /// «отправляет голосовое / видеосообщение / видео», said while it is on its way (Sources/Net/ActivitySend.swift).
+        var activity: ActivitySend.Token?
 
         init(kind: String) {
             self.kind = kind
@@ -203,7 +205,8 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
             self.flightKey = nil
             return found.view.convert(found.frame, to: view)
         }
-        control.onPhase = { [weak self] (_: RecordControl.Phase) -> Void in
+        control.onPhase = { [weak self] (phase: RecordControl.Phase) -> Void in
+            self?.recordingSaid(phase)
             guard let view = self?.host?.view else { return }
             view.setNeedsLayout()
             RecordSpec.animateLayout { view.layoutIfNeeded() }
@@ -398,12 +401,36 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
 
     // MARK: On the way out
 
+    /// «записывает голосовое» / «записывает видеосообщение» while a take is recorded (held or locked); its end —
+    /// sent, called off, stopped for the preview — tells the other side.
+    private var recordingToken: ActivitySend.Token?
+    private func recordingSaid(_ phase: RecordControl.Phase) {
+        let recording = phase == .holding || phase == .locked
+        let kind = control.mode == .video ? "round" : "voice"
+        if recording, let token = recordingToken, !token.ended, token.kind == kind { return }
+        recordingToken?.end()
+        recordingToken = recording ? messenger?.live.activity.begin(chatId: chatId, kind: kind) : nil
+    }
+
+    /// The item is being made ready or uploaded: the other side hears of it until it is sent, fails or is called off.
+    private func sendingSaid(_ item: Outgoing) {
+        if let token = item.activity, !token.ended { return }
+        let kind = item.kind == "voice" ? "voice-upload" : item.kind == "note" ? "round-upload" : "video"
+        item.activity = messenger?.live.activity.begin(chatId: chatId, kind: kind)
+    }
+
+    private func sendingDone(_ item: Outgoing) {
+        item.activity?.end()
+        item.activity = nil
+    }
+
     private func add(_ item: Outgoing) {
         outgoing.append(item)
         onPendingChanged?()
     }
 
     private func fail(_ item: Outgoing, _ words: String) {
+        sendingDone(item)
         item.failed = words
         item.small = nil
         InlineMedia.shared.forgetSending(item.key)
@@ -412,6 +439,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     }
 
     private func remove(_ item: Outgoing, forget: Bool) {
+        sendingDone(item)
         item.removed = true
         item.small?.cancel()
         InlineMedia.shared.forgetSending(item.key)
@@ -431,6 +459,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
     private func run(_ item: Outgoing) {
         guard let messenger, !item.removed else { return }
         item.failed = nil
+        sendingSaid(item)
         if item.payload == nil {
             guard let source = item.source else { return fail(item, VideoPrepare.failed) }
             item.note = "Обработка…"
@@ -478,6 +507,7 @@ final class ChatMedia: NSObject, PHPickerViewControllerDelegate {
             DispatchQueue.main.async {
                 guard let self, let item, !item.removed, item.failed == nil, percent != item.percent else { return }
                 item.percent = percent
+                item.activity?.progress(percent)
                 item.note = FileCore.sizeText(size / 100 * percent) + " из " + whole
                 if ringed { InlineMedia.shared.showSending(item.key, progress: CGFloat(percent) / 100, words: FileCore.sizeText(size / 100 * percent) + " / " + whole) }
                 self.onPendingChanged?()

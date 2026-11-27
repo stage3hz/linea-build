@@ -207,7 +207,7 @@ final class PrivacyViewController: SettingsPage {
 
         // Profile: «На этом устройстве» — the typing notice (SettingsScreen.tsx; DevicePreferences `sendTyping`, which
         // ChatActions reads before telling the other side).
-        let typing = SettingsSwitchRow(label: "Показывать «печатает…»", words: "Собеседник видит, что ты набираешь сообщение.", value: DevicePreferences.flag("sendTyping") ?? true, enabled: true)
+        let typing = SettingsSwitchRow(label: "Показывать «печатает…»", words: "Собеседник видит, что ты набираешь сообщение, записываешь или отправляешь голосовое, видео или файл.", value: DevicePreferences.flag("sendTyping") ?? true, enabled: true)
         typing.onChange = { (value: Bool) -> Void in DevicePreferences.set(["sendTyping": value]) }
         addGroup("На этом устройстве", rows: [typing])
 

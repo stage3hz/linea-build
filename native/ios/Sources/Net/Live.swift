@@ -14,7 +14,9 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         case chat(String?)
         /// The other side read up to a message.
         case read(chatId: String, userId: String, messageId: Int)
-        case typing(chatId: String, userId: String, on: Bool)
+        /// Someone in a chat is doing something (`kind`: typing, voice, round, video, photo, file, voice-upload,
+        /// round-upload), or stopped doing anything. Only the kind comes, never anything of the message.
+        case typing(chatId: String, userId: String, on: Bool, kind: String)
     }
 
     private let server: Server
@@ -88,6 +90,8 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
     @objc private func sleep() {
         // Calls: a live call keeps the line open in the background (its signalling goes through it).
         if heldByCall && !closed { return }
+        // The other side is told the person stopped (while the line is still up); said again once it is back.
+        activity.pause()
         stopped = true
         line = "offline"
         beat?.invalidate()
@@ -186,6 +190,7 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         case "ready":
             attempts = 0
             line = "connected"
+            activity.resume()
             onEvent?(.ready)
         case "message":
             onEvent?(.chat((data["message"] as? [String: Any])?["chatId"] as? String))
@@ -196,7 +201,7 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         case "read":
             if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String, let id = (data["messageId"] as? NSNumber)?.intValue { onEvent?(.read(chatId: chatId, userId: userId, messageId: id)) }
         case "typing":
-            if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String { onEvent?(.typing(chatId: chatId, userId: userId, on: data["isTyping"] as? Bool ?? false)) }
+            if let chatId = data["chatId"] as? String, let userId = data["userId"] as? String { onEvent?(.typing(chatId: chatId, userId: userId, on: data["isTyping"] as? Bool ?? false, kind: data["kind"] as? String ?? "typing")) }
         // People (Sources/People): presence and friends.
         case "presence.snapshot":
             var all: [String: [String: Any]] = [:]
@@ -225,9 +230,21 @@ final class Live: NSObject, URLSessionWebSocketDelegate {
         return true
     }
 
-    /// Tells the other side that the person is typing in a chat (or stopped).
-    func typing(chatId: String, on: Bool) {
-        guard let frame = Core.text(["type": "typing", "chatId": chatId, "isTyping": on]) else { return }
-        socket?.send(.string(frame)) { _ in }
+    /// Tells the other side what the person is doing in a chat (`kind`), or that they stopped doing anything (`on`
+    /// false). `progress`: an upload's percent. Screens go through `activity`, which repeats it while it lasts.
+    func typing(chatId: String, on: Bool, kind: String = "typing", progress: Int? = nil) {
+        var frame: [String: Any] = ["type": "typing", "chatId": chatId, "isTyping": on]
+        if on {
+            frame["kind"] = kind
+            if let progress { frame["progress"] = max(0, min(100, progress)) }
+        }
+        guard let text = Core.text(frame) else { return }
+        socket?.send(.string(text)) { _ in }
     }
+
+    /// What the person is doing in each chat, said and repeated over this line (Sources/Net/ActivitySend.swift).
+    /// Composer: «Показывать «печатает…»» off — the other side is told nothing (DevicePreferences `sendTyping`).
+    private(set) lazy var activity = ActivitySend(
+        tell: { [weak self] chatId, on, kind, progress in self?.typing(chatId: chatId, on: on, kind: kind, progress: progress) },
+        allowed: { DevicePreferences.flag("sendTyping") ?? true })
 }

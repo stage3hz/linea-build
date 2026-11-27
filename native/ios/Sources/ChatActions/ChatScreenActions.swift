@@ -50,8 +50,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private var forwardItems: [ForwardDraft.Item] = []
     private var tapWork: DispatchWorkItem?
     private var tapKey = ""
-    private var typingAt = Date.distantPast
+    /// «печатает»: said while the field changes, until it has been still for a moment (Sources/Net/ActivitySend.swift).
+    private var typingToken: ActivitySend.Token?
     private var typingStop: DispatchWorkItem?
+    /// The dots after «печатает» blink while the line says it.
+    private var dotsTimer: Timer?
     private var jump: (clientId: String, pages: Int)?
     private var focusClient = ""
     private var fromNewest: CGFloat = 0
@@ -85,9 +88,11 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     deinit {
         NotificationCenter.default.removeObserver(self)
         clock?.invalidate()
+        dotsTimer?.invalidate()
         typingStop?.cancel()
         tapWork?.cancel()
-        messenger?.live.typing(chatId: chatId, on: false)
+        // The chat is left: whatever was said about this person here ends (a recording, an upload, typing).
+        messenger?.live.activity.endChat(chatId)
     }
 
     /// Up to which message the other side has read (the two ticks).
@@ -271,12 +276,15 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
 
     // MARK: The header
 
-    /// The line under the name: «печатает…», else «в сети» / «был(а) …», else the person's @name.
+    /// The line under the name: what the other side is doing («печатает», «записывает голосовое»…, with blinking
+    /// dots), else «в сети» / «был(а) …», else the person's @name.
     private func showStatus() {
         var words = ""
         var lit = false
-        if ChatTyping.shared.isTyping(chatId) {
-            words = "печатает…"
+        // A chat of two: the other person's action without their name (a group would name them).
+        var doing = ChatTyping.shared.words(chatId, group: false) { [peerName] _ in peerName }
+        if let doing {
+            words = doing
             lit = true
         } else if let messenger, let seen = PresenceWords.text(messenger.live.presence[peerId]) {
             words = seen
@@ -286,7 +294,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         }
         #if targetEnvironment(simulator)
         if messenger == nil {
-            words = UserDefaults.standard.string(forKey: "chatdemo") == "typing" ? "печатает…" : "в сети"
+            doing = UserDefaults.standard.string(forKey: "chatdemo") == "typing" ? "печатает" : nil
+            words = doing ?? "в сети"
             lit = true
         }
         #endif
@@ -294,8 +303,23 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         if let line = ChatLookConnection.shared.words(messenger) {
             words = line
             lit = false
+            doing = nil
         }
-        if statusLabel.text == words { return }
+        // The dots blink while somebody does something; the line keeps its room, so nothing moves.
+        if doing != nil {
+            if dotsTimer == nil {
+                dotsTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in self?.showStatus() }
+            }
+            let dotted = ChatActivityWords.dotted(words, lit: ChatActivityWords.dots(ProcessInfo.processInfo.systemUptime), color: Theme.accent, font: statusLabel.font)
+            let grew = statusLabel.text != dotted.string
+            statusLabel.attributedText = dotted
+            if grew { host?.view.setNeedsLayout() }
+            return
+        }
+        dotsTimer?.invalidate()
+        dotsTimer = nil
+        if statusLabel.attributedText?.string == words, statusLabel.textColor == (lit ? Theme.accent : Theme.muted) { return }
+        statusLabel.attributedText = nil
         statusLabel.text = words
         statusLabel.textColor = lit ? Theme.accent : Theme.muted
         host?.view.setNeedsLayout()
@@ -1213,18 +1237,17 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
         if editing == nil {
             if let local { local.setDraft(chatId, value) } else { sampleDraft = value }
         }
-        if Date().timeIntervalSince(typingAt) > 1.5 {
-            // Composer: «Показывать «печатает…»» off — the other side is never told (DevicePreferences `sendTyping`).
-            messenger?.live.typing(chatId: chatId, on: !value.isEmpty && (DevicePreferences.flag("sendTyping") ?? true))
-            typingAt = Date()
-        }
+        // «печатает» while the text changes; the text deleted, or still for a moment: the other side is told it
+        // stopped. Composer: «Показывать «печатает…»» off — the other side is never told (Live.activity, `sendTyping`).
         typingStop?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.messenger?.live.typing(chatId: self.chatId, on: false)
+        if value.isEmpty {
+            stopTyping()
+        } else {
+            if typingToken == nil || typingToken?.ended == true { typingToken = messenger?.live.activity.begin(chatId: chatId, kind: "typing") }
+            let work = DispatchWorkItem { [weak self] in self?.stopTyping() }
+            typingStop = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: work)
         }
-        typingStop = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: work)
         // LinkPreview: a link typed into a new message gets its card (not an edit, not the comment of a forward).
         links.typed(value, active: editing == nil && forwardItems.isEmpty)
         // Composer: the styles move with the text.
@@ -1247,8 +1270,8 @@ final class ChatScreenActions: NSObject, UITextViewDelegate {
     private func stopTyping() {
         typingStop?.cancel()
         typingStop = nil
-        typingAt = Date.distantPast
-        messenger?.live.typing(chatId: chatId, on: false)
+        typingToken?.end()
+        typingToken = nil
     }
 
     // MARK: The simulator check
