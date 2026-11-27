@@ -1,0 +1,11 @@
+2026-11-27 22:28:51.018 Df Invizent[28869:156d2] (Foundation) Linea: main thread stalled 838 ms
+2026-11-27 22:29:24.390 Df Invizent[30341:165c7] (Foundation) Linea: main thread stalled 277 ms
+2026-11-27 22:30:42.670 Df Invizent[33801:189fb] (Foundation) Linea: main thread stalled 574 ms
+2026-11-27 22:38:41.651 Df Invizent[50586:2303f] (Foundation) Linea: main thread stalled 703 ms
+2026-11-27 22:39:38.621 Df Invizent[54308:2526f] (Foundation) Linea: main thread stalled 364 ms
+2026-11-27 22:43:14.854 Df Invizent[68068:2d26b] (Foundation) Linea: main thread stalled 397 ms
+2026-11-27 22:48:47.636 Df Invizent[89880:39aa3] (Foundation) Linea: main thread stalled 281 ms
+2026-11-27 22:51:37.274 Df Invizent[99984:3f8f9] (Foundation) Linea: main thread stalled 1422 ms
+2026-11-27 22:54:45.458 Df Invizent[12773:4685f] (Foundation) Linea: main thread stalled 535 ms
+2026-11-27 22:54:56.716 Df Invizent[13161:46c32] (Foundation) Linea: main thread stalled 779 ms
+2026-11-27 22:55:18.442 Df Invizent[14406:477fd] (Foundation) Linea: main thread stalled 600 ms

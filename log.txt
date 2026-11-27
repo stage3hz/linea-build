@@ -1,0 +1,1910 @@
+Xcode 26.6
+Build version 17F113
+arm64
+== core tests
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.91s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+== core for aarch64-apple-ios-sim
+[32m==>[0m [1mDownloading bottle manifests[0m
+✔︎ Bottle Manifest protobuf (36.2)
+[34m==>[0m [1mWould install 1 formula:[0m
+protobuf 36.2
+[34m==>[0m [1mWould install 1 dependency for protobuf:[0m
+abseil 20260817.0
+[32m==>[0m [1mFetching downloads for: [32mprotobuf[39m[0m
+✔︎ Bottle Manifest abseil (20260817.0)
+✔︎ Bottle protobuf (36.2)
+✔︎ Bottle abseil (20260817.0)
+[32m==>[0m [1mInstalling protobuf dependency: [32mabseil[39m (20260817.0)[0m
+[34m==>[0m [1mPouring abseil--20260817.0.arm64_tahoe.bottle.1.tar.gz[0m
+🍺  /opt/homebrew/Cellar/abseil/20260817.0: 832 files, 11.8MB
+[32m==>[0m [1mInstalling [32mprotobuf[39m[0m
+[34m==>[0m [1mPouring protobuf--36.2.arm64_tahoe.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/protobuf/36.2: 387 files, 17.8MB
+[32m==>[0m [1mCaveats[0m
+Emacs Lisp files have been installed to:
+  /opt/homebrew/share/emacs/site-lisp/protobuf
+info: downloading component rust-std
+ Downloading crates ...
+  Downloaded libcrux-sha2 v0.0.8
+  Downloaded aho-corasick v1.1.4
+  Downloaded libcrux-hacl-rs v0.0.5
+  Downloaded ghash v0.6.0
+  Downloaded hpke-rs-crypto v0.7.0
+  Downloaded proc-macro-crate v3.5.0
+  Downloaded libcrux-secrets v0.0.6
+  Downloaded rand_chacha v0.9.0
+  Downloaded libcrux-traits v0.0.8
+  Downloaded async-trait v0.1.89
+  Downloaded crossbeam-deque v0.8.7
+  Downloaded multimap v0.10.1
+  Downloaded data-encoding-macro-internal v0.1.18
+  Downloaded errno v0.3.14
+  Downloaded libcrux-hmac v0.0.8
+  Downloaded assert_matches v1.5.0
+  Downloaded data-encoding-macro v0.1.20
+  Downloaded once_cell v1.21.4
+  Downloaded crossbeam-utils v0.8.22
+  Downloaded ppv-lite86 v0.2.21
+  Downloaded prost-derive v0.14.4
+  Downloaded prost-types v0.14.4
+  Downloaded getrandom v0.3.4
+  Downloaded sha1 v0.11.0
+  Downloaded prost v0.14.4
+  Downloaded prost-build v0.14.4
+  Downloaded cbc v0.2.1
+  Downloaded chacha20 v0.10.2
+  Downloaded const-str v1.1.0
+  Downloaded crossbeam-epoch v0.9.20
+  Downloaded either v1.16.0
+  Downloaded heck v0.5.0
+  Downloaded hmac v0.13.0
+  Downloaded libcrux-intrinsics v0.0.8
+  Downloaded num_enum_derive v0.7.6
+  Downloaded bytes v1.12.0
+  Downloaded foldhash v0.1.5
+  Downloaded log v0.4.33
+  Downloaded const-oid v0.10.2
+  Downloaded hpke-rs v0.7.0
+  Downloaded tempfile v3.27.0
+  Downloaded toml_parser v1.1.2+spec-1.1.0
+  Downloaded zeroize_derive v1.5.0
+  Downloaded libcrux-macros v0.0.3
+  Downloaded libcrux-platform v0.0.3
+  Downloaded block-padding v0.4.2
+  Downloaded digest v0.11.3
+  Downloaded fixedbitset v0.5.7
+  Downloaded hax-lib-macros v0.3.7
+  Downloaded thiserror v2.0.18
+  Downloaded rand v0.9.4
+  Downloaded rand v0.10.2
+  Downloaded data-encoding v2.11.0
+  Downloaded sha2 v0.11.1
+  Downloaded toml_edit v0.25.12+spec-1.1.0
+  Downloaded libcrux-sha3 v0.0.10
+  Downloaded anyhow v1.0.103
+  Downloaded derive_more v2.1.1
+  Downloaded fastrand v2.4.1
+  Downloaded itertools v0.13.0
+  Downloaded itertools v0.15.0
+  Downloaded libcrux-ml-kem v0.0.10
+  Downloaded prettyplease v0.2.37
+  Downloaded bitflags v2.13.0
+  Downloaded derive-where v1.6.1
+  Downloaded hex v0.4.3
+  Downloaded rand_core v0.9.5
+  Downloaded rustversion v1.0.23
+  Downloaded thiserror-impl v2.0.18
+  Downloaded toml_datetime v1.1.1+spec-1.1.0
+  Downloaded x25519-dalek v3.0.0
+  Downloaded rayon-core v1.13.0
+  Downloaded hashbrown v0.17.1
+  Downloaded hkdf v0.13.0
+  Downloaded rayon v1.12.0
+  Downloaded sorted-vec v0.8.11
+  Downloaded derive_more-impl v2.1.1
+  Downloaded hax-lib v0.3.7
+  Downloaded indexmap v2.14.0
+  Downloaded regex v1.12.4
+  Downloaded equivalent v1.0.2
+  Downloaded curve25519-dalek v5.0.0
+  Downloaded regex-syntax v0.8.11
+  Downloaded syn v2.0.119
+  Downloaded rustix v1.1.4
+  Downloaded uuid v1.23.4
+  Downloaded zerocopy v0.8.53
+  Downloaded zerocopy-derive v0.8.53
+  Downloaded num_enum v0.7.6
+  Downloaded hashbrown v0.15.5
+  Downloaded petgraph v0.8.3
+  Downloaded regex-automata v0.4.14
+  Downloaded winnow v1.0.3
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.5
+   Compiling syn v2.0.119
+   Compiling rand_core v0.10.1
+   Compiling syn v3.0.10
+   Compiling getrandom v0.4.3
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.5
+   Compiling hax-lib v0.3.7
+   Compiling hashbrown v0.17.1
+   Compiling anyhow v1.0.103
+   Compiling synstructure v0.14.0
+   Compiling equivalent v1.0.2
+   Compiling stable_deref_trait v1.2.1
+   Compiling indexmap v2.14.0
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerofrom v0.1.8
+   Compiling displaydoc v0.2.7
+   Compiling yoke v0.8.4
+   Compiling either v1.16.0
+   Compiling semver v1.0.28
+   Compiling zeroize_derive v1.5.0
+   Compiling hax-lib-macros v0.3.7
+   Compiling subtle v2.6.1
+   Compiling zeroize v1.9.2
+   Compiling rustc_version v0.4.1
+   Compiling hybrid-array v0.4.13
+   Compiling itertools v0.13.0
+   Compiling zerovec-derive v0.11.7
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling const-oid v0.10.2
+   Compiling prost-derive v0.14.4
+   Compiling digest v0.11.3
+   Compiling zerovec v0.11.9
+   Compiling rand v0.10.2
+   Compiling cpufeatures v0.3.1
+   Compiling rustix v1.1.4
+   Compiling version_check v0.9.5
+   Compiling errno v0.3.14
+   Compiling generic-array v0.14.7
+   Compiling block-padding v0.4.2
+   Compiling libcrux-secrets v0.0.6
+   Compiling getrandom v0.3.4
+   Compiling prettyplease v0.2.37
+   Compiling zerocopy v0.8.53
+   Compiling bitflags v2.13.0
+   Compiling bytes v1.12.0
+   Compiling regex-syntax v0.8.11
+   Compiling foldhash v0.1.5
+   Compiling hashbrown v0.15.5
+   Compiling prost v0.14.4
+   Compiling libcrux-traits v0.0.8
+   Compiling inout v0.2.2
+   Compiling regex-automata v0.4.14
+   Compiling zerocopy-derive v0.8.53
+   Compiling fastrand v2.4.1
+   Compiling libcrux-intrinsics v0.0.8
+   Compiling fixedbitset v0.5.7
+   Compiling once_cell v1.21.4
+   Compiling tempfile v3.27.0
+   Compiling regex v1.12.4
+   Compiling petgraph v0.8.3
+   Compiling prost-types v0.14.4
+   Compiling tinystr v0.8.5
+   Compiling libcrux-sha3 v0.0.10
+   Compiling writeable v0.6.4
+   Compiling utf_types v1.0.0
+   Compiling multimap v0.10.1
+   Compiling heck v0.5.0
+   Compiling log v0.4.33
+   Compiling winnow v1.0.3
+   Compiling crossbeam-utils v0.8.22
+   Compiling litemap v0.8.3
+   Compiling icu_locale_core v2.4.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling toml_parser v1.1.2+spec-1.1.0
+   Compiling prost-build v0.14.4
+   Compiling utf8_iter v1.1.0
+   Compiling rand_core v0.9.5
+   Compiling cipher v0.5.2
+   Compiling potential_utf v0.1.6
+   Compiling curve25519-dalek v5.0.0
+   Compiling zerotrie v0.2.5
+   Compiling libcrux-platform v0.0.3
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling thiserror v2.0.18
+   Compiling crossbeam-epoch v0.9.20
+   Compiling icu_normalizer_data v2.4.0
+   Compiling cpubits v0.1.1
+   Compiling icu_properties_data v2.4.0
+   Compiling toml_edit v0.25.12+spec-1.1.0
+   Compiling icu_provider v2.4.0
+   Compiling icu_collections v2.4.0
+   Compiling rand_chacha v0.9.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling universal-hash v0.6.1
+   Compiling libcrux-macros v0.0.3
+   Compiling thiserror-impl v2.0.18
+   Compiling rustversion v1.0.23
+   Compiling crossbeam-deque v0.8.7
+   Compiling libcrux-hacl-rs v0.0.5
+   Compiling polyval v0.7.3
+   Compiling digest v0.10.7
+   Compiling rand v0.9.4
+   Compiling proc-macro-crate v3.5.0
+   Compiling sha2 v0.11.1
+   Compiling hmac v0.13.0
+   Compiling derive_more-impl v2.1.1
+   Compiling serde_core v1.0.229
+   Compiling libcrux-ml-kem v0.0.10
+   Compiling smallvec v1.16.6
+   Compiling rayon-core v1.13.0
+   Compiling icu_normalizer v2.4.0
+   Compiling derive_more v2.1.1
+   Compiling hkdf v0.13.0
+   Compiling icu_properties v2.4.0
+   Compiling num_enum_derive v0.7.6
+   Compiling libcrux-sha2 v0.0.8
+   Compiling x25519-dalek v3.0.0
+   Compiling aes v0.9.1
+   Compiling ctr v0.10.1
+   Compiling spqr v1.6.0 (https://github.com/signalapp/SparsePostQuantumRatchet.git?tag=v1.6.0#06959b47)
+   Compiling hpke-rs-crypto v0.7.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling libsignal-debug v0.106.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling uuid v1.23.4
+   Compiling serde v1.0.229
+   Compiling data-encoding v2.11.0
+   Compiling libsignal-core v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling data-encoding-macro-internal v0.1.18
+   Compiling hpke-rs v0.7.0
+   Compiling num_enum v0.7.6
+   Compiling libcrux-hmac v0.0.8
+   Compiling idna_adapter v1.2.2
+   Compiling ghash v0.6.0
+   Compiling cbc v0.2.1
+   Compiling libsignal-protocol v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling aead v0.6.1
+   Compiling sha1 v0.11.0
+   Compiling serde_derive v1.0.229
+   Compiling cpufeatures v0.2.17
+   Compiling percent-encoding v2.3.2
+   Compiling sorted-vec v0.8.11
+   Compiling signature v2.2.0
+   Compiling ed25519 v2.2.3
+   Compiling form_urlencoded v1.2.3
+   Compiling data-encoding-macro v0.1.20
+   Compiling sha2 v0.10.9
+   Compiling signal-crypto v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling aes-gcm-siv v0.12.0
+   Compiling rayon v1.12.0
+   Compiling idna v1.1.0
+   Compiling itertools v0.15.0
+   Compiling derive-where v1.6.1
+   Compiling async-trait v0.1.89
+   Compiling const-str v1.1.0
+   Compiling hex v0.4.3
+   Compiling assert_matches v1.5.0
+   Compiling ed25519-dalek v2.2.0
+   Compiling url v2.5.9
+   Compiling hmac v0.12.1
+   Compiling getrandom v0.2.17
+   Compiling base64 v0.22.1
+   Compiling invizent-core v0.1.0 (/Users/runner/work/linea-build/linea-build/native/core)
+    Finished `release` profile [optimized] target(s) in 1m 32s
+== project
+[32m==>[0m [1mDownloading bottle manifests[0m
+✔︎ Bottle Manifest xcodegen (2.46.0)
+[32m==>[0m [1mFetching downloads for: [32mxcodegen[39m[0m
+✔︎ Bottle xcodegen (2.46.0)
+[34m==>[0m [1mPouring xcodegen--2.46.0.arm64_tahoe.bottle.1.tar.gz[0m
+🍺  /opt/homebrew/Cellar/xcodegen/2.46.0: 38 files, 7.4MB
+⚙️  Generating plists...
+⚙️  Generating project...
+⚙️  Writing project...
+Created project at /Users/runner/work/linea-build/linea-build/native/ios/Invizent.xcodeproj
+== app
+
+** BUILD SUCCEEDED **
+
+== simulator
+Simulator: iPhone 17 Pro (26, 5)
+Monitoring boot status for iPhone 17 Pro (6478AFFB-AE17-412A-A1E5-51BCFFD300B6).
+[2026-11-27 22:21:46 +0000] Status=2, isTerminal=NO, Elapsed=00:28.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:23 seconds
+
+[2026-11-27 22:21:46 +0000] Status=2, isTerminal=NO, Elapsed=00:29.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:24 seconds
+
+[2026-11-27 22:21:46 +0000] Status=2, isTerminal=NO, Elapsed=00:30.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:25 seconds
+
+[2026-11-27 22:21:46 +0000] Status=2, isTerminal=NO, Elapsed=00:31.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:26 seconds
+
+[2026-11-27 22:21:46 +0000] Status=2, isTerminal=NO, Elapsed=00:32.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:27 seconds
+
+[2026-11-27 22:21:46 +0000] Status=2, isTerminal=NO, Elapsed=00:33.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:28 seconds
+
+[2026-11-27 22:21:48 +0000] Status=2, isTerminal=NO, Elapsed=00:35.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:29 seconds
+
+[2026-11-27 22:21:48 +0000] Status=2, isTerminal=NO, Elapsed=00:35.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:30 seconds
+
+[2026-11-27 22:21:49 +0000] Status=2, isTerminal=NO, Elapsed=00:36.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:31 seconds
+
+[2026-11-27 22:21:50 +0000] Status=2, isTerminal=NO, Elapsed=00:37.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:32 seconds
+
+[2026-11-27 22:21:52 +0000] Status=2, isTerminal=NO, Elapsed=00:38.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:33 seconds
+
+[2026-11-27 22:21:53 +0000] Status=2, isTerminal=NO, Elapsed=00:40.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:34 seconds
+
+[2026-11-27 22:21:53 +0000] Status=2, isTerminal=NO, Elapsed=00:40.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:35 seconds
+
+[2026-11-27 22:21:54 +0000] Status=2, isTerminal=NO, Elapsed=00:41.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:36 seconds
+
+[2026-11-27 22:21:55 +0000] Status=2, isTerminal=NO, Elapsed=00:42.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:37 seconds
+
+[2026-11-27 22:21:56 +0000] Status=2, isTerminal=NO, Elapsed=00:43.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:38 seconds
+
+[2026-11-27 22:21:57 +0000] Status=2, isTerminal=NO, Elapsed=00:44.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:39 seconds
+
+[2026-11-27 22:21:58 +0000] Status=2, isTerminal=NO, Elapsed=00:45.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:40 seconds
+
+[2026-11-27 22:21:59 +0000] Status=2, isTerminal=NO, Elapsed=00:46.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:41 seconds
+
+[2026-11-27 22:22:00 +0000] Status=2, isTerminal=NO, Elapsed=00:47.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:42 seconds
+
+[2026-11-27 22:22:01 +0000] Status=2, isTerminal=NO, Elapsed=00:48.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:43 seconds
+
+[2026-11-27 22:22:02 +0000] Status=2, isTerminal=NO, Elapsed=00:49.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:44 seconds
+
+[2026-11-27 22:22:03 +0000] Status=2, isTerminal=NO, Elapsed=00:50.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:45 seconds
+
+[2026-11-27 22:22:04 +0000] Status=2, isTerminal=NO, Elapsed=00:51.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:46 seconds
+
+[2026-11-27 22:22:06 +0000] Status=2, isTerminal=NO, Elapsed=00:52.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:47 seconds
+
+[2026-11-27 22:22:09 +0000] Status=2, isTerminal=NO, Elapsed=00:56.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:48 seconds
+
+[2026-11-27 22:22:10 +0000] Status=2, isTerminal=NO, Elapsed=00:57.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:50 seconds
+
+[2026-11-27 22:22:16 +0000] Status=2, isTerminal=NO, Elapsed=01:03.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:51 seconds
+
+[2026-11-27 22:22:18 +0000] Status=2, isTerminal=NO, Elapsed=01:05.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:57 seconds
+
+[2026-11-27 22:22:18 +0000] Status=2, isTerminal=NO, Elapsed=01:05.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:59 seconds
+
+[2026-11-27 22:22:19 +0000] Status=2, isTerminal=NO, Elapsed=01:06.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:01:00 seconds
+
+[2026-11-27 22:22:20 +0000] Status=2, isTerminal=NO, Elapsed=01:07.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.WebBookmarks.migrator (WebBookmarks.migrator)
+		Migration Elapsed:01:01 seconds
+
+[2026-11-27 22:22:21 +0000] Status=2, isTerminal=NO, Elapsed=01:08.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:02 seconds
+
+[2026-11-27 22:22:22 +0000] Status=2, isTerminal=NO, Elapsed=01:08.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:03 seconds
+
+[2026-11-27 22:22:23 +0000] Status=2, isTerminal=NO, Elapsed=01:10.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:04 seconds
+
+[2026-11-27 22:22:24 +0000] Status=2, isTerminal=NO, Elapsed=01:11.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:05 seconds
+
+[2026-11-27 22:22:25 +0000] Status=2, isTerminal=NO, Elapsed=01:12.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:06 seconds
+
+[2026-11-27 22:22:26 +0000] Status=2, isTerminal=NO, Elapsed=01:13.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:07 seconds
+
+[2026-11-27 22:22:27 +0000] Status=2, isTerminal=NO, Elapsed=01:14.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:08 seconds
+
+[2026-11-27 22:22:28 +0000] Status=2, isTerminal=NO, Elapsed=01:15.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:09 seconds
+
+[2026-11-27 22:22:28 +0000] Status=2, isTerminal=NO, Elapsed=01:15.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:10 seconds
+
+[2026-11-27 22:22:29 +0000] Status=2, isTerminal=NO, Elapsed=01:16.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:11 seconds
+
+[2026-11-27 22:22:30 +0000] Status=2, isTerminal=NO, Elapsed=01:17.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:12 seconds
+
+[2026-11-27 22:22:31 +0000] Status=2, isTerminal=NO, Elapsed=01:18.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:13 seconds
+
+[2026-11-27 22:22:33 +0000] Status=2, isTerminal=NO, Elapsed=01:20.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:14 seconds
+
+[2026-11-27 22:22:34 +0000] Status=2, isTerminal=NO, Elapsed=01:21.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:15 seconds
+
+[2026-11-27 22:22:35 +0000] Status=2, isTerminal=NO, Elapsed=01:22.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:16 seconds
+
+[2026-11-27 22:22:35 +0000] Status=2, isTerminal=NO, Elapsed=01:22.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:17 seconds
+
+[2026-11-27 22:22:36 +0000] Status=2, isTerminal=NO, Elapsed=01:23.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:18 seconds
+
+[2026-11-27 22:22:37 +0000] Status=2, isTerminal=NO, Elapsed=01:24.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:19 seconds
+
+[2026-11-27 22:22:38 +0000] Status=2, isTerminal=NO, Elapsed=01:25.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:20 seconds
+
+[2026-11-27 22:22:41 +0000] Status=2, isTerminal=NO, Elapsed=01:28.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:21 seconds
+
+[2026-11-27 22:22:42 +0000] Status=2, isTerminal=NO, Elapsed=01:29.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:22 seconds
+
+[2026-11-27 22:22:43 +0000] Status=2, isTerminal=NO, Elapsed=01:30.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.mdm.migrator (MCMDM.migrator)
+		Migration Elapsed:01:23 seconds
+
+[2026-11-27 22:22:44 +0000] Status=2, isTerminal=NO, Elapsed=01:31.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.message.AccountsMigrator (MessageAccountsMigrator.migrator)
+		Migration Elapsed:01:24 seconds
+
+[2026-11-27 22:22:48 +0000] Status=4, isTerminal=NO, Elapsed=01:35.
+	Waiting on System App
+
+[2026-11-27 22:22:49 +0000] Status=4, isTerminal=NO, Elapsed=01:35.
+	Waiting on System App
+
+[2026-11-27 22:22:49 +0000] Status=4, isTerminal=NO, Elapsed=01:36.
+	Waiting on System App
+
+[2026-11-27 22:22:50 +0000] Status=4, isTerminal=NO, Elapsed=01:36.
+	Waiting on System App
+
+[2026-11-27 22:22:51 +0000] Status=4, isTerminal=NO, Elapsed=01:37.
+	Waiting on System App
+
+[2026-11-27 22:22:53 +0000] Status=4, isTerminal=NO, Elapsed=01:40.
+	Waiting on System App
+
+[2026-11-27 22:23:00 +0000] Status=4294967295, isTerminal=YES, Elapsed=01:47.
+	Finished
+
+com.linea.messenger.preview: 19333
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/01-core-check.png
+com.linea.messenger.preview: 19871
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/02-chats.png
+com.linea.messenger.preview: 20313
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/03-sections.png
+com.linea.messenger.preview: 21100
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/04-settings.png
+com.linea.messenger.preview: 21547
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/05-chat.png
+com.linea.messenger.preview: 21803
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06-auth.png
+com.linea.messenger.preview: 22485
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06i-intro-ident.png
+com.linea.messenger.preview: 23187
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06j-intro-crumble.png
+com.linea.messenger.preview: 23995
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06k-intro-n.png
+com.linea.messenger.preview: 24319
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06l-intro-honeycomb.png
+com.linea.messenger.preview: 24877
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06m-intro-inside.png
+com.linea.messenger.preview: 25216
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06n-intro-cipher.png
+com.linea.messenger.preview: 25983
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06o-intro-blur.png
+com.linea.messenger.preview: 26254
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06p-intro-still-word.png
+com.linea.messenger.preview: 26975
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06q-intro-still-cipher.png
+com.linea.messenger.preview: 27245
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06b-register.png
+com.linea.messenger.preview: 27720
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06c-recover.png
+com.linea.messenger.preview: 28230
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/06d-waiting.png
+com.linea.messenger.preview: 28869
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/09c-attach-demo.png
+com.linea.messenger.preview: 29593
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/20-channels-demo-chat.png
+com.linea.messenger.preview: 29824
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/20b-channels-demo-mini.png
+com.linea.messenger.preview: 30341
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/25-chat-menu.png
+com.linea.messenger.preview: 30992
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/26-chat-reply.png
+com.linea.messenger.preview: 31100
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/27-chat-quotes.png
+com.linea.messenger.preview: 32024
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/28-chat-select.png
+com.linea.messenger.preview: 32486
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/29-chat-pinned.png
+com.linea.messenger.preview: 33022
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/33-voice-demo.png
+com.linea.messenger.preview: 33653
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/34-voice-recording.png
+com.linea.messenger.preview: 33801
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/35-video-demo.png
+com.linea.messenger.preview: 34557
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/36-link-cards.png
+com.linea.messenger.preview: 35091
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/37-link-composer.png
+com.linea.messenger.preview: 35740
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/38-call-outgoing.png
+com.linea.messenger.preview: 36489
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/39-call-incoming.png
+com.linea.messenger.preview: 36613
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/40-call-active.png
+com.linea.messenger.preview: 37300
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/41-call-video.png
+com.linea.messenger.preview: 37836
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/42-call-retry.png
+com.linea.messenger.preview: 38452
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/43-call-bar.png
+com.linea.messenger.preview: 39269
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/44-appearance.png
+com.linea.messenger.preview: 39771
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/45-appearance-graphite.png
+com.linea.messenger.preview: 40441
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/46-appearance-light.png
+com.linea.messenger.preview: 40751
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/47-accent.png
+com.linea.messenger.preview: 41210
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/48-text-xlarge.png
+com.linea.messenger.preview: 41597
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/49-night.png
+com.linea.messenger.preview: 42081
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/49b-reset.png
+com.linea.messenger.preview: 42548
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/50-stories-strip.png
+com.linea.messenger.preview: 43304
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/51-story-viewer.png
+com.linea.messenger.preview: 43478
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/52-story-viewers.png
+com.linea.messenger.preview: 44091
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/53-story-compose.png
+com.linea.messenger.preview: 44745
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/54-profile-posts.png
+com.linea.messenger.preview: 44890
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/55-own-posts.png
+com.linea.messenger.preview: 46048
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/56-rooms-list.png
+com.linea.messenger.preview: 46687
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/57-room.png
+com.linea.messenger.preview: 46833
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/58-room-music.png
+com.linea.messenger.preview: 47588
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/59-room-ring.png
+com.linea.messenger.preview: 48342
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/60-room-bar.png
+com.linea.messenger.preview: 48713
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/61-room-picker.png
+com.linea.messenger.preview: 49131
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/21-ai-demo.png
+com.linea.messenger.preview: 50186
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/22-music-demo.png
+com.linea.messenger.preview: 50586
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/23-music-player.png
+com.linea.messenger.preview: 51094
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/170-chatlook-header.png
+com.linea.messenger.preview: 51850
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/171-chatlook-peek.png
+com.linea.messenger.preview: 52376
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/172-chatlook-bubbles.png
+com.linea.messenger.preview: 52640
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/173-chatlook-wallpaper.png
+com.linea.messenger.preview: 53403
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/174-chatlook-swipe.png
+com.linea.messenger.preview: 54308
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/175-chatlook-reply.png
+com.linea.messenger.preview: 54605
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/176-chatlook-arrive.png
+com.linea.messenger.preview: 55364
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/177-chatlook-picker.png
+com.linea.messenger.preview: 56125
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/178-chatlook-preview.png
+com.linea.messenger.preview: 56808
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/179-chatlook-bubblecolor.png
+com.linea.messenger.preview: 56916
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/180-chatlook-offline.png
+com.linea.messenger.preview: 57677
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/181-chatlook-connecting.png
+com.linea.messenger.preview: 58438
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/182-chatlook-light-theme.png
+com.linea.messenger.preview: 59026
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/183-chatlook-reset.png
+com.linea.messenger.preview: 59644
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/184-chatlook-plain.png
+com.linea.messenger.preview: 60404
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/185-chatlook-appearance.png
+com.linea.messenger.preview: 61163
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/186-chatlook-profile-light.png
+com.linea.messenger.preview: 61195
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/140-chats-waiting.png
+com.linea.messenger.preview: 61955
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/141-chats-connecting.png
+com.linea.messenger.preview: 62716
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/142-chats-updating.png
+com.linea.messenger.preview: 63164
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/143-chats-skeleton.png
+com.linea.messenger.preview: 63920
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/144-chats-empty.png
+com.linea.messenger.preview: 64681
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/145-chats-folders.png
+com.linea.messenger.preview: 65198
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/146-chats-folder.png
+com.linea.messenger.preview: 65474
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/147-folder-editor.png
+com.linea.messenger.preview: 66237
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/148-folder-settings.png
+com.linea.messenger.preview: 66998
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/149-saved-menu.png
+com.linea.messenger.preview: 67032
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/150-saved.png
+com.linea.messenger.preview: 68068
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/151-saved-search.png
+com.linea.messenger.preview: 68978
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/152-people-calls.png
+com.linea.messenger.preview: 69537
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/153-bar-hint.png
+com.linea.messenger.preview: 69769
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/154-chats-unread-badge.png
+com.linea.messenger.preview: 70532
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/240-snow-chats.png
+com.linea.messenger.preview: 71272
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/241-snow-settings.png
+com.linea.messenger.preview: 71327
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/242-snow-melted.png
+com.linea.messenger.preview: 72089
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/243-appearance-effects.png
+com.linea.messenger.preview: 73231
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/244-power-settings.png
+com.linea.messenger.preview: 73305
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/245-language-page.png
+com.linea.messenger.preview: 74071
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/246-language-english.png
+com.linea.messenger.preview: 74838
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/247-language-back-ru.png
+com.linea.messenger.preview: 74988
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/248-passcode-off.png
+com.linea.messenger.preview: 75634
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/249-lock-digits.png
+com.linea.messenger.preview: 76401
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/250-lock-wrong.png
+com.linea.messenger.preview: 76922
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/251-lock-password.png
+com.linea.messenger.preview: 77613
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/252-notices-chats.png
+com.linea.messenger.preview: 78380
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/253-new-login-sheet.png
+com.linea.messenger.preview: 78849
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/254-recovery-sheet.png
+com.linea.messenger.preview: 79176
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/255-trust-sheet.png
+com.linea.messenger.preview: 79942
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/200-composer-silent.png
+com.linea.messenger.preview: 80709
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/201-composer-later.png
+com.linea.messenger.preview: 80741
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/202-composer-scheduled-pill.png
+com.linea.messenger.preview: 81862
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/203-composer-scheduled-list.png
+com.linea.messenger.preview: 82688
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/204-composer-emoji.png
+com.linea.messenger.preview: 83454
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/205-composer-format.png
+com.linea.messenger.preview: 83486
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/206-chat-features.png
+com.linea.messenger.preview: 84253
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/207-poll-new.png
+com.linea.messenger.preview: 85020
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/208-chat-search.png
+com.linea.messenger.preview: 85785
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/209-album-menu.png
+com.linea.messenger.preview: 85815
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/210-photo-editor-crop.png
+com.linea.messenger.preview: 86995
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/211-photo-editor-draw.png
+com.linea.messenger.preview: 87762
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/212-photo-editor-size.png
+com.linea.messenger.preview: 88456
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/213-forward-saved.png
+com.linea.messenger.preview: 88556
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/100-avatar-rings.png
+com.linea.messenger.preview: 89323
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/101-avatar-code-frames.png
+com.linea.messenger.preview: 89880
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/102-avatar-art.png
+com.linea.messenger.preview: 90123
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/103-avatar-list-sizes.png
+com.linea.messenger.preview: 90992
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/104-platina-marks.png
+com.linea.messenger.preview: 92073
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/105-fonts.png
+com.linea.messenger.preview: 92585
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/106-profile-platina.png
+com.linea.messenger.preview: 92871
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/107-profile-birthday.png
+com.linea.messenger.preview: 93640
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/108-own-profile.png
+com.linea.messenger.preview: 94110
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/109-gifts.png
+com.linea.messenger.preview: 94444
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/110-platina-showcase.png
+com.linea.messenger.preview: 95144
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/111-platina-studio.png
+com.linea.messenger.preview: 95658
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/112-platina-confetti.png
+com.linea.messenger.preview: 96473
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/113-settings-offer.png
+com.linea.messenger.preview: 97208
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/114-settings-head.png
+com.linea.messenger.preview: 97786
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/115-mini-profile.png
+com.linea.messenger.preview: 98007
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/116-mini-profile-chat.png
+com.linea.messenger.preview: 98774
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/117-profile-media.png
+com.linea.messenger.preview: 99539
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/118-avatar-cropper.png
+com.linea.messenger.preview: 99984
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/119-banner-preview.png
+com.linea.messenger.preview: 1257
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/120-profile-pattern.png
+com.linea.messenger.preview: 2028
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/121-status-picker.png
+com.linea.messenger.preview: 2104
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/122-gift-sheet.png
+com.linea.messenger.preview: 2827
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/290-mini-player-people.png
+com.linea.messenger.preview: 3597
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/291-chat-player-strip.png
+com.linea.messenger.preview: 4123
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/292-swipe-back-half.png
+com.linea.messenger.preview: 4574
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/293-long-swipe-to-chats.png
+com.linea.messenger.preview: 5597
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/294-section-home-swipe.png
+com.linea.messenger.preview: 6406
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/295-update-required.png
+com.linea.messenger.preview: 6442
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/296-update-optional.png
+com.linea.messenger.preview: 7237
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/297-chats-select.png
+com.linea.messenger.preview: 8007
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/298-chat-peek.png
+com.linea.messenger.preview: 8618
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/299-archive-pulled.png
+com.linea.messenger.preview: 8813
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/300-mute-custom.png
+com.linea.messenger.preview: 9978
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/301-search-people.png
+com.linea.messenger.preview: 10773
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/302-saved-composer.png
+com.linea.messenger.preview: 10956
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/303-mute-sheet-custom-row.png
+com.linea.messenger.preview: 11576
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/310-palette-backdrop.png
+com.linea.messenger.preview: 12347
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/311-music-ambient-shelves.png
+com.linea.messenger.preview: 12773
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/312-music-player-cover.png
+com.linea.messenger.preview: 13161
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/313-music-equalizer.png
+com.linea.messenger.preview: 13880
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/314-voice-channel.png
+com.linea.messenger.preview: 14406
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/315-voice-member-menu.png
+com.linea.messenger.preview: 15178
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/316-ai-photo.png
+com.linea.messenger.preview: 16047
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/317-ai-quick.png
+com.linea.messenger.preview: 16095
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/318-auth-wordmark.png
+com.linea.messenger.preview: 16884
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/319-auth-wordmark-light.png
+com.linea.messenger.preview: 17727
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/320-music-ambient-light.png
+com.linea.messenger.preview: 18096
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/321-music-ambient-graphite.png
+com.linea.messenger.preview: 18847
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/322-community-glass-header.png
+com.linea.messenger.preview: 19750
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/340-chatlist-decor.png
+com.linea.messenger.preview: 19782
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/341-chatheader-codeframe.png
+com.linea.messenger.preview: 20551
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/342-chatheader-ring.png
+com.linea.messenger.preview: 21322
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/343-chatheader-peek-art.png
+com.linea.messenger.preview: 21691
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/344-profile-chat.png
+com.linea.messenger.preview: 22127
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/345-profile-chat-files.png
+com.linea.messenger.preview: 22955
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/346-profile-chat-more.png
+com.linea.messenger.preview: 23357
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/347-profile-chat-mute.png
+com.linea.messenger.preview: 24128
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/348-profile-chat-ttl.png
+com.linea.messenger.preview: 24296
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/349-big-emoji.png
+com.linea.messenger.preview: 24938
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/350-profile-status-animated.png
+com.linea.messenger.preview: 25570
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/351-people-status.png
+com.linea.messenger.preview: 25747
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/360-forward-many.png
+com.linea.messenger.preview: 26519
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/361-attach-panel.png
+com.linea.messenger.preview: 27363
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/362-attach-panel-selected.png
+com.linea.messenger.preview: 27738
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/363-attach-panel-limited.png
+com.linea.messenger.preview: 28507
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/364-attach-panel-denied.png
+com.linea.messenger.preview: 28945
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/365-photo-editor-remove.png
+com.linea.messenger.preview: 29307
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/366-photo-editor-background.png
+com.linea.messenger.preview: 30085
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/367-photo-editor-enhance.png
+com.linea.messenger.preview: 30852
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/368-photo-editor-format.png
+com.linea.messenger.preview: 31284
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/369-video-player.png
+com.linea.messenger.preview: 32074
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/370-video-player-sheet.png
+com.linea.messenger.preview: 32843
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/371-video-player-speed.png
+com.linea.messenger.preview: 33094
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/372-video-player-locked.png
+com.linea.messenger.preview: 33645
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/373-video-player-seek.png
+com.linea.messenger.preview: 34416
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/374-note-recorder.png
+com.linea.messenger.preview: 35184
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/375-gift-from-chat.png
+com.linea.messenger.preview: 35216
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/380-screen-panel.png
+com.linea.messenger.preview: 36397
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/381-screen-viewer.png
+com.linea.messenger.preview: 37166
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/382-screen-starting.png
+com.linea.messenger.preview: 37385
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/383-screen-sharing.png
+com.linea.messenger.preview: 37964
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/384-screen-error.png
+com.linea.messenger.preview: 38734
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/385-screen-room.png
+com.linea.messenger.preview: 39234
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/386-screen-bar.png
+com.linea.messenger.preview: 39533
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/420-glass-header-appearance.png
+com.linea.messenger.preview: 40171
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/421-switches-power.png
+com.linea.messenger.preview: 40750
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/422-settings-root-head.png
+com.linea.messenger.preview: 41361
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/423-people-glass.png
+com.linea.messenger.preview: 41555
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/424-channels-glass.png
+com.linea.messenger.preview: 42323
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/425-person-profile-glass.png
+com.linea.messenger.preview: 42677
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/426-music-layout.png
+com.linea.messenger.preview: 43130
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/427-ai-composer.png
+com.linea.messenger.preview: 44313
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/428-auth-glass.png
+com.linea.messenger.preview: 44555
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/440-chat-inline-media.png
+com.linea.messenger.preview: 45113
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/441-chat-composer.png
+com.linea.messenger.preview: 45883
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/442-chat-search.png
+com.linea.messenger.preview: 46656
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/443-chat-search-people.png
+com.linea.messenger.preview: 46843
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/450-edges-chatlist.png
+com.linea.messenger.preview: 47459
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/451-edges-chat.png
+com.linea.messenger.preview: 48489
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/452-edges-light.png
+com.linea.messenger.preview: 49418
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/452b-reset.png
+com.linea.messenger.preview: 49449
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/429-auth-keyboard-login.png
+com.linea.messenger.preview: 50222
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/429b-auth-keyboard-register.png
+com.linea.messenger.preview: 50993
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/429c-auth-keyboard-profile.png
+com.linea.messenger.preview: 51731
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/429d-auth-keyboard-recover.png
+Monitoring boot status for auth-small (E1B863B9-43EB-475D-827B-919A637BFF3D).
+[2026-11-27 23:06:32 +0000] Status=2, isTerminal=NO, Elapsed=00:55.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:48 seconds
+
+[2026-11-27 23:06:33 +0000] Status=2, isTerminal=NO, Elapsed=00:56.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:49 seconds
+
+[2026-11-27 23:06:34 +0000] Status=2, isTerminal=NO, Elapsed=00:57.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:50 seconds
+
+[2026-11-27 23:06:35 +0000] Status=2, isTerminal=NO, Elapsed=00:58.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:51 seconds
+
+[2026-11-27 23:06:36 +0000] Status=2, isTerminal=NO, Elapsed=00:59.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:52 seconds
+
+[2026-11-27 23:06:37 +0000] Status=2, isTerminal=NO, Elapsed=01:00.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:53 seconds
+
+[2026-11-27 23:06:38 +0000] Status=2, isTerminal=NO, Elapsed=01:01.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:54 seconds
+
+[2026-11-27 23:06:42 +0000] Status=2, isTerminal=NO, Elapsed=01:05.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:55 seconds
+
+[2026-11-27 23:06:43 +0000] Status=2, isTerminal=NO, Elapsed=01:05.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:58 seconds
+
+[2026-11-27 23:06:44 +0000] Status=2, isTerminal=NO, Elapsed=01:07.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:59 seconds
+
+[2026-11-27 23:06:44 +0000] Status=2, isTerminal=NO, Elapsed=01:07.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:01:00 seconds
+
+[2026-11-27 23:06:45 +0000] Status=2, isTerminal=NO, Elapsed=01:07.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:01:01 seconds
+
+[2026-11-27 23:06:45 +0000] Status=2, isTerminal=NO, Elapsed=01:08.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:01:01 seconds
+
+[2026-11-27 23:06:46 +0000] Status=2, isTerminal=NO, Elapsed=01:09.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.securityd.KeychainMigrator (KeychainMigrator.migrator, user-agnostic)
+		Migration Elapsed:01:02 seconds
+
+[2026-11-27 23:06:54 +0000] Status=2, isTerminal=NO, Elapsed=01:16.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:01:04 seconds
+
+[2026-11-27 23:06:56 +0000] Status=2, isTerminal=NO, Elapsed=01:18.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:01:10 seconds
+
+[2026-11-27 23:06:56 +0000] Status=2, isTerminal=NO, Elapsed=01:19.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:01:12 seconds
+
+[2026-11-27 23:06:56 +0000] Status=2, isTerminal=NO, Elapsed=01:19.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:01:12 seconds
+
+[2026-11-27 23:06:57 +0000] Status=2, isTerminal=NO, Elapsed=01:20.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.addressbook.migrator (AddressBookLegacy.migrator)
+		Migration Elapsed:01:13 seconds
+
+[2026-11-27 23:06:58 +0000] Status=2, isTerminal=NO, Elapsed=01:21.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.accounts.migrator (Accounts.migrator)
+		Migration Elapsed:01:14 seconds
+
+[2026-11-27 23:06:59 +0000] Status=2, isTerminal=NO, Elapsed=01:22.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:15 seconds
+
+[2026-11-27 23:07:00 +0000] Status=2, isTerminal=NO, Elapsed=01:23.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:16 seconds
+
+[2026-11-27 23:07:02 +0000] Status=2, isTerminal=NO, Elapsed=01:24.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:17 seconds
+
+[2026-11-27 23:07:03 +0000] Status=2, isTerminal=NO, Elapsed=01:25.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:18 seconds
+
+[2026-11-27 23:07:04 +0000] Status=2, isTerminal=NO, Elapsed=01:26.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:19 seconds
+
+[2026-11-27 23:07:04 +0000] Status=2, isTerminal=NO, Elapsed=01:27.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:20 seconds
+
+[2026-11-27 23:07:06 +0000] Status=2, isTerminal=NO, Elapsed=01:28.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:21 seconds
+
+[2026-11-27 23:07:06 +0000] Status=2, isTerminal=NO, Elapsed=01:29.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:22 seconds
+
+[2026-11-27 23:07:08 +0000] Status=2, isTerminal=NO, Elapsed=01:30.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:23 seconds
+
+[2026-11-27 23:07:08 +0000] Status=2, isTerminal=NO, Elapsed=01:31.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:24 seconds
+
+[2026-11-27 23:07:09 +0000] Status=2, isTerminal=NO, Elapsed=01:32.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:25 seconds
+
+[2026-11-27 23:07:10 +0000] Status=2, isTerminal=NO, Elapsed=01:33.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:26 seconds
+
+[2026-11-27 23:07:11 +0000] Status=2, isTerminal=NO, Elapsed=01:34.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:27 seconds
+
+[2026-11-27 23:07:12 +0000] Status=2, isTerminal=NO, Elapsed=01:35.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:28 seconds
+
+[2026-11-27 23:07:13 +0000] Status=2, isTerminal=NO, Elapsed=01:36.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:29 seconds
+
+[2026-11-27 23:07:14 +0000] Status=2, isTerminal=NO, Elapsed=01:37.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:30 seconds
+
+[2026-11-27 23:07:15 +0000] Status=2, isTerminal=NO, Elapsed=01:38.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:31 seconds
+
+[2026-11-27 23:07:17 +0000] Status=2, isTerminal=NO, Elapsed=01:39.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:32 seconds
+
+[2026-11-27 23:07:17 +0000] Status=2, isTerminal=NO, Elapsed=01:40.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:33 seconds
+
+[2026-11-27 23:07:18 +0000] Status=2, isTerminal=NO, Elapsed=01:41.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:34 seconds
+
+[2026-11-27 23:07:19 +0000] Status=2, isTerminal=NO, Elapsed=01:42.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:35 seconds
+
+[2026-11-27 23:07:20 +0000] Status=2, isTerminal=NO, Elapsed=01:43.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:36 seconds
+
+[2026-11-27 23:07:21 +0000] Status=2, isTerminal=NO, Elapsed=01:44.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:37 seconds
+
+[2026-11-27 23:07:22 +0000] Status=2, isTerminal=NO, Elapsed=01:45.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:38 seconds
+
+[2026-11-27 23:07:23 +0000] Status=2, isTerminal=NO, Elapsed=01:46.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:39 seconds
+
+[2026-11-27 23:07:24 +0000] Status=2, isTerminal=NO, Elapsed=01:47.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:40 seconds
+
+[2026-11-27 23:07:25 +0000] Status=2, isTerminal=NO, Elapsed=01:48.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:41 seconds
+
+[2026-11-27 23:07:26 +0000] Status=2, isTerminal=NO, Elapsed=01:49.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:42 seconds
+
+[2026-11-27 23:07:27 +0000] Status=2, isTerminal=NO, Elapsed=01:50.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:43 seconds
+
+[2026-11-27 23:07:28 +0000] Status=2, isTerminal=NO, Elapsed=01:51.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:44 seconds
+
+[2026-11-27 23:07:29 +0000] Status=2, isTerminal=NO, Elapsed=01:52.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:45 seconds
+
+[2026-11-27 23:07:30 +0000] Status=2, isTerminal=NO, Elapsed=01:53.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:46 seconds
+
+[2026-11-27 23:07:31 +0000] Status=2, isTerminal=NO, Elapsed=01:54.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:47 seconds
+
+[2026-11-27 23:07:32 +0000] Status=2, isTerminal=NO, Elapsed=01:55.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:48 seconds
+
+[2026-11-27 23:07:33 +0000] Status=2, isTerminal=NO, Elapsed=01:56.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:49 seconds
+
+[2026-11-27 23:07:34 +0000] Status=2, isTerminal=NO, Elapsed=01:57.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.locationd.migrator (CoreLocationMigrator.migrator)
+		Migration Elapsed:01:50 seconds
+
+[2026-11-27 23:07:35 +0000] Status=2, isTerminal=NO, Elapsed=01:58.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.mdm.migrator (MCMDM.migrator)
+		Migration Elapsed:01:51 seconds
+
+[2026-11-27 23:07:37 +0000] Status=2, isTerminal=NO, Elapsed=01:59.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.CloudTabsMigrator.migrator (CloudTabsMigrator.migrator)
+		Migration Elapsed:01:52 seconds
+
+[2026-11-27 23:07:38 +0000] Status=2, isTerminal=NO, Elapsed=02:00.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.preferences.InternationalSupportMigrator (InternationalSupportMigrator.migrator)
+		Migration Elapsed:01:53 seconds
+
+[2026-11-27 23:07:40 +0000] Status=4, isTerminal=NO, Elapsed=02:02.
+	Waiting on System App
+
+[2026-11-27 23:07:40 +0000] Status=4, isTerminal=NO, Elapsed=02:03.
+	Waiting on System App
+
+[2026-11-27 23:07:41 +0000] Status=4, isTerminal=NO, Elapsed=02:03.
+	Waiting on System App
+
+[2026-11-27 23:07:41 +0000] Status=4, isTerminal=NO, Elapsed=02:04.
+	Waiting on System App
+
+[2026-11-27 23:07:42 +0000] Status=4, isTerminal=NO, Elapsed=02:05.
+	Waiting on System App
+
+[2026-11-27 23:07:43 +0000] Status=4, isTerminal=NO, Elapsed=02:06.
+	Waiting on System App
+
+[2026-11-27 23:07:49 +0000] Status=4294967295, isTerminal=YES, Elapsed=02:12.
+	Finished
+
+com.linea.messenger.preview: 57708
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 415EADD0-8B8D-42F6-A197-D0FBB5C63859 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/430-auth-small-keyboard-login.png
+com.linea.messenger.preview: 58420
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 415EADD0-8B8D-42F6-A197-D0FBB5C63859 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/430b-auth-small-keyboard-register.png
+com.linea.messenger.preview: 59292
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 415EADD0-8B8D-42F6-A197-D0FBB5C63859 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/430c-auth-small-keyboard-profile.png
+com.linea.messenger.preview: 59713
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 415EADD0-8B8D-42F6-A197-D0FBB5C63859 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/430d-auth-small-keyboard-recover.png
+com.linea.messenger.preview: 60449
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/460-forward-pending.png
+com.linea.messenger.preview: 60880
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/62-bar-with-track.png
+com.linea.messenger.preview: 61579
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/63-light-chats.png
+com.linea.messenger.preview: 62038
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/64-light-chat.png
+com.linea.messenger.preview: 62315
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/65-light-channels.png
+com.linea.messenger.preview: 63029
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/66-light-music.png
+com.linea.messenger.preview: 63271
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/67-light-room.png
+com.linea.messenger.preview: 63966
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/68-reset.png
+main thread stalls in the walk: 11
+== done

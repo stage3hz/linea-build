@@ -1,0 +1,118 @@
+curl: (7) Failed to connect to localhost port 8443 after 2 ms: Couldn't connect to server
+{"status":"ok"}== account
+{"id":"e895a3ef-f663-47d1-a2fa-f985335b135e","login":"nativetester","handle":"native_check","password":"…","word":"ambergardenprism"}
+== sign in (the app makes its keys and publishes them)
+com.linea.messenger.preview: 68939
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/07-signed-in.png
+== other people write
+communities seeded
+forward check: 6 attachments noted, the forward goes to @simpeer0_llo05
+{"people":6,"messages":44,"to":"e895a3ef-f663-47d1-a2fa-f985335b135e"}
+== the list and a chat
+com.linea.messenger.preview: 70842
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/08-real-chats.png
+com.linea.messenger.preview: 72657
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/09-real-chat.png
+com.linea.messenger.preview: 74676
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/09b-photo-open.png
+== offline: the test server stopped — the list and the chat come from the vault's copy, at once
+/Users/runner/work/_temp/075090ec-84c5-4d14-822e-1119d21d7a24.sh: line 51: 68366 Terminated: 15          nohup node tools/sim-tls-proxy.mjs tls/leaf.pem tls/leaf.key 8443 3999 > proxy.log 2>&1
+com.linea.messenger.preview: 77281
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/09d-offline-chats.png
+com.linea.messenger.preview: 78353
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/09e-offline-chat.png
+curl: (7) Failed to connect to localhost port 8443 after 1 ms: Couldn't connect to server
+com.linea.messenger.preview: 79168
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/10-people.png
+com.linea.messenger.preview: 80764
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/11-profile.png
+com.linea.messenger.preview: 82357
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/12-people-search.png
+com.linea.messenger.preview: 83655
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/17-channels.png
+com.linea.messenger.preview: 85427
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/18-community.png
+com.linea.messenger.preview: 87115
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/19-channel-chat.png
+com.linea.messenger.preview: 88872
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/30-react-real.png
+com.linea.messenger.preview: 91088
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/31-list-archive.png
+com.linea.messenger.preview: 92225
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/32-list-search.png
+com.linea.messenger.preview: 94139
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/24-ai.png
+com.linea.messenger.preview: 95621
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/13-settings.png
+com.linea.messenger.preview: 96560
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/14-settings-profile.png
+com.linea.messenger.preview: 98199
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/15-settings-sessions.png
+com.linea.messenger.preview: 99468
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/16-settings-security.png
+com.linea.messenger.preview: 1219
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/16b-settings-notifications.png
+com.linea.messenger.preview: 2669
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/16c-settings-data.png
+== forward: every attachment of the first chat (file, photo, voice, small, long and round video) goes on to Анна's chat
+com.linea.messenger.preview: 4118
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/33-forward-real.png
+OK       Договор.pdf (aes-256-gcm-siv, 44 bytes, from «Тимур Богданов»)
+OK       photo.png (aes-256-gcm-siv, 1609 bytes, from «Тимур Богданов»)
+OK       voice-1795821249611.m4a (aes-256-gcm-siv, 48044 bytes, from «Тимур Богданов»)
+OK       video.mp4 (aes-256-gcm-siv, 725 bytes, from «Тимур Богданов»)
+OK       big-video.mp4 (aes-256-gcm-siv-chunked, 4495037 bytes, from «Тимур Богданов»)
+OK       circle-1795821249643.mp4 (aes-256-gcm-siv-chunked, 20733 bytes, from «Тимур Богданов»)
+forward check passed: 6 of 6
+com.linea.messenger.preview: 8178
+Detected file type from extension: PNG
+Note: No display specified. Defaulting to display: 1C5DD6B2-482B-4385-B2AD-54D1182893F5 (screenID: 1, name: LCD)
+Wrote screenshot to: /Users/runner/work/_temp/out/34-forward-list.png
+{"level":30,"time":1795821212323,"pid":68368,"hostname":"sat12-bq166-91e9db02-4f37-491a-b037-7cebe9606e70-F679A2222C7D.local","msg":"Server listening at http://127.0.0.1:3999"}
+== live done
