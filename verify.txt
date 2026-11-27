@@ -1,0 +1,85 @@
+commit ce7d9a663288070a4b2a93433f07e54dd6dd5ab3
+Xcode 26.6 Build version 17F113 
+== size
+17325104 bytes
+sha256 28963c0f6a34cd2324b9357759074328893b17ac384ece64dbb0ba81a4929365
+== request-signing key: none
+== identity
+CFBundleIdentifier: com.linea.messenger.preview
+CFBundleShortVersionString: 0.17.0
+CFBundleVersion: 17
+MinimumOSVersion: 17.0
+CFBundleDisplayName: INVIZENT
+RTCScreenSharingExtension: com.linea.messenger.preview.ScreenBroadcast
+== URL schemes
+Array {
+    Dict {
+        CFBundleURLSchemes = Array {
+            linea
+            com.linea.messenger.preview
+        }
+    }
+}
+== push: no aps-environment in an unsigned build (expected: none)
+none
+== executable
+pack/Payload/Invizent.app/Invizent: Mach-O 64-bit executable arm64
+Non-fat file: pack/Payload/Invizent.app/Invizent is architecture: arm64
+== code signature (expected none)
+pack/Payload/Invizent.app: code object is not signed at all
+== permissions asked in Info.plist
+    NSPhotoLibraryUsageDescription = Выберите фото и видео для вложения в сообщение.
+    NSCameraUsageDescription = Камера нужна для видеозвонков, видеосообщений в кружке, снимков прямо из чата и чтобы считать QR-код ключа резервной копии. Она включается только на время звонка, записи, съёмки или сканирования.
+    NSPhotoLibraryAddUsageDescription = Чтобы сохранять фото и видео из чатов в галерею. Инвиз только добавляет выбранный снимок и не видит остальные фото.
+    NSMicrophoneUsageDescription = Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи.
+    NSFaceIDUsageDescription = Face ID открывает Инвиз без ввода код-пароля.
+    NSLocalNetworkUsageDescription = Чтобы звонки между телефонами в одной сети соединялись напрямую.
+== simulator-only sample data (expected absent)
+absent
+== files
+.
+./Invizent
+./decoration-eclipse_smoke.webp
+./decoration-arch.webp
+./Montserrat-Medium.ttf
+./call_ring_ios.wav
+./call_incoming.wav
+./voice_leave.wav
+./decoration-ink.webp
+./PlugIns
+./PlugIns/ScreenBroadcast.appex
+./AppIcon60x60@2x.png
+./Montserrat-Bold.ttf
+./Ionicons.ttf
+./decoration-eye.webp
+./call_connecting.wav
+./en.json
+./decoration-chrome.webp
+./decoration-white_roses.webp
+./decoration-black_roses.webp
+./voice_join.wav
+./Assets.car
+./Montserrat-SemiBold.ttf
+./AppIcon76x76@2x~ipad.png
+./Montserrat-ExtraBold.ttf
+./call_outgoing.wav
+./decoration-fangs.webp
+./decoration-skulls.webp
+./PrivacyInfo.xcprivacy
+./Unbounded-ExtraBold.ttf
+./decoration-moths.webp
+./Montserrat-Regular.ttf
+./Frameworks
+./Frameworks/LiveKitWebRTC.framework
+./Frameworks/SQLCipher.framework
+./decoration-corona.webp
+./decoration-lavender.webp
+./Info.plist
+./PkgInfo
+== extensions
+ScreenBroadcast.appex
+CFBundleIdentifier: com.linea.messenger.preview.ScreenBroadcast
+NSExtension:NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+RTCAppGroupIdentifier: group.com.linea.messenger.preview.screen
+pack/Payload/Invizent.app/PlugIns/ScreenBroadcast.appex/ScreenBroadcast: Mach-O 64-bit executable arm64
+app RTCAppGroupIdentifier: group.com.linea.messenger.preview.screen

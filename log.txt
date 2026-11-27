@@ -1,0 +1,472 @@
+Xcode 26.6
+Build version 17F113
+[32m==>[0m [1mDownloading bottle manifests[0m
+✔︎ Bottle Manifest protobuf (36.2)
+[34m==>[0m [1mWould install 1 formula:[0m
+protobuf 36.2 (3.8MB)
+[34m==>[0m [1mWould install 1 dependency for protobuf:[0m
+abseil 20260817.0
+[32m==>[0m [1mFetching downloads for: [32mprotobuf[39m[0m
+✔︎ Bottle Manifest abseil (20260817.0)
+✔︎ Bottle abseil (20260817.0)
+✔︎ Bottle protobuf (36.2)
+[32m==>[0m [1mInstalling protobuf dependency: [32mabseil[39m (20260817.0)[0m
+[34m==>[0m [1mPouring abseil--20260817.0.arm64_tahoe.bottle.1.tar.gz[0m
+🍺  /opt/homebrew/Cellar/abseil/20260817.0: 832 files, 11.8MB
+[32m==>[0m [1mInstalling [32mprotobuf[39m[0m
+[34m==>[0m [1mPouring protobuf--36.2.arm64_tahoe.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/protobuf/36.2: 387 files, 17.8MB
+[32m==>[0m [1mCaveats[0m
+Emacs Lisp files have been installed to:
+  /opt/homebrew/share/emacs/site-lisp/protobuf
+[32m==>[0m [1mDownloading bottle manifests[0m
+✔︎ Bottle Manifest xcodegen (2.48.0)
+[32m==>[0m [1mFetching downloads for: [32mxcodegen[39m[0m
+✔︎ Bottle xcodegen (2.48.0)
+[34m==>[0m [1mPouring xcodegen--2.48.0.arm64_tahoe.bottle.tar.gz[0m
+🍺  /opt/homebrew/Cellar/xcodegen/2.48.0: 38 files, 9.8MB
+== core for the phone
+info: downloading component rust-std
+    Updating crates.io index
+    Updating git repository `https://github.com/signalapp/libsignal`
+    Updating git repository `https://github.com/signalapp/SparsePostQuantumRatchet.git`
+ Downloading crates ...
+  Downloaded aes-gcm-siv v0.12.0
+  Downloaded heck v0.5.0
+  Downloaded anyhow v1.0.103
+  Downloaded hmac v0.12.1
+  Downloaded icu_provider v2.4.0
+  Downloaded aead v0.6.1
+  Downloaded aes v0.9.1
+  Downloaded aho-corasick v1.1.4
+  Downloaded icu_collections v2.4.0
+  Downloaded itertools v0.15.0
+  Downloaded libcrux-macros v0.0.3
+  Downloaded percent-encoding v2.3.2
+  Downloaded pem-rfc7468 v0.7.0
+  Downloaded pkcs8 v0.10.2
+  Downloaded polyval v0.7.3
+  Downloaded rand_core v0.6.4
+  Downloaded rand_core v0.9.5
+  Downloaded once_cell v1.21.4
+  Downloaded const-str v1.1.0
+  Downloaded data-encoding-macro v0.1.20
+  Downloaded either v1.16.0
+  Downloaded errno v0.3.14
+  Downloaded rand v0.10.2
+  Downloaded assert_matches v1.5.0
+  Downloaded cfg-if v1.0.5
+  Downloaded crossbeam-deque v0.8.7
+  Downloaded crypto-common v0.1.7
+  Downloaded crypto-common v0.2.2
+  Downloaded foldhash v0.1.5
+  Downloaded generic-array v0.14.7
+  Downloaded getrandom v0.2.17
+  Downloaded hashbrown v0.15.5
+  Downloaded libcrux-intrinsics v0.0.8
+  Downloaded bitflags v2.13.0
+  Downloaded cmov v0.5.4
+  Downloaded block-buffer v0.10.4
+  Downloaded bytes v1.12.0
+  Downloaded cipher v0.5.2
+  Downloaded rand_chacha v0.9.0
+  Downloaded spki v0.7.3
+  Downloaded subtle v2.6.1
+  Downloaded crossbeam-utils v0.8.22
+  Downloaded data-encoding-macro-internal v0.1.18
+  Downloaded digest v0.10.7
+  Downloaded displaydoc v0.2.7
+  Downloaded ed25519 v2.2.3
+  Downloaded ed25519-dalek v2.2.0
+  Downloaded fixedbitset v0.5.7
+  Downloaded inout v0.2.2
+  Downloaded libcrux-hmac v0.0.8
+  Downloaded libcrux-platform v0.0.3
+  Downloaded libcrux-secrets v0.0.6
+  Downloaded libcrux-sha2 v0.0.8
+  Downloaded num_enum v0.7.6
+  Downloaded petgraph v0.8.3
+  Downloaded sha1 v0.11.0
+  Downloaded stable_deref_trait v1.2.1
+  Downloaded version_check v0.9.5
+  Downloaded yoke-derive v0.8.4
+  Downloaded zerofrom v0.1.8
+  Downloaded zerofrom-derive v0.1.8
+  Downloaded zeroize_derive v1.5.0
+  Downloaded async-trait v0.1.89
+  Downloaded base64ct v1.8.3
+  Downloaded block-buffer v0.12.1
+  Downloaded block-padding v0.4.2
+  Downloaded cbc v0.2.1
+  Downloaded cpubits v0.1.1
+  Downloaded cpufeatures v0.2.17
+  Downloaded cpufeatures v0.3.1
+  Downloaded ctutils v0.4.5
+  Downloaded data-encoding v2.11.0
+  Downloaded digest v0.11.3
+  Downloaded equivalent v1.0.2
+  Downloaded fastrand v2.4.1
+  Downloaded form_urlencoded v1.2.3
+  Downloaded ghash v0.6.0
+  Downloaded hex v0.4.3
+  Downloaded hpke-rs-crypto v0.7.0
+  Downloaded libcrux-traits v0.0.8
+  Downloaded log v0.4.33
+  Downloaded multimap v0.10.1
+  Downloaded num_enum_derive v0.7.6
+  Downloaded rand_core v0.10.1
+  Downloaded rustversion v1.0.23
+  Downloaded sha2 v0.10.9
+  Downloaded sha2 v0.11.1
+  Downloaded signature v2.2.0
+  Downloaded sorted-vec v0.8.11
+  Downloaded thiserror v2.0.18
+  Downloaded thiserror-impl v2.0.18
+  Downloaded tinystr v0.8.5
+  Downloaded universal-hash v0.6.1
+  Downloaded utf8_iter v1.1.0
+  Downloaded zeroize v1.9.2
+  Downloaded zerovec-derive v0.11.7
+  Downloaded const-oid v0.9.6
+  Downloaded crossbeam-epoch v0.9.20
+  Downloaded ctr v0.10.1
+  Downloaded derive-where v1.6.1
+  Downloaded getrandom v0.4.3
+  Downloaded hmac v0.13.0
+  Downloaded idna_adapter v1.2.2
+  Downloaded libcrux-hacl-rs v0.0.5
+  Downloaded litemap v0.8.3
+  Downloaded memchr v2.8.3
+  Downloaded potential_utf v0.1.6
+  Downloaded ppv-lite86 v0.2.21
+  Downloaded proc-macro-crate v3.5.0
+  Downloaded prost v0.14.4
+  Downloaded prost-derive v0.14.4
+  Downloaded quote v1.0.47
+  Downloaded rustc_version v0.4.1
+  Downloaded semver v1.0.28
+  Downloaded synstructure v0.14.0
+  Downloaded tempfile v3.27.0
+  Downloaded toml_datetime v1.1.1+spec-1.1.0
+  Downloaded unicode-ident v1.0.27
+  Downloaded writeable v0.6.4
+  Downloaded base64 v0.22.1
+  Downloaded chacha20 v0.10.2
+  Downloaded const-oid v0.10.2
+  Downloaded der v0.7.10
+  Downloaded derive_more v2.1.1
+  Downloaded indexmap v2.14.0
+  Downloaded libcrux-ml-kem v0.0.10
+  Downloaded hashbrown v0.17.1
+  Downloaded hybrid-array v0.4.13
+  Downloaded itertools v0.13.0
+  Downloaded prost-build v0.14.4
+  Downloaded smallvec v1.16.6
+  Downloaded toml_parser v1.1.2+spec-1.1.0
+  Downloaded utf_types v1.0.0
+  Downloaded yoke v0.8.4
+  Downloaded hkdf v0.13.0
+  Downloaded proc-macro2 v1.0.107
+  Downloaded prost-types v0.14.4
+  Downloaded uuid v1.23.4
+  Downloaded hax-lib v0.3.7
+  Downloaded icu_locale_core v2.4.0
+  Downloaded prettyplease v0.2.37
+  Downloaded rayon-core v1.13.0
+  Downloaded serde v1.0.229
+  Downloaded serde_core v1.0.229
+  Downloaded serde_derive v1.0.229
+  Downloaded toml_edit v0.25.12+spec-1.1.0
+  Downloaded zerotrie v0.2.5
+  Downloaded hax-lib-macros v0.3.7
+  Downloaded rand v0.9.4
+  Downloaded url v2.5.9
+  Downloaded x25519-dalek v3.0.0
+  Downloaded zerocopy-derive v0.8.53
+  Downloaded curve25519-dalek v4.1.3
+  Downloaded hpke-rs v0.7.0
+  Downloaded typenum v1.20.1
+  Downloaded zerovec v0.11.9
+  Downloaded curve25519-dalek v5.0.0
+  Downloaded getrandom v0.3.4
+  Downloaded derive_more-impl v2.1.1
+  Downloaded icu_normalizer_data v2.4.0
+  Downloaded icu_properties_data v2.4.0
+  Downloaded idna v1.1.0
+  Downloaded regex v1.12.4
+  Downloaded rayon v1.12.0
+  Downloaded winnow v1.0.3
+  Downloaded libcrux-sha3 v0.0.10
+  Downloaded syn v3.0.10
+  Downloaded zerocopy v0.8.53
+  Downloaded syn v2.0.119
+  Downloaded regex-syntax v0.8.11
+  Downloaded icu_properties v2.4.0
+  Downloaded rustix v1.1.4
+  Downloaded libc v0.2.191
+  Downloaded regex-automata v0.4.14
+  Downloaded icu_normalizer v2.4.0
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling libc v0.2.191
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.5
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling syn v2.0.119
+   Compiling syn v3.0.10
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.5
+   Compiling anyhow v1.0.103
+   Compiling equivalent v1.0.2
+   Compiling stable_deref_trait v1.2.1
+   Compiling hax-lib v0.3.7
+   Compiling hashbrown v0.17.1
+   Compiling synstructure v0.14.0
+   Compiling indexmap v2.14.0
+   Compiling zerofrom-derive v0.1.8
+   Compiling displaydoc v0.2.7
+   Compiling zerofrom v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling semver v1.0.28
+   Compiling yoke v0.8.4
+   Compiling zeroize_derive v1.5.0
+   Compiling hax-lib-macros v0.3.7
+   Compiling subtle v2.6.1
+   Compiling either v1.16.0
+   Compiling zeroize v1.9.2
+   Compiling itertools v0.13.0
+   Compiling hybrid-array v0.4.13
+   Compiling rustc_version v0.4.1
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling zerovec-derive v0.11.7
+   Compiling const-oid v0.10.2
+   Compiling digest v0.11.3
+   Compiling zerovec v0.11.9
+   Compiling prost-derive v0.14.4
+   Compiling rand v0.10.2
+   Compiling cpufeatures v0.3.1
+   Compiling rustix v1.1.4
+   Compiling version_check v0.9.5
+   Compiling errno v0.3.14
+   Compiling generic-array v0.14.7
+   Compiling block-padding v0.4.2
+   Compiling libcrux-secrets v0.0.6
+   Compiling zerocopy v0.8.53
+   Compiling prettyplease v0.2.37
+   Compiling bitflags v2.13.0
+   Compiling bytes v1.12.0
+   Compiling regex-syntax v0.8.11
+   Compiling foldhash v0.1.5
+   Compiling getrandom v0.3.4
+   Compiling prost v0.14.4
+   Compiling hashbrown v0.15.5
+   Compiling libcrux-traits v0.0.8
+   Compiling regex-automata v0.4.14
+   Compiling inout v0.2.2
+   Compiling zerocopy-derive v0.8.53
+   Compiling once_cell v1.21.4
+   Compiling libcrux-intrinsics v0.0.8
+   Compiling fastrand v2.4.1
+   Compiling fixedbitset v0.5.7
+   Compiling petgraph v0.8.3
+   Compiling tempfile v3.27.0
+   Compiling regex v1.12.4
+   Compiling prost-types v0.14.4
+   Compiling tinystr v0.8.5
+   Compiling writeable v0.6.4
+   Compiling utf_types v1.0.0
+   Compiling multimap v0.10.1
+   Compiling heck v0.5.0
+   Compiling log v0.4.33
+   Compiling crossbeam-utils v0.8.22
+   Compiling litemap v0.8.3
+   Compiling winnow v1.0.3
+   Compiling libcrux-sha3 v0.0.10
+   Compiling icu_locale_core v2.4.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling prost-build v0.14.4
+   Compiling toml_parser v1.1.2+spec-1.1.0
+   Compiling utf8_iter v1.1.0
+   Compiling rand_core v0.9.5
+   Compiling cipher v0.5.2
+   Compiling potential_utf v0.1.6
+   Compiling curve25519-dalek v5.0.0
+   Compiling zerotrie v0.2.5
+   Compiling libcrux-platform v0.0.3
+   Compiling crossbeam-epoch v0.9.20
+   Compiling icu_normalizer_data v2.4.0
+   Compiling cpubits v0.1.1
+   Compiling icu_properties_data v2.4.0
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling thiserror v2.0.18
+   Compiling toml_edit v0.25.12+spec-1.1.0
+   Compiling icu_provider v2.4.0
+   Compiling icu_collections v2.4.0
+   Compiling rand_chacha v0.9.0
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling universal-hash v0.6.1
+   Compiling thiserror-impl v2.0.18
+   Compiling libcrux-macros v0.0.3
+   Compiling rustversion v1.0.23
+   Compiling crossbeam-deque v0.8.7
+   Compiling libcrux-hacl-rs v0.0.5
+   Compiling polyval v0.7.3
+   Compiling digest v0.10.7
+   Compiling rand v0.9.4
+   Compiling proc-macro-crate v3.5.0
+   Compiling sha2 v0.11.1
+   Compiling hmac v0.13.0
+   Compiling derive_more-impl v2.1.1
+   Compiling rayon-core v1.13.0
+   Compiling serde_core v1.0.229
+   Compiling libcrux-ml-kem v0.0.10
+   Compiling smallvec v1.16.6
+   Compiling icu_normalizer v2.4.0
+   Compiling derive_more v2.1.1
+   Compiling hkdf v0.13.0
+   Compiling icu_properties v2.4.0
+   Compiling num_enum_derive v0.7.6
+   Compiling libcrux-sha2 v0.0.8
+   Compiling x25519-dalek v3.0.0
+   Compiling aes v0.9.1
+   Compiling ctr v0.10.1
+   Compiling spqr v1.6.0 (https://github.com/signalapp/SparsePostQuantumRatchet.git?tag=v1.6.0#06959b47)
+   Compiling hpke-rs-crypto v0.7.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling libsignal-debug v0.106.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling serde v1.0.229
+   Compiling data-encoding v2.11.0
+   Compiling uuid v1.23.4
+   Compiling data-encoding-macro-internal v0.1.18
+   Compiling libsignal-core v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling hpke-rs v0.7.0
+   Compiling num_enum v0.7.6
+   Compiling libcrux-hmac v0.0.8
+   Compiling idna_adapter v1.2.2
+   Compiling ghash v0.6.0
+   Compiling cbc v0.2.1
+   Compiling libsignal-protocol v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling aead v0.6.1
+   Compiling sha1 v0.11.0
+   Compiling serde_derive v1.0.229
+   Compiling cpufeatures v0.2.17
+   Compiling signature v2.2.0
+   Compiling sorted-vec v0.8.11
+   Compiling percent-encoding v2.3.2
+   Compiling form_urlencoded v1.2.3
+   Compiling data-encoding-macro v0.1.20
+   Compiling ed25519 v2.2.3
+   Compiling sha2 v0.10.9
+   Compiling signal-crypto v0.1.0 (https://github.com/signalapp/libsignal?tag=v0.106.0#fc90b90f)
+   Compiling aes-gcm-siv v0.12.0
+   Compiling rayon v1.12.0
+   Compiling idna v1.1.0
+   Compiling itertools v0.15.0
+   Compiling derive-where v1.6.1
+   Compiling async-trait v0.1.89
+   Compiling hex v0.4.3
+   Compiling assert_matches v1.5.0
+   Compiling const-str v1.1.0
+   Compiling ed25519-dalek v2.2.0
+   Compiling url v2.5.9
+   Compiling hmac v0.12.1
+   Compiling getrandom v0.2.17
+   Compiling base64 v0.22.1
+   Compiling invizent-core v0.1.0 (/Users/runner/work/linea-build/linea-build/native/core)
+    Finished `release` profile [optimized] target(s) in 2m 05s
+⚙️  Generating plists...
+⚙️  Generating project...
+⚙️  Writing project...
+Created project at /Users/runner/work/linea-build/linea-build/native/ios/Invizent.xcodeproj
+== app
+== what is inside
+commit ce7d9a663288070a4b2a93433f07e54dd6dd5ab3
+Xcode 26.6 Build version 17F113 
+== size
+17325104 bytes
+sha256 28963c0f6a34cd2324b9357759074328893b17ac384ece64dbb0ba81a4929365
+== request-signing key: none
+== identity
+CFBundleIdentifier: com.linea.messenger.preview
+CFBundleShortVersionString: 0.17.0
+CFBundleVersion: 17
+MinimumOSVersion: 17.0
+CFBundleDisplayName: INVIZENT
+RTCScreenSharingExtension: com.linea.messenger.preview.ScreenBroadcast
+== URL schemes
+Array {
+    Dict {
+        CFBundleURLSchemes = Array {
+            linea
+            com.linea.messenger.preview
+        }
+    }
+}
+== push: no aps-environment in an unsigned build (expected: none)
+none
+== executable
+pack/Payload/Invizent.app/Invizent: Mach-O 64-bit executable arm64
+Non-fat file: pack/Payload/Invizent.app/Invizent is architecture: arm64
+== code signature (expected none)
+pack/Payload/Invizent.app: code object is not signed at all
+== permissions asked in Info.plist
+    NSPhotoLibraryUsageDescription = Выберите фото и видео для вложения в сообщение.
+    NSCameraUsageDescription = Камера нужна для видеозвонков, видеосообщений в кружке, снимков прямо из чата и чтобы считать QR-код ключа резервной копии. Она включается только на время звонка, записи, съёмки или сканирования.
+    NSPhotoLibraryAddUsageDescription = Чтобы сохранять фото и видео из чатов в галерею. Инвиз только добавляет выбранный снимок и не видит остальные фото.
+    NSMicrophoneUsageDescription = Микрофон нужен для звонков и чтобы записывать голосовые и видеосообщения. Он включается только во время звонка и пока вы держите кнопку записи.
+    NSFaceIDUsageDescription = Face ID открывает Инвиз без ввода код-пароля.
+    NSLocalNetworkUsageDescription = Чтобы звонки между телефонами в одной сети соединялись напрямую.
+== simulator-only sample data (expected absent)
+absent
+== files
+.
+./Invizent
+./decoration-eclipse_smoke.webp
+./decoration-arch.webp
+./Montserrat-Medium.ttf
+./call_ring_ios.wav
+./call_incoming.wav
+./voice_leave.wav
+./decoration-ink.webp
+./PlugIns
+./PlugIns/ScreenBroadcast.appex
+./AppIcon60x60@2x.png
+./Montserrat-Bold.ttf
+./Ionicons.ttf
+./decoration-eye.webp
+./call_connecting.wav
+./en.json
+./decoration-chrome.webp
+./decoration-white_roses.webp
+./decoration-black_roses.webp
+./voice_join.wav
+./Assets.car
+./Montserrat-SemiBold.ttf
+./AppIcon76x76@2x~ipad.png
+./Montserrat-ExtraBold.ttf
+./call_outgoing.wav
+./decoration-fangs.webp
+./decoration-skulls.webp
+./PrivacyInfo.xcprivacy
+./Unbounded-ExtraBold.ttf
+./decoration-moths.webp
+./Montserrat-Regular.ttf
+./Frameworks
+./Frameworks/LiveKitWebRTC.framework
+./Frameworks/SQLCipher.framework
+./decoration-corona.webp
+./decoration-lavender.webp
+./Info.plist
+./PkgInfo
+== extensions
+ScreenBroadcast.appex
+CFBundleIdentifier: com.linea.messenger.preview.ScreenBroadcast
+NSExtension:NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+RTCAppGroupIdentifier: group.com.linea.messenger.preview.screen
+pack/Payload/Invizent.app/PlugIns/ScreenBroadcast.appex/ScreenBroadcast: Mach-O 64-bit executable arm64
+app RTCAppGroupIdentifier: group.com.linea.messenger.preview.screen
+== done
