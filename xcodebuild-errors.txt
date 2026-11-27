@@ -1,0 +1,7 @@
+858:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Settings/BarGlowSettings.swift:53:33: error: ambiguous use of 'tr'
+937:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Video/NoteCamera.swift:209:90: error: cannot convert value of type 'Any' to expected argument type 'CGFloat'
+941:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Video/NoteCamera.swift:210:46: error: cannot assign value of type 'Any' to type 'CGFloat'
+960:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Video/NoteCamera.swift:256:90: error: cannot convert value of type 'Any' to expected argument type 'CGFloat'
+964:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Video/NoteCamera.swift:257:46: error: cannot assign value of type 'Any' to type 'CGFloat'
+998:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Music/PlayerViewController.swift:413:13: error: the compiler is unable to type-check this expression in reasonable time; try breaking up the expression into distinct sub-expressions
+1020:/Users/runner/work/linea-build/linea-build/native/ios/Sources/Shell/UpdateGate.swift:54:13: error: the compiler is unable to type-check this expression in reasonable time; try breaking up the expression into distinct sub-expressions
